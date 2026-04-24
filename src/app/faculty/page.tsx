@@ -5,7 +5,7 @@ import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evalu
 export default async function FacultyPage() {
   const evaluation = await runAcademicWorkflowEvaluationJob();
   const suggestions = evaluation.workflows.getFacultySuggestions();
-  const facultyWorkflows = evaluation.repository.workflows.filter((workflow) => workflow.workflowCode === "faculty-course-assignment-imbalance-review");
+  const facultyWorkflows = evaluation.repository.workflows.filter((workflow) => workflow.workflowCode === "faculty_or_course_assignment_imbalance_review");
 
   return (
     <AcademyShell

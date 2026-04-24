@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { ArrowLeft, BarChart3, BookOpenCheck, GraduationCap, LayoutDashboard, ListChecks, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface AcademyShellProps {
   title: string;
@@ -9,56 +12,96 @@ interface AcademyShellProps {
 }
 
 const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/workflows", label: "Workflow Queue" },
-  { href: "/students/stu-maya-bennett", label: "Student Profile" },
-  { href: "/programs/prog-biblical-studies", label: "Program Panel" },
-  { href: "/faculty", label: "Faculty/Admin" },
+  { href: "/", label: "Dashboard", caption: "Academic operations", icon: LayoutDashboard, active: true },
+  { href: "/workflows", label: "Workflows", caption: "Review queue", icon: ListChecks },
+  { href: "/students/stu-maya-bennett", label: "Students", caption: "Records and insights", icon: UsersRound },
+  { href: "/programs/prog-biblical-studies", label: "Programs", caption: "Progress and readiness", icon: GraduationCap },
+  { href: "/faculty", label: "Faculty/Admin", caption: "Load and setup", icon: BookOpenCheck },
 ];
 
 export function AcademyShell({ title, subtitle, eyebrow, badge, children }: AcademyShellProps) {
   return (
     <div className="academy-app">
-      <header className="masthead">
-        <div className="masthead-inner">
-          <div className="brand-lockup">
-            <div className="brand-seal">CA</div>
-            <div>
-              <div className="brand-heading">ChurchCore Academy</div>
-              <div className="brand-caption">Administrative and academic-record operations, isolated from the LMS</div>
-            </div>
+      <aside className="academy-sidebar">
+        <div className="sidebar-heading">
+          <div>
+            <h1>ChurchCore Academy</h1>
+            <p>Academic SIS</p>
           </div>
-          <div className="masthead-badge">{badge ?? "ShepherdAI Academy · Explainable workflow recommendations"}</div>
         </div>
 
-        <nav className="academy-nav" aria-label="Primary">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
+        <div className="sidebar-product">
+          <div className="sidebar-product-icon">
+            <ShieldCheck />
+          </div>
+          <div>
+            <strong>ShepherdAI Academy</strong>
+            <span>Workflow recommendations</span>
+          </div>
+        </div>
 
-      <main className="page-shell">
-        <section className="page-hero panel">
-          {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
-          <div className="page-hero-row">
-            <div>
-              <h1>{title}</h1>
-              <p>{subtitle}</p>
+        <div className="sidebar-context">
+          <strong>Academy</strong>
+          <span>SIS and college management</span>
+        </div>
+
+        <nav className="sidebar-nav" aria-label="Primary">
+          <div className="sidebar-section-label">
+            <BarChart3 />
+            Academic Admin
+          </div>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href} className={`sidebar-link ${item.active ? "is-active" : ""}`}>
+                <Icon />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.caption}</small>
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-user-icon">
+              <UserRound />
             </div>
-            <div className="boundary-box">
-              <div className="boundary-title">Important boundary</div>
-              <p>
-                ChurchCore Academy is the administrative and academic-record system, not the LMS. ShepherdAI Academy is product-specific and uses only Academy data.
-              </p>
+            <div>
+              <strong>Registrar Admin</strong>
+              <span>Institution staff</span>
             </div>
           </div>
+        </div>
+      </aside>
+
+      <main className="academy-main">
+        <header className="academy-titlebar">
+          <div>
+            <h2>{title}</h2>
+            <p>{subtitle}</p>
+          </div>
+        </header>
+
+        <section className="tenant-toolbar">
+          <div className="tenant-left">
+            <Badge variant="secondary" className="tenant-badge">
+              <GraduationCap />
+              {eyebrow ?? "ChurchCore Academy"}
+            </Badge>
+            <span>{badge ?? "Tenant view · academy-admin"}</span>
+          </div>
+          <Button variant="outline" size="lg">
+            <ArrowLeft />
+            Return to control
+          </Button>
         </section>
 
-        {children}
+        <section className="page-shell">{children}</section>
       </main>
     </div>
   );
 }
+

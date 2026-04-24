@@ -1,28 +1,43 @@
+export type AcademyProductArea = "academy";
+
+export type AcademicWorkflowType = "academic";
+
 export type WorkflowCode =
-  | "incomplete-enrollment-follow-up"
-  | "missing-student-documentation-review"
-  | "graduation-eligibility-review"
-  | "academic-progress-review"
-  | "transcript-records-inconsistency-review"
-  | "faculty-course-assignment-imbalance-review";
+  | "incomplete_enrollment_follow_up"
+  | "missing_documentation_review"
+  | "graduation_eligibility_review"
+  | "academic_standing_or_credit_progress_review"
+  | "transcript_or_records_inconsistency_review"
+  | "faculty_or_course_assignment_imbalance_review";
 
 export type SignalType =
-  | "incomplete_enrollment"
-  | "missing_student_documentation"
-  | "graduation_eligibility"
-  | "academic_progress_gap"
-  | "transcript_records_inconsistency"
+  | "enrollment_pending_beyond_threshold"
+  | "required_document_missing"
+  | "graduation_threshold_near"
+  | "credit_progress_gap"
+  | "transcript_inconsistency_possible"
+  | "course_without_instructor"
   | "faculty_course_assignment_imbalance";
 
-export type EntityType = "student" | "program" | "faculty" | "section";
+export type EntityType =
+  | "student"
+  | "application"
+  | "enrollment"
+  | "program"
+  | "course"
+  | "course_section"
+  | "faculty"
+  | "advisor"
+  | "transcript"
+  | "graduation_review";
 export type SignalCategory =
   | "enrollment-signals"
   | "student-record-signals"
   | "graduation-signals"
   | "transcript-signals"
   | "faculty-admin-signals";
-export type Urgency = "low" | "medium" | "high";
-export type SuggestionStatus = "suggested" | "promoted" | "deferred" | "dismissed";
+export type Urgency = "low" | "medium" | "high" | "critical";
+export type SuggestionStatus = "suggested" | "promoted_to_workflow" | "deferred" | "dismissed" | "resolved";
 export type WorkflowStatus = "open" | "assigned" | "deferred" | "completed";
 export type WorkflowActionType = "assign" | "defer" | "dismiss" | "complete" | "promote" | "note";
 export type WorkflowFeedbackType = "accepted" | "needs_tuning" | "not_useful";
@@ -30,6 +45,7 @@ export type WorkflowFeedbackType = "accepted" | "needs_tuning" | "not_useful";
 export interface AiSignalRecord {
   id: string;
   tenantId: string;
+  productArea: AcademyProductArea;
   entityType: EntityType;
   entityId: string;
   signalType: SignalType;
@@ -40,18 +56,24 @@ export interface AiSignalRecord {
 }
 
 export interface SuggestionExplanation {
-  whatDetected: string;
-  whyItSurfaced: string;
-  confidenceRationale: string;
-  urgencyRationale: string;
+  detected: string[];
+  whySurfaced: string[];
   sourceSignalCategories: SignalCategory[];
+  limitations: string[];
+}
+
+export interface ShepherdAiSuggestedAction {
+  actionType: string;
+  label: string;
+  description: string;
+  requiresHumanReview: boolean;
 }
 
 export interface ShepherdAiSuggestion {
   id: string;
   tenantId: string;
-  productArea: "academy";
-  workflowType: "academic";
+  productArea: AcademyProductArea;
+  workflowType: AcademicWorkflowType;
   workflowCode: WorkflowCode;
   entityType: EntityType;
   entityId: string;
@@ -59,7 +81,7 @@ export interface ShepherdAiSuggestion {
   summary: string;
   confidenceScore: number;
   urgency: Urgency;
-  suggestedActions: string[];
+  suggestedActions: ShepherdAiSuggestedAction[];
   explanation: SuggestionExplanation;
   boundaryNote: string;
   generatedAt: string;
@@ -71,7 +93,7 @@ export interface WorkflowRecord {
   id: string;
   tenantId: string;
   suggestionId?: string;
-  workflowType: "academic";
+  workflowType: AcademicWorkflowType;
   workflowCode: WorkflowCode;
   ownerUserId: string;
   assignedToUserId?: string;
@@ -101,7 +123,7 @@ export interface WorkflowFeedbackRecord {
 
 export interface ShepherdAiEvaluationInput {
   tenantId: string;
-  productArea: "academy";
+  productArea: AcademyProductArea;
   entityType?: EntityType;
   entityId?: string;
   signals: AiSignalRecord[];

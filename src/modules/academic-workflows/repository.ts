@@ -22,7 +22,7 @@ export interface WorkflowQueueItem {
 }
 
 function urgencyRank(value: WorkflowQueueItem["urgency"]) {
-  return value === "high" ? 0 : value === "medium" ? 1 : 2;
+  return value === "critical" ? 0 : value === "high" ? 1 : value === "medium" ? 2 : 3;
 }
 
 export class InMemoryAcademicWorkflowRepository {
@@ -100,7 +100,8 @@ export class InMemoryAcademicWorkflowRepository {
             assigned: 2,
             deferred: 3,
             completed: 4,
-            promoted: 5,
+            promoted_to_workflow: 5,
+            resolved: 6,
             dismissed: 6,
           };
           return statusOrder[left.status] - statusOrder[right.status];

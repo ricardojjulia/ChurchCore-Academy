@@ -1,4 +1,4 @@
-import { AiSignalRecord, ShepherdAiSuggestion, WorkflowCode } from "@/modules/shepherd-ai/types";
+import { AiSignalRecord, ShepherdAiSuggestedAction, ShepherdAiSuggestion, WorkflowCode } from "@/modules/shepherd-ai/types";
 import { AcademyContext } from "@/modules/shepherd-ai/context-builder";
 import { ScoredConcern } from "@/modules/shepherd-ai/academic-concern-scorer";
 import { SuggestionExplainer } from "@/modules/shepherd-ai/suggestion-explainer";
@@ -8,95 +8,111 @@ interface RecommendationBlueprint {
   workflowCode: WorkflowCode;
   title: string;
   summary: string;
-  suggestedActions: string[];
+  suggestedActions: ShepherdAiSuggestedAction[];
   boundaryNote: string;
   whyItSurfaced: string;
 }
 
+function actions(labels: string[]): ShepherdAiSuggestedAction[] {
+  return labels.map((label) => ({
+    actionType: label.toLowerCase().replaceAll("/", " ").replaceAll(" ", "_"),
+    label,
+    description: label,
+    requiresHumanReview: true,
+  }));
+}
+
 function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext): RecommendationBlueprint {
   switch (signal.signalType) {
-    case "incomplete_enrollment":
+    case "enrollment_pending_beyond_threshold":
       return {
-        workflowCode: "incomplete-enrollment-follow-up",
+        workflowCode: "incomplete_enrollment_follow_up",
         title: "Suggested Academic Workflow: incomplete enrollment follow-up",
         summary: `${context.entityLabel} may require admissions follow-up because enrollment steps appear incomplete or unresolved beyond the configured review window.`,
-        suggestedActions: [
+        suggestedActions: actions([
           "Assign admissions/admin follow-up",
           "Identify missing enrollment steps",
           "Create reminder task",
           "Draft enrollment completion message",
-        ],
-        boundaryNote: "Do not assume lack of interest or personal, financial, or spiritual reasons.",
+        ]),
+        boundaryNote:
+          "This suggestion is based only on Academy enrollment records. It does not assume lack of interest, financial reasons, personal reasons, spiritual condition, or learning engagement.",
         whyItSurfaced: "The enrollment record shows unresolved steps, missing assignment details, or a pending status beyond the configured threshold.",
       };
-    case "missing_student_documentation":
+    case "required_document_missing":
       return {
-        workflowCode: "missing-student-documentation-review",
+        workflowCode: "missing_documentation_review",
         title: "Suggested Academic Workflow: missing student documentation review",
         summary: `${context.entityLabel} may require registrar or administrative review because required student documentation appears incomplete.`,
-        suggestedActions: [
+        suggestedActions: actions([
           "Notify registrar or administrator",
           "Draft document request message",
           "Create student record follow-up task",
           "Mark record as pending documentation",
-        ],
-        boundaryNote: "Frame this as administrative completion, not student fault.",
+        ]),
+        boundaryNote:
+          "This suggestion is an administrative record-completion review. It should not be framed as student fault or lack of commitment.",
         whyItSurfaced: "Required documentation fields are missing or pending verification in the Academy record.",
       };
-    case "graduation_eligibility":
+    case "graduation_threshold_near":
       return {
-        workflowCode: "graduation-eligibility-review",
+        workflowCode: "graduation_eligibility_review",
         title: "Suggested Academic Workflow: graduation eligibility review",
         summary: `${context.entityLabel} may be ready for registrar review because program completion indicators are approaching graduation thresholds.`,
-        suggestedActions: [
+        suggestedActions: actions([
           "Assign registrar review",
           "Verify completed credits",
           "Verify program requirements",
           "Prepare graduation eligibility checklist",
-        ],
-        boundaryNote: "Do not declare final graduation eligibility without authorized administrative approval.",
+        ]),
+        boundaryNote:
+          "This suggestion does not declare final graduation eligibility. Final approval requires authorized registrar or institutional review.",
         whyItSurfaced: "Credits earned and program completion indicators suggest graduation readiness may warrant review.",
       };
-    case "academic_progress_gap":
+    case "credit_progress_gap":
       return {
-        workflowCode: "academic-progress-review",
+        workflowCode: "academic_standing_or_credit_progress_review",
         title: "Suggested Academic Workflow: academic standing or credit progress review",
         summary: `${context.entityLabel} may benefit from advisor review because academic progress appears below the expected milestone or registration continuity is unresolved.`,
-        suggestedActions: [
+        suggestedActions: actions([
           "Assign advisor review",
           "Draft support-oriented outreach",
           "Recommend academic planning meeting",
           "Review program completion plan",
-        ],
-        boundaryNote: "Do not infer motivation, ability, or spiritual condition.",
+        ]),
+        boundaryNote:
+          "This suggestion does not infer motivation, ability, spiritual condition, personal challenges, or learning engagement.",
         whyItSurfaced: "Program progress, GPA, or expected next-term registration signals suggest a review of academic pacing may be appropriate.",
       };
-    case "transcript_records_inconsistency":
+    case "transcript_inconsistency_possible":
       return {
-        workflowCode: "transcript-records-inconsistency-review",
+        workflowCode: "transcript_or_records_inconsistency_review",
         title: "Suggested Academic Workflow: transcript or records inconsistency review",
         summary: `${context.entityLabel} may require registrar verification because transcript data and academic records appear inconsistent.`,
-        suggestedActions: [
+        suggestedActions: actions([
           "Assign registrar review",
           "Flag record for correction",
           "Request verification",
           "Create audit note",
-        ],
-        boundaryNote: "Present this as a possible data inconsistency, not a confirmed error unless validated.",
+        ]),
+        boundaryNote:
+          "This suggestion identifies a possible records inconsistency requiring verification. It should not be treated as a confirmed error until reviewed.",
         whyItSurfaced: "Transcript credit totals, duplicated records, or conflicting status indicators suggest a records audit may be needed.",
       };
+    case "course_without_instructor":
     case "faculty_course_assignment_imbalance":
       return {
-        workflowCode: "faculty-course-assignment-imbalance-review",
+        workflowCode: "faculty_or_course_assignment_imbalance_review",
         title: "Suggested Academic Workflow: faculty or course assignment imbalance review",
         summary: `${context.entityLabel} may require academic administration review because faculty load, roster capacity, or section setup appears out of balance.`,
-        suggestedActions: [
+        suggestedActions: actions([
           "Notify academic administrator",
           "Suggest reassignment review",
           "Create course setup task",
           "Flag staffing imbalance",
-        ],
-        boundaryNote: "Present this as administrative review, not performance criticism.",
+        ]),
+        boundaryNote:
+          "This suggestion is for administrative planning and should not be framed as faculty performance criticism.",
         whyItSurfaced: "Faculty assignment counts, advisee ratios, roster capacity, or section setup indicators exceeded configured administrative thresholds.",
       };
   }

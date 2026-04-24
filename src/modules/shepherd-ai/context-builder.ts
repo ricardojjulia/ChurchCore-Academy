@@ -26,7 +26,7 @@ function resolveEntityLabel(dataset: AcademyDataset, entityType: EntityType, ent
     };
   }
 
-  if (entityType === "section") {
+  if (entityType === "course_section") {
     const section = dataset.sections.find((item) => item.id === entityId);
     const programName = dataset.programs.find((program) => program.id === section?.programId)?.name;
 
@@ -58,15 +58,16 @@ export class ContextBuilder {
 
   private ownerRole(signalType: AiSignalRecord["signalType"]) {
     switch (signalType) {
-      case "incomplete_enrollment":
+      case "enrollment_pending_beyond_threshold":
         return "Admissions";
-      case "missing_student_documentation":
-      case "transcript_records_inconsistency":
+      case "required_document_missing":
+      case "transcript_inconsistency_possible":
         return "Registrar";
-      case "graduation_eligibility":
+      case "graduation_threshold_near":
         return "Registrar review";
-      case "academic_progress_gap":
+      case "credit_progress_gap":
         return "Advisor review";
+      case "course_without_instructor":
       case "faculty_course_assignment_imbalance":
         return "Academic administration";
       default:

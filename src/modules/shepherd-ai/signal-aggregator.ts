@@ -37,9 +37,10 @@ export class SignalAggregator {
         signals.push({
           id: createSignalId("enrollment", student.id),
           tenantId: dataset.tenantId,
+          productArea: "academy",
           entityType: "student",
           entityId: student.id,
-          signalType: "incomplete_enrollment",
+          signalType: "enrollment_pending_beyond_threshold",
           signalValue: openDays + student.missingEnrollmentSteps.length,
           signalWindow: `${openDays}d`,
           signalPayloadJson: {
@@ -57,9 +58,10 @@ export class SignalAggregator {
       signals.push({
         id: createSignalId("docs", student.id),
         tenantId: dataset.tenantId,
+        productArea: "academy",
         entityType: "student",
         entityId: student.id,
-        signalType: "missing_student_documentation",
+        signalType: "required_document_missing",
         signalValue: student.missingDocuments.length,
         signalWindow: "current-term",
         signalPayloadJson: {
@@ -76,9 +78,10 @@ export class SignalAggregator {
         signals.push({
           id: createSignalId("graduation", student.id),
           tenantId: dataset.tenantId,
+          productArea: "academy",
           entityType: "student",
           entityId: student.id,
-          signalType: "graduation_eligibility",
+          signalType: "graduation_threshold_near",
           signalValue: Math.round(completionRatio * 100),
           signalWindow: "degree-audit",
           signalPayloadJson: {
@@ -102,9 +105,10 @@ export class SignalAggregator {
         signals.push({
           id: createSignalId("progress", student.id),
           tenantId: dataset.tenantId,
+          productArea: "academy",
           entityType: "student",
           entityId: student.id,
-          signalType: "academic_progress_gap",
+          signalType: "credit_progress_gap",
           signalValue: Math.max(creditGap, 0),
           signalWindow: "academic-year",
           signalPayloadJson: {
@@ -124,9 +128,10 @@ export class SignalAggregator {
       signals.push({
         id: createSignalId("records", student.id),
         tenantId: dataset.tenantId,
+        productArea: "academy",
         entityType: "student",
         entityId: student.id,
-        signalType: "transcript_records_inconsistency",
+        signalType: "transcript_inconsistency_possible",
         signalValue: student.transcriptAlerts.length + student.recordAlerts.length + Math.abs(student.transcriptCredits - student.creditsEarned),
         signalWindow: "current-audit",
         signalPayloadJson: {
@@ -152,6 +157,7 @@ export class SignalAggregator {
       signals.push({
         id: createSignalId("faculty-load", faculty.id),
         tenantId: dataset.tenantId,
+        productArea: "academy",
         entityType: "faculty",
         entityId: faculty.id,
         signalType: "faculty_course_assignment_imbalance",
@@ -178,9 +184,10 @@ export class SignalAggregator {
         {
           id: createSignalId("section-setup", section.id),
           tenantId: dataset.tenantId,
-          entityType: "section",
+          productArea: "academy",
+          entityType: "course_section",
           entityId: section.id,
-          signalType: "faculty_course_assignment_imbalance",
+          signalType: section.instructorFacultyId ? "faculty_course_assignment_imbalance" : "course_without_instructor",
           signalValue: section.rosterCount - section.rosterCapacity + section.setupAlerts.length + (section.instructorFacultyId ? 0 : 1),
           signalWindow: "current-term",
           signalPayloadJson: {

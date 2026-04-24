@@ -18,12 +18,12 @@ export default async function ProgramPage({
 
   const evaluation = await runAcademicWorkflowEvaluationJob();
   const suggestions = evaluation.workflows.getProgramSuggestions(id);
-  const graduationReady = suggestions.filter((item) => item.workflowCode === "graduation-eligibility-review");
-  const progressReviews = suggestions.filter((item) => item.workflowCode === "academic-progress-review");
+  const graduationReady = suggestions.filter((item) => item.workflowCode === "graduation_eligibility_review");
+  const progressReviews = suggestions.filter((item) => item.workflowCode === "academic_standing_or_credit_progress_review");
   const requirementItems = suggestions.filter(
     (item) =>
-      item.workflowCode === "missing-student-documentation-review" ||
-      item.workflowCode === "transcript-records-inconsistency-review",
+      item.workflowCode === "missing_documentation_review" ||
+      item.workflowCode === "transcript_or_records_inconsistency_review",
   );
 
   return (

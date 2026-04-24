@@ -47,7 +47,7 @@ export function WorkflowList({
               ? `/students/${item.entityId}`
               : item.entityType === "program"
                 ? `/programs/${item.entityId}`
-                : item.entityType === "faculty" || item.entityType === "section"
+                : item.entityType === "faculty" || item.entityType === "course_section"
                   ? "/faculty"
                   : "/";
 
@@ -94,11 +94,11 @@ export function SuggestionDetail({ suggestion }: { suggestion: ShepherdAiSuggest
       <dl className="explanation-list">
         <div>
           <dt>Why this surfaced</dt>
-          <dd>{suggestion.explanation.whyItSurfaced}</dd>
+          <dd>{suggestion.explanation.whySurfaced.join(" ")}</dd>
         </div>
         <div>
           <dt>What was detected</dt>
-          <dd>{suggestion.explanation.whatDetected}</dd>
+          <dd>{suggestion.explanation.detected.join(" ")}</dd>
         </div>
         <div>
           <dt>Boundary note</dt>
@@ -116,7 +116,7 @@ export function SuggestionDetail({ suggestion }: { suggestion: ShepherdAiSuggest
         <strong>Suggested next steps</strong>
         <ul>
           {suggestion.suggestedActions.map((action) => (
-            <li key={action}>{action}</li>
+            <li key={action.actionType}>{action.label}</li>
           ))}
         </ul>
       </div>

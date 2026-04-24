@@ -5,6 +5,22 @@ import { SignalAggregator } from "@/modules/shepherd-ai/signal-aggregator";
 import { ShepherdAiEvaluationInput, ShepherdAiSuggestion } from "@/modules/shepherd-ai/types";
 import { WorkflowRecommender } from "@/modules/shepherd-ai/workflow-recommender";
 
+/**
+ * ShepherdAI for ChurchCore Academy
+ *
+ * This module is product-specific to ChurchCore Academy.
+ * It may only use Academy SIS and college-management data.
+ * It must not read from ChurchCore Ops, ChurchCore Learning, or ChurchCore Care.
+ *
+ * ShepherdAI Academy is not a chatbot.
+ * It is an explainable Academic Workflow recommendation engine.
+ *
+ * Core workflow detection, scoring, confidence, urgency, academic standing,
+ * transcript validation, and graduation eligibility checks must be deterministic.
+ *
+ * Optional LLM support may only be used for wording, explanation polishing,
+ * and editable administrative message drafts.
+ */
 export function evaluateForAcademy(
   input: ShepherdAiEvaluationInput,
   dataset: AcademyDataset,
@@ -29,7 +45,7 @@ export function evaluateForAcademy(
     })
     .sort((left, right) => {
       if (left.urgency !== right.urgency) {
-        const rank = { high: 0, medium: 1, low: 2 };
+        const rank = { critical: 0, high: 1, medium: 2, low: 3 };
         return rank[left.urgency] - rank[right.urgency];
       }
 

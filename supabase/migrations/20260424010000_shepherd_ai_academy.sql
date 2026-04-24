@@ -75,6 +75,7 @@ create table if not exists academy_thresholds (
 create table if not exists ai_signals (
   id text primary key,
   tenant_id text not null,
+  product_area text not null default 'academy',
   entity_type text not null,
   entity_id text not null,
   signal_type text not null,

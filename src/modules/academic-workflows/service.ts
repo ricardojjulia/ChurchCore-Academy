@@ -37,7 +37,7 @@ export class AcademicWorkflowsService {
       createdAt: this.dataset.generatedAt,
     };
 
-    this.repository.updateSuggestion(input.suggestionId, (item) => ({ ...item, status: "promoted" }));
+    this.repository.updateSuggestion(input.suggestionId, (item) => ({ ...item, status: "promoted_to_workflow" }));
     this.repository.addWorkflow(workflow);
     this.logWorkflowEvent(workflow.id, "promote", { suggestionId: suggestion.id });
 
@@ -122,7 +122,7 @@ export class AcademicWorkflowsService {
     );
     const sectionIds = this.dataset.sections.filter((section) => section.programId === programId).map((section) => section.id);
     const sectionSuggestions = this.repository.suggestions.filter(
-      (suggestion) => suggestion.entityType === "section" && sectionIds.includes(suggestion.entityId),
+      (suggestion) => suggestion.entityType === "course_section" && sectionIds.includes(suggestion.entityId),
     );
     return [...studentSuggestions, ...sectionSuggestions];
   }
@@ -130,8 +130,8 @@ export class AcademicWorkflowsService {
   getFacultySuggestions() {
     return this.repository.suggestions.filter(
       (suggestion) =>
-        suggestion.workflowCode === "faculty-course-assignment-imbalance-review" &&
-        (suggestion.entityType === "faculty" || suggestion.entityType === "section"),
+        suggestion.workflowCode === "faculty_or_course_assignment_imbalance_review" &&
+        (suggestion.entityType === "faculty" || suggestion.entityType === "course_section"),
     );
   }
 

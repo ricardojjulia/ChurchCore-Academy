@@ -40,7 +40,7 @@ export async function runAcademicWorkflowEvaluationJob(dataset?: AcademyDataset)
 
   const workflows = new AcademicWorkflowsService(resolvedDataset, repository);
 
-  const enrollmentSuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "incomplete-enrollment-follow-up");
+  const enrollmentSuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "incomplete_enrollment_follow_up");
   if (enrollmentSuggestion) {
     const workflow = workflows.createWorkflow({
       suggestionId: enrollmentSuggestion.id,
@@ -49,12 +49,12 @@ export async function runAcademicWorkflowEvaluationJob(dataset?: AcademyDataset)
       dueAt: "2026-04-25T17:00:00.000Z",
     });
     if (persistence) {
-      await persistence.updateSuggestionStatus(enrollmentSuggestion.id, "promoted");
+      await persistence.updateSuggestionStatus(enrollmentSuggestion.id, "promoted_to_workflow");
       await persistence.upsertWorkflow(workflow);
     }
   }
 
-  const documentationSuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "missing-student-documentation-review");
+  const documentationSuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "missing_documentation_review");
   if (documentationSuggestion) {
     const workflow = workflows.createWorkflow({
       suggestionId: documentationSuggestion.id,
@@ -63,12 +63,12 @@ export async function runAcademicWorkflowEvaluationJob(dataset?: AcademyDataset)
       dueAt: "2026-04-26T17:00:00.000Z",
     });
     if (persistence) {
-      await persistence.updateSuggestionStatus(documentationSuggestion.id, "promoted");
+      await persistence.updateSuggestionStatus(documentationSuggestion.id, "promoted_to_workflow");
       await persistence.upsertWorkflow(workflow);
     }
   }
 
-  const facultySuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "faculty-course-assignment-imbalance-review");
+  const facultySuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "faculty_or_course_assignment_imbalance_review");
   if (facultySuggestion) {
     const workflow = workflows.createWorkflow({
       suggestionId: facultySuggestion.id,
@@ -78,13 +78,13 @@ export async function runAcademicWorkflowEvaluationJob(dataset?: AcademyDataset)
     });
     workflows.deferWorkflow(workflow.id, "Awaiting term staffing meeting.");
     if (persistence) {
-      await persistence.updateSuggestionStatus(facultySuggestion.id, "promoted");
+      await persistence.updateSuggestionStatus(facultySuggestion.id, "promoted_to_workflow");
       const persisted = repository.workflows.find((item) => item.id === workflow.id) ?? workflow;
       await persistence.upsertWorkflow(persisted);
     }
   }
 
-  const transcriptSuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "transcript-records-inconsistency-review");
+  const transcriptSuggestion = suggestions.find((suggestion) => suggestion.workflowCode === "transcript_or_records_inconsistency_review");
   if (transcriptSuggestion) {
     const workflow = workflows.createWorkflow({
       suggestionId: transcriptSuggestion.id,
@@ -95,7 +95,7 @@ export async function runAcademicWorkflowEvaluationJob(dataset?: AcademyDataset)
     workflows.completeWorkflow(workflow.id);
     workflows.recordWorkflowFeedback(workflow.id, "user-regina", "accepted", "Deterministic transcript cross-check was useful.");
     if (persistence) {
-      await persistence.updateSuggestionStatus(transcriptSuggestion.id, "promoted");
+      await persistence.updateSuggestionStatus(transcriptSuggestion.id, "promoted_to_workflow");
       const persisted = repository.workflows.find((item) => item.id === workflow.id) ?? workflow;
       await persistence.upsertWorkflow(persisted);
     }

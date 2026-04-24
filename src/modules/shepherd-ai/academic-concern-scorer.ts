@@ -5,45 +5,46 @@ export interface ScoredConcern {
   urgency: Urgency;
 }
 
-function clamp(score: number) {
-  return Math.max(1, Math.min(99, Math.round(score)));
-}
-
 export class AcademicConcernScorer {
-  score(signal: AiSignalRecord): ScoredConcern {
-    switch (signal.signalType) {
-      case "incomplete_enrollment":
-        return {
-          confidenceScore: clamp(58 + signal.signalValue * 4),
-          urgency: signal.signalValue >= 15 ? "high" : "medium",
-        };
-      case "missing_student_documentation":
-        return {
-          confidenceScore: clamp(62 + signal.signalValue * 6),
-          urgency: signal.signalValue >= 3 ? "high" : "medium",
-        };
-      case "graduation_eligibility":
-        return {
-          confidenceScore: clamp(74 + signal.signalValue * 0.15),
-          urgency: signal.signalValue >= 98 ? "high" : "medium",
-        };
-      case "academic_progress_gap":
-        return {
-          confidenceScore: clamp(60 + signal.signalValue * 3),
-          urgency: signal.signalValue >= 12 ? "high" : "medium",
-        };
-      case "transcript_records_inconsistency":
-        return {
-          confidenceScore: clamp(68 + signal.signalValue * 2),
-          urgency: signal.signalValue >= 6 ? "high" : "medium",
-        };
-      case "faculty_course_assignment_imbalance":
-        return {
-          confidenceScore: clamp(63 + signal.signalValue * 2),
-          urgency: signal.signalValue >= 8 ? "high" : "medium",
-        };
-      default:
-        return { confidenceScore: 50, urgency: "low" };
+  score(signalOrSignals: AiSignalRecord | AiSignalRecord[]): ScoredConcern {
+    const signals = Array.isArray(signalOrSignals) ? signalOrSignals : [signalOrSignals];
+    let score = 0;
+
+    for (const signal of signals) {
+      switch (signal.signalType) {
+        case "enrollment_pending_beyond_threshold":
+          score += 30;
+          break;
+        case "required_document_missing":
+          score += 25;
+          break;
+        case "graduation_threshold_near":
+          score += 35;
+          break;
+        case "credit_progress_gap":
+          score += 30;
+          break;
+        case "transcript_inconsistency_possible":
+          score += 40;
+          break;
+        case "course_without_instructor":
+          score += 45;
+          break;
+        case "faculty_course_assignment_imbalance":
+          score += 35;
+          break;
+        default:
+          score += 10;
+      }
     }
+
+    const confidenceScore = Math.min(score, 100);
+    let urgency: Urgency = "low";
+
+    if (confidenceScore >= 80) urgency = "critical";
+    else if (confidenceScore >= 60) urgency = "high";
+    else if (confidenceScore >= 35) urgency = "medium";
+
+    return { confidenceScore, urgency };
   }
 }

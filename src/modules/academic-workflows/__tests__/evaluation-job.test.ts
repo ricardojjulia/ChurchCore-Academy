@@ -21,7 +21,7 @@ test("workflow queue retrieval returns both suggestions and promoted workflows",
 
 test("workflow service records completion and feedback", async () => {
   const result = await runAcademicWorkflowEvaluationJob();
-  const workflow = result.repository.workflows.find((item) => item.workflowCode === "transcript-records-inconsistency-review");
+  const workflow = result.repository.workflows.find((item) => item.workflowCode === "transcript_or_records_inconsistency_review");
 
   assert.ok(workflow);
   assert.equal(workflow.status, "completed");

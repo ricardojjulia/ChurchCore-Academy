@@ -3,7 +3,7 @@ import test from "node:test";
 import { MessageDraftGenerator } from "@/modules/shepherd-ai/message-draft-generator";
 
 test("message drafts use respectful administrative wording", () => {
-  const draft = new MessageDraftGenerator().draft("missing-student-documentation-review", {
+  const draft = new MessageDraftGenerator().draft("missing_documentation_review", {
     entityLabel: "Ezra Coleman",
     entityDescription: "Student record",
     ownerRole: "Registrar",

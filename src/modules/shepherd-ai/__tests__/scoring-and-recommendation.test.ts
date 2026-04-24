@@ -8,7 +8,7 @@ import { WorkflowRecommender } from "@/modules/shepherd-ai/workflow-recommender"
 
 test("scoring remains deterministic and recommendation text stays guarded", () => {
   const signals = new SignalAggregator().evaluate(academyDataset);
-  const target = signals.find((signal) => signal.signalType === "academic_progress_gap" && signal.entityId === "stu-daniel-hart");
+  const target = signals.find((signal) => signal.signalType === "credit_progress_gap" && signal.entityId === "stu-daniel-hart");
 
   assert.ok(target);
 
@@ -16,8 +16,8 @@ test("scoring remains deterministic and recommendation text stays guarded", () =
   const context = new ContextBuilder().build(academyDataset, target);
   const suggestion = new WorkflowRecommender().recommend(target, context, score);
 
-  assert.equal(suggestion.workflowCode, "academic-progress-review");
-  assert.equal(suggestion.urgency, "high");
+  assert.equal(suggestion.workflowCode, "academic_standing_or_credit_progress_review");
+  assert.equal(suggestion.urgency, "low");
   assert.match(suggestion.summary, /may benefit from advisor review/i);
-  assert.match(suggestion.boundaryNote, /Do not infer motivation/i);
+  assert.match(suggestion.boundaryNote, /does not infer motivation/i);
 });

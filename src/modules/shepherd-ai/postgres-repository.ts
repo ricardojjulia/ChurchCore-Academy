@@ -15,11 +15,12 @@ export class ShepherdAiPostgresRepository {
     for (const signal of signals) {
       await pool.query(
         `insert into ai_signals (
-           id, tenant_id, entity_type, entity_id, signal_type, signal_value, signal_window, signal_payload_json, detected_at
+           id, tenant_id, product_area, entity_type, entity_id, signal_type, signal_value, signal_window, signal_payload_json, detected_at
          )
-         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
          on conflict (id) do update
          set tenant_id = excluded.tenant_id,
+             product_area = excluded.product_area,
              entity_type = excluded.entity_type,
              entity_id = excluded.entity_id,
              signal_type = excluded.signal_type,
@@ -30,6 +31,7 @@ export class ShepherdAiPostgresRepository {
         [
           signal.id,
           signal.tenantId,
+          signal.productArea,
           signal.entityType,
           signal.entityId,
           signal.signalType,
@@ -70,7 +72,6 @@ export class ShepherdAiPostgresRepository {
              explanation_json = excluded.explanation_json,
              boundary_note = excluded.boundary_note,
              message_draft = excluded.message_draft,
-             status = excluded.status,
              generated_at = excluded.generated_at`,
         [
           suggestion.id,
@@ -162,6 +163,7 @@ export class ShepherdAiPostgresRepository {
       (row): AiSignalRecord => ({
         id: row.id,
         tenantId: row.tenant_id,
+        productArea: row.product_area,
         entityType: row.entity_type,
         entityId: row.entity_id,
         signalType: row.signal_type,
@@ -189,7 +191,7 @@ export class ShepherdAiPostgresRepository {
         summary: row.summary,
         confidenceScore: row.confidence_score,
         urgency: row.urgency,
-        suggestedActions: parseJson<string[]>(row.suggested_actions),
+        suggestedActions: parseJson<ShepherdAiSuggestion["suggestedActions"]>(row.suggested_actions),
         explanation: parseJson<ShepherdAiSuggestion["explanation"]>(row.explanation_json),
         boundaryNote: row.boundary_note,
         messageDraft: row.message_draft ?? undefined,
