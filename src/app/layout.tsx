@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
 import "./globals.css";
 import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { AcademyMantineProvider } from "@/components/mantine-provider";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -18,12 +18,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={geist.variable}>
       <body>
-        <TooltipProvider>
-          {children}
-          <Toaster />
-        </TooltipProvider>
+        <AcademyMantineProvider>{children}</AcademyMantineProvider>
       </body>
     </html>
   );

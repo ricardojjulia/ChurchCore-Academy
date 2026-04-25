@@ -3,7 +3,8 @@
 import Link from "next/link";
 import type React from "react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { Modal, Select as MantineSelect, Tooltip, Text, Group } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { CheckCircle2, Clock3, ExternalLink, FileCheck2, MessageSquareText, UserRoundCheck, XCircle } from "lucide-react";
 import { AdminUser } from "@/modules/academy-data/types";
 import { WorkflowQueueItem } from "@/modules/academic-workflows/repository";
@@ -11,21 +12,10 @@ import { QueueFilters, WorkflowCode } from "@/modules/shepherd-ai/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface WorkflowApiResponse {
   queue: WorkflowQueueItem[];
@@ -129,9 +119,17 @@ export function WorkflowQueueBoard({ initialItems, administrators }: WorkflowQue
       }
 
       await refresh();
-      toast.success("Workflow queue updated");
+      notifications.show({
+        color: "green",
+        title: "Workflow queue updated",
+        message: "The local Supabase workflow state has been refreshed.",
+      });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Workflow action failed.");
+      notifications.show({
+        color: "red",
+        title: "Workflow action failed",
+        message: error instanceof Error ? error.message : "Workflow action failed.",
+      });
     } finally {
       setBusyId(undefined);
     }
@@ -165,52 +163,30 @@ export function WorkflowQueueBoard({ initialItems, administrators }: WorkflowQue
             />
             <div className="grid gap-2">
               <span className="filter-label">Workflow type</span>
-              <Select
+              <MantineSelect
                 value={filters.workflowCode ?? "all"}
-                onValueChange={(value) => updateFilters({ ...filters, workflowCode: value as QueueFilters["workflowCode"] })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {workflowCodeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) => value && updateFilters({ ...filters, workflowCode: value as QueueFilters["workflowCode"] })}
+                data={workflowCodeOptions}
+                comboboxProps={{ withinPortal: true }}
+              />
             </div>
             <div className="grid gap-2">
               <span className="filter-label">Assignee filter</span>
-              <Select value={filters.assignee ?? "all"} onValueChange={(value) => value && updateFilters({ ...filters, assignee: value })}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All assignees</SelectItem>
-                  {administrators.map((admin) => (
-                    <SelectItem key={admin.id} value={admin.id}>
-                      {admin.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MantineSelect
+                value={filters.assignee ?? "all"}
+                onChange={(value) => value && updateFilters({ ...filters, assignee: value })}
+                data={[{ value: "all", label: "All assignees" }, ...administrators.map((admin) => ({ value: admin.id, label: admin.name }))]}
+                comboboxProps={{ withinPortal: true }}
+              />
             </div>
             <div className="grid gap-2">
               <span className="filter-label">Action assignee</span>
-              <Select value={selectedUserId} onValueChange={(value) => value && setSelectedUserId(value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {administrators.map((admin) => (
-                    <SelectItem key={admin.id} value={admin.id}>
-                      {admin.name} · {admin.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MantineSelect
+                value={selectedUserId}
+                onChange={(value) => value && setSelectedUserId(value)}
+                data={administrators.map((admin) => ({ value: admin.id, label: `${admin.name} · ${admin.title}` }))}
+                comboboxProps={{ withinPortal: true }}
+              />
             </div>
           </div>
         </CardContent>
@@ -282,18 +258,12 @@ function FilterSelect({
   return (
     <div className="grid gap-2">
       <span className="filter-label">{label}</span>
-      <Select value={value} onValueChange={(nextValue) => nextValue && onChange(nextValue)}>
-        <SelectTrigger className="w-full capitalize">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option} value={option} className="capitalize">
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <MantineSelect
+        value={value}
+        onChange={(nextValue) => nextValue && onChange(nextValue)}
+        data={options.map((option) => ({ value: option, label: option }))}
+        comboboxProps={{ withinPortal: true }}
+      />
     </div>
   );
 }
@@ -373,65 +343,50 @@ function WorkflowRow({
       <TableCell>
         <div className="flex justify-end gap-1">
           {canPromote ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    disabled={disabled}
-                    onClick={() =>
-                      onAction(item.id, `/api/academy/shepherd-ai/suggestions/${item.id}/promote`, {
-                        ownerUserId: selectedUserId,
-                        assignedToUserId: selectedUserId,
-                      })
-                    }
-                  />
+            <Tooltip label="Promote to workflow">
+              <Button
+                type="button"
+                size="icon-sm"
+                disabled={disabled}
+                onClick={() =>
+                  onAction(item.id, `/api/academy/shepherd-ai/suggestions/${item.id}/promote`, {
+                    ownerUserId: selectedUserId,
+                    assignedToUserId: selectedUserId,
+                  })
                 }
               >
                 <FileCheck2 />
-              </TooltipTrigger>
-              <TooltipContent>Promote to workflow</TooltipContent>
+              </Button>
             </Tooltip>
           ) : null}
           {isWorkflow ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    disabled={disabled}
-                    onClick={() =>
-                      onAction(item.id, `/api/academy/workflows/${item.id}/assign`, {
-                        assignedToUserId: selectedUserId,
-                      })
-                    }
-                  />
+            <Tooltip label="Assign review">
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                disabled={disabled}
+                onClick={() =>
+                  onAction(item.id, `/api/academy/workflows/${item.id}/assign`, {
+                    assignedToUserId: selectedUserId,
+                  })
                 }
               >
                 <UserRoundCheck />
-              </TooltipTrigger>
-              <TooltipContent>Assign review</TooltipContent>
+              </Button>
             </Tooltip>
           ) : null}
           {canComplete ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    disabled={disabled}
-                    onClick={() => onAction(item.id, `/api/academy/workflows/${item.id}/complete`)}
-                  />
-                }
+            <Tooltip label="Mark complete">
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                disabled={disabled}
+                onClick={() => onAction(item.id, `/api/academy/workflows/${item.id}/complete`)}
               >
                 <CheckCircle2 />
-              </TooltipTrigger>
-              <TooltipContent>Mark complete</TooltipContent>
+              </Button>
             </Tooltip>
           ) : null}
           {canDefer ? (
@@ -511,20 +466,18 @@ function NoteDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger render={<DialogTrigger render={<Button type="button" size="icon-sm" variant="outline" disabled={disabled} />} />}>
+    <>
+      <Tooltip label={triggerLabel}>
+        <Button type="button" size="icon-sm" variant="outline" disabled={disabled} onClick={() => setOpen(true)}>
           {triggerIcon}
-        </TooltipTrigger>
-        <TooltipContent>{triggerLabel}</TooltipContent>
+        </Button>
       </Tooltip>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+      <Modal opened={open} onClose={() => setOpen(false)} title={title} centered>
+        <Text size="sm" c="dimmed" mb="md">
+          {description}
+        </Text>
         <Textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder="Administrative note" />
-        <DialogFooter>
+        <Group justify="flex-end" mt="md">
           <Button
             type="button"
             onClick={() => {
@@ -533,9 +486,9 @@ function NoteDialog({
           >
             Save
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </Group>
+      </Modal>
+    </>
   );
 }
 
@@ -557,33 +510,31 @@ function FeedbackDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger render={<DialogTrigger render={<Button type="button" size="icon-sm" variant="outline" disabled={disabled} />} />}>
+    <>
+      <Tooltip label="Record feedback">
+        <Button type="button" size="icon-sm" variant="outline" disabled={disabled} onClick={() => setOpen(true)}>
           <MessageSquareText />
-        </TooltipTrigger>
-        <TooltipContent>Record feedback</TooltipContent>
+        </Button>
       </Tooltip>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Workflow feedback</DialogTitle>
-          <DialogDescription>Capture whether this recommendation was useful for academic administration.</DialogDescription>
-        </DialogHeader>
+      <Modal opened={open} onClose={() => setOpen(false)} title="Workflow feedback" centered>
+        <Text size="sm" c="dimmed" mb="md">
+          Capture whether this recommendation was useful for academic administration.
+        </Text>
         <div className="grid gap-3">
-          <Select value={feedbackType} onValueChange={(value) => value && onFeedbackTypeChange(value)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="accepted">Accepted</SelectItem>
-              <SelectItem value="needs_tuning">Needs tuning</SelectItem>
-              <SelectItem value="not_useful">Not useful</SelectItem>
-            </SelectContent>
-          </Select>
+          <MantineSelect
+            value={feedbackType}
+            onChange={(value) => value && onFeedbackTypeChange(value)}
+            data={[
+              { value: "accepted", label: "Accepted" },
+              { value: "needs_tuning", label: "Needs tuning" },
+              { value: "not_useful", label: "Not useful" },
+            ]}
+            comboboxProps={{ withinPortal: true }}
+          />
           <Input value={feedbackNotes} onChange={(event) => onFeedbackNotesChange(event.target.value)} placeholder="Feedback note" />
         </div>
         <Separator />
-        <DialogFooter>
+        <Group justify="flex-end" mt="md">
           <Button
             type="button"
             onClick={() => {
@@ -592,8 +543,8 @@ function FeedbackDialog({
           >
             Record feedback
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </Group>
+      </Modal>
+    </>
   );
 }
