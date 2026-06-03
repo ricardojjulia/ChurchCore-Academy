@@ -9,7 +9,8 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "ChurchCore Academy",
-  description: "ChurchCore Academy with ShepherdAI Academy explainable academic workflow recommendations.",
+  description:
+    "Faith-based education management and SIS for schools, Bible institutes, seminaries, colleges, and universities.",
 };
 
 export default function RootLayout({

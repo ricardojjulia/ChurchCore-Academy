@@ -1,17 +1,22 @@
 # ShepherdAI for ChurchCore Academy
 
-**ShepherdAI for ChurchCore Academy is an explainable Academic Workflow recommendation engine, not an AI chatbot. It uses structured SIS and college-management signals from Academy to generate Suggested Academic Workflows for human review and action, with optional LLM assistance limited to wording and administrative support content. It is product-specific and must not use or imply access to Ops, Learning, or Care data.**
+**ShepherdAI for ChurchCore Academy is an explainable Academic Workflow recommendation engine, not an AI chatbot. It uses structured faith-based SIS and education-management signals from Academy to generate Suggested Academic Workflows for human review and action, with optional LLM assistance limited to wording and administrative support content. It is product-specific and must not use or imply access to Ops, Learning, or Care data.**
 
 ## Product framing
 
-ChurchCore Academy is the SIS and College Management product in the ChurchCore platform. It handles:
+ChurchCore Academy is the faith-based education management system and SIS in the ChurchCore platform. It handles:
 
 - institutional administration
+- Bible school, children's school, seminary, college, and university configuration
+- academic years, terms, sessions, cohorts, divisions, departments, and campuses
 - enrollment
 - academic records
+- course catalogs, course types, course durations, sections, credits, clock hours, and prerequisites
+- grading scales, grading types, GPA rules, pass/fail rules, competency or narrative grading, and transcript rules
 - transcripts
-- faculty and administrator workflows
+- faculty, teacher, professor, guardian, student, and administrator workflows
 - graduation and compliance tracking
+- student PWA workflows
 
 ChurchCore Academy is not the LMS.
 
@@ -22,6 +27,7 @@ ChurchCore Academy is not the LMS.
 - It must not implement a chat experience, general assistant, or open-ended Q&A workflow.
 - Core triggering, scoring, urgency, standing logic, transcript checks, and graduation checks remain deterministic.
 - LLM support is optional and limited to wording refinement, message draft generation, and readability support.
+- LMS engagement, devotional activity, ministry participation, counseling records, giving records, and inferred spiritual condition are outside ShepherdAI Academy's allowed signal set.
 
 ## Data contracts
 
@@ -103,3 +109,14 @@ The current implementation uses typed in-memory models that map to the intended 
 - academic standing or credit progress review
 - transcript or records inconsistency review
 - faculty or course assignment imbalance review
+
+## Expansion direction
+
+ShepherdAI Academy should expand only after the core faith-based SIS model is in place. New workflow recommendations should stay deterministic and explainable, including:
+
+- academic calendar setup gaps
+- unassigned teacher or professor review
+- grading configuration inconsistencies
+- student document and guardian record gaps
+- transcript readiness and promotion/graduation review
+- student PWA action reminders based on Academy-owned requirements

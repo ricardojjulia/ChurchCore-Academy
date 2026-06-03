@@ -3,7 +3,6 @@ import type React from "react";
 import { ArrowRight, BookOpenCheck, ClipboardCheck, FileWarning, GraduationCap, ListChecks, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 import { AcademyShell } from "@/components/academy-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { academyDataset } from "@/modules/academy-data/mock-data";
@@ -35,7 +34,7 @@ export default async function Home() {
     <AcademyShell
       eyebrow="ChurchCore Academy"
       title="Academic Dashboard"
-      subtitle="Suggested Academic Workflows, enrollment records, documentation review, and registrar-facing academic operations."
+      subtitle="Faith-based education management for students, academic records, grading, faculty workflows, and institutional operations."
       badge="Tenant view · academy-admin"
     >
       <section className="ops-stats-grid">
@@ -78,10 +77,10 @@ export default async function Home() {
               </CardDescription>
             </div>
           </div>
-          <Button variant="outline" nativeButton={false} render={<Link href="/workflows" />}>
+          <Link href="/workflows" className="academy-action-link">
             Open queue
             <ArrowRight />
-          </Button>
+          </Link>
         </CardHeader>
         <CardContent>
           {widgetItems.length === 0 ? (
@@ -128,12 +127,13 @@ export default async function Home() {
         <Card className="ops-panel">
           <CardHeader>
             <CardTitle>Academic Operations</CardTitle>
-            <CardDescription>Core SIS and college-management workflow coverage.</CardDescription>
+            <CardDescription>Core faith-based SIS and education-management workflow coverage.</CardDescription>
           </CardHeader>
           <CardContent className="ops-list">
             <OperationItem icon={<UsersRound />} title="Enrollment follow-up" detail="Admissions steps, advisor assignment, and registration completion." />
             <OperationItem icon={<ClipboardCheck />} title="Documentation review" detail="Required records, verification state, and registrar file completion." />
             <OperationItem icon={<GraduationCap />} title="Graduation readiness" detail="Credits, requirements, administrative holds, and review candidates." />
+            <OperationItem icon={<BookOpenCheck />} title="Institution setup" detail="Academic years, terms, course types, grading, teachers, and LMS provider choice." />
           </CardContent>
         </Card>
 

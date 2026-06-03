@@ -1,14 +1,16 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { closeDatabasePool, getDatabasePool } from "@/lib/database";
+import { listMigrationFiles } from "@/lib/migrations";
 
 async function main() {
-  const migrationPath = join(process.cwd(), "supabase/migrations/20260424010000_shepherd_ai_academy.sql");
-  const sql = await readFile(migrationPath, "utf8");
+  const migrations = await listMigrationFiles();
   const pool = getDatabasePool();
 
-  await pool.query(sql);
-  console.log("Applied local ShepherdAI Academy migration.");
+  for (const migration of migrations) {
+    const sql = await readFile(migration.path, "utf8");
+    await pool.query(sql);
+    console.log(`Applied local migration ${migration.name}.`);
+  }
 }
 
 main()

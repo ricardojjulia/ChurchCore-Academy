@@ -29,7 +29,7 @@ export class SuggestionExplainer {
       ],
       sourceSignalCategories: categoryBySignalType[signal.signalType],
       limitations: [
-        "This recommendation uses Academy SIS and college-management records only.",
+        "This recommendation uses Academy SIS and education-management records only.",
         "It does not use LMS, Care, Ops, ministry, counseling, devotional, attendance, giving, or spiritual-formation data.",
         "It is a recommendation for human review, not an official institutional decision.",
       ],

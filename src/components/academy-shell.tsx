@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, BookOpenCheck, GraduationCap, LayoutDashboard, ListChecks, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, Settings, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -8,25 +8,30 @@ interface AcademyShellProps {
   subtitle: string;
   eyebrow?: string;
   badge?: string;
+  activeHref?: string;
   children: React.ReactNode;
 }
 
 const navItems = [
-  { href: "/", label: "Dashboard", caption: "Academic operations", icon: LayoutDashboard, active: true },
+  { href: "/", label: "Dashboard", caption: "Academic operations", icon: LayoutDashboard },
   { href: "/workflows", label: "Workflows", caption: "Review queue", icon: ListChecks },
   { href: "/students/stu-maya-bennett", label: "Students", caption: "Records and insights", icon: UsersRound },
   { href: "/programs/prog-biblical-studies", label: "Programs", caption: "Progress and readiness", icon: GraduationCap },
   { href: "/faculty", label: "Faculty/Admin", caption: "Load and setup", icon: BookOpenCheck },
+  { href: "/settings/institution", label: "Institution", caption: "Configuration review", icon: Settings },
+  { href: "/settings/calendar", label: "Calendar", caption: "Years and periods", icon: CalendarDays },
+  { href: "/settings/courses", label: "Courses", caption: "Catalog setup", icon: LibraryBig },
+  { href: "/settings/people", label: "People", caption: "Roles and guardians", icon: UsersRound },
 ];
 
-export function AcademyShell({ title, subtitle, eyebrow, badge, children }: AcademyShellProps) {
+export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/", children }: AcademyShellProps) {
   return (
     <div className="academy-app">
       <aside className="academy-sidebar">
         <div className="sidebar-heading">
           <div>
             <h1>ChurchCore Academy</h1>
-            <p>Academic SIS</p>
+            <p>Faith-based SIS</p>
           </div>
         </div>
 
@@ -42,7 +47,7 @@ export function AcademyShell({ title, subtitle, eyebrow, badge, children }: Acad
 
         <div className="sidebar-context">
           <strong>Academy</strong>
-          <span>SIS and college management</span>
+          <span>Education management</span>
         </div>
 
         <nav className="sidebar-nav" aria-label="Primary">
@@ -52,8 +57,9 @@ export function AcademyShell({ title, subtitle, eyebrow, badge, children }: Acad
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isActive = item.href === activeHref;
             return (
-              <Link key={item.href} href={item.href} className={`sidebar-link ${item.active ? "is-active" : ""}`}>
+              <Link key={item.href} href={item.href} className={`sidebar-link ${isActive ? "is-active" : ""}`}>
                 <Icon />
                 <span>
                   <strong>{item.label}</strong>
@@ -104,4 +110,3 @@ export function AcademyShell({ title, subtitle, eyebrow, badge, children }: Acad
     </div>
   );
 }
-

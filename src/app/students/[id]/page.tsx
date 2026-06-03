@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { AcademyShell } from "@/components/academy-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -87,10 +86,10 @@ export default async function StudentPage({
               </div>
             </div>
             <div className="student-identity-actions">
-              <Button variant="outline" nativeButton={false} render={<Link href="/workflows" />}>
+              <Link href="/workflows" className="academy-action-link">
                 Open workflow queue
                 <ArrowRight />
-              </Button>
+              </Link>
             </div>
           </div>
         </CardContent>

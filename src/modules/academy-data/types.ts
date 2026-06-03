@@ -1,3 +1,8 @@
+import { InstitutionProfile } from "@/modules/academy-config/types";
+import { AcademicCalendarConfiguration } from "@/modules/academic-calendar/types";
+import { CourseCatalogConfiguration } from "@/modules/course-catalog/types";
+import { PeopleConfiguration } from "@/modules/people/types";
+
 export type AcademyProductArea = "academy";
 
 export type EnrollmentStatus = "application_started" | "pending" | "admitted" | "active";
@@ -87,6 +92,10 @@ export interface AcademyDataset {
   productArea: AcademyProductArea;
   generatedAt: string;
   institutionName: string;
+  institutionProfile: InstitutionProfile;
+  academicCalendar: AcademicCalendarConfiguration;
+  courseCatalog: CourseCatalogConfiguration;
+  peopleConfiguration: PeopleConfiguration;
   administrators: AdminUser[];
   programs: Program[];
   students: StudentRecord[];

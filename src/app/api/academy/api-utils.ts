@@ -17,8 +17,7 @@ export async function handleApi<T>(handler: () => Promise<T>) {
     return jsonOk(await handler());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected API error.";
-    const status = message.includes("not found") || message.includes("was not found") ? 404 : 500;
+    const status = message.includes("Forbidden") ? 403 : message.includes("not found") || message.includes("was not found") ? 404 : 500;
     return jsonError(message, status);
   }
 }
-

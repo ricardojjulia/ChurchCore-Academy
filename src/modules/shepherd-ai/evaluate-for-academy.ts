@@ -9,7 +9,7 @@ import { WorkflowRecommender } from "@/modules/shepherd-ai/workflow-recommender"
  * ShepherdAI for ChurchCore Academy
  *
  * This module is product-specific to ChurchCore Academy.
- * It may only use Academy SIS and college-management data.
+ * It may only use Academy SIS and education-management data.
  * It must not read from ChurchCore Ops, ChurchCore Learning, or ChurchCore Care.
  *
  * ShepherdAI Academy is not a chatbot.

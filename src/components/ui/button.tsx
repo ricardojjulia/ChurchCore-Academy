@@ -49,8 +49,10 @@ function Button({
   const isIcon = size.startsWith("icon");
 
   if (render) {
+    const renderClassName = render.props?.className;
+
     return React.cloneElement(render, {
-      className: cn("mantine-focus-auto mantine-active", className, render.props.className),
+      className: cn("mantine-focus-auto mantine-active", className, renderClassName),
       children,
     });
   }

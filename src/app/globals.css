@@ -768,6 +768,32 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.academy-action-link {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid #d8dee8;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  color: #14213d;
+  font-size: 0.88rem;
+  font-weight: 720;
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.academy-action-link:hover {
+  border-color: #b9c3d1;
+  background: #f6f8fb;
+}
+
+.academy-action-link svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 .ops-heading {
   display: flex;
   align-items: center;
@@ -823,6 +849,360 @@ a {
 
 .ops-readiness-row:last-child {
   border-bottom: 0;
+}
+
+.ops-readiness-row strong {
+  min-width: 0;
+  color: #14213d;
+  font-size: 0.92rem;
+  font-weight: 720;
+  text-align: right;
+}
+
+.institution-metric-value {
+  font-size: 1.55rem;
+  line-height: 1.15;
+}
+
+.institution-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.institution-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.institution-review-tile {
+  display: grid;
+  min-height: 5.25rem;
+  align-content: space-between;
+  gap: 0.85rem;
+  border: 1px solid #eef1f5;
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+}
+
+.institution-review-tile span {
+  color: #7c8797;
+  font-size: 0.8rem;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.institution-review-tile strong {
+  color: #14213d;
+  font-size: 0.98rem;
+  font-weight: 760;
+}
+
+.institution-review-secondary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.institution-validation-panel {
+  min-height: 100%;
+}
+
+.calendar-review-primary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1.25fr);
+}
+
+.calendar-review-secondary {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.25fr) minmax(0, 0.9fr);
+}
+
+.calendar-review-stack,
+.calendar-window-grid,
+.calendar-subdivision-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.calendar-window-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.calendar-subdivision-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.calendar-review-card,
+.calendar-subdivision-tile,
+.calendar-window-group {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid #eef1f5;
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+}
+
+.calendar-review-card strong,
+.calendar-subdivision-tile strong,
+.calendar-window-row strong {
+  display: block;
+  color: #14213d;
+  font-size: 0.96rem;
+  font-weight: 760;
+}
+
+.calendar-review-card span,
+.calendar-subdivision-tile span,
+.calendar-window-row span,
+.calendar-window-row small,
+.calendar-empty-state {
+  display: block;
+  color: #7c8797;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.calendar-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.calendar-window-heading {
+  color: #14213d;
+  font-size: 0.82rem;
+  font-weight: 780;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.calendar-window-row {
+  display: grid;
+  gap: 0.18rem;
+  border-top: 1px solid #eef1f5;
+  padding-top: 0.7rem;
+}
+
+.calendar-validation-panel {
+  min-height: 100%;
+}
+
+.course-review-primary {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.45fr);
+}
+
+.course-review-secondary {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 0.9fr);
+}
+
+.course-review-stack,
+.course-card-grid,
+.course-coverage-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.course-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.course-coverage-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.course-review-card,
+.course-coverage-group {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid #eef1f5;
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+}
+
+.course-review-card strong {
+  display: block;
+  color: #14213d;
+  font-size: 0.96rem;
+  font-weight: 760;
+}
+
+.course-review-card span,
+.course-empty-state {
+  display: block;
+  color: #7c8797;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.course-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.course-section-heading {
+  color: #14213d;
+  font-size: 0.82rem;
+  font-weight: 780;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.course-coverage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #eef1f5;
+  padding-top: 0.65rem;
+}
+
+.course-coverage-row span {
+  color: #526174;
+  font-size: 0.88rem;
+  font-weight: 690;
+}
+
+.course-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.course-detail-item {
+  min-width: 0;
+  border-radius: 0.45rem;
+  background: #f8fafc;
+  padding: 0.65rem;
+}
+
+.course-detail-item span {
+  color: #7c8797;
+  font-size: 0.74rem;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.course-detail-item strong {
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+}
+
+.course-validation-panel {
+  min-height: 100%;
+}
+
+.people-review-primary {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.25fr);
+}
+
+.people-review-secondary {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr);
+}
+
+.people-review-stack,
+.people-card-grid,
+.people-coverage-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.people-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.people-coverage-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.people-review-card,
+.people-coverage-group {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid #eef1f5;
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+}
+
+.people-review-card strong {
+  display: block;
+  color: #14213d;
+  font-size: 0.96rem;
+  font-weight: 760;
+}
+
+.people-review-card span {
+  display: block;
+  color: #7c8797;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.people-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.people-section-heading {
+  color: #14213d;
+  font-size: 0.82rem;
+  font-weight: 780;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.people-coverage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #eef1f5;
+  padding-top: 0.65rem;
+}
+
+.people-coverage-row span {
+  color: #526174;
+  font-size: 0.88rem;
+  font-weight: 690;
+}
+
+.people-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.people-detail-item {
+  min-width: 0;
+  border-radius: 0.45rem;
+  background: #f8fafc;
+  padding: 0.65rem;
+}
+
+.people-detail-item span {
+  color: #7c8797;
+  font-size: 0.74rem;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.people-detail-item strong {
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+}
+
+.people-validation-panel {
+  min-height: 100%;
 }
 
 .student-identity-card [data-slot="card-content"] {
@@ -1048,7 +1428,23 @@ a {
   .ops-content-grid,
   .student-identity-layout,
   .student-insight-top,
-  .student-insight-grid {
+  .student-insight-grid,
+  .institution-review-secondary,
+  .institution-review-grid,
+  .calendar-review-primary,
+  .calendar-review-secondary,
+  .calendar-window-grid,
+  .calendar-subdivision-grid,
+  .course-review-primary,
+  .course-review-secondary,
+  .course-card-grid,
+  .course-coverage-grid,
+  .course-detail-grid,
+  .people-review-primary,
+  .people-review-secondary,
+  .people-card-grid,
+  .people-coverage-grid,
+  .people-detail-grid {
     grid-template-columns: 1fr;
   }
 
