@@ -182,9 +182,11 @@ Suggested 1-week sprints:
 
 1. Grading and transcript design package - complete
 2. Grading type and scale types with tests - complete
-3. Transcript rule evaluator
-4. Academic standing and promotion evaluator
-5. Grading review UI
+3. Transcript rule evaluator - complete
+4. Academic standing and promotion evaluator - complete
+5. Grading persistence seed data and repository read path - complete
+6. Grading configuration API read path - complete
+7. Grading review UI - complete
 
 Required ADRs:
 

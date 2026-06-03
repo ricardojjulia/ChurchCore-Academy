@@ -4,6 +4,7 @@ import { getDatabasePool } from "@/lib/database";
 import { InstitutionProfile } from "@/modules/academy-config/types";
 import { mapAcademicCalendarRows } from "@/modules/academic-calendar/postgres-repository";
 import { mapCourseCatalogRows } from "@/modules/course-catalog/postgres-repository";
+import { mapGradingRecordsRows } from "@/modules/grading-records/postgres-repository";
 import { mapPeopleRows } from "@/modules/people/postgres-repository";
 
 function parseArray<T>(value: unknown): T[] {
@@ -43,6 +44,12 @@ export class AcademyDataRepository {
       catalogSections,
       coursePrerequisites,
       courseLmsMappings,
+      gradingProfiles,
+      evaluationScales,
+      evaluationScaleBands,
+      evaluationRuleSets,
+      officialRecordRules,
+      academicStandingRules,
       people,
       roleAssignments,
       studentProfiles,
@@ -69,6 +76,12 @@ export class AcademyDataRepository {
       pool.query("select * from academy_course_sections order by section_code asc"),
       pool.query("select * from academy_course_prerequisites order by course_id asc"),
       pool.query("select * from academy_course_lms_mappings order by mapping_status asc, provider asc"),
+      pool.query("select * from academy_grading_profiles limit 1"),
+      pool.query("select * from academy_evaluation_scales order by scale_type asc, name asc"),
+      pool.query("select * from academy_evaluation_scale_bands order by scale_id asc, sequence asc"),
+      pool.query("select * from academy_evaluation_rule_sets order by course_id asc, record_type asc"),
+      pool.query("select * from academy_official_record_rules order by record_type asc"),
+      pool.query("select * from academy_academic_standing_rules order by standing_type asc, name asc"),
       pool.query("select * from academy_people order by display_name asc"),
       pool.query("select * from academy_person_role_assignments order by person_id asc, role asc"),
       pool.query("select * from academy_student_profiles order by student_number asc"),
@@ -99,6 +112,10 @@ export class AcademyDataRepository {
       throw new Error("Academy course catalog is not seeded.");
     }
 
+    if (gradingProfiles.rowCount === 0) {
+      throw new Error("Academy grading records configuration is not seeded.");
+    }
+
     const institutionProfile = institutionProfiles.rows[0];
     const academicCalendar = mapAcademicCalendarRows({
       institutionProfile,
@@ -120,6 +137,15 @@ export class AcademyDataRepository {
       sections: catalogSections.rows,
       prerequisites: coursePrerequisites.rows,
       lmsMappings: courseLmsMappings.rows,
+    });
+    const gradingRecords = mapGradingRecordsRows({
+      institutionProfile,
+      gradingProfile: gradingProfiles.rows[0],
+      scales: evaluationScales.rows,
+      scaleBands: evaluationScaleBands.rows,
+      ruleSets: evaluationRuleSets.rows,
+      officialRecordRules: officialRecordRules.rows,
+      standingRules: academicStandingRules.rows,
     });
     const peopleConfiguration = mapPeopleRows({
       institutionProfile,
@@ -150,6 +176,7 @@ export class AcademyDataRepository {
       },
       academicCalendar,
       courseCatalog,
+      gradingRecords,
       peopleConfiguration,
       administrators: admins.rows.map(
         (row): AdminUser => ({
@@ -663,6 +690,228 @@ export class AcademyDataRepository {
             mapping.lastReviewedAt ?? null,
             mapping.createdAt,
             mapping.updatedAt,
+          ],
+        );
+      }
+
+      await pool.query(
+        `insert into academy_grading_profiles (
+           tenant_id, default_evaluation_type, default_official_record_type, supports_gpa, supports_credits,
+           supports_clock_hours, supports_competencies, supports_narrative_evaluation, supports_promotion,
+           supports_graduation_audit, grade_release_policy, guardian_visibility_policy, created_at, updated_at
+         )
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         on conflict (tenant_id) do update
+         set default_evaluation_type = excluded.default_evaluation_type,
+             default_official_record_type = excluded.default_official_record_type,
+             supports_gpa = excluded.supports_gpa,
+             supports_credits = excluded.supports_credits,
+             supports_clock_hours = excluded.supports_clock_hours,
+             supports_competencies = excluded.supports_competencies,
+             supports_narrative_evaluation = excluded.supports_narrative_evaluation,
+             supports_promotion = excluded.supports_promotion,
+             supports_graduation_audit = excluded.supports_graduation_audit,
+             grade_release_policy = excluded.grade_release_policy,
+             guardian_visibility_policy = excluded.guardian_visibility_policy,
+             updated_at = excluded.updated_at`,
+        [
+          dataset.gradingRecords.gradingProfile.tenantId,
+          dataset.gradingRecords.gradingProfile.defaultEvaluationType,
+          dataset.gradingRecords.gradingProfile.defaultOfficialRecordType,
+          dataset.gradingRecords.gradingProfile.supportsGpa,
+          dataset.gradingRecords.gradingProfile.supportsCredits,
+          dataset.gradingRecords.gradingProfile.supportsClockHours,
+          dataset.gradingRecords.gradingProfile.supportsCompetencies,
+          dataset.gradingRecords.gradingProfile.supportsNarrativeEvaluation,
+          dataset.gradingRecords.gradingProfile.supportsPromotion,
+          dataset.gradingRecords.gradingProfile.supportsGraduationAudit,
+          dataset.gradingRecords.gradingProfile.gradeReleasePolicy,
+          dataset.gradingRecords.gradingProfile.guardianVisibilityPolicy,
+          dataset.gradingRecords.gradingProfile.createdAt,
+          dataset.gradingRecords.gradingProfile.updatedAt,
+        ],
+      );
+
+      for (const scale of dataset.gradingRecords.scales) {
+        await pool.query(
+          `insert into academy_evaluation_scales (
+             id, tenant_id, name, scale_type, applies_to_record_type, narrative_required, status, created_at, updated_at
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           on conflict (id) do update
+           set tenant_id = excluded.tenant_id,
+               name = excluded.name,
+               scale_type = excluded.scale_type,
+               applies_to_record_type = excluded.applies_to_record_type,
+               narrative_required = excluded.narrative_required,
+               status = excluded.status,
+               updated_at = excluded.updated_at`,
+          [
+            scale.id,
+            scale.tenantId,
+            scale.name,
+            scale.scaleType,
+            scale.appliesToRecordType,
+            scale.narrativeRequired ?? null,
+            scale.status,
+            scale.createdAt,
+            scale.updatedAt,
+          ],
+        );
+      }
+
+      for (const band of dataset.gradingRecords.scaleBands) {
+        await pool.query(
+          `insert into academy_evaluation_scale_bands (
+             id, tenant_id, scale_id, label, minimum_value, maximum_value, grade_points,
+             is_passing, is_completion, official_record_value, sequence
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           on conflict (id) do update
+           set tenant_id = excluded.tenant_id,
+               scale_id = excluded.scale_id,
+               label = excluded.label,
+               minimum_value = excluded.minimum_value,
+               maximum_value = excluded.maximum_value,
+               grade_points = excluded.grade_points,
+               is_passing = excluded.is_passing,
+               is_completion = excluded.is_completion,
+               official_record_value = excluded.official_record_value,
+               sequence = excluded.sequence`,
+          [
+            band.id,
+            band.tenantId,
+            band.scaleId,
+            band.label,
+            band.minimumValue ?? null,
+            band.maximumValue ?? null,
+            band.gradePoints ?? null,
+            band.isPassing,
+            band.isCompletion,
+            band.officialRecordValue,
+            band.sequence,
+          ],
+        );
+      }
+
+      for (const ruleSet of dataset.gradingRecords.ruleSets) {
+        await pool.query(
+          `insert into academy_evaluation_rule_sets (
+             id, tenant_id, course_id, section_id, evaluation_type, scale_id, record_type, gpa_policy,
+             credit_policy, clock_hour_policy, competency_policy, narrative_policy, posting_policy,
+             lms_grade_return_policy, status, created_at, updated_at
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+           on conflict (id) do update
+           set tenant_id = excluded.tenant_id,
+               course_id = excluded.course_id,
+               section_id = excluded.section_id,
+               evaluation_type = excluded.evaluation_type,
+               scale_id = excluded.scale_id,
+               record_type = excluded.record_type,
+               gpa_policy = excluded.gpa_policy,
+               credit_policy = excluded.credit_policy,
+               clock_hour_policy = excluded.clock_hour_policy,
+               competency_policy = excluded.competency_policy,
+               narrative_policy = excluded.narrative_policy,
+               posting_policy = excluded.posting_policy,
+               lms_grade_return_policy = excluded.lms_grade_return_policy,
+               status = excluded.status,
+               updated_at = excluded.updated_at`,
+          [
+            ruleSet.id,
+            ruleSet.tenantId,
+            ruleSet.courseId,
+            ruleSet.sectionId ?? null,
+            ruleSet.evaluationType,
+            ruleSet.scaleId,
+            ruleSet.recordType,
+            ruleSet.gpaPolicy,
+            ruleSet.creditPolicy,
+            ruleSet.clockHourPolicy,
+            ruleSet.competencyPolicy,
+            ruleSet.narrativePolicy,
+            ruleSet.postingPolicy,
+            ruleSet.lmsGradeReturnPolicy,
+            ruleSet.status,
+            ruleSet.createdAt,
+            ruleSet.updatedAt,
+          ],
+        );
+      }
+
+      for (const rule of dataset.gradingRecords.officialRecordRules) {
+        await pool.query(
+          `insert into academy_official_record_rules (
+             id, tenant_id, record_type, applies_to_institution_mode, posting_authority, release_policy,
+             included_in_transcript, included_in_progress_report, included_in_completion_record,
+             included_in_promotion, included_in_graduation_audit, status
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           on conflict (id) do update
+           set tenant_id = excluded.tenant_id,
+               record_type = excluded.record_type,
+               applies_to_institution_mode = excluded.applies_to_institution_mode,
+               posting_authority = excluded.posting_authority,
+               release_policy = excluded.release_policy,
+               included_in_transcript = excluded.included_in_transcript,
+               included_in_progress_report = excluded.included_in_progress_report,
+               included_in_completion_record = excluded.included_in_completion_record,
+               included_in_promotion = excluded.included_in_promotion,
+               included_in_graduation_audit = excluded.included_in_graduation_audit,
+               status = excluded.status`,
+          [
+            rule.id,
+            rule.tenantId,
+            rule.recordType,
+            rule.appliesToInstitutionMode,
+            rule.postingAuthority,
+            rule.releasePolicy,
+            rule.includedInTranscript,
+            rule.includedInProgressReport,
+            rule.includedInCompletionRecord,
+            rule.includedInPromotion,
+            rule.includedInGraduationAudit,
+            rule.status,
+          ],
+        );
+      }
+
+      for (const rule of dataset.gradingRecords.standingRules) {
+        await pool.query(
+          `insert into academy_academic_standing_rules (
+             id, tenant_id, name, standing_type, applies_to_institution_mode, minimum_gpa,
+             minimum_credits_earned, minimum_clock_hours, required_competencies,
+             required_completion_records, promotion_criteria, graduation_criteria, status
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13)
+           on conflict (id) do update
+           set tenant_id = excluded.tenant_id,
+               name = excluded.name,
+               standing_type = excluded.standing_type,
+               applies_to_institution_mode = excluded.applies_to_institution_mode,
+               minimum_gpa = excluded.minimum_gpa,
+               minimum_credits_earned = excluded.minimum_credits_earned,
+               minimum_clock_hours = excluded.minimum_clock_hours,
+               required_competencies = excluded.required_competencies,
+               required_completion_records = excluded.required_completion_records,
+               promotion_criteria = excluded.promotion_criteria,
+               graduation_criteria = excluded.graduation_criteria,
+               status = excluded.status`,
+          [
+            rule.id,
+            rule.tenantId,
+            rule.name,
+            rule.standingType,
+            rule.appliesToInstitutionMode,
+            rule.minimumGpa ?? null,
+            rule.minimumCreditsEarned ?? null,
+            rule.minimumClockHours ?? null,
+            JSON.stringify(rule.requiredCompetencies ?? []),
+            JSON.stringify(rule.requiredCompletionRecords ?? []),
+            rule.promotionCriteria ?? null,
+            rule.graduationCriteria ?? null,
+            rule.status,
           ],
         );
       }

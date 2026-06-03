@@ -120,10 +120,12 @@ Do not implement an entire subplan directly from this master plan. Before code c
 
 - [x] Create detailed execution package for this subplan.
 - [x] Create grading scale, grade band, grade type, GPA rule, pass/fail rule, competency rule, narrative rule, transcript rule, promotion rule, and graduation rule models.
-- [ ] Add deterministic transcript and academic standing evaluators.
-- [ ] Add Postgres persistence and seed data.
+- [x] Add deterministic transcript and official-record evaluator.
+- [x] Add deterministic academic standing, promotion, and graduation evaluators.
+- [x] Add Postgres persistence and seed data.
+- [x] Add grading configuration API read path.
 - [x] Add tests for college GPA, pass/fail certificate, competency Bible school, narrative elementary, and seminary transcript configurations.
-- [ ] Add UI for grading model review.
+- [x] Add UI for grading model review.
 - [x] Add security and audit review for grade, transcript, promotion, and graduation changes.
 
 ## Subplan 6: People And Roles

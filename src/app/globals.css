@@ -1097,6 +1097,122 @@ a {
   min-height: 100%;
 }
 
+.grading-review-primary {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.2fr);
+}
+
+.grading-review-secondary {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr);
+}
+
+.grading-review-stack,
+.grading-card-grid,
+.grading-coverage-grid,
+.grading-band-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.grading-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grading-coverage-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.grading-review-card,
+.grading-coverage-group {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid #eef1f5;
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+}
+
+.grading-review-card strong {
+  display: block;
+  color: #14213d;
+  font-size: 0.96rem;
+  font-weight: 760;
+}
+
+.grading-review-card span {
+  display: block;
+  color: #7c8797;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.grading-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.grading-section-heading {
+  color: #14213d;
+  font-size: 0.82rem;
+  font-weight: 780;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.grading-coverage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #eef1f5;
+  padding-top: 0.65rem;
+}
+
+.grading-coverage-row span,
+.grading-band-list span {
+  color: #526174;
+  font-size: 0.88rem;
+  font-weight: 690;
+}
+
+.grading-band-list span {
+  border-radius: 0.45rem;
+  background: #f8fafc;
+  padding: 0.55rem 0.65rem;
+}
+
+.grading-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.grading-detail-item {
+  min-width: 0;
+  border-radius: 0.45rem;
+  background: #f8fafc;
+  padding: 0.65rem;
+}
+
+.grading-detail-item span {
+  color: #7c8797;
+  font-size: 0.74rem;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.grading-detail-item strong {
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+}
+
+.grading-validation-panel {
+  min-height: 100%;
+}
+
 .people-review-primary {
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.25fr);
 }
@@ -1440,6 +1556,11 @@ a {
   .course-card-grid,
   .course-coverage-grid,
   .course-detail-grid,
+  .grading-review-primary,
+  .grading-review-secondary,
+  .grading-card-grid,
+  .grading-coverage-grid,
+  .grading-detail-grid,
   .people-review-primary,
   .people-review-secondary,
   .people-card-grid,

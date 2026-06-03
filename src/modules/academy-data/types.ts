@@ -1,6 +1,7 @@
 import { InstitutionProfile } from "@/modules/academy-config/types";
 import { AcademicCalendarConfiguration } from "@/modules/academic-calendar/types";
 import { CourseCatalogConfiguration } from "@/modules/course-catalog/types";
+import { GradingRecordsConfiguration } from "@/modules/grading-records/types";
 import { PeopleConfiguration } from "@/modules/people/types";
 
 export type AcademyProductArea = "academy";
@@ -95,6 +96,7 @@ export interface AcademyDataset {
   institutionProfile: InstitutionProfile;
   academicCalendar: AcademicCalendarConfiguration;
   courseCatalog: CourseCatalogConfiguration;
+  gradingRecords: GradingRecordsConfiguration;
   peopleConfiguration: PeopleConfiguration;
   administrators: AdminUser[];
   programs: Program[];

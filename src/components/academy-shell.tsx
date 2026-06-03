@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, Settings, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, Settings, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +21,7 @@ const navItems = [
   { href: "/settings/institution", label: "Institution", caption: "Configuration review", icon: Settings },
   { href: "/settings/calendar", label: "Calendar", caption: "Years and periods", icon: CalendarDays },
   { href: "/settings/courses", label: "Courses", caption: "Catalog setup", icon: LibraryBig },
+  { href: "/settings/grading", label: "Grading", caption: "Records and standing", icon: Star },
   { href: "/settings/people", label: "People", caption: "Roles and guardians", icon: UsersRound },
 ];
 
