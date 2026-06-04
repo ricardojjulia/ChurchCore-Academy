@@ -153,7 +153,7 @@ Do not implement an entire subplan directly from this master plan. Before code c
 
 ## Subplan 8: LMS Provider Contract
 
-- [ ] Create detailed execution package for this subplan.
+- [x] Create detailed execution package for this subplan.
 - [ ] Define provider-neutral interfaces for identity launch, logout, course shell provisioning, section mapping, roster sync, enrollment sync, grade return, progress return, webhooks, and reconciliation.
 - [ ] Add no-LMS provider implementation.
 - [ ] Add contract conformance tests.

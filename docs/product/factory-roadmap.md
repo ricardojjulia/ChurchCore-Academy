@@ -19,6 +19,7 @@ Completed:
 - people, roles, guardians, and faculty
 - grading and transcript rules
 - student PWA shell, dashboard read surfaces, installability, and safe offline fallback
+- LMS contract design package
 - baseline verification with `npm test`, `npm run lint`, and `npm run build`
 
 Not started:
@@ -30,7 +31,7 @@ Not started:
 
 Next:
 
-- LMS contract design package
+- provider-neutral LMS interfaces and contract tests
 
 ## Sprint Cadence
 
@@ -224,7 +225,7 @@ Goal: define the provider-neutral LMS contract and support institutions without 
 
 Suggested 1-week sprints:
 
-1. LMS contract design package
+1. LMS contract design package - complete
 2. Provider-neutral interfaces and contract tests
 3. No-LMS provider implementation
 4. Tenant provider selection
