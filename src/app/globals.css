@@ -39,6 +39,729 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.student-pwa {
+  min-height: 100vh;
+  color: #14213d;
+  background: #f4f7fb;
+}
+
+.student-pwa-header {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  min-height: 4.75rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #dce4ed;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0.75rem 2rem;
+  backdrop-filter: blur(14px);
+}
+
+.student-pwa-brand,
+.student-pwa-status,
+.student-pwa-summary-card,
+.student-pwa-panel-heading,
+.student-pwa-safe-state,
+.student-pwa-privacy-banner {
+  display: flex;
+  align-items: center;
+}
+
+.student-pwa-learning-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  border: 1px solid #dce4ed;
+  border-radius: 1rem;
+  color: #4e6278;
+  background: #fff;
+  padding: 1rem 1.15rem;
+}
+
+.student-pwa-learning-status svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  color: #355b84;
+}
+
+.student-pwa-learning-status strong,
+.student-pwa-learning-status span {
+  display: block;
+}
+
+.student-pwa-learning-status strong {
+  color: #294158;
+  font-size: 0.86rem;
+}
+
+.student-pwa-learning-status span {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+}
+
+.student-pwa-record-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.student-pwa-record-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #e4eaf1;
+  padding-top: 0.75rem;
+}
+
+.student-pwa-record-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.student-pwa-record-row strong,
+.student-pwa-record-row span {
+  display: block;
+}
+
+.student-pwa-record-row strong {
+  font-size: 0.88rem;
+}
+
+.student-pwa-record-row span,
+.student-pwa-record-row small {
+  margin-top: 0.2rem;
+  color: #748297;
+  font-size: 0.75rem;
+}
+
+.student-pwa-record-row small {
+  flex: 0 0 auto;
+  max-width: 10rem;
+  text-align: right;
+}
+
+.student-pwa-surface {
+  border: 1px solid #dce4ed;
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1.25rem;
+}
+
+.student-pwa-surface-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+}
+
+.student-pwa-surface-heading p {
+  margin: 0;
+  color: #728196;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-pwa-surface-heading h2 {
+  margin: 0.3rem 0 0;
+  font-size: 1.2rem;
+}
+
+.student-pwa-surface-heading > svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #496886;
+}
+
+.student-pwa-surface-list {
+  display: grid;
+  border-top: 1px solid #e2e8ef;
+}
+
+.student-pwa-surface-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  border-bottom: 1px solid #e2e8ef;
+  padding: 1rem 0;
+}
+
+.student-pwa-surface-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  color: #315a83;
+  background: #e9f1fa;
+}
+
+.student-pwa-surface-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.student-pwa-surface-row strong,
+.student-pwa-surface-row span {
+  display: block;
+}
+
+.student-pwa-surface-row strong {
+  font-size: 0.9rem;
+}
+
+.student-pwa-surface-row span {
+  margin-top: 0.2rem;
+  color: #748297;
+  font-size: 0.76rem;
+}
+
+.student-pwa-surface-row small {
+  border-radius: 999px;
+  color: #37604a;
+  background: #edf7f0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.student-pwa-surface > .student-pwa-safe-state {
+  width: fit-content;
+}
+
+.student-pwa-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  border-top: 1px solid #e2e8ef;
+  padding-top: 1rem;
+}
+
+.student-pwa-progress-card {
+  border: 1px solid #dde5ed;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+  padding: 1rem;
+}
+
+.student-pwa-progress-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #3c674f;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.student-pwa-progress-label svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.student-pwa-progress-card h3 {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+}
+
+.student-pwa-progress-card p {
+  margin: 0.35rem 0 0;
+  color: #66758a;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.student-pwa-brand {
+  gap: 0.75rem;
+}
+
+.student-pwa-brand strong,
+.student-pwa-brand small {
+  display: block;
+}
+
+.student-pwa-brand strong {
+  font-size: 1rem;
+}
+
+.student-pwa-brand small {
+  margin-top: 0.1rem;
+  color: #66758a;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-pwa-mark {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 0.9rem;
+  color: white;
+  background: #17365d;
+}
+
+.student-pwa-mark svg,
+.student-pwa-status svg,
+.student-pwa-alert-button svg,
+.student-pwa-summary-icon svg,
+.student-pwa-summary-card > svg,
+.student-pwa-panel-heading > svg,
+.student-pwa-safe-state svg,
+.student-pwa-privacy-banner svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.student-pwa-status {
+  gap: 0.45rem;
+  border: 1px solid #d8e2ed;
+  border-radius: 999px;
+  color: #35516f;
+  background: #f8fbff;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.student-pwa-frame {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  min-height: calc(100vh - 4.75rem);
+}
+
+.student-pwa-sidebar {
+  position: sticky;
+  top: 4.75rem;
+  display: flex;
+  height: calc(100vh - 4.75rem);
+  flex-direction: column;
+  border-right: 1px solid #dce4ed;
+  background: #fff;
+  padding: 1.5rem 1rem;
+}
+
+.student-pwa-nav-label,
+.student-pwa-page-heading p,
+.student-pwa-panel-heading p,
+.student-pwa-placeholder > p {
+  margin: 0;
+  color: #728196;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-pwa-nav {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+}
+
+.student-pwa-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.8rem;
+  color: #4d5f76;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.student-pwa-nav-link svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.student-pwa-nav-link.is-active {
+  color: #17365d;
+  background: #e8f0fa;
+}
+
+.student-pwa-sidebar-note {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: auto;
+  border: 1px solid #dce5ee;
+  border-radius: 0.9rem;
+  color: #4f6278;
+  background: #f7fafc;
+  padding: 0.9rem;
+}
+
+.student-pwa-sidebar-note svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: #276346;
+}
+
+.student-pwa-sidebar-note strong,
+.student-pwa-sidebar-note span {
+  display: block;
+}
+
+.student-pwa-sidebar-note strong {
+  color: #294158;
+  font-size: 0.82rem;
+}
+
+.student-pwa-sidebar-note span {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.student-pwa-main {
+  width: min(100%, 78rem);
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.student-pwa-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.student-pwa-page-heading h1 {
+  margin: 0.35rem 0 0;
+  color: #14213d;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  letter-spacing: -0.04em;
+}
+
+.student-pwa-page-heading span {
+  display: block;
+  max-width: 48rem;
+  margin-top: 0.45rem;
+  color: #66758a;
+  line-height: 1.5;
+}
+
+.student-pwa-alert-button {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #d8e2ed;
+  border-radius: 0.75rem;
+  color: #35516f;
+  background: #fff;
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.student-pwa-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.student-pwa-summary-card {
+  gap: 0.75rem;
+  min-width: 0;
+  border: 1px solid #dce4ed;
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1rem;
+}
+
+.student-pwa-summary-card span:nth-child(2) {
+  min-width: 0;
+}
+
+.student-pwa-summary-card strong,
+.student-pwa-summary-card small {
+  display: block;
+}
+
+.student-pwa-summary-card strong {
+  font-size: 0.9rem;
+}
+
+.student-pwa-summary-card small {
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: #728196;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.student-pwa-summary-card > svg {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #8290a2;
+}
+
+.student-pwa-summary-icon,
+.student-pwa-placeholder-icon {
+  display: grid;
+  place-items: center;
+  color: #274d77;
+  background: #e7f0fa;
+}
+
+.student-pwa-summary-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  border-radius: 0.75rem;
+}
+
+.student-pwa-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.student-pwa-panel,
+.student-pwa-placeholder {
+  border: 1px solid #dce4ed;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.student-pwa-panel {
+  padding: 1.15rem;
+}
+
+.student-pwa-panel-heading {
+  justify-content: space-between;
+}
+
+.student-pwa-panel-heading h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.1rem;
+}
+
+.student-pwa-panel-heading > svg {
+  color: #55708d;
+}
+
+.student-pwa-empty {
+  margin-top: 1rem;
+  border: 1px dashed #d5dee8;
+  border-radius: 0.8rem;
+  color: #6b7a8e;
+  background: #f8fafc;
+  padding: 1.25rem;
+}
+
+.student-pwa-empty strong,
+.student-pwa-empty span {
+  display: block;
+}
+
+.student-pwa-empty strong {
+  color: #3d536b;
+  font-size: 0.9rem;
+}
+
+.student-pwa-empty span {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.student-pwa-privacy-banner {
+  gap: 0.75rem;
+  margin-top: 1rem;
+  border: 1px solid #cfe0d7;
+  border-radius: 1rem;
+  color: #365c49;
+  background: #f0f8f3;
+  padding: 1rem 1.15rem;
+}
+
+.student-pwa-privacy-banner svg {
+  flex: 0 0 auto;
+}
+
+.student-pwa-privacy-banner strong,
+.student-pwa-privacy-banner span {
+  display: block;
+}
+
+.student-pwa-privacy-banner strong {
+  font-size: 0.86rem;
+}
+
+.student-pwa-privacy-banner span {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.student-pwa-placeholder {
+  display: grid;
+  min-height: 27rem;
+  place-items: center;
+  align-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.student-pwa-placeholder-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1.2rem;
+}
+
+.student-pwa-placeholder-icon svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.student-pwa-placeholder > p {
+  margin-top: 1.2rem;
+}
+
+.student-pwa-placeholder h2 {
+  margin: 0.65rem 0 0;
+  font-size: 1.35rem;
+}
+
+.student-pwa-placeholder > span {
+  max-width: 34rem;
+  margin-top: 0.55rem;
+  color: #69798d;
+  line-height: 1.55;
+}
+
+.student-pwa-safe-state {
+  gap: 0.45rem;
+  margin-top: 1.25rem;
+  border-radius: 999px;
+  color: #446554;
+  background: #eef7f1;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+.student-pwa-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .student-pwa-frame {
+    display: block;
+  }
+
+  .student-pwa-sidebar {
+    display: none;
+  }
+
+  .student-pwa-main {
+    padding-bottom: 6.5rem;
+  }
+
+  .student-pwa-bottom-nav {
+    position: fixed;
+    z-index: 30;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(4rem, 1fr);
+    overflow-x: auto;
+    border: 1px solid #d8e2ed;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.96);
+    padding: 0.35rem;
+    box-shadow: 0 0.75rem 2rem rgba(31, 50, 74, 0.16);
+    backdrop-filter: blur(14px);
+  }
+
+  .student-pwa-nav-link.is-compact {
+    display: grid;
+    justify-items: center;
+    gap: 0.25rem;
+    padding: 0.55rem 0.25rem;
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .student-pwa-header {
+    padding: 0.65rem 1rem;
+  }
+
+  .student-pwa-status span,
+  .student-pwa-alert-button span {
+    display: none;
+  }
+
+  .student-pwa-main {
+    padding: 1.2rem 1rem 6.5rem;
+  }
+
+  .student-pwa-page-heading {
+    gap: 0.75rem;
+  }
+
+  .student-pwa-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-pwa-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-pwa-progress-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-pwa-summary-card {
+    align-items: flex-start;
+  }
+
+  .student-pwa-summary-card > svg {
+    display: none;
+  }
+
+  .student-pwa-placeholder {
+    min-height: 23rem;
+    padding: 1.5rem;
+  }
+
+  .student-pwa-safe-state {
+    border-radius: 0.8rem;
+  }
+
+  .student-pwa-surface-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .student-pwa-surface-row small {
+    grid-column: 2;
+    width: fit-content;
+  }
+
+  .student-pwa-record-row {
+    align-items: flex-start;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

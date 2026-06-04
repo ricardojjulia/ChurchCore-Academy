@@ -2,7 +2,7 @@
 
 ## Current Position
 
-ChurchCore Academy is at Phase 1, Phase 2, and Phase 3 complete, with Phase 4 in progress.
+ChurchCore Academy has completed the product/factory foundation and Phases 1 through 5. The current implementation focus is Phase 6: Student PWA.
 
 Completed:
 
@@ -13,16 +13,23 @@ Completed:
 - LMS provider strategy
 - software factory definition
 - Codex/Superpowers requirement
+- institution configuration core
+- academic calendar and sub-divisions
+- course catalog and sections
+- people, roles, guardians, and faculty
+- grading and transcript rules
 - baseline verification with `npm test`, `npm run lint`, and `npm run build`
 
 Not started:
 
-- grading and transcript domain
-- student PWA
 - LMS provider contract
 - Moodle adapter
 - Canvas adapter
 - ShepherdAI expansion on the full Academy model
+
+In progress:
+
+- student PWA design and implementation
 
 ## Sprint Cadence
 
@@ -199,10 +206,10 @@ Goal: provide a student-facing PWA for schedule, courses, grades, documents, pro
 
 Suggested 1-week sprints:
 
-1. Student PWA design package
-2. Student PWA shell and manifest
-3. Student dashboard read models
-4. Student documents and progress surface
+1. Student PWA design package - complete
+2. Student PWA shell and manifest - complete
+3. Student dashboard read models - complete
+4. Student documents and progress surface - complete
 5. PWA installability and offline verification
 
 Required ADRs:
