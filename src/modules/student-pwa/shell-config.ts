@@ -71,6 +71,18 @@ export const studentManifest: MetadataRoute.Manifest = {
   theme_color: "#17365d",
   icons: [
     {
+      src: "/academy-mark-192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "maskable",
+    },
+    {
+      src: "/academy-mark-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable",
+    },
+    {
       src: "/academy-mark.svg",
       sizes: "any",
       type: "image/svg+xml",

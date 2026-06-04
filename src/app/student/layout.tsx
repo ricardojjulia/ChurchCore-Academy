@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { StudentServiceWorkerRegistration } from "@/components/student-service-worker-registration";
 
 export const metadata: Metadata = {
   title: {
@@ -10,5 +11,10 @@ export const metadata: Metadata = {
 };
 
 export default function StudentLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return (
+    <>
+      <StudentServiceWorkerRegistration />
+      {children}
+    </>
+  );
 }

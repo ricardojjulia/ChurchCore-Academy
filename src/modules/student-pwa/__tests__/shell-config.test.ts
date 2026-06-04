@@ -29,5 +29,8 @@ test("student manifest is installable and starts inside the student route family
   assert.equal(studentManifest.start_url, "/student");
   assert.equal(studentManifest.display, "standalone");
   assert.equal(studentManifest.scope, "/student");
-  assert.ok(studentManifest.icons.length > 0);
+  assert.deepEqual(
+    studentManifest.icons.map((icon) => icon.sizes),
+    ["192x192", "512x512", "any"],
+  );
 });

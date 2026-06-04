@@ -661,6 +661,104 @@
   display: none;
 }
 
+.student-offline-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #14213d;
+  background: #f4f7fb;
+  padding: 1.5rem;
+}
+
+.student-offline-card {
+  width: min(100%, 34rem);
+  border: 1px solid #dce4ed;
+  border-radius: 1.25rem;
+  background: #fff;
+  padding: clamp(1.5rem, 6vw, 3rem);
+  box-shadow: 0 1.25rem 3rem rgba(31, 50, 74, 0.12);
+  text-align: center;
+}
+
+.student-offline-mark {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto;
+  place-items: center;
+  border-radius: 1.1rem;
+  color: #fff;
+  background: #17365d;
+}
+
+.student-offline-mark svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.student-offline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.25rem;
+  border-radius: 999px;
+  color: #6a4c21;
+  background: #fff5dc;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.student-offline-status svg,
+.student-offline-privacy svg,
+.student-offline-retry svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.student-offline-card h1 {
+  margin: 1.25rem 0 0;
+  font-size: clamp(1.65rem, 7vw, 2.3rem);
+  letter-spacing: -0.04em;
+}
+
+.student-offline-card > p {
+  margin: 0.8rem 0 0;
+  color: #66758a;
+  line-height: 1.6;
+}
+
+.student-offline-privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 1.25rem;
+  border: 1px solid #cee1d6;
+  border-radius: 0.85rem;
+  color: #3d654f;
+  background: #f0f8f3;
+  padding: 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.student-offline-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  border-radius: 0.75rem;
+  color: #fff;
+  background: #17365d;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 @media (max-width: 960px) {
   .student-pwa-frame {
     display: block;

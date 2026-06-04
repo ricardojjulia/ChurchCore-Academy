@@ -146,10 +146,10 @@ Do not implement an entire subplan directly from this master plan. Before code c
 - [x] Create detailed execution package for this subplan.
 - [x] Add student route group and PWA manifest.
 - [ ] Add student dashboard for schedule, courses, grades, documents, messages, academic progress, and LMS launch.
-- [ ] Add offline-friendly shell for critical student pages.
+- [x] Add offline-friendly shell for critical student pages.
 - [x] Add tests for student-visible data boundaries.
 - [x] Add browser verification for desktop and mobile layouts.
-- [ ] Add installability and offline behavior verification for supported PWA routes.
+- [x] Add installability and offline behavior verification for supported PWA routes.
 
 ## Subplan 8: LMS Provider Contract
 
