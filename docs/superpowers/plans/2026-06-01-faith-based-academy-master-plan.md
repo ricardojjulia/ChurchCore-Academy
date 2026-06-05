@@ -163,7 +163,7 @@ Do not implement an entire subplan directly from this master plan. Before code c
 
 ## Subplan 9: Moodle Adapter
 
-- [ ] Create detailed execution package for this subplan.
+- [x] Create detailed execution package for this subplan.
 - [ ] Implement Moodle provider using Moodle External Services.
 - [ ] Map Academy users, courses, sections, roles, enrollments, and grade return to the provider contract.
 - [ ] Add retry and reconciliation behavior.

@@ -2,7 +2,7 @@
 
 ## Current Position
 
-ChurchCore Academy has completed the product/factory foundation and Phases 1 through 6. The next implementation focus is Phase 7: LMS Contract And No-LMS Mode.
+ChurchCore Academy has completed the product/factory foundation, Phases 1 through 7, and the first two Phase 8 Moodle adapter sprints. The next implementation focus is Phase 8: Moodle Adapter.
 
 Completed:
 
@@ -24,18 +24,21 @@ Completed:
 - no-LMS provider implementation
 - tenant provider selection
 - sync audit and reconciliation model
+- Moodle adapter design package
+- Moodle identity and launch mapping
 - baseline verification with `npm test`, `npm run lint`, and `npm run build`
 
 Not started:
 
-- LMS provider contract
-- Moodle adapter
+- Moodle course and roster sync
+- Moodle grade/progress return
+- Moodle reconciliation and provider docs
 - Canvas adapter
 - ShepherdAI expansion on the full Academy model
 
 Next:
 
-- Moodle adapter design package
+- Moodle course and roster sync
 
 ## Sprint Cadence
 
@@ -246,16 +249,16 @@ Goal: implement Moodle as the first LMS provider through the provider-neutral co
 
 Suggested 1-week sprints:
 
-1. Moodle adapter design package
-2. Moodle identity and launch mapping
+1. Moodle adapter design package - complete
+2. Moodle identity and launch mapping - complete
 3. Moodle course and roster sync
 4. Moodle grade/progress return
 5. Moodle reconciliation and provider docs
 
 Required ADRs:
 
-- Moodle adapter integration model
-- Moodle credential and endpoint storage model
+- Moodle adapter integration model - complete
+- Moodle credential and endpoint storage model - complete
 
 ### Phase 9: Canvas Adapter
 
