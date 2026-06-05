@@ -154,9 +154,9 @@ Do not implement an entire subplan directly from this master plan. Before code c
 ## Subplan 8: LMS Provider Contract
 
 - [x] Create detailed execution package for this subplan.
-- [ ] Define provider-neutral interfaces for identity launch, logout, course shell provisioning, section mapping, roster sync, enrollment sync, grade return, progress return, webhooks, and reconciliation.
-- [ ] Add no-LMS provider implementation.
-- [ ] Add contract conformance tests.
+- [x] Define provider-neutral interfaces for identity launch, logout, course shell provisioning, section mapping, roster sync, enrollment sync, grade return, progress return, webhooks, and reconciliation.
+- [x] Add no-LMS provider implementation.
+- [x] Add contract conformance tests.
 - [ ] Add tenant-level provider selection.
 - [ ] Add audit logs for all provider sync operations.
 - [ ] Add failure-mode tests for retries, idempotency, duplicate events, and provider downtime.
