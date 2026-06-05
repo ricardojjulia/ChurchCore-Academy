@@ -157,9 +157,9 @@ Do not implement an entire subplan directly from this master plan. Before code c
 - [x] Define provider-neutral interfaces for identity launch, logout, course shell provisioning, section mapping, roster sync, enrollment sync, grade return, progress return, webhooks, and reconciliation.
 - [x] Add no-LMS provider implementation.
 - [x] Add contract conformance tests.
-- [ ] Add tenant-level provider selection.
-- [ ] Add audit logs for all provider sync operations.
-- [ ] Add failure-mode tests for retries, idempotency, duplicate events, and provider downtime.
+- [x] Add tenant-level provider selection.
+- [x] Add audit logs for all provider sync operations.
+- [x] Add failure-mode tests for retries, idempotency, duplicate events, and provider downtime.
 
 ## Subplan 9: Moodle Adapter
 
