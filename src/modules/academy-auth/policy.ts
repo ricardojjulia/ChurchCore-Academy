@@ -11,6 +11,8 @@ export type AcademyRole =
   | "student"
   | "guardian";
 
+export type PlatformRole = "platform_staff" | "platform_admin";
+
 export type InstitutionConfigAction = "read" | "write" | "admin";
 
 export interface AcademyActor {
@@ -37,5 +39,17 @@ export function canAccessInstitutionConfig(actor: AcademyActor, tenantId: string
 export function assertInstitutionConfigAccess(actor: AcademyActor, tenantId: string, action: InstitutionConfigAction) {
   if (!canAccessInstitutionConfig(actor, tenantId, action)) {
     throw new Error("Forbidden institution configuration access.");
+  }
+}
+
+const allowedPlatformRoles = new Set<PlatformRole>(["platform_staff", "platform_admin"]);
+
+export function canAccessPlatformStaffWorkspace(roles: string[]) {
+  return roles.some((role) => allowedPlatformRoles.has(role as PlatformRole));
+}
+
+export function assertPlatformStaffWorkspaceAccess(roles: string[]) {
+  if (!canAccessPlatformStaffWorkspace(roles)) {
+    throw new Error("Forbidden platform staff access.");
   }
 }
