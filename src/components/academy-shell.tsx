@@ -23,6 +23,7 @@ const navItems = [
   { href: "/settings/courses", label: "Courses", caption: "Catalog setup", icon: LibraryBig },
   { href: "/settings/grading", label: "Grading", caption: "Records and standing", icon: Star },
   { href: "/settings/people", label: "People", caption: "Roles and guardians", icon: UsersRound },
+  { href: "/settings/demo-feedback", label: "Demo Feedback", caption: "Platform triage", icon: ListChecks },
 ];
 
 export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/", children }: AcademyShellProps) {

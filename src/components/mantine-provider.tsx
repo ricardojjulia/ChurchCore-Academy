@@ -4,6 +4,9 @@ import { MantineProvider, createTheme } from "@mantine/core";
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import type React from "react";
+import { DemoFeedbackButton } from "@/components/demo-feedback-button";
+import { DemoAppErrorBoundary } from "@/components/demo-error-boundary";
+import { DemoSessionProvider } from "@/components/demo-session-provider";
 
 const theme = createTheme({
   primaryColor: "indigo",
@@ -38,7 +41,12 @@ export function AcademyMantineProvider({ children }: { children: React.ReactNode
   return (
     <MantineProvider theme={theme} defaultColorScheme="light">
       <ModalsProvider>
-        {children}
+        <DemoSessionProvider>
+          <DemoAppErrorBoundary>
+            {children}
+            <DemoFeedbackButton />
+          </DemoAppErrorBoundary>
+        </DemoSessionProvider>
         <Notifications position="top-right" />
       </ModalsProvider>
     </MantineProvider>

@@ -2493,3 +2493,204 @@ a {
     @apply font-sans;
   }
 }
+
+.demo-feedback-button {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 80;
+  box-shadow: 0 8px 24px rgba(10, 26, 52, 0.24);
+}
+
+.demo-feedback-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.demo-feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.demo-feedback-note-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.demo-error-fallback {
+  margin: 2rem auto;
+  max-width: 42rem;
+  border: 1px solid #d8dee8;
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1.25rem;
+}
+
+.demo-error-fallback h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.demo-error-fallback p {
+  margin: 0.65rem 0 0.95rem;
+  color: #5d6d85;
+}
+
+.demo-triage-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.demo-triage-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.demo-triage-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.demo-triage-empty {
+  border: 1px dashed #c8d3e1;
+  border-radius: 0.85rem;
+  color: #5d6d85;
+  background: #fcfdff;
+  padding: 1rem;
+  text-align: center;
+}
+
+.demo-triage-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.demo-triage-row {
+  width: 100%;
+  border: 1px solid #d8dee8;
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 0.85rem;
+  text-align: left;
+}
+
+.demo-triage-row-main,
+.demo-triage-row-meta,
+.demo-triage-badges,
+.demo-triage-detail-grid,
+.demo-triage-form-grid {
+  display: flex;
+}
+
+.demo-triage-row-main {
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.demo-triage-row-main strong,
+.demo-triage-row-main span {
+  display: block;
+}
+
+.demo-triage-row-main span {
+  margin-top: 0.2rem;
+  color: #6c7b90;
+  font-size: 0.78rem;
+}
+
+.demo-triage-badges {
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.demo-triage-row-meta {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+  color: #5d6d85;
+  font-size: 0.82rem;
+}
+
+.demo-triage-drawer {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.demo-triage-detail-grid {
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.demo-triage-detail-item {
+  min-width: 12rem;
+  border: 1px solid #dbe3ef;
+  border-radius: 0.75rem;
+  background: #f9fbff;
+  padding: 0.6rem;
+}
+
+.demo-triage-detail-item span,
+.demo-triage-detail-item strong,
+.demo-triage-panel strong,
+.demo-triage-panel span {
+  display: block;
+}
+
+.demo-triage-detail-item span {
+  color: #5d6d85;
+  font-size: 0.75rem;
+}
+
+.demo-triage-detail-item strong {
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.demo-triage-panel {
+  border: 1px solid #dbe3ef;
+  border-radius: 0.75rem;
+  background: #f9fbff;
+  padding: 0.75rem;
+}
+
+.demo-triage-panel strong {
+  font-size: 0.82rem;
+}
+
+.demo-triage-panel span {
+  margin-top: 0.3rem;
+  color: #44566f;
+  font-size: 0.84rem;
+}
+
+.demo-triage-form-grid {
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.demo-triage-json {
+  overflow: auto;
+  max-height: 18rem;
+  margin-top: 0.65rem;
+  border: 1px solid #dbe3ef;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.65rem;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 900px) {
+  .demo-triage-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-feedback-button {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    justify-content: center;
+  }
+}
