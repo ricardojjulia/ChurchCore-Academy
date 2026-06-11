@@ -74,6 +74,9 @@ ShepherdAI Academy is not:
    `NEXT_PUBLIC_SUPABASE_URL`
    `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    `SUPABASE_SERVICE_ROLE_KEY`
+   `DEMO_MODE_ENABLED`
+   `NEXT_PUBLIC_DEMO_MODE_ENABLED`
+   `NEXT_PUBLIC_DEMO_VERSION`
 3. Install dependencies:
 
 ```bash
@@ -89,6 +92,30 @@ npm run dev
 5. Open `http://localhost:3000`
 
 The app will boot without Supabase credentials, but Supabase-backed features should only be added after the env vars are configured.
+
+## Demo feedback and triage
+
+ChurchCore Academy now includes a demo-only feedback and error-triage pipeline.
+
+- Enable demo mode with both:
+   - `DEMO_MODE_ENABLED=true` (server gate)
+   - `NEXT_PUBLIC_DEMO_MODE_ENABLED=true` (client gate)
+- Optional demo label:
+   - `NEXT_PUBLIC_DEMO_VERSION=2026.06.11`
+
+When enabled, demo users can submit feedback from the global floating button and unhandled React render errors are captured through a global error boundary.
+
+Platform staff triage workspace:
+
+- route: `/settings/demo-feedback`
+- API list: `GET /api/academy/platform/demo-feedback`
+- API mutate: `PATCH /api/academy/platform/demo-feedback/:id`
+
+Submission API:
+
+- `POST /api/academy/demo-feedback`
+
+Browser-generated session IDs can be rotated by the browser session lifecycle. Per-session throttling helps reduce accidental floods but is not complete bot protection.
 
 ## Next steps
 

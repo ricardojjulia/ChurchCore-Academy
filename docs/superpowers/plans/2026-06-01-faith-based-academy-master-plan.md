@@ -168,8 +168,8 @@ Do not implement an entire subplan directly from this master plan. Before code c
 - [ ] Map Academy users, courses, sections, roles, enrollments, and grade return to the provider contract.
 - [ ] Add retry and reconciliation behavior.
 - [ ] Add contract conformance tests against mocked Moodle responses.
-- [ ] Document required Moodle configuration.
-- [ ] Add trademark and deployment notes for institutions offering Moodle-related services.
+- [x] Document required Moodle configuration.
+- [x] Add trademark and deployment notes for institutions offering Moodle-related services.
 
 ## Subplan 10: Canvas Adapter
 

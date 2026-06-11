@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AcademyActor, assertInstitutionConfigAccess, canAccessInstitutionConfig } from "@/modules/academy-auth/policy";
+import {
+  AcademyActor,
+  assertInstitutionConfigAccess,
+  assertPlatformStaffWorkspaceAccess,
+  canAccessInstitutionConfig,
+  canAccessPlatformStaffWorkspace,
+} from "@/modules/academy-auth/policy";
 import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
 
 const institutionAdmin: AcademyActor = {
@@ -64,4 +70,12 @@ test("resolves bootstrap Academy actor from request headers", () => {
     tenantId: "tenant-a",
     roles: ["student", "guardian"],
   });
+});
+
+test("allows only platform staff/admin roles for platform workspace", () => {
+  assert.equal(canAccessPlatformStaffWorkspace(["platform_staff"]), true);
+  assert.equal(canAccessPlatformStaffWorkspace(["platform_admin"]), true);
+  assert.equal(canAccessPlatformStaffWorkspace(["institution_admin"]), false);
+
+  assert.throws(() => assertPlatformStaffWorkspaceAccess(["student"]), /Forbidden platform staff access./);
 });
