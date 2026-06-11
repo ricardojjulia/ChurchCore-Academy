@@ -2,7 +2,7 @@
 
 ## Current Position
 
-ChurchCore Academy has completed the product/factory foundation, Phases 1 through 7, and the first three Phase 8 Moodle adapter sprints. The next implementation focus is Phase 8: Moodle Adapter.
+ChurchCore Academy has completed the product/factory foundation, Phases 1 through 8. The next implementation focus is Phase 9: Canvas Adapter.
 
 Completed:
 
@@ -27,18 +27,18 @@ Completed:
 - Moodle adapter design package
 - Moodle identity and launch mapping
 - Moodle course and roster sync
+- Moodle grade/progress return
+- Moodle reconciliation and provider docs
 - baseline verification with `npm test`, `npm run lint`, and `npm run build`
 
 Not started:
 
-- Moodle grade/progress return
-- Moodle reconciliation and provider docs
 - Canvas adapter
 - ShepherdAI expansion on the full Academy model
 
 Next:
 
-- Moodle grade/progress return
+- Canvas adapter design package
 
 ## Sprint Cadence
 
@@ -252,8 +252,8 @@ Suggested 1-week sprints:
 1. Moodle adapter design package - complete
 2. Moodle identity and launch mapping - complete
 3. Moodle course and roster sync - complete
-4. Moodle grade/progress return
-5. Moodle reconciliation and provider docs
+4. Moodle grade/progress return - complete
+5. Moodle reconciliation and provider docs - complete
 
 Required ADRs:
 
