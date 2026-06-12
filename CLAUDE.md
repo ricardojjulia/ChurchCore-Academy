@@ -1,6 +1,97 @@
 # ChurchCore Academy — Agent Reference
 
 This file is the authoritative guide for AI-assisted development in this repository.
+It is loaded automatically by every Claude Code session and every factory agent.
+Keep it under 300 lines. Move procedures to `.claude/skills/`. Move architecture to `docs/`.
+
+## Stack
+
+- **Framework:** Next.js 16 (App Router, Turbopack) with TypeScript strict mode
+- **UI:** Mantine 7 (`@mantine/core`, `@mantine/modals`, `@mantine/notifications`)
+- **Auth:** Supabase SSR (`@supabase/ssr`) — session in `src/lib/supabase/server.ts`
+- **DB:** Supabase/Postgres — direct pool via `src/lib/database.ts` for repository/migration paths
+- **Testing:** Node.js built-in test runner (`node:test` + `node:assert/strict`)
+- **Linting:** ESLint via `eslint.config.mjs`
+- **Runtime:** Node.js 20+, deployed on Vercel
+
+## Commands
+
+```
+npm run dev          # start local dev server
+npm test             # run all tests (node --import tsx --test "src/**/*.test.ts")
+npm run lint         # eslint
+npm run build        # next build (TypeScript check + bundle)
+```
+
+## Project layout
+
+```
+src/app/             # Next.js App Router pages and API routes
+src/components/      # React client components (UI only, no business logic)
+src/lib/             # Shared infra (supabase client, database pool, utils)
+src/modules/         # Domain modules — each owns its own types, validation, repository, tests
+	academy-auth/      # Auth policy, role resolution, request context
+	academy-config/    # Institution profile, defaults, types
+	academic-calendar/ # Calendar, terms, periods
+	course-catalog/    # Courses, sections, prerequisites
+	people/            # Students, staff, guardians, relationships
+	grading/           # Grading scales, evaluations, transcripts
+	student-pwa/       # Student dashboard, LMS launch, offline
+	lms-contract/      # Provider-neutral LMS interface, Moodle/Canvas adapters
+	demo-feedback/     # Demo mode feedback collection
+	academic-workflows/# ShepherdAI workflow recommendations
+docs/                # Architecture, ADRs, product docs, factory docs
+supabase/migrations/ # Postgres migrations (SQL)
+```
+
+## Architecture rules
+
+- **Business logic lives in `src/modules/`.** API routes stay thin — resolve actor, call module, map errors.
+- **No LMS runtime code in this repo.** LMS providers are adapters under `src/modules/lms-contract/`.
+- **Tenant isolation is enforced in every module function before repository access.**
+- **ShepherdAI is a deterministic signal engine.** No chatbot UI. No freeform LLM output surfaced directly to users.
+- **Student PWA surfaces only released, reviewed records.** No drafts, no held records, no provider secrets.
+- **Tests live next to the code they cover** under `src/modules/<domain>/__tests__/`.
+- **Test data is built inline or via domain defaults helpers.** No database in unit tests.
+- **Migrations are append-only.** Never edit a migration after it has been committed.
+
+## Testing conventions
+
+- Every module function must have: success case, validation/rejection case, cross-tenant rejection case.
+- Use `node:test` + `node:assert/strict`. No Jest, no Vitest.
+- Secret field names must never appear in test output (verify with `doesNotMatch`).
+- Run `npm test && npm run lint && npm run build` before marking any task complete.
+
+## Don't do
+
+- Do not log raw payment, grade, or auth payloads.
+- Do not return database error messages directly to the client.
+- Do not add a dependency without a reason documented in the PR description.
+- Do not refactor code outside the agreed task scope.
+- Do not call ShepherdAI from UI components or route handlers directly.
+- Do not use `any` type unless the existing file already does.
+- Do not resolve `process.env` inside module domain functions — resolve at the route layer.
+
+## Documentation map
+
+Before guessing, consult:
+
+- `docs/architecture.md` — system boundary and domain layout
+- `docs/product/faith-based-academy-master-plan.md` — product vision
+- `docs/product/factory-roadmap.md` — phase plan (Phases 1–22) and sprint shape
+- `docs/product/sis-competitive-research-and-expansion-roadmap.md` — competitive intelligence
+- `docs/software-factory.md` — factory process (intake → delivery)
+- `docs/adr/` — architecture decisions (read before contradicting one)
+- `supabase/migrations/` — schema history
+
+## GitHub discipline
+
+- **Sole approver:** @ricardojjulia. No other approvals required or expected.
+- **Branch pattern:** `feature/<phase>-<short-name>` or `fix/<short-name>`.
+- **Every PR must pass** `npm test`, `npm run lint`, `npm run build` before merge.
+- **PR description must include:** what changed, why, tests added, ADR reference if applicable.
+- **Squash merge to `main`.** No force-pushes to `main`.
+
 
 ## Repo identity
 

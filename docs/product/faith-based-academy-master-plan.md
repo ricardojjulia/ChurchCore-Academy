@@ -74,6 +74,20 @@ Support explainable academic workflow recommendations using only Academy-owned d
 8. Moodle adapter.
 9. Canvas adapter.
 10. ShepherdAI expansion on top of the completed Academy data model.
+11. Admissions and enrollment CRM.
+12. Student billing and accounts.
+13. Financial aid management.
+14. Ministry formation and spiritual development records.
+15. Competency-based and narrative evaluation expansion.
+16. Cohort and modular enrollment management.
+17. Compliance and accreditation reporting (ATS, IPEDS).
+18. Faculty portal and qualification records.
+19. Alumni, donor, and ministry placement CRM.
+20. Denomination and church partner access model.
+21. Certificate, CEU, and continuing education programs.
+22. International student and multilingual support.
+23. ShepherdAI academic early alert and advising intelligence.
+24. ShepherdAI graduation readiness and enrollment pattern intelligence.
 
 ## Factory Work Packages
 
@@ -96,3 +110,45 @@ Use Moodle as the first LMS provider. Moodle is the best initial fit for faith-b
 Keep Canvas as a compatible second provider for institutions already invested in Canvas or needing a higher-ed-oriented LMS workflow.
 
 Do not hardwire either provider into Academy. Let tenants choose Moodle, Canvas, or no LMS.
+
+## Extended Domain Ownership
+
+Based on competitive research (see `docs/product/sis-competitive-research-and-expansion-roadmap.md`), ChurchCore Academy also owns the following domains not yet implemented:
+
+- Admissions and enrollment CRM (inquiry to enrolled lifecycle)
+- Student billing, payment plans, and account management
+- Financial aid packaging, FAFSA integration, and SAP tracking
+- Ministry formation and spiritual development records (non-graded, distinct from transcript)
+- Competency-based evaluation and narrative grading expansion
+- Cohort and modular enrollment management (clock-hour Bible school model)
+- ATS and IPEDS compliance reporting
+- Faculty portal, teaching load, and credential qualification tracking
+- Alumni and ministry placement tracking
+- Donor and church partner relationship management
+- Certificate programs, CEU tracking, and digital credential issuance
+- International student enrollment and multilingual support
+- ShepherdAI academic early alert, advising workflow intelligence, and graduation readiness
+
+## Competitive Position
+
+ChurchCore Academy targets the faith-based small and mid-size institution market where the primary competitor (Populi, starting at $199/month) serves well but has documented gaps:
+
+- Plain UX not designed for theology school workflows
+- No AI-powered advising or workflow recommendations
+- No ministry formation records as first-class domain objects
+- No competency-based learning support
+- Limited mobile app
+- No denomination/church partner integration
+- Not natively ATS-compliant
+- No faith-specific guardian portal for children's ministry schools
+
+ChurchCore Academy's differentiators:
+
+1. Built for theology school structures from day one
+2. ShepherdAI workflow recommendations — no SIS competitor has this
+3. Provider-neutral LMS contract (Moodle, Canvas, or no LMS)
+4. First-class Student PWA
+5. Faith formation as a distinct record domain
+6. Guardian portal with scoped visibility for children's school populations
+7. Competency and narrative grading native to the data model
+8. ATS-native compliance reporting tooling

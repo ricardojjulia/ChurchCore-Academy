@@ -1,6 +1,14 @@
 import { getDatabasePool } from "@/lib/database";
 import { AiSignalRecord, ShepherdAiSuggestion, WorkflowActionRecord, WorkflowFeedbackRecord, WorkflowRecord } from "@/modules/shepherd-ai/types";
 
+interface DatabaseRow {
+  [key: string]: unknown;
+}
+
+interface DatabaseLike {
+  query(sql: string, params?: unknown[]): Promise<{ rowCount: number; rows: DatabaseRow[] }>;
+}
+
 function parseJson<T>(value: unknown) {
   if (typeof value === "string") {
     return JSON.parse(value) as T;
@@ -9,11 +17,11 @@ function parseJson<T>(value: unknown) {
 }
 
 export class ShepherdAiPostgresRepository {
-  async saveSignals(signals: AiSignalRecord[]) {
-    const pool = getDatabasePool();
+  constructor(private readonly database: DatabaseLike = getDatabasePool()) {}
 
+  async saveSignals(signals: AiSignalRecord[]) {
     for (const signal of signals) {
-      await pool.query(
+      await this.database.query(
         `insert into ai_signals (
            id, tenant_id, product_area, entity_type, entity_id, signal_type, signal_value, signal_window, signal_payload_json, detected_at
          )
@@ -45,10 +53,8 @@ export class ShepherdAiPostgresRepository {
   }
 
   async saveSuggestions(suggestions: ShepherdAiSuggestion[]) {
-    const pool = getDatabasePool();
-
     for (const suggestion of suggestions) {
-      await pool.query(
+      await this.database.query(
         `insert into ai_suggestions (
            id, tenant_id, product_area, workflow_type, workflow_code, entity_type, entity_id, title, summary,
            confidence_score, urgency, suggested_actions, explanation_json, boundary_note, message_draft, status, generated_at
@@ -97,8 +103,7 @@ export class ShepherdAiPostgresRepository {
   }
 
   async upsertWorkflow(workflow: WorkflowRecord) {
-    const pool = getDatabasePool();
-    await pool.query(
+    await this.database.query(
       `insert into workflows (
          id, tenant_id, suggestion_id, workflow_type, workflow_code, owner_user_id, assigned_to_user_id, status, due_at, completed_at, created_at
        )
@@ -131,8 +136,7 @@ export class ShepherdAiPostgresRepository {
   }
 
   async insertWorkflowAction(action: WorkflowActionRecord) {
-    const pool = getDatabasePool();
-    await pool.query(
+    await this.database.query(
       `insert into workflow_actions (id, workflow_id, action_type, action_payload_json, status, created_at)
        values ($1, $2, $3, $4::jsonb, $5, $6)
        on conflict (id) do nothing`,
@@ -141,8 +145,7 @@ export class ShepherdAiPostgresRepository {
   }
 
   async insertWorkflowFeedback(feedback: WorkflowFeedbackRecord) {
-    const pool = getDatabasePool();
-    await pool.query(
+    await this.database.query(
       `insert into workflow_feedback (id, workflow_id, user_id, feedback_type, notes, created_at)
        values ($1, $2, $3, $4, $5, $6)
        on conflict (id) do update
@@ -151,103 +154,200 @@ export class ShepherdAiPostgresRepository {
     );
   }
 
-  async updateSuggestionStatus(suggestionId: string, status: ShepherdAiSuggestion["status"]) {
-    const pool = getDatabasePool();
-    await pool.query("update ai_suggestions set status = $2 where id = $1", [suggestionId, status]);
+  async updateSuggestionStatus(tenantId: string, suggestionId: string, status: ShepherdAiSuggestion["status"]) {
+    await this.database.query("update ai_suggestions set status = $3 where id = $1 and tenant_id = $2", [suggestionId, tenantId, status]);
   }
 
-  async fetchSignals() {
-    const pool = getDatabasePool();
-    const result = await pool.query("select * from ai_signals order by detected_at desc, id asc");
+  async fetchSignals(tenantId: string) {
+    const result = await this.database.query(
+      "select * from ai_signals where tenant_id = $1 order by detected_at desc, id asc",
+      [tenantId],
+    );
     return result.rows.map(
-      (row): AiSignalRecord => ({
-        id: row.id,
-        tenantId: row.tenant_id,
-        productArea: row.product_area,
-        entityType: row.entity_type,
-        entityId: row.entity_id,
-        signalType: row.signal_type,
-        signalValue: Number(row.signal_value),
-        signalWindow: row.signal_window,
-        signalPayloadJson: parseJson<Record<string, unknown>>(row.signal_payload_json),
-        detectedAt: row.detected_at.toISOString(),
-      }),
+      (rawRow): AiSignalRecord => {
+        const row = rawRow as SignalRow;
+        return {
+          id: row.id,
+          tenantId: row.tenant_id,
+          productArea: row.product_area,
+          entityType: row.entity_type,
+          entityId: row.entity_id,
+          signalType: row.signal_type,
+          signalValue: Number(row.signal_value),
+          signalWindow: row.signal_window,
+          signalPayloadJson: parseJson<Record<string, unknown>>(row.signal_payload_json),
+          detectedAt: row.detected_at.toISOString(),
+        };
+      },
     );
   }
 
-  async fetchSuggestions() {
-    const pool = getDatabasePool();
-    const result = await pool.query("select * from ai_suggestions order by generated_at desc, confidence_score desc");
+  async fetchSuggestions(tenantId: string) {
+    const result = await this.database.query(
+      "select * from ai_suggestions where tenant_id = $1 order by generated_at desc, confidence_score desc",
+      [tenantId],
+    );
     return result.rows.map(
-      (row): ShepherdAiSuggestion => ({
-        id: row.id,
-        tenantId: row.tenant_id,
-        productArea: row.product_area,
-        workflowType: row.workflow_type,
-        workflowCode: row.workflow_code,
-        entityType: row.entity_type,
-        entityId: row.entity_id,
-        title: row.title,
-        summary: row.summary,
-        confidenceScore: row.confidence_score,
-        urgency: row.urgency,
-        suggestedActions: parseJson<ShepherdAiSuggestion["suggestedActions"]>(row.suggested_actions),
-        explanation: parseJson<ShepherdAiSuggestion["explanation"]>(row.explanation_json),
-        boundaryNote: row.boundary_note,
-        messageDraft: row.message_draft ?? undefined,
-        status: row.status,
-        generatedAt: row.generated_at.toISOString(),
-      }),
+      (rawRow): ShepherdAiSuggestion => {
+        const row = rawRow as SuggestionRow;
+        return {
+          id: row.id,
+          tenantId: row.tenant_id,
+          productArea: row.product_area,
+          workflowType: row.workflow_type,
+          workflowCode: row.workflow_code,
+          entityType: row.entity_type,
+          entityId: row.entity_id,
+          title: row.title,
+          summary: row.summary,
+          confidenceScore: row.confidence_score,
+          urgency: row.urgency,
+          suggestedActions: parseJson<ShepherdAiSuggestion["suggestedActions"]>(row.suggested_actions),
+          explanation: parseJson<ShepherdAiSuggestion["explanation"]>(row.explanation_json),
+          boundaryNote: row.boundary_note,
+          messageDraft: row.message_draft ?? undefined,
+          status: row.status,
+          generatedAt: row.generated_at.toISOString(),
+        };
+      },
     );
   }
 
-  async fetchWorkflows() {
-    const pool = getDatabasePool();
-    const result = await pool.query("select * from workflows order by created_at desc, id asc");
+  async fetchWorkflows(tenantId: string) {
+    const result = await this.database.query(
+      "select * from workflows where tenant_id = $1 order by created_at desc, id asc",
+      [tenantId],
+    );
     return result.rows.map(
-      (row): WorkflowRecord => ({
-        id: row.id,
-        tenantId: row.tenant_id,
-        suggestionId: row.suggestion_id ?? undefined,
-        workflowType: row.workflow_type,
-        workflowCode: row.workflow_code,
-        ownerUserId: row.owner_user_id,
-        assignedToUserId: row.assigned_to_user_id ?? undefined,
-        status: row.status,
-        dueAt: row.due_at?.toISOString(),
-        completedAt: row.completed_at?.toISOString(),
-        createdAt: row.created_at.toISOString(),
-      }),
+      (rawRow): WorkflowRecord => {
+        const row = rawRow as WorkflowRow;
+        return {
+          id: row.id,
+          tenantId: row.tenant_id,
+          suggestionId: row.suggestion_id ?? undefined,
+          workflowType: row.workflow_type,
+          workflowCode: row.workflow_code,
+          ownerUserId: row.owner_user_id,
+          assignedToUserId: row.assigned_to_user_id ?? undefined,
+          status: row.status,
+          dueAt: row.due_at?.toISOString(),
+          completedAt: row.completed_at?.toISOString(),
+          createdAt: row.created_at.toISOString(),
+        };
+      },
     );
   }
 
-  async fetchWorkflowActions() {
-    const pool = getDatabasePool();
-    const result = await pool.query("select * from workflow_actions order by created_at asc, id asc");
+  async fetchWorkflowActions(tenantId: string) {
+    const result = await this.database.query(
+      `select workflow_actions.*
+       from workflow_actions
+       inner join workflows on workflows.id = workflow_actions.workflow_id
+       where workflows.tenant_id = $1
+       order by workflow_actions.created_at asc, workflow_actions.id asc`,
+      [tenantId],
+    );
     return result.rows.map(
-      (row): WorkflowActionRecord => ({
-        id: row.id,
-        workflowId: row.workflow_id,
-        actionType: row.action_type,
-        actionPayloadJson: parseJson<Record<string, unknown>>(row.action_payload_json),
-        status: row.status,
-        createdAt: row.created_at.toISOString(),
-      }),
+      (rawRow): WorkflowActionRecord => {
+        const row = rawRow as WorkflowActionRow;
+        return {
+          id: row.id,
+          workflowId: row.workflow_id,
+          actionType: row.action_type,
+          actionPayloadJson: parseJson<Record<string, unknown>>(row.action_payload_json),
+          status: row.status,
+          createdAt: row.created_at.toISOString(),
+        };
+      },
     );
   }
 
-  async fetchWorkflowFeedback() {
-    const pool = getDatabasePool();
-    const result = await pool.query("select * from workflow_feedback order by created_at asc, id asc");
+  async fetchWorkflowFeedback(tenantId: string) {
+    const result = await this.database.query(
+      `select workflow_feedback.*
+       from workflow_feedback
+       inner join workflows on workflows.id = workflow_feedback.workflow_id
+       where workflows.tenant_id = $1
+       order by workflow_feedback.created_at asc, workflow_feedback.id asc`,
+      [tenantId],
+    );
     return result.rows.map(
-      (row): WorkflowFeedbackRecord => ({
-        id: row.id,
-        workflowId: row.workflow_id,
-        userId: row.user_id,
-        feedbackType: row.feedback_type,
-        notes: row.notes ?? undefined,
-        createdAt: row.created_at.toISOString(),
-      }),
+      (rawRow): WorkflowFeedbackRecord => {
+        const row = rawRow as WorkflowFeedbackRow;
+        return {
+          id: row.id,
+          workflowId: row.workflow_id,
+          userId: row.user_id,
+          feedbackType: row.feedback_type,
+          notes: row.notes ?? undefined,
+          createdAt: row.created_at.toISOString(),
+        };
+      },
     );
   }
 }
+
+type SignalRow = {
+  id: string;
+  tenant_id: string;
+  product_area: AiSignalRecord["productArea"];
+  entity_type: AiSignalRecord["entityType"];
+  entity_id: string;
+  signal_type: AiSignalRecord["signalType"];
+  signal_value: number | string;
+  signal_window: string;
+  signal_payload_json: unknown;
+  detected_at: Date;
+};
+
+type SuggestionRow = {
+  id: string;
+  tenant_id: string;
+  product_area: ShepherdAiSuggestion["productArea"];
+  workflow_type: ShepherdAiSuggestion["workflowType"];
+  workflow_code: ShepherdAiSuggestion["workflowCode"];
+  entity_type: ShepherdAiSuggestion["entityType"];
+  entity_id: string;
+  title: string;
+  summary: string;
+  confidence_score: number;
+  urgency: ShepherdAiSuggestion["urgency"];
+  suggested_actions: unknown;
+  explanation_json: unknown;
+  boundary_note: string;
+  message_draft: string | null;
+  status: ShepherdAiSuggestion["status"];
+  generated_at: Date;
+};
+
+type WorkflowRow = {
+  id: string;
+  tenant_id: string;
+  suggestion_id: string | null;
+  workflow_type: WorkflowRecord["workflowType"];
+  workflow_code: WorkflowRecord["workflowCode"];
+  owner_user_id: string;
+  assigned_to_user_id: string | null;
+  status: WorkflowRecord["status"];
+  due_at?: Date | null;
+  completed_at?: Date | null;
+  created_at: Date;
+};
+
+type WorkflowActionRow = {
+  id: string;
+  workflow_id: string;
+  action_type: WorkflowActionRecord["actionType"];
+  action_payload_json: unknown;
+  status: WorkflowActionRecord["status"];
+  created_at: Date;
+};
+
+type WorkflowFeedbackRow = {
+  id: string;
+  workflow_id: string;
+  user_id: string;
+  feedback_type: WorkflowFeedbackRecord["feedbackType"];
+  notes: string | null;
+  created_at: Date;
+};

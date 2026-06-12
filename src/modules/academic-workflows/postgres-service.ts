@@ -1,20 +1,33 @@
 import { getDatabasePool } from "@/lib/database";
-import { WorkflowRecord } from "@/modules/shepherd-ai/types";
+import { ShepherdAiSuggestion, WorkflowFeedbackRecord, WorkflowRecord } from "@/modules/shepherd-ai/types";
+
+interface DatabaseRow {
+  [key: string]: unknown;
+}
+
+interface DatabaseLike {
+  query(sql: string, params?: unknown[]): Promise<{ rowCount: number; rows: DatabaseRow[] }>;
+}
 
 function nowIso() {
   return new Date().toISOString();
 }
 
 export class AcademicWorkflowsPostgresService {
-  async promoteSuggestion(suggestionId: string, ownerUserId: string, assignedToUserId?: string, dueAt?: string) {
-    const pool = getDatabasePool();
-    const suggestionResult = await pool.query("select * from ai_suggestions where id = $1", [suggestionId]);
+  constructor(private readonly database: DatabaseLike = getDatabasePool()) {}
+
+  async promoteSuggestion(tenantId: string, suggestionId: string, ownerUserId: string, assignedToUserId?: string, dueAt?: string) {
+    const suggestionResult = await this.database.query("select * from ai_suggestions where id = $1 and tenant_id = $2", [suggestionId, tenantId]);
 
     if (suggestionResult.rowCount === 0) {
       throw new Error(`Suggestion ${suggestionId} was not found.`);
     }
 
-    const suggestion = suggestionResult.rows[0];
+    const suggestion = suggestionResult.rows[0] as SuggestionRow;
+    if (suggestion.tenant_id !== tenantId) {
+      throw new Error("Forbidden ShepherdAI access.");
+    }
+
     const workflow: WorkflowRecord = {
       id: `workflow-${suggestion.id}`,
       tenantId: suggestion.tenant_id,
@@ -28,9 +41,9 @@ export class AcademicWorkflowsPostgresService {
       createdAt: nowIso(),
     };
 
-    await pool.query("begin");
+    await this.database.query("begin");
     try {
-      await pool.query(
+      await this.database.query(
         `insert into workflows (
            id, tenant_id, suggestion_id, workflow_type, workflow_code, owner_user_id, assigned_to_user_id, status, due_at, completed_at, created_at
          )
@@ -54,41 +67,43 @@ export class AcademicWorkflowsPostgresService {
           workflow.createdAt,
         ],
       );
-      await pool.query("update ai_suggestions set status = 'promoted_to_workflow' where id = $1", [suggestionId]);
-      await pool.query(
+      await this.database.query(
+        "update ai_suggestions set status = 'promoted_to_workflow' where id = $1 and tenant_id = $2",
+        [suggestionId, tenantId],
+      );
+      await this.database.query(
         `insert into workflow_actions (id, workflow_id, action_type, action_payload_json, status, created_at)
          values ($1, $2, 'promote', $3::jsonb, 'logged', $4)
          on conflict (id) do nothing`,
         [`action-${workflow.id}-promote-${Date.now()}`, workflow.id, JSON.stringify({ suggestionId }), workflow.createdAt],
       );
-      await pool.query("commit");
+      await this.database.query("commit");
     } catch (error) {
-      await pool.query("rollback");
+      await this.database.query("rollback");
       throw error;
     }
 
     return workflow;
   }
 
-  async dismissSuggestion(suggestionId: string, note?: string) {
+  async dismissSuggestion(tenantId: string, suggestionId: string, note?: string) {
     void note;
-    return this.updateSuggestionStatus(suggestionId, "dismissed");
+    return this.updateSuggestionStatus(tenantId, suggestionId, "dismissed");
   }
 
-  async deferSuggestion(suggestionId: string, reason?: string) {
+  async deferSuggestion(tenantId: string, suggestionId: string, reason?: string) {
     void reason;
-    return this.updateSuggestionStatus(suggestionId, "deferred");
+    return this.updateSuggestionStatus(tenantId, suggestionId, "deferred");
   }
 
-  async assignWorkflow(workflowId: string, assignedToUserId: string) {
-    const pool = getDatabasePool();
-    const result = await pool.query(
+  async assignWorkflow(tenantId: string, workflowId: string, assignedToUserId: string) {
+    const result = await this.database.query(
       `update workflows
        set assigned_to_user_id = $2,
            status = 'assigned'
-       where id = $1
+       where id = $1 and tenant_id = $3
        returning *`,
-      [workflowId, assignedToUserId],
+      [workflowId, assignedToUserId, tenantId],
     );
 
     if (result.rowCount === 0) {
@@ -96,19 +111,18 @@ export class AcademicWorkflowsPostgresService {
     }
 
     await this.logWorkflowEvent(workflowId, "assign", { assignedToUserId });
-    return mapWorkflow(result.rows[0]);
+    return mapWorkflow(result.rows[0] as WorkflowRow);
   }
 
-  async completeWorkflow(workflowId: string) {
-    const pool = getDatabasePool();
+  async completeWorkflow(tenantId: string, workflowId: string) {
     const completedAt = nowIso();
-    const result = await pool.query(
+    const result = await this.database.query(
       `update workflows
        set status = 'completed',
            completed_at = $2
-       where id = $1
+       where id = $1 and tenant_id = $3
        returning *`,
-      [workflowId, completedAt],
+      [workflowId, completedAt, tenantId],
     );
 
     if (result.rowCount === 0) {
@@ -116,17 +130,16 @@ export class AcademicWorkflowsPostgresService {
     }
 
     await this.logWorkflowEvent(workflowId, "complete", {});
-    return mapWorkflow(result.rows[0]);
+    return mapWorkflow(result.rows[0] as WorkflowRow);
   }
 
-  async deferWorkflow(workflowId: string, reason?: string) {
-    const pool = getDatabasePool();
-    const result = await pool.query(
+  async deferWorkflow(tenantId: string, workflowId: string, reason?: string) {
+    const result = await this.database.query(
       `update workflows
        set status = 'deferred'
-       where id = $1
+       where id = $1 and tenant_id = $2
        returning *`,
-      [workflowId],
+      [workflowId, tenantId],
     );
 
     if (result.rowCount === 0) {
@@ -134,60 +147,86 @@ export class AcademicWorkflowsPostgresService {
     }
 
     await this.logWorkflowEvent(workflowId, "defer", { reason: reason ?? null });
-    return mapWorkflow(result.rows[0]);
+    return mapWorkflow(result.rows[0] as WorkflowRow);
   }
 
-  async recordFeedback(workflowId: string, userId: string, feedbackType: string, notes?: string) {
-    const pool = getDatabasePool();
-    const workflowExists = await pool.query("select id from workflows where id = $1", [workflowId]);
+  async recordFeedback(tenantId: string, workflowId: string, userId: string, feedbackType: string, notes?: string) {
+    const workflowExists = await this.database.query("select id from workflows where id = $1 and tenant_id = $2", [workflowId, tenantId]);
     if (workflowExists.rowCount === 0) {
       throw new Error(`Workflow ${workflowId} was not found.`);
     }
 
     const id = `feedback-${workflowId}-${feedbackType}-${Date.now()}`;
-    const result = await pool.query(
+    const result = await this.database.query(
       `insert into workflow_feedback (id, workflow_id, user_id, feedback_type, notes, created_at)
        values ($1, $2, $3, $4, $5, $6)
        returning *`,
       [id, workflowId, userId, feedbackType, notes ?? null, nowIso()],
     );
+    const row = result.rows[0] as WorkflowFeedbackRow;
 
     return {
-      id: result.rows[0].id,
-      workflowId: result.rows[0].workflow_id,
-      userId: result.rows[0].user_id,
-      feedbackType: result.rows[0].feedback_type,
-      notes: result.rows[0].notes ?? undefined,
-      createdAt: result.rows[0].created_at.toISOString(),
-    };
+      id: row.id,
+      workflowId: row.workflow_id,
+      userId: row.user_id,
+      feedbackType: row.feedback_type,
+      notes: row.notes ?? undefined,
+      createdAt: row.created_at.toISOString(),
+    } satisfies WorkflowFeedbackRecord;
   }
 
   private async logWorkflowEvent(workflowId: string, actionType: "assign" | "complete" | "defer", payload: Record<string, unknown>) {
-    const pool = getDatabasePool();
-    await pool.query(
+    await this.database.query(
       `insert into workflow_actions (id, workflow_id, action_type, action_payload_json, status, created_at)
        values ($1, $2, $3, $4::jsonb, 'logged', $5)`,
       [`action-${workflowId}-${actionType}-${Date.now()}`, workflowId, actionType, JSON.stringify(payload), nowIso()],
     );
   }
 
-  private async updateSuggestionStatus(suggestionId: string, status: "dismissed" | "deferred") {
-    const pool = getDatabasePool();
-    const result = await pool.query(
+  private async updateSuggestionStatus(
+    tenantId: string,
+    suggestionId: string,
+    status: "dismissed" | "deferred",
+  ): Promise<Pick<ShepherdAiSuggestion, "id" | "status">> {
+    const result = await this.database.query(
       `update ai_suggestions
-       set status = $2
-       where id = $1
+       set status = $3
+       where id = $1 and tenant_id = $2
        returning id, status`,
-      [suggestionId, status],
+      [suggestionId, tenantId, status],
     );
 
     if (result.rowCount === 0) {
       throw new Error(`Suggestion ${suggestionId} was not found.`);
     }
 
-    return result.rows[0];
+    const row = result.rows[0] as SuggestionStatusRow;
+    return {
+      id: row.id,
+      status: row.status,
+    };
   }
 }
+
+type SuggestionRow = {
+  id: string;
+  tenant_id: string;
+  workflow_code: WorkflowRecord["workflowCode"];
+};
+
+type SuggestionStatusRow = {
+  id: string;
+  status: ShepherdAiSuggestion["status"];
+};
+
+type WorkflowFeedbackRow = {
+  id: string;
+  workflow_id: string;
+  user_id: string;
+  feedback_type: WorkflowFeedbackRecord["feedbackType"];
+  notes: string | null;
+  created_at: Date;
+};
 
 type WorkflowRow = {
   id: string;

@@ -4,8 +4,10 @@ import {
   AcademyActor,
   assertInstitutionConfigAccess,
   assertPlatformStaffWorkspaceAccess,
+  assertShepherdAiAccess,
   canAccessInstitutionConfig,
   canAccessPlatformStaffWorkspace,
+  canAccessShepherdAi,
 } from "@/modules/academy-auth/policy";
 import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
 
@@ -54,6 +56,39 @@ test("denies institution configuration access to non-admin student and guardian 
 
   assert.equal(canAccessInstitutionConfig(student, "tenant-a", "read"), false);
   assert.equal(canAccessInstitutionConfig(guardian, "tenant-a", "read"), false);
+});
+
+test("allows same-tenant academic_admin actors to access ShepherdAI suggestions", () => {
+  const academicAdmin: AcademyActor = {
+    userId: "user-academic-admin",
+    tenantId: "tenant-a",
+    roles: ["academic_admin"],
+  };
+
+  assert.equal(canAccessShepherdAi(academicAdmin, "tenant-a", "read"), true);
+  assert.equal(canAccessShepherdAi(academicAdmin, "tenant-a", "write"), true);
+});
+
+test("denies ShepherdAI access to same-tenant non-academic-admin roles", () => {
+  assert.equal(canAccessShepherdAi(institutionAdmin, "tenant-a", "read"), false);
+  assert.throws(
+    () => assertShepherdAiAccess(institutionAdmin, "tenant-a", "read"),
+    /Forbidden ShepherdAI access./,
+  );
+});
+
+test("denies ShepherdAI access across tenants", () => {
+  const academicAdmin: AcademyActor = {
+    userId: "user-academic-admin",
+    tenantId: "tenant-a",
+    roles: ["academic_admin"],
+  };
+
+  assert.equal(canAccessShepherdAi(academicAdmin, "tenant-b", "read"), false);
+  assert.throws(
+    () => assertShepherdAiAccess(academicAdmin, "tenant-b", "write"),
+    /Forbidden ShepherdAI access./,
+  );
 });
 
 test("resolves bootstrap Academy actor from request headers", () => {

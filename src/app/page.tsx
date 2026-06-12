@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { academyDataset } from "@/modules/academy-data/mock-data";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { headers } from "next/headers";
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -24,7 +25,7 @@ export default async function Home() {
     publishableKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
     serviceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
   };
-  const evaluation = await runAcademicWorkflowEvaluationJob();
+  const evaluation = await runAcademicWorkflowEvaluationJob((await headers()).get("x-academy-tenant-id") ?? "cca-main");
   const widgetItems = evaluation.workflows.getDashboardWidget(5);
   const highUrgencyCount = evaluation.suggestions.filter((item) => item.urgency === "high" || item.urgency === "critical").length;
   const activeWorkflowCount = evaluation.repository.workflows.filter((workflow) => workflow.status !== "completed").length;

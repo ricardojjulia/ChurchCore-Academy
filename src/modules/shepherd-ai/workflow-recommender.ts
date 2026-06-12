@@ -115,6 +115,21 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
           "This suggestion is for administrative planning and should not be framed as faculty performance criticism.",
         whyItSurfaced: "Faculty assignment counts, advisee ratios, roster capacity, or section setup indicators exceeded configured administrative thresholds.",
       };
+    case "calendar_setup_incomplete_or_inconsistent":
+      return {
+        workflowCode: "calendar_setup_review",
+        title: "Suggested Academic Workflow: calendar setup review",
+        summary: `${context.entityLabel} calendar and academic configuration may require administrative review because one or more validation checks indicate incomplete or inconsistent setup.`,
+        suggestedActions: actions([
+          "Review calendar validation report",
+          "Verify academic year and period dates",
+          "Confirm enrollment window configuration",
+          "Validate grading windows and transcript periods",
+        ]),
+        boundaryNote:
+          "This suggestion is for administrative setup completion. It does not impact currently active academic operations unless the issues directly affect current periods.",
+        whyItSurfaced: "Academic calendar validation detected configuration errors that should be resolved before relying on the calendar for enrollment, grading, and institutional decisions.",
+      };
   }
 }
 
