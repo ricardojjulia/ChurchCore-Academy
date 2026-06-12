@@ -1,5 +1,6 @@
 import { AcademyDataset, CourseSection, FacultyRecord, Program, StudentRecord } from "@/modules/academy-data/types";
 import { AiSignalRecord } from "@/modules/shepherd-ai/types";
+import { validateAcademicCalendarConfiguration } from "@/modules/academic-calendar/validation";
 
 function daysOpen(fromIso: string, toIso: string) {
   const dayMs = 1000 * 60 * 60 * 24;
@@ -20,6 +21,7 @@ export class SignalAggregator {
       ...dataset.students.flatMap((student) => this.evaluateStudent(dataset, student)),
       ...dataset.faculty.flatMap((faculty) => this.evaluateFaculty(dataset, faculty)),
       ...dataset.sections.flatMap((section) => this.evaluateSection(dataset, section)),
+      ...this.detectCalendarSetupGaps(dataset),
     ];
   }
 
@@ -202,5 +204,30 @@ export class SignalAggregator {
     }
 
     return [];
+  }
+
+  private detectCalendarSetupGaps(dataset: AcademyDataset): AiSignalRecord[] {
+    const errors = validateAcademicCalendarConfiguration(dataset.academicCalendar);
+    if (errors.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        id: createSignalId("calendar-setup", dataset.tenantId),
+        tenantId: dataset.tenantId,
+        productArea: "academy",
+        entityType: "institution",
+        entityId: dataset.tenantId,
+        signalType: "calendar_setup_incomplete_or_inconsistent",
+        signalValue: errors.length,
+        signalWindow: "configuration-audit",
+        signalPayloadJson: {
+          validationErrors: errors,
+          errorCount: errors.length,
+        },
+        detectedAt: dataset.generatedAt,
+      },
+    ];
   }
 }

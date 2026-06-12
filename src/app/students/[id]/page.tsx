@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { academyDataset } from "@/modules/academy-data/mock-data";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
+import { headers } from "next/headers";
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -49,7 +50,7 @@ export default async function StudentPage({
 
   const program = academyDataset.programs.find((item) => item.id === student.programId);
   const advisor = academyDataset.administrators.find((item) => item.id === student.advisorUserId);
-  const evaluation = await runAcademicWorkflowEvaluationJob();
+  const evaluation = await runAcademicWorkflowEvaluationJob((await headers()).get("x-academy-tenant-id") ?? "cca-main");
   const suggestions = evaluation.workflows.getStudentSuggestions(id);
   const workflows = evaluation.workflows.getStudentWorkflows(id);
   const progressPercent = program ? Math.min(100, Math.round((student.creditsEarned / program.requiredCredits) * 100)) : 0;

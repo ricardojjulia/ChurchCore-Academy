@@ -1,13 +1,31 @@
 import { handleApi } from "@/app/api/academy/api-utils";
+import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
+import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import { ShepherdAiSuggestion } from "@/modules/shepherd-ai/types";
 
-export async function GET() {
+interface ShepherdSuggestionReader {
+  fetchSuggestions(tenantId: string): Promise<ShepherdAiSuggestion[]>;
+}
+
+export async function buildShepherdSuggestionsPayload(
+  repository: ShepherdSuggestionReader,
+  actor: AcademyActor,
+  tenantId: string,
+) {
+  assertShepherdAiAccess(actor, tenantId, "read");
+
+  const suggestions = await repository.fetchSuggestions(tenantId);
+  return {
+    suggestions,
+    count: suggestions.length,
+  };
+}
+
+export async function GET(request: Request) {
   return handleApi(async () => {
-    const suggestions = await new ShepherdAiPostgresRepository().fetchSuggestions();
-    return {
-      suggestions,
-      count: suggestions.length,
-    };
+    const actor = resolveBootstrapAcademyActor(request.headers);
+    return buildShepherdSuggestionsPayload(new ShepherdAiPostgresRepository(), actor, actor.tenantId);
   });
 }
 

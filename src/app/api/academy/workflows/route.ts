@@ -1,21 +1,49 @@
 import { NextRequest } from "next/server";
 import { getStringParam, handleApi } from "@/app/api/academy/api-utils";
+import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
+import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
 import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
-import { QueueFilters } from "@/modules/shepherd-ai/types";
+import { QueueFilters, ShepherdAiSuggestion, WorkflowActionRecord, WorkflowFeedbackRecord, WorkflowRecord } from "@/modules/shepherd-ai/types";
+
+interface WorkflowQueueReader {
+  fetchSuggestions(tenantId: string): Promise<ShepherdAiSuggestion[]>;
+  fetchWorkflows(tenantId: string): Promise<WorkflowRecord[]>;
+  fetchWorkflowActions(tenantId: string): Promise<WorkflowActionRecord[]>;
+  fetchWorkflowFeedback(tenantId: string): Promise<WorkflowFeedbackRecord[]>;
+}
+
+export async function buildWorkflowQueuePayload(
+  repositoryReader: WorkflowQueueReader,
+  actor: AcademyActor,
+  filters: QueueFilters,
+) {
+  assertShepherdAiAccess(actor, actor.tenantId, "read");
+
+  const [suggestions, workflows, workflowActions, workflowFeedback] = await Promise.all([
+    repositoryReader.fetchSuggestions(actor.tenantId),
+    repositoryReader.fetchWorkflows(actor.tenantId),
+    repositoryReader.fetchWorkflowActions(actor.tenantId),
+    repositoryReader.fetchWorkflowFeedback(actor.tenantId),
+  ]);
+
+  const repository = new InMemoryAcademicWorkflowRepository(suggestions, workflows, workflowActions, workflowFeedback);
+  const queue = repository.getQueue(filters);
+
+  return {
+    queue,
+    suggestions,
+    workflows,
+    workflowActions,
+    workflowFeedback,
+    count: queue.length,
+  };
+}
 
 export async function GET(request: NextRequest) {
   return handleApi(async () => {
+    const actor = resolveBootstrapAcademyActor(request.headers);
     const searchParams = request.nextUrl.searchParams;
-    const shepherdRepository = new ShepherdAiPostgresRepository();
-    const [suggestions, workflows, workflowActions, workflowFeedback] = await Promise.all([
-      shepherdRepository.fetchSuggestions(),
-      shepherdRepository.fetchWorkflows(),
-      shepherdRepository.fetchWorkflowActions(),
-      shepherdRepository.fetchWorkflowFeedback(),
-    ]);
-
-    const repository = new InMemoryAcademicWorkflowRepository(suggestions, workflows, workflowActions, workflowFeedback);
     const filters: QueueFilters = {
       urgency: getStringParam(searchParams.get("urgency") ?? undefined) as QueueFilters["urgency"],
       status: getStringParam(searchParams.get("status") ?? undefined) as QueueFilters["status"],
@@ -23,16 +51,7 @@ export async function GET(request: NextRequest) {
       assignee: getStringParam(searchParams.get("assignee") ?? undefined),
     };
 
-    const queue = repository.getQueue(filters);
-
-    return {
-      queue,
-      suggestions,
-      workflows,
-      workflowActions,
-      workflowFeedback,
-      count: queue.length,
-    };
+    return buildWorkflowQueuePayload(new ShepherdAiPostgresRepository(), actor, filters);
   });
 }
 

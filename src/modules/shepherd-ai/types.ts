@@ -8,7 +8,8 @@ export type WorkflowCode =
   | "graduation_eligibility_review"
   | "academic_standing_or_credit_progress_review"
   | "transcript_or_records_inconsistency_review"
-  | "faculty_or_course_assignment_imbalance_review";
+  | "faculty_or_course_assignment_imbalance_review"
+  | "calendar_setup_review";
 
 export type SignalType =
   | "enrollment_pending_beyond_threshold"
@@ -17,7 +18,8 @@ export type SignalType =
   | "credit_progress_gap"
   | "transcript_inconsistency_possible"
   | "course_without_instructor"
-  | "faculty_course_assignment_imbalance";
+  | "faculty_course_assignment_imbalance"
+  | "calendar_setup_incomplete_or_inconsistent";
 
 export type EntityType =
   | "student"
@@ -29,13 +31,15 @@ export type EntityType =
   | "faculty"
   | "advisor"
   | "transcript"
-  | "graduation_review";
+  | "graduation_review"
+  | "institution";
 export type SignalCategory =
   | "enrollment-signals"
   | "student-record-signals"
   | "graduation-signals"
   | "transcript-signals"
-  | "faculty-admin-signals";
+  | "faculty-admin-signals"
+  | "institutional-setup-signals";
 export type Urgency = "low" | "medium" | "high" | "critical";
 export type SuggestionStatus = "suggested" | "promoted_to_workflow" | "deferred" | "dismissed" | "resolved";
 export type WorkflowStatus = "open" | "assigned" | "deferred" | "completed";

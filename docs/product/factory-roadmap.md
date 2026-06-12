@@ -264,13 +264,7 @@ Required ADRs:
 
 Goal: implement Canvas as the second LMS provider through the same contract.
 
-Suggested 1-week sprints:
-
-1. Canvas adapter design package
-2. Canvas identity and launch mapping
-3. Canvas course and roster sync
-4. Canvas grade/progress return
-5. Canvas capability matrix and provider docs
+Status: substantially complete (Sprints 1–7 delivered — launch mapping, course/roster sync, grade/progress return, reconciliation, Student PWA bridge, runtime orchestration, and production auth wiring).
 
 Required ADRs:
 
@@ -279,7 +273,7 @@ Required ADRs:
 
 ### Phase 10: ShepherdAI Expansion
 
-Goal: expand ShepherdAI after the Academy data model exists.
+Goal: expand ShepherdAI signals and workflow coverage after the Academy data model exists.
 
 Suggested 1-week sprints:
 
@@ -288,11 +282,138 @@ Suggested 1-week sprints:
 3. Academic calendar and course setup signals
 4. Grading and transcript readiness signals
 5. Student PWA action reminder signals
+6. Academic early alert signal set (GPA, credits, holds, formation gaps)
+7. Graduation readiness audit and workflow suggestions
+8. Advising caseload intelligence and communication cadence signals
+9. Academic standing change detection and notification workflow
+10. Faculty load and qualification compliance signals
 
 Required ADRs:
 
 - ShepherdAI allowed signal policy
 - ShepherdAI explanation and forbidden-source policy
+
+### Phase 11: Admissions and Enrollment CRM
+
+Goal: support inquiry-to-enrolled lifecycle for all institution types.
+
+Suggested 1-week sprints:
+
+1. Admissions design package
+2. Application form builder and program-specific requirements
+3. Application fee collection and submission workflow
+4. Lead pipeline, stages, and bulk communication
+5. Reference collection and document checklist
+6. Acceptance and enrollment agreement workflow
+7. Enrollment confirmation and SIS record creation
+
+Required ADRs:
+
+- Admissions and enrollment pipeline model
+
+### Phase 12: Student Billing and Accounts
+
+Goal: automate tuition billing, payment collection, and account statements.
+
+Suggested 1-week sprints:
+
+1. Billing design package
+2. Tuition schedule and fee rule engine
+3. Student account and invoice model
+4. Payment collection (Stripe integration)
+5. Payment plans and recurring billing
+6. Billing admin view and aging report
+7. Accounting software export
+
+Required ADRs:
+
+- Student billing and payment model
+
+### Phase 13: Financial Aid Management
+
+Goal: support institutional scholarships, FAFSA integration, and SAP tracking.
+
+Suggested 1-week sprints:
+
+1. Financial aid design package
+2. Institutional scholarship and grant model
+3. FAFSA/ISIR import and aid application
+4. Aid packaging and offer letter
+5. COD sync for Title IV institutions
+6. SAP tracking and ShepherdAI SAP alerts
+
+Required ADRs:
+
+- Financial aid model and Title IV boundary
+
+### Phase 14: Ministry Formation Records
+
+Goal: track non-graded formation and spiritual development records as first-class Academy domain objects.
+
+Suggested 1-week sprints:
+
+1. Formation design package
+2. Formation category and requirement model
+3. Formation record entry and advisor assignment
+4. Formation progress view for student and advisor
+5. Formation release policy and graduation readiness integration
+6. ShepherdAI formation gap signal
+
+Required ADRs:
+
+- Formation record domain model and transcript boundary
+
+### Phase 15: Competency and Narrative Evaluation Expansion
+
+Goal: support competency frameworks, narrative evaluations, and children's school progress records as grading types.
+
+Suggested 1-week sprints:
+
+1. Competency design package
+2. Competency framework builder and level definitions
+3. Competency-to-course mapping
+4. Competency transcript format
+5. Narrative evaluation entry and guardian-releasable records
+
+Required ADRs:
+
+- Competency evaluation model (extends ADR-0010)
+
+### Phase 16: Compliance and Accreditation Reporting
+
+Goal: native ATS Standards and IPEDS reporting for accredited institutions.
+
+Suggested 1-week sprints:
+
+1. Reporting design package
+2. ATS student data reporting templates
+3. IPEDS enrollment and completion reports
+4. Custom report builder with save/export
+5. FERPA consent management and access log
+
+### Phase 17: Faculty Portal and Qualification Records
+
+Goal: grade entry, attendance, advising notes, and credential qualification tracking.
+
+### Phase 18: Alumni and Ministry Placement
+
+Goal: post-graduation relationship tracking, ministry placement, and alumni directory.
+
+### Phase 19: Denomination and Church Partner Access
+
+Goal: sponsoring church visibility into their students' progress, scoped and consent-gated.
+
+### Phase 20: Certificate and CEU Programs
+
+Goal: non-degree completion records, continuing education unit tracking, and digital credential issuance.
+
+### Phase 21: International and Multilingual Support
+
+Goal: multilingual student-facing portals, international document tracking, and multi-currency tuition.
+
+### Phase 22: Donor and Fundraising CRM
+
+Goal: donor profiles, campaign management, and online donation collection.
 
 ## Sprint Exit Decision
 

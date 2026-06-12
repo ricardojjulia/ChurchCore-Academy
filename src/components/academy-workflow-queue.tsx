@@ -34,6 +34,7 @@ const workflowCodeOptions: { value: WorkflowCode | "all"; label: string }[] = [
   { value: "academic_standing_or_credit_progress_review", label: "Academic progress" },
   { value: "transcript_or_records_inconsistency_review", label: "Transcript records" },
   { value: "faculty_or_course_assignment_imbalance_review", label: "Faculty/course setup" },
+  { value: "calendar_setup_review", label: "Calendar setup" },
 ];
 
 const statusOptions = [
@@ -51,6 +52,7 @@ const statusOptions = [
 function entityHref(item: WorkflowQueueItem) {
   if (item.entityType === "student") return `/students/${item.entityId}`;
   if (item.entityType === "program") return `/programs/${item.entityId}`;
+  if (item.entityType === "institution") return "/settings/calendar";
   if (item.entityType === "faculty" || item.entityType === "course_section") return "/faculty";
   return "/";
 }

@@ -36,6 +36,13 @@ function resolveEntityLabel(dataset: AcademyDataset, entityType: EntityType, ent
     };
   }
 
+  if (entityType === "institution") {
+    return {
+      label: dataset.institutionName ?? "Institution",
+      description: "Academic calendar and institutional configuration",
+    };
+  }
+
   const program = dataset.programs.find((item) => item.id === entityId);
   return {
     label: program?.name ?? entityId,
@@ -69,6 +76,8 @@ export class ContextBuilder {
         return "Advisor review";
       case "course_without_instructor":
       case "faculty_course_assignment_imbalance":
+        return "Academic administration";
+      case "calendar_setup_incomplete_or_inconsistent":
         return "Academic administration";
       default:
         return "Administrative review";
