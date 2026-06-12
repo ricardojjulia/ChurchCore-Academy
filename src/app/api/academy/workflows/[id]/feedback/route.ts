@@ -33,13 +33,22 @@ export async function recordWorkflowFeedbackForActor(
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  return recordWorkflowFeedbackRequest(request, context);
+}
+
+export async function recordWorkflowFeedbackRequest(
+  request: Request,
+  context: RouteContext,
+  service: WorkflowFeedbackService = new AcademicWorkflowsPostgresService(),
+) {
   const body = await request.json().catch(() => ({}));
-  const userId = typeof body.userId === "string" ? body.userId : undefined;
+  const requestedUserId = typeof body.userId === "string" ? body.userId : undefined;
   const feedbackType = typeof body.feedbackType === "string" ? body.feedbackType : undefined;
   const notes = typeof body.notes === "string" ? body.notes : undefined;
+  const actor = resolveBootstrapAcademyActor(request.headers);
 
-  if (!userId) {
-    return jsonError("userId is required.", 400);
+  if (requestedUserId && requestedUserId !== actor.userId) {
+    return jsonError("Forbidden workflow feedback actor.", 403);
   }
 
   if (!feedbackType || !feedbackTypes.has(feedbackType as WorkflowFeedbackType)) {
@@ -47,13 +56,12 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
     const { id } = await context.params;
     const feedback = await recordWorkflowFeedbackForActor(
-      new AcademicWorkflowsPostgresService(),
+      service,
       actor,
       id,
-      userId,
+      actor.userId,
       feedbackType as WorkflowFeedbackType,
       notes,
     );

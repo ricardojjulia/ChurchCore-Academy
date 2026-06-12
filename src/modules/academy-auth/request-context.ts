@@ -43,6 +43,10 @@ export interface ResolvedSessionAcademyActor {
   source: "supabase_session" | "bootstrap_headers";
 }
 
+function allowStudentBootstrapHeadersFallback() {
+  return process.env.ALLOW_STUDENT_BOOTSTRAP_HEADERS === "true";
+}
+
 /**
  * Resolve an Academy actor for student-facing APIs using Supabase session as
  * the primary source, with bootstrap headers as the local-dev fallback.
@@ -89,7 +93,11 @@ export async function resolveStudentAcademyActorFromSession(
       };
     }
   } catch {
-    // fall through to bootstrap header fallback
+    // fall through to optional bootstrap-header fallback
+  }
+
+  if (!allowStudentBootstrapHeadersFallback()) {
+    throw new Error("Authentication required.");
   }
 
   return {

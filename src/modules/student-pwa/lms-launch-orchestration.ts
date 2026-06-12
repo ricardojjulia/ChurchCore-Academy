@@ -79,28 +79,35 @@ export function createStudentLmsLaunchResponse(input: CreateStudentLmsLaunchResp
   });
 }
 
-function trimmedEnvValue(name: string) {
-  const value = process.env[name];
+interface StudentLmsLaunchRoutingOptionsInput {
+  tenantId: string;
+  moodleLaunchBaseUrl?: string;
+  moodleLaunchMode?: string;
+  canvasLaunchBaseUrl?: string;
+  canvasLaunchMode?: string;
+}
+
+function trimmedOptional(value: string | undefined) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-export function resolveStudentLmsLaunchRoutingOptionsFromEnvironment(tenantId: string): StudentLmsLaunchRoutingOptions {
-  const moodleLaunchBaseUrl = trimmedEnvValue("MOODLE_LAUNCH_BASE_URL");
-  const canvasLaunchBaseUrl = trimmedEnvValue("CANVAS_LAUNCH_BASE_URL");
+export function resolveStudentLmsLaunchRoutingOptions(input: StudentLmsLaunchRoutingOptionsInput): StudentLmsLaunchRoutingOptions {
+  const moodleLaunchBaseUrl = trimmedOptional(input.moodleLaunchBaseUrl);
+  const canvasLaunchBaseUrl = trimmedOptional(input.canvasLaunchBaseUrl);
 
   return {
     moodleConfiguration: moodleLaunchBaseUrl
       ? {
-          tenantId,
-          launchMode: process.env.MOODLE_LAUNCH_MODE === "lti" ? "lti" : "oidc",
+          tenantId: input.tenantId,
+          launchMode: input.moodleLaunchMode === "lti" ? "lti" : "oidc",
           launchBaseUrl: moodleLaunchBaseUrl,
           displayLabel: "Moodle",
         }
       : undefined,
     canvasConfiguration: canvasLaunchBaseUrl
       ? {
-          tenantId,
-          launchMode: process.env.CANVAS_LAUNCH_MODE === "lti" ? "lti" : "oauth2",
+          tenantId: input.tenantId,
+          launchMode: input.canvasLaunchMode === "lti" ? "lti" : "oauth2",
           launchBaseUrl: canvasLaunchBaseUrl,
           displayLabel: "Canvas",
         }

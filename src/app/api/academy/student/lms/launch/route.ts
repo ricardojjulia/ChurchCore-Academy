@@ -5,7 +5,7 @@ import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { PeopleConfiguration } from "@/modules/people/types";
 import {
   createStudentLmsLaunchResponse,
-  resolveStudentLmsLaunchRoutingOptionsFromEnvironment,
+  resolveStudentLmsLaunchRoutingOptions,
 } from "@/modules/student-pwa/lms-launch-orchestration";
 
 interface StudentLmsLaunchPeopleReader {
@@ -25,6 +25,11 @@ function optionalString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+function environmentValue(name: string) {
+  const value = process.env[name];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 function buildLaunchRequestPayload(request: Request, actorUserId: string, body: unknown): LaunchRequestPayload {
   if (!body || typeof body !== "object") {
     throw new Error("Invalid launch request payload.");
@@ -32,15 +37,16 @@ function buildLaunchRequestPayload(request: Request, actorUserId: string, body: 
 
   const payload = body as Record<string, unknown>;
   const targetStudentPersonId = optionalString(payload.targetStudentPersonId) ?? actorUserId;
-  const redirectPath = optionalString(payload.redirectPath) ?? "/student/lms";
+  const requestedRedirectPath = optionalString(payload.redirectPath) ?? "/student/lms";
+  const normalizedRedirectPath = new URL(requestedRedirectPath, "http://localhost").pathname;
 
-  if (!redirectPath.startsWith("/student")) {
+  if (!normalizedRedirectPath.startsWith("/student")) {
     throw new Error("Invalid redirect path.");
   }
 
   return {
     targetStudentPersonId,
-    redirectPath,
+    redirectPath: normalizedRedirectPath,
     nonce: optionalString(payload.nonce) ?? randomUUID(),
     correlationId: optionalString(request.headers.get("x-correlation-id")) ?? `corr-student-lms-${randomUUID()}`,
     courseId: optionalString(payload.courseId),
@@ -52,7 +58,12 @@ export async function launchStudentLmsRequest(
   request: Request,
   repository: StudentLmsLaunchPeopleReader = new AcademyPeopleRepository(),
 ) {
-  const { actor } = await resolveStudentAcademyActorFromSession(request.headers);
+  let actor;
+  try {
+    ({ actor } = await resolveStudentAcademyActorFromSession(request.headers));
+  } catch {
+    return jsonError("Authentication required.", 401);
+  }
 
   let body: unknown;
   try {
@@ -67,7 +78,13 @@ export async function launchStudentLmsRequest(
     const launch = createStudentLmsLaunchResponse({
       actor,
       people,
-      ...resolveStudentLmsLaunchRoutingOptionsFromEnvironment(actor.tenantId),
+      ...resolveStudentLmsLaunchRoutingOptions({
+        tenantId: actor.tenantId,
+        moodleLaunchBaseUrl: environmentValue("MOODLE_LAUNCH_BASE_URL"),
+        moodleLaunchMode: process.env.MOODLE_LAUNCH_MODE,
+        canvasLaunchBaseUrl: environmentValue("CANVAS_LAUNCH_BASE_URL"),
+        canvasLaunchMode: process.env.CANVAS_LAUNCH_MODE,
+      }),
       ...launchRequest,
     });
 
