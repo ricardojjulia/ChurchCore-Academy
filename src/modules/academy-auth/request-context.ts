@@ -85,11 +85,29 @@ interface SessionUserReader {
   };
 }
 
-interface ResolveAcademyActorDependencies {
+export interface ResolveAcademyActorDependencies {
   sessionClient?: SessionUserReader;
   identityRepository?: AcademyIdentityRepository;
   now?: string;
   environment?: NodeJS.ProcessEnv;
+}
+
+export async function resolveAcademyActorForServerComponent(
+  dependencies: ResolveAcademyActorDependencies = {},
+): Promise<AcademyActor> {
+  const sessionClient = dependencies.sessionClient ?? (await createClient());
+  const { data, error } = await sessionClient.auth.getUser();
+
+  if (error || !data.user) {
+    throw new AcademyAuthenticationError();
+  }
+
+  return resolveAcademyIdentity(
+    dependencies.identityRepository ??
+      new PostgresAcademyIdentityRepository(),
+    data.user.id,
+    dependencies.now,
+  );
 }
 
 export async function resolveAcademyActorFromSession(
@@ -97,18 +115,8 @@ export async function resolveAcademyActorFromSession(
   dependencies: ResolveAcademyActorDependencies = {},
 ): Promise<ResolvedSessionAcademyActor> {
   try {
-    const sessionClient = dependencies.sessionClient ?? (await createClient());
-    const { data, error } = await sessionClient.auth.getUser();
-
-    if (!error && data.user) {
-      const actor = await resolveAcademyIdentity(
-        dependencies.identityRepository ??
-          new PostgresAcademyIdentityRepository(),
-        data.user.id,
-        dependencies.now,
-      );
-      return { actor, source: "supabase_session" };
-    }
+    const actor = await resolveAcademyActorForServerComponent(dependencies);
+    return { actor, source: "supabase_session" };
   } catch (error) {
     if (!canUseLocalAcademyBootstrap(request.url, dependencies.environment)) {
       if (error instanceof AcademyAuthenticationError) {

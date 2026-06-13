@@ -75,3 +75,9 @@ export function assertPlatformStaffWorkspaceAccess(roles: string[]) {
     throw new Error("Forbidden platform staff access.");
   }
 }
+
+export function assertStudentPortalAccess(actor: AcademyActor) {
+  if (!actor.roles.includes("student")) {
+    throw new Error("Forbidden student portal access.");
+  }
+}

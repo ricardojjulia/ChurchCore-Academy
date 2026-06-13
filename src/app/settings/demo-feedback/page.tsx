@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { AcademyShell } from "@/components/academy-shell";
 import { DemoFeedbackTriage } from "@/components/demo-feedback-triage";
 import { canAccessPlatformStaffWorkspace } from "@/modules/academy-auth/policy";
@@ -8,8 +7,7 @@ import { DemoFeedbackService } from "@/modules/demo-feedback/service";
 export const dynamic = "force-dynamic";
 
 export default async function DemoFeedbackPage() {
-  const requestHeaders = await headers();
-  const roles = await resolvePlatformRoles(requestHeaders);
+  const roles = await resolvePlatformRoles();
 
   if (!canAccessPlatformStaffWorkspace(roles)) {
     return (

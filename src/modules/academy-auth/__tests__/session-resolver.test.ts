@@ -4,7 +4,10 @@ import {
   AcademyIdentityRepository,
   resolveAcademyIdentity,
 } from "@/modules/academy-auth/session-resolver";
-import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import {
+  resolveAcademyActorForServerComponent,
+  resolveAcademyActorFromSession,
+} from "@/modules/academy-auth/request-context";
 
 function repository(
   identities: Awaited<ReturnType<AcademyIdentityRepository["findActiveIdentities"]>>,
@@ -178,6 +181,24 @@ test("unauthenticated production requests fail instead of using headers", async 
           },
         },
       ),
+    /Authentication required/,
+  );
+});
+
+test("server components require a verified session without local bootstrap", async () => {
+  await assert.rejects(
+    () =>
+      resolveAcademyActorForServerComponent({
+        sessionClient: {
+          auth: {
+            getUser: async () => ({
+              data: { user: null },
+              error: new Error("missing session"),
+            }),
+          },
+        },
+        identityRepository: repository([]),
+      }),
     /Authentication required/,
   );
 });

@@ -25,12 +25,7 @@ export async function resolvePlatformRoles() {
     }
 
     const appMetadataRole = typeof data.user.app_metadata?.role === "string" ? data.user.app_metadata.role : null;
-    const userMetadataRole = typeof data.user.user_metadata?.role === "string" ? data.user.user_metadata.role : null;
-
-    return uniqueRoles([
-      ...parseRoleList(appMetadataRole),
-      ...parseRoleList(userMetadataRole),
-    ]);
+    return uniqueRoles(parseRoleList(appMetadataRole));
   } catch {
     return [];
   }

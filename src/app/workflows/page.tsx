@@ -1,13 +1,16 @@
 import { AcademyShell } from "@/components/academy-shell";
 import { WorkflowQueueBoard } from "@/components/academy-workflow-queue";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkflowQueuePage() {
-  const tenantId = (await headers()).get("x-academy-tenant-id") ?? "cca-main";
-  const evaluation = await runAcademicWorkflowEvaluationJob(tenantId);
+  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const evaluation = await runAcademicWorkflowEvaluationJob(
+    actor.tenantId,
+    dataset,
+  );
   const items = evaluation.workflows.getWorkflowQueue({ status: "all" });
 
   return (

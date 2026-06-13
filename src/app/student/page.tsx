@@ -1,21 +1,13 @@
-import { StudentDashboardView } from "@/components/student-dashboard-view";
-import { StudentPwaShell } from "@/components/student-pwa-shell";
-import { loadBootstrapStudentDashboard } from "@/modules/student-pwa/bootstrap-dashboard";
+import { StudentPwaPlaceholder, StudentPwaShell } from "@/components/student-pwa-shell";
 
 export default function StudentHomePage() {
-  const model = loadBootstrapStudentDashboard();
-
   return (
     <StudentPwaShell
       activeHref="/student"
-      title={`Welcome, ${model.student.displayName}`}
-      description={`${model.institutionName} · ${model.student.studentNumber} · ${formatLabel(model.student.enrollmentStatus)}`}
+      title="Student dashboard"
+      description="Your released Academy records will appear after persistent student read models are connected."
     >
-      <StudentDashboardView model={model} />
+      <StudentPwaPlaceholder activeHref="/student" actionLabel="Your dashboard is not available yet" />
     </StudentPwaShell>
   );
-}
-
-function formatLabel(value: string) {
-  return value.replaceAll("_", " ");
 }

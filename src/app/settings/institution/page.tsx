@@ -2,11 +2,12 @@ import { AlertTriangle, BookOpenCheck, Building2, CheckCircle2, GraduationCap, P
 import { AcademyShell } from "@/components/academy-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { academyDataset } from "@/modules/academy-data/mock-data";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { InstitutionCapabilityReviewItem, InstitutionReviewItem, buildInstitutionReviewModel } from "@/modules/academy-config/review-view";
 
-export default function InstitutionSettingsPage() {
-  const model = buildInstitutionReviewModel(academyDataset.institutionProfile);
+export default async function InstitutionSettingsPage() {
+  const { dataset } = await loadProtectedAcademyDataset();
+  const model = buildInstitutionReviewModel(dataset.institutionProfile);
 
   return (
     <AcademyShell

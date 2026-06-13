@@ -5,6 +5,7 @@ import {
   assertInstitutionConfigAccess,
   assertPlatformStaffWorkspaceAccess,
   assertShepherdAiAccess,
+  assertStudentPortalAccess,
   canAccessInstitutionConfig,
   canAccessPlatformStaffWorkspace,
   canAccessShepherdAi,
@@ -139,4 +140,18 @@ test("allows only platform staff/admin roles for platform workspace", () => {
   assert.equal(canAccessPlatformStaffWorkspace(["institution_admin"]), false);
 
   assert.throws(() => assertPlatformStaffWorkspaceAccess(["student"]), /Forbidden platform staff access./);
+});
+
+test("allows only student identities into the student portal", () => {
+  assert.doesNotThrow(() =>
+    assertStudentPortalAccess({
+      userId: "person-student",
+      tenantId: "tenant-a",
+      roles: ["student"],
+    }),
+  );
+  assert.throws(
+    () => assertStudentPortalAccess(institutionAdmin),
+    /Forbidden student portal access./,
+  );
 });

@@ -2,7 +2,7 @@ import { AlertTriangle, BookOpenCheck, CheckCircle2, Clock3, Layers3, Link2, Sha
 import { AcademyShell } from "@/components/academy-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { academyDataset } from "@/modules/academy-data/mock-data";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import {
   CourseCatalogReviewModel,
   CourseCoverageReviewItem,
@@ -14,8 +14,9 @@ import {
   buildCourseCatalogReviewModel,
 } from "@/modules/course-catalog/review-view";
 
-export default function CourseSettingsPage() {
-  const model = buildCourseCatalogReviewModel(academyDataset.courseCatalog);
+export default async function CourseSettingsPage() {
+  const { dataset } = await loadProtectedAcademyDataset();
+  const model = buildCourseCatalogReviewModel(dataset.courseCatalog);
 
   return (
     <AcademyShell

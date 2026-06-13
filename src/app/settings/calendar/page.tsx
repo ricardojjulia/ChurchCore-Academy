@@ -3,7 +3,7 @@ import type React from "react";
 import { AcademyShell } from "@/components/academy-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { academyDataset } from "@/modules/academy-data/mock-data";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import {
   AcademicPeriodReviewItem,
   AcademicYearReviewItem,
@@ -16,8 +16,9 @@ import {
   buildAcademicCalendarReviewModel,
 } from "@/modules/academic-calendar/review-view";
 
-export default function CalendarSettingsPage() {
-  const model = buildAcademicCalendarReviewModel(academyDataset.academicCalendar);
+export default async function CalendarSettingsPage() {
+  const { dataset } = await loadProtectedAcademyDataset();
+  const model = buildAcademicCalendarReviewModel(dataset.academicCalendar);
 
   return (
     <AcademyShell
