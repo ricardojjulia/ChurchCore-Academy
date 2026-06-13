@@ -5,7 +5,7 @@ interface DatabaseRow {
   [key: string]: unknown;
 }
 
-interface DatabaseLike {
+export interface ShepherdAiDatabase {
   query(sql: string, params?: unknown[]): Promise<{ rowCount: number; rows: DatabaseRow[] }>;
 }
 
@@ -17,7 +17,7 @@ function parseJson<T>(value: unknown) {
 }
 
 export class ShepherdAiPostgresRepository {
-  constructor(private readonly database: DatabaseLike = getDatabasePool()) {}
+  constructor(private readonly database: ShepherdAiDatabase = getDatabasePool()) {}
 
   async saveSignals(signals: AiSignalRecord[]) {
     for (const signal of signals) {

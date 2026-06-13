@@ -1,11 +1,19 @@
 import { AcademyDataset, AdminUser, CourseSection, FacultyRecord, Program, StudentRecord } from "@/modules/academy-data/types";
 import { academyDataset } from "@/modules/academy-data/mock-data";
 import { getDatabasePool } from "@/lib/database";
+import type { QueryResultRow } from "pg";
 import { InstitutionProfile } from "@/modules/academy-config/types";
 import { mapAcademicCalendarRows } from "@/modules/academic-calendar/postgres-repository";
 import { mapCourseCatalogRows } from "@/modules/course-catalog/postgres-repository";
 import { mapGradingRecordsRows } from "@/modules/grading-records/postgres-repository";
 import { mapPeopleRows } from "@/modules/people/postgres-repository";
+
+export interface AcademyDatasetDatabase {
+  query(text: string, values?: unknown[]): Promise<{
+    rowCount: number | null;
+    rows: QueryResultRow[];
+  }>;
+}
 
 function parseArray<T>(value: unknown): T[] {
   if (Array.isArray(value)) {
@@ -28,8 +36,12 @@ function parseJson<T>(value: unknown): T {
 }
 
 export class AcademyDataRepository {
+  constructor(
+    private readonly database: AcademyDatasetDatabase = getDatabasePool(),
+  ) {}
+
   async loadDataset(tenantId: string): Promise<AcademyDataset> {
-    const pool = getDatabasePool();
+    const pool = this.database;
     const [
       institutionProfiles,
       calendarProfiles,
@@ -259,7 +271,7 @@ export class AcademyDataRepository {
   }
 
   async seedFromMockData(dataset: AcademyDataset = academyDataset) {
-    const pool = getDatabasePool();
+    const pool = this.database;
 
     await pool.query("begin");
     try {

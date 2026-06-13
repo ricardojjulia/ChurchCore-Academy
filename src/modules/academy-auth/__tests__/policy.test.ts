@@ -5,11 +5,15 @@ import {
   assertInstitutionConfigAccess,
   assertPlatformStaffWorkspaceAccess,
   assertShepherdAiAccess,
+  assertStudentPortalAccess,
   canAccessInstitutionConfig,
   canAccessPlatformStaffWorkspace,
   canAccessShepherdAi,
 } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import {
+  canUseLocalAcademyBootstrap,
+  resolveLocalBootstrapAcademyActor,
+} from "@/modules/academy-auth/request-context";
 
 const institutionAdmin: AcademyActor = {
   userId: "user-admin",
@@ -91,13 +95,19 @@ test("denies ShepherdAI access across tenants", () => {
   );
 });
 
-test("resolves bootstrap Academy actor from request headers", () => {
-  const actor = resolveBootstrapAcademyActor(
-    new Headers({
-      "x-academy-tenant-id": "tenant-a",
-      "x-academy-user-id": "user-student",
-      "x-academy-roles": "student,guardian",
+test("resolves explicit local bootstrap actor only on loopback", () => {
+  const actor = resolveLocalBootstrapAcademyActor(
+    new Request("http://localhost/api/academy/config", {
+      headers: {
+        "x-academy-tenant-id": "tenant-a",
+        "x-academy-user-id": "user-student",
+        "x-academy-roles": "student,guardian",
+      },
     }),
+    {
+      NODE_ENV: "development",
+      ACADEMY_LOCAL_BOOTSTRAP_ENABLED: "true",
+    },
   );
 
   assert.deepEqual(actor, {
@@ -107,10 +117,41 @@ test("resolves bootstrap Academy actor from request headers", () => {
   });
 });
 
+test("rejects local bootstrap in production and on non-loopback hosts", () => {
+  assert.equal(
+    canUseLocalAcademyBootstrap("http://localhost/api/academy", {
+      NODE_ENV: "production",
+      ACADEMY_LOCAL_BOOTSTRAP_ENABLED: "true",
+    }),
+    false,
+  );
+  assert.equal(
+    canUseLocalAcademyBootstrap("https://academy.example/api/academy", {
+      NODE_ENV: "development",
+      ACADEMY_LOCAL_BOOTSTRAP_ENABLED: "true",
+    }),
+    false,
+  );
+});
+
 test("allows only platform staff/admin roles for platform workspace", () => {
   assert.equal(canAccessPlatformStaffWorkspace(["platform_staff"]), true);
   assert.equal(canAccessPlatformStaffWorkspace(["platform_admin"]), true);
   assert.equal(canAccessPlatformStaffWorkspace(["institution_admin"]), false);
 
   assert.throws(() => assertPlatformStaffWorkspaceAccess(["student"]), /Forbidden platform staff access./);
+});
+
+test("allows only student identities into the student portal", () => {
+  assert.doesNotThrow(() =>
+    assertStudentPortalAccess({
+      userId: "person-student",
+      tenantId: "tenant-a",
+      roles: ["student"],
+    }),
+  );
+  assert.throws(
+    () => assertStudentPortalAccess(institutionAdmin),
+    /Forbidden student portal access./,
+  );
 });

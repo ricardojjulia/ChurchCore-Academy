@@ -12,6 +12,7 @@ import { deferWorkflowForActor } from "@/app/api/academy/workflows/[id]/defer/ro
 import { recordWorkflowFeedbackForActor } from "@/app/api/academy/workflows/[id]/feedback/route";
 import { buildWorkflowQueuePayload } from "@/app/api/academy/workflows/route";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { academyDataset } from "@/modules/academy-data/mock-data";
 
 const academicAdmin: AcademyActor = {
   userId: "user-academic-admin",
@@ -189,9 +190,10 @@ test("evaluation runner receives actor tenantId for pre-hoc tenant isolation", a
 });
 
 test("runAcademicWorkflowEvaluationJob scopes dataset to supplied tenantId", async () => {
-  // Without DATABASE_URL, the job falls back to the mock dataset (tenantId: "cca-main").
-  // This verifies the tenantId argument is accepted and the returned dataset is tenant-scoped.
-  const result = await runAcademicWorkflowEvaluationJob("cca-main");
+  const result = await runAcademicWorkflowEvaluationJob(
+    "cca-main",
+    academyDataset,
+  );
 
   assert.equal(result.dataset.tenantId, "cca-main", "job must scope dataset to supplied tenantId");
 });

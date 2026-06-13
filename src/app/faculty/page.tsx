@@ -1,11 +1,15 @@
 import { AcademyShell } from "@/components/academy-shell";
 import { StatCard, SuggestionDetail, WorkflowRecordList } from "@/components/academy-ui";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { headers } from "next/headers";
 
 export default async function FacultyPage() {
-  const tenantId = (await headers()).get("x-academy-tenant-id") ?? "cca-main";
-  const evaluation = await runAcademicWorkflowEvaluationJob(tenantId);
+  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const evaluation = await runAcademicWorkflowEvaluationJob(
+    actor.tenantId,
+    dataset,
+    null,
+  );
   const suggestions = evaluation.workflows.getFacultySuggestions();
   const facultyWorkflows = evaluation.repository.workflows.filter((workflow) => workflow.workflowCode === "faculty_or_course_assignment_imbalance_review");
 

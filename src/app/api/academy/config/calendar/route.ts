@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyCalendarRepository } from "@/modules/academic-calendar/postgres-repository";
 import { AcademicCalendarConfiguration } from "@/modules/academic-calendar/types";
 import { validateAcademicCalendarConfiguration } from "@/modules/academic-calendar/validation";
@@ -26,7 +27,13 @@ export async function buildAcademicCalendarConfigPayload(
 
 export async function GET(request: Request) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
-    return buildAcademicCalendarConfigPayload(new AcademyCalendarRepository(), actor, actor.tenantId);
+    const { actor } = await resolveAcademyActorFromSession(request);
+    return withAcademyDatabaseContext(actor, (client) =>
+      buildAcademicCalendarConfigPayload(
+        new AcademyCalendarRepository(asAcademyDatabase(client)),
+        actor,
+        actor.tenantId,
+      ),
+    );
   });
 }

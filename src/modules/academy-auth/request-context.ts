@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { AcademyAuthenticationError } from "@/modules/academy-auth/errors";
+import { PostgresAcademyIdentityRepository } from "@/modules/academy-auth/postgres-identity-repository";
 import { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
+import {
+  AcademyIdentityRepository,
+  resolveAcademyIdentity,
+} from "@/modules/academy-auth/session-resolver";
 
 const allowedRoles = new Set<AcademyRole>([
   "institution_admin",
@@ -15,93 +21,123 @@ const allowedRoles = new Set<AcademyRole>([
   "guardian",
 ]);
 
-const studentRoles = new Set<AcademyRole>(["student", "guardian"]);
-
-function parseRoles(value: string | null): AcademyRole[] {
-  const roles = value
-    ?.split(",")
-    .map((role) => role.trim())
-    .filter((role): role is AcademyRole => allowedRoles.has(role as AcademyRole));
-
-  return roles?.length ? roles : ["institution_admin"];
+function parseBootstrapRoles(value: string | null): AcademyRole[] {
+  return (
+    value
+      ?.split(",")
+      .map((role) => role.trim())
+      .filter((role): role is AcademyRole =>
+        allowedRoles.has(role as AcademyRole),
+      ) ?? []
+  );
 }
 
-function normalizeOptional(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+function isLoopbackHostname(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
-export function resolveBootstrapAcademyActor(headers: Headers): AcademyActor {
-  return {
-    userId: headers.get("x-academy-user-id") ?? "local-academy-admin",
-    tenantId: headers.get("x-academy-tenant-id") ?? "cca-main",
-    roles: parseRoles(headers.get("x-academy-roles")),
-  };
+export function canUseLocalAcademyBootstrap(
+  requestUrl: string,
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  if (
+    environment.NODE_ENV === "production" ||
+    environment.ACADEMY_LOCAL_BOOTSTRAP_ENABLED !== "true"
+  ) {
+    return false;
+  }
+
+  return isLoopbackHostname(new URL(requestUrl).hostname);
+}
+
+export function resolveLocalBootstrapAcademyActor(
+  request: Request,
+  environment: NodeJS.ProcessEnv = process.env,
+): AcademyActor {
+  if (!canUseLocalAcademyBootstrap(request.url, environment)) {
+    throw new AcademyAuthenticationError();
+  }
+
+  const userId = request.headers.get("x-academy-user-id")?.trim();
+  const tenantId = request.headers.get("x-academy-tenant-id")?.trim();
+  const roles = parseBootstrapRoles(request.headers.get("x-academy-roles"));
+
+  if (!userId || !tenantId || roles.length === 0) {
+    throw new AcademyAuthenticationError(
+      "Local Academy bootstrap requires explicit user, tenant, and roles.",
+    );
+  }
+
+  return { userId, tenantId, roles };
 }
 
 export interface ResolvedSessionAcademyActor {
   actor: AcademyActor;
-  source: "supabase_session" | "bootstrap_headers";
+  source: "supabase_session" | "local_bootstrap";
 }
 
-function allowStudentBootstrapHeadersFallback() {
-  return process.env.ALLOW_STUDENT_BOOTSTRAP_HEADERS === "true";
-}
-
-/**
- * Resolve an Academy actor for student-facing APIs using Supabase session as
- * the primary source, with bootstrap headers as the local-dev fallback.
- *
- * Metadata fields used from the Supabase user object:
- *   app_metadata.academy_user_id  – stable Academy person ID
- *   app_metadata.academy_tenant_id – tenant the user belongs to
- *   app_metadata.academy_roles    – comma-separated AcademyRole list
- *   user_metadata mirrors app_metadata as secondary source
- */
-export async function resolveStudentAcademyActorFromSession(
-  headers: Headers,
-): Promise<ResolvedSessionAcademyActor> {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
-
-    if (!error && data.user) {
-      const meta = data.user.app_metadata ?? {};
-      const userMeta = data.user.user_metadata ?? {};
-
-      const userId =
-        normalizeOptional(meta.academy_user_id) ??
-        normalizeOptional(userMeta.academy_user_id) ??
-        data.user.id;
-
-      const tenantId =
-        normalizeOptional(meta.academy_tenant_id) ??
-        normalizeOptional(userMeta.academy_tenant_id) ??
-        headers.get("x-academy-tenant-id") ??
-        "cca-main";
-
-      const rolesRaw =
-        normalizeOptional(meta.academy_roles) ??
-        normalizeOptional(userMeta.academy_roles) ??
-        null;
-
-      const roles = parseRoles(rolesRaw).filter((role) => studentRoles.has(role));
-      const resolvedRoles: AcademyRole[] = roles.length ? roles : ["student"];
-
-      return {
-        actor: { userId, tenantId, roles: resolvedRoles },
-        source: "supabase_session",
-      };
-    }
-  } catch {
-    // fall through to optional bootstrap-header fallback
-  }
-
-  if (!allowStudentBootstrapHeadersFallback()) {
-    throw new Error("Authentication required.");
-  }
-
-  return {
-    actor: resolveBootstrapAcademyActor(headers),
-    source: "bootstrap_headers",
+interface SessionUserReader {
+  auth: {
+    getUser(): Promise<{
+      data: { user: { id: string } | null };
+      error: unknown;
+    }>;
   };
 }
+
+export interface ResolveAcademyActorDependencies {
+  sessionClient?: SessionUserReader;
+  identityRepository?: AcademyIdentityRepository;
+  now?: string;
+  environment?: NodeJS.ProcessEnv;
+}
+
+export async function resolveAcademyActorForServerComponent(
+  dependencies: ResolveAcademyActorDependencies = {},
+): Promise<AcademyActor> {
+  const sessionClient = dependencies.sessionClient ?? (await createClient());
+  const { data, error } = await sessionClient.auth.getUser();
+
+  if (error || !data.user) {
+    throw new AcademyAuthenticationError();
+  }
+
+  return resolveAcademyIdentity(
+    dependencies.identityRepository ??
+      new PostgresAcademyIdentityRepository(),
+    data.user.id,
+    dependencies.now,
+  );
+}
+
+export async function resolveAcademyActorFromSession(
+  request: Request,
+  dependencies: ResolveAcademyActorDependencies = {},
+): Promise<ResolvedSessionAcademyActor> {
+  try {
+    const actor = await resolveAcademyActorForServerComponent(dependencies);
+    return { actor, source: "supabase_session" };
+  } catch (error) {
+    if (!canUseLocalAcademyBootstrap(request.url, dependencies.environment)) {
+      if (error instanceof AcademyAuthenticationError) {
+        throw error;
+      }
+      throw new AcademyAuthenticationError();
+    }
+  }
+
+  if (canUseLocalAcademyBootstrap(request.url, dependencies.environment)) {
+    return {
+      actor: resolveLocalBootstrapAcademyActor(
+        request,
+        dependencies.environment,
+      ),
+      source: "local_bootstrap",
+    };
+  }
+
+  throw new AcademyAuthenticationError();
+}
+
+export const resolveStudentAcademyActorFromSession =
+  resolveAcademyActorFromSession;

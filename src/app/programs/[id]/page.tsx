@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import { AcademyShell } from "@/components/academy-shell";
 import { StatCard, SuggestionDetail } from "@/components/academy-ui";
-import { academyDataset } from "@/modules/academy-data/mock-data";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { headers } from "next/headers";
 
 export default async function ProgramPage({
   params,
@@ -11,13 +10,18 @@ export default async function ProgramPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const program = academyDataset.programs.find((item) => item.id === id);
+  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const program = dataset.programs.find((item) => item.id === id);
 
   if (!program) {
     notFound();
   }
 
-  const evaluation = await runAcademicWorkflowEvaluationJob((await headers()).get("x-academy-tenant-id") ?? "cca-main");
+  const evaluation = await runAcademicWorkflowEvaluationJob(
+    actor.tenantId,
+    dataset,
+    null,
+  );
   const suggestions = evaluation.workflows.getProgramSuggestions(id);
   const graduationReady = suggestions.filter((item) => item.workflowCode === "graduation_eligibility_review");
   const progressReviews = suggestions.filter((item) => item.workflowCode === "academic_standing_or_credit_progress_review");

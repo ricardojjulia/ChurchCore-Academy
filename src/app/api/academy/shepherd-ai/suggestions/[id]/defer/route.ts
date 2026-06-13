@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademicWorkflowsPostgresService } from "@/modules/academic-workflows/postgres-service";
 import { ShepherdAiSuggestion } from "@/modules/shepherd-ai/types";
 
@@ -27,10 +28,19 @@ export async function POST(request: Request, context: RouteContext) {
   const reason = typeof body.reason === "string" ? body.reason : undefined;
 
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     const { id } = await context.params;
-    const suggestion = await deferSuggestionForActor(new AcademicWorkflowsPostgresService(), actor, id, reason);
-    return { suggestion };
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const suggestion = await deferSuggestionForActor(
+        new AcademicWorkflowsPostgresService(
+          asAcademyDatabase(client),
+          false,
+        ),
+        actor,
+        id,
+        reason,
+      );
+      return { suggestion };
+    });
   });
 }
-

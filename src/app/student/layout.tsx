@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { StudentServiceWorkerRegistration } from "@/components/student-service-worker-registration";
+import { assertStudentPortalAccess } from "@/modules/academy-auth/policy";
+import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
 
 export const metadata: Metadata = {
   title: {
@@ -10,7 +12,10 @@ export const metadata: Metadata = {
   applicationName: "ChurchCore Academy Student",
 };
 
-export default function StudentLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function StudentLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const actor = await resolveAcademyActorForServerComponent();
+  assertStudentPortalAccess(actor);
+
   return (
     <>
       <StudentServiceWorkerRegistration />

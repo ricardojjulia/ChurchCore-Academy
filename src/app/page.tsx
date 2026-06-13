@@ -5,9 +5,8 @@ import { AcademyShell } from "@/components/academy-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { academyDataset } from "@/modules/academy-data/mock-data";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { headers } from "next/headers";
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -20,12 +19,17 @@ function urgencyVariant(urgency: string) {
 }
 
 export default async function Home() {
+  const { actor, dataset } = await loadProtectedAcademyDataset();
   const envStatus = {
     url: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
     publishableKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
     serviceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
   };
-  const evaluation = await runAcademicWorkflowEvaluationJob((await headers()).get("x-academy-tenant-id") ?? "cca-main");
+  const evaluation = await runAcademicWorkflowEvaluationJob(
+    actor.tenantId,
+    dataset,
+    null,
+  );
   const widgetItems = evaluation.workflows.getDashboardWidget(5);
   const highUrgencyCount = evaluation.suggestions.filter((item) => item.urgency === "high" || item.urgency === "critical").length;
   const activeWorkflowCount = evaluation.repository.workflows.filter((workflow) => workflow.status !== "completed").length;
@@ -164,9 +168,9 @@ export default async function Home() {
       </section>
 
       <section className="ops-stats-grid">
-        <DashboardMetric label="Students evaluated" value={academyDataset.students.length} icon={<UsersRound />} detail="Seeded local dataset" />
-        <DashboardMetric label="Programs" value={academyDataset.programs.length} icon={<GraduationCap />} detail="Tracked academic programs" />
-        <DashboardMetric label="Faculty records" value={academyDataset.faculty.length} icon={<BookOpenCheck />} detail="Load and advisor review" />
+        <DashboardMetric label="Students evaluated" value={dataset.students.length} icon={<UsersRound />} detail="Persistent tenant records" />
+        <DashboardMetric label="Programs" value={dataset.programs.length} icon={<GraduationCap />} detail="Tracked academic programs" />
+        <DashboardMetric label="Faculty records" value={dataset.faculty.length} icon={<BookOpenCheck />} detail="Load and advisor review" />
         <DashboardMetric label="Signal categories" value={5} icon={<Sparkles />} detail="Enrollment, records, progress, transcripts, faculty" />
       </section>
     </AcademyShell>

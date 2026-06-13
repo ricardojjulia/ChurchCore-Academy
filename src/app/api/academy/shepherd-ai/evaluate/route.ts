@@ -1,7 +1,16 @@
 import { handleApi } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import {
+  AcademyDataRepository,
+  AcademyDatasetDatabase,
+} from "@/modules/academy-data/postgres-repository";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import {
+  ShepherdAiDatabase,
+  ShepherdAiPostgresRepository,
+} from "@/modules/shepherd-ai/postgres-repository";
 
 interface EvaluationResult {
   dataset: { tenantId: string };
@@ -35,8 +44,20 @@ export async function buildShepherdEvaluationPayload(actor: AcademyActor, runner
 
 export async function POST(request: Request) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
-    return buildShepherdEvaluationPayload(actor, () => runAcademicWorkflowEvaluationJob(actor.tenantId));
+    const { actor } = await resolveAcademyActorFromSession(request);
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const dataset = await new AcademyDataRepository(
+        asAcademyDatabase<AcademyDatasetDatabase>(client),
+      ).loadDataset(actor.tenantId);
+      return buildShepherdEvaluationPayload(actor, () =>
+        runAcademicWorkflowEvaluationJob(
+          actor.tenantId,
+          dataset,
+          new ShepherdAiPostgresRepository(
+            asAcademyDatabase<ShepherdAiDatabase>(client),
+          ),
+        ),
+      );
+    });
   });
 }
-

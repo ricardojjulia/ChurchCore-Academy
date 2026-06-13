@@ -17,10 +17,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { academyDataset } from "@/modules/academy-data/mock-data";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
-import { headers } from "next/headers";
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -42,15 +41,20 @@ export default async function StudentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const student = academyDataset.students.find((item) => item.id === id);
+  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const student = dataset.students.find((item) => item.id === id);
 
   if (!student) {
     notFound();
   }
 
-  const program = academyDataset.programs.find((item) => item.id === student.programId);
-  const advisor = academyDataset.administrators.find((item) => item.id === student.advisorUserId);
-  const evaluation = await runAcademicWorkflowEvaluationJob((await headers()).get("x-academy-tenant-id") ?? "cca-main");
+  const program = dataset.programs.find((item) => item.id === student.programId);
+  const advisor = dataset.administrators.find((item) => item.id === student.advisorUserId);
+  const evaluation = await runAcademicWorkflowEvaluationJob(
+    actor.tenantId,
+    dataset,
+    null,
+  );
   const suggestions = evaluation.workflows.getStudentSuggestions(id);
   const workflows = evaluation.workflows.getStudentWorkflows(id);
   const progressPercent = program ? Math.min(100, Math.round((student.creditsEarned / program.requiredCredits) * 100)) : 0;

@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  AcademyAuthenticationError,
+  AcademyAuthorizationError,
+} from "@/modules/academy-auth/errors";
 
 export function jsonOk<T>(data: T, init?: ResponseInit) {
   return NextResponse.json(data, init);
@@ -17,7 +21,32 @@ export async function handleApi<T>(handler: () => Promise<T>) {
     return jsonOk(await handler());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected API error.";
-    const status = message.includes("Forbidden") ? 403 : message.includes("not found") || message.includes("was not found") ? 404 : 500;
-    return jsonError(message, status);
+
+    if (error instanceof AcademyAuthenticationError) {
+      return jsonError(message, 401);
+    }
+
+    if (
+      error instanceof AcademyAuthorizationError ||
+      message.includes("Forbidden")
+    ) {
+      return jsonError(message, 403);
+    }
+
+    if (message.includes("not found") || message.includes("was not found")) {
+      return jsonError(message, 404);
+    }
+
+    if (
+      message.startsWith("Invalid ") ||
+      message.startsWith("Malformed ") ||
+      message.includes(" is required") ||
+      message.includes(" are required") ||
+      message.includes(" must ")
+    ) {
+      return jsonError(message, 400);
+    }
+
+    return jsonError("Unexpected API error.", 500);
   }
 }

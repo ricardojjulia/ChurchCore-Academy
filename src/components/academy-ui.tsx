@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { academyDataset } from "@/modules/academy-data/mock-data";
 import { InMemoryAcademicWorkflowRepository, WorkflowQueueItem } from "@/modules/academic-workflows/repository";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
 
@@ -177,5 +176,5 @@ export function formatDate(value: string) {
 }
 
 function resolveUser(userId: string) {
-  return academyDataset.administrators.find((admin) => admin.id === userId)?.name ?? userId;
+  return userId;
 }

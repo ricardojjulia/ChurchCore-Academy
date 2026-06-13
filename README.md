@@ -67,6 +67,20 @@ ShepherdAI Academy is not:
 - student PWA for schedule, grades, documents, registration, progress, messages, and LMS launch
 - optional LMS provider integration through Moodle, Canvas, or no-LMS mode
 
+## Production MVP status
+
+Release 1 security foundations are implemented on the active security branch:
+
+- Academy APIs derive identity from verified Supabase sessions.
+- Tenant, Academy person, and active roles come from persisted account links and role assignments.
+- Caller-supplied Academy headers cannot grant production authority.
+- Academy tables have an append-only migration that enables and forces RLS with tenant, staff, student, and guardian policy families.
+- Protected dashboard and record pages load authenticated tenant data and fail closed instead of serving seeded records.
+- Student PWA routes require a verified student role and show empty states until persistent Release 2 read models are connected.
+- Immutable audit storage and a redacted audit repository are implemented.
+
+Release 1 is not yet production-approved. Remaining blockers include end-to-end RLS claim testing, browser role verification, the historical local migration-runner incompatibility, and a supported Node runtime. Releases 2–5 in the production MVP remediation spec remain planned.
+
 ## Local development
 
 1. Copy `.env.example` to `.env.local`
@@ -77,6 +91,8 @@ ShepherdAI Academy is not:
    `DEMO_MODE_ENABLED`
    `NEXT_PUBLIC_DEMO_MODE_ENABLED`
    `NEXT_PUBLIC_DEMO_VERSION`
+   `DATABASE_URL`
+   `ACADEMY_LOCAL_BOOTSTRAP_ENABLED` (local loopback development only)
 3. Install dependencies:
 
 ```bash
@@ -91,7 +107,7 @@ npm run dev
 
 5. Open `http://localhost:3000`
 
-The app will boot without Supabase credentials, but Supabase-backed features should only be added after the env vars are configured.
+Protected Academy pages and APIs fail closed without Supabase and database configuration. Seeded records are available only through tests, seed commands, or explicit non-production demo mode.
 
 ## Demo feedback and triage
 
@@ -117,15 +133,13 @@ Submission API:
 
 Browser-generated session IDs can be rotated by the browser session lifecycle. Per-session throttling helps reduce accidental floods but is not complete bot protection.
 
-## Next steps
+## Next delivery gates
 
-1. Implement the faith-based institution configuration model.
-2. Add academic year, term, subdivision, course, grading, and transcript configuration.
-3. Add authenticated Academy roles and protected routes for institutions, staff, faculty, students, and guardians.
-4. Replace mock Academy records with Supabase-backed repositories for the full Academy data model.
-5. Add the student PWA shell and student-facing workflows.
-6. Define a provider-neutral LMS contract and implement Moodle first, Canvas second, and no-LMS mode as a valid tenant configuration.
-7. Keep ShepherdAI Academy constrained to explainable, human-reviewed academic workflow recommendations from Academy-owned data.
+1. Complete Release 1 request-scoped repository conversion and live RLS/browser verification.
+2. Build Release 2 admissions, registration, attendance, grade entry, transcript issuance, and persistent Student PWA workflows.
+3. Build Release 3 billing, Stripe payments, institutional aid, and student account workflows.
+4. Build regulated federal-aid capabilities only behind sandbox certification and production activation gates.
+5. Execute Moodle and Canvas operations through audited outbox workers in Release 5.
 
 ## Suggested layout
 
@@ -140,6 +154,9 @@ See [docs/architecture.md](docs/architecture.md) and [docs/shepherd-ai-academy.m
 - [Faith-Based Academy Master Plan](docs/product/faith-based-academy-master-plan.md)
 - [Factory Roadmap](docs/product/factory-roadmap.md)
 - [Software Factory](docs/software-factory.md) for Codex, GitHub Copilot, Claude Code, and similar AI coding tools
+- [Production MVP Remediation Design](docs/superpowers/specs/2026-06-13-production-mvp-remediation-design.md)
+- [Release 1 Security Plan](docs/superpowers/plans/2026-06-13-release-1-production-security-foundation.md)
+- [Academy Auth And Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
 - [Platform Design Spec](docs/superpowers/specs/2026-06-01-faith-based-academy-platform-design.md)
 - [Institution Type And Operating Rules Design](docs/superpowers/specs/2026-06-01-institution-type-operating-rules-design.md)
 - [Implementation Master Plan](docs/superpowers/plans/2026-06-01-faith-based-academy-master-plan.md)

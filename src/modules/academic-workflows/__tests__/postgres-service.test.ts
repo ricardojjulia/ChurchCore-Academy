@@ -64,6 +64,41 @@ test("promoteSuggestion rejects cross-tenant suggestion access", async () => {
   );
 });
 
+test("scoped workflow service leaves transaction ownership to the request context", async () => {
+  const calls: string[] = [];
+  const service = new AcademicWorkflowsPostgresService(
+    {
+      query: async (sql: string) => {
+        calls.push(sql);
+        if (sql.includes("select * from ai_suggestions")) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: "suggestion-1",
+                tenant_id: "tenant-shepherd",
+                workflow_code: "calendar_setup_review",
+              },
+            ],
+          };
+        }
+        return { rowCount: 1, rows: [] };
+      },
+    },
+    false,
+  );
+
+  await service.promoteSuggestion(
+    "tenant-shepherd",
+    "suggestion-1",
+    "owner-1",
+  );
+
+  assert.equal(calls.includes("begin"), false);
+  assert.equal(calls.includes("commit"), false);
+  assert.equal(calls.includes("rollback"), false);
+});
+
 test("dismissSuggestion and assignWorkflow mutations include tenant filters", async () => {
   const calls: { sql: string; params: unknown[] | undefined }[] = [];
   const service = new AcademicWorkflowsPostgresService({
