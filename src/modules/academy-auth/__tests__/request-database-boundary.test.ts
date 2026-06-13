@@ -4,6 +4,10 @@ import path from "node:path";
 import test from "node:test";
 
 const requestRepositoryRoutes = [
+  "src/app/api/academy/admissions/applications/route.ts",
+  "src/app/api/academy/admissions/applications/[id]/route.ts",
+  "src/app/api/academy/admissions/applications/[id]/submit/route.ts",
+  "src/app/api/academy/admissions/applications/[id]/decision/route.ts",
   "src/app/api/academy/config/calendar/route.ts",
   "src/app/api/academy/config/courses/route.ts",
   "src/app/api/academy/config/grading/route.ts",
