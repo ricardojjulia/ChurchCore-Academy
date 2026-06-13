@@ -4,6 +4,7 @@ export type AcademyRole =
   | "registrar"
   | "academic_admin"
   | "admissions"
+  | "applicant"
   | "advisor"
   | "faculty"
   | "teacher"

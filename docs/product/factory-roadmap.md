@@ -33,6 +33,9 @@ Completed:
 - Release 1 verified-session authentication and safe API error mapping
 - Release 1 RLS and immutable audit migration
 - Release 1 protected-page removal of seeded runtime records
+- Release 2 Slice 1 persistent admissions application-to-decision workflow
+- Release 2 Slice 1 authenticated admissions APIs and staff review page
+- Release 2 Slice 1 tenant-aware admissions constraints, forced RLS, idempotency, and immutable events
 
 In progress:
 
@@ -42,7 +45,8 @@ In progress:
 Next:
 
 - close the Release 1 production security exit gate
-- execute Release 2 persistent academic MVP vertical slices
+- convert accepted applications into student, enrollment, and registration transactions
+- execute attendance, grade entry, transcript issuance, and persistent Student PWA slices
 
 ## Sprint Cadence
 
@@ -303,13 +307,13 @@ Goal: support inquiry-to-enrolled lifecycle for all institution types.
 
 Suggested 1-week sprints:
 
-1. Admissions design package
+1. Application draft, submission, and acceptance slice - complete
 2. Application form builder and program-specific requirements
 3. Application fee collection and submission workflow
 4. Lead pipeline, stages, and bulk communication
 5. Reference collection and document checklist
-6. Acceptance and enrollment agreement workflow
-7. Enrollment confirmation and SIS record creation
+6. Enrollment agreement workflow
+7. Accepted-application conversion, enrollment confirmation, and SIS record creation
 
 Required ADRs:
 

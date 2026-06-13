@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   AcademyAuthenticationError,
   AcademyAuthorizationError,
+  AcademyConflictError,
 } from "@/modules/academy-auth/errors";
 
 export function jsonOk<T>(data: T, init?: ResponseInit) {
@@ -31,6 +32,10 @@ export async function handleApi<T>(handler: () => Promise<T>) {
       message.includes("Forbidden")
     ) {
       return jsonError(message, 403);
+    }
+
+    if (error instanceof AcademyConflictError) {
+      return jsonError(message, 409);
     }
 
     if (message.includes("not found") || message.includes("was not found")) {

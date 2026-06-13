@@ -38,6 +38,23 @@ test("resolves tenant and active roles from persisted account membership", async
   });
 });
 
+test("resolves a prospective applicant without granting student authority", async () => {
+  const resolved = await resolveAcademyIdentity(
+    repository([
+      {
+        externalSubject: "supabase-applicant-1",
+        personId: "person-applicant-1",
+        tenantId: "tenant-1",
+        roles: ["applicant"],
+      },
+    ]),
+    "supabase-applicant-1",
+    "2026-06-13T12:00:00.000Z",
+  );
+
+  assert.deepEqual(resolved.roles, ["applicant"]);
+});
+
 test("rejects an external subject with no Academy account link", async () => {
   await assert.rejects(
     () =>

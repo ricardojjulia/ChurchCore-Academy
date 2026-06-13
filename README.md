@@ -79,7 +79,16 @@ Release 1 security foundations are implemented on the active security branch:
 - Student PWA routes require a verified student role and show empty states until persistent Release 2 read models are connected.
 - Immutable audit storage and a redacted audit repository are implemented.
 
-Release 1 is not yet production-approved. Remaining blockers include end-to-end RLS claim testing, browser role verification, the historical local migration-runner incompatibility, and a supported Node runtime. Releases 2–5 in the production MVP remediation spec remain planned.
+Release 2 Slice 1 admissions acceptance is also implemented on its stacked feature branch:
+
+- persistent pre-student applications;
+- applicant draft and submission workflow;
+- same-tenant staff acceptance or decline;
+- idempotent mutations with immutable domain and global audit events;
+- composite tenant foreign keys and forced RLS;
+- authenticated APIs and a persistent `/admissions` review page.
+
+Acceptance does not automatically create a student or enrollment. Release 1 is not yet production-approved, and the broader Release 2 exit gate remains open. Registration, attendance, faculty grade entry, operational transcripts, Student PWA persistence, billing, payments, financial aid, reporting/exports, communications, and executable LMS workers remain planned.
 
 ## Local development
 
@@ -135,11 +144,12 @@ Browser-generated session IDs can be rotated by the browser session lifecycle. P
 
 ## Next delivery gates
 
-1. Complete Release 1 request-scoped repository conversion and live RLS/browser verification.
-2. Build Release 2 admissions, registration, attendance, grade entry, transcript issuance, and persistent Student PWA workflows.
-3. Build Release 3 billing, Stripe payments, institutional aid, and student account workflows.
-4. Build regulated federal-aid capabilities only behind sandbox certification and production activation gates.
-5. Execute Moodle and Canvas operations through audited outbox workers in Release 5.
+1. Complete Release 1 live RLS/browser role verification and runtime remediation.
+2. Convert accepted applications into controlled student, enrollment, and registration transactions.
+3. Build Release 2 attendance, grade entry, transcript issuance, and persistent Student PWA workflows.
+4. Build Release 3 billing, Stripe payments, institutional aid, and student account workflows.
+5. Build regulated federal-aid capabilities only behind sandbox certification and production activation gates.
+6. Execute Moodle and Canvas operations through audited outbox workers in Release 5.
 
 ## Suggested layout
 
@@ -156,6 +166,8 @@ See [docs/architecture.md](docs/architecture.md) and [docs/shepherd-ai-academy.m
 - [Software Factory](docs/software-factory.md) for Codex, GitHub Copilot, Claude Code, and similar AI coding tools
 - [Production MVP Remediation Design](docs/superpowers/specs/2026-06-13-production-mvp-remediation-design.md)
 - [Release 1 Security Plan](docs/superpowers/plans/2026-06-13-release-1-production-security-foundation.md)
+- [Release 2 Admissions Acceptance Plan](docs/superpowers/plans/2026-06-13-release-2-slice-1-admissions-acceptance.md)
+- [Admissions Operations Runbook](docs/runbooks/admissions-operations.md)
 - [Academy Auth And Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
 - [Platform Design Spec](docs/superpowers/specs/2026-06-01-faith-based-academy-platform-design.md)
 - [Institution Type And Operating Rules Design](docs/superpowers/specs/2026-06-01-institution-type-operating-rules-design.md)

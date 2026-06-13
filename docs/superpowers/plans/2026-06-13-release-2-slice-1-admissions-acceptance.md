@@ -1,6 +1,6 @@
 # Release 2 Slice 1 Admissions Acceptance Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build a persistent, tenant-isolated admissions workflow that creates an application, submits it for review, records a staff decision, and produces an auditable accepted application ready for enrollment conversion.
 
@@ -21,7 +21,7 @@
 - `src/modules/admissions/__tests__/service.test.ts`: transition, tenant, audit, and idempotency tests.
 - `src/modules/admissions/__tests__/repository.test.ts`: SQL tenant predicates and row mapping tests.
 - `src/modules/admissions/__tests__/migration.test.ts`: schema, constraints, indexes, RLS, and migration ordering tests.
-- `supabase/migrations/20260613020000_admissions_applications.sql`: persistent admissions schema and RLS policies.
+- `supabase/migrations/20260613142628_admissions_applications.sql`: persistent admissions schema and RLS policies.
 - `src/app/api/academy/admissions/applications/route.ts`: create and list applications.
 - `src/app/api/academy/admissions/applications/[id]/route.ts`: application detail.
 - `src/app/api/academy/admissions/applications/[id]/submit/route.ts`: applicant/staff submission.
@@ -42,7 +42,7 @@
 - Create: `src/modules/admissions/validation.ts`
 - Create: `src/modules/admissions/__tests__/validation.test.ts`
 
-- [ ] **Step 1: Write failing validation tests**
+- [x] **Step 1: Write failing validation tests**
 
 Cover:
 
@@ -54,7 +54,7 @@ test("rejects acceptance fields on a new draft");
 test("normalizes email and trims names without retaining arbitrary payload fields");
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -64,7 +64,7 @@ node --import tsx --test src/modules/admissions/__tests__/validation.test.ts
 
 Expected: fail because the admissions types and validators do not exist.
 
-- [ ] **Step 3: Define the domain contracts**
+- [x] **Step 3: Define the domain contracts**
 
 Use these core types:
 
@@ -108,15 +108,15 @@ export interface CreateAdmissionApplicationInput {
 }
 ```
 
-- [ ] **Step 4: Implement minimal normalization and validation**
+- [x] **Step 4: Implement minimal normalization and validation**
 
 `normalizeCreateAdmissionApplicationInput()` must return only allowlisted fields, lowercase email, trim strings, reject missing required fields, and reject decision/status fields supplied through untyped JSON.
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run the focused tests. Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/modules/admissions
@@ -131,7 +131,7 @@ git commit -m "feat(admissions): define application domain rules"
 - Create: `src/modules/admissions/__tests__/policy.test.ts`
 - Create: `src/modules/admissions/__tests__/transitions.test.ts`
 
-- [ ] **Step 1: Write failing policy and transition tests**
+- [x] **Step 1: Write failing policy and transition tests**
 
 Assert:
 
@@ -145,7 +145,7 @@ test("submitted applications can enter review and be accepted or declined");
 test("accepted and declined applications cannot be decided again");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -153,7 +153,7 @@ Run:
 node --import tsx --test src/modules/admissions/__tests__/policy.test.ts src/modules/admissions/__tests__/transitions.test.ts
 ```
 
-- [ ] **Step 3: Implement authorization**
+- [x] **Step 3: Implement authorization**
 
 Use:
 
@@ -163,7 +163,7 @@ export type AdmissionsAction = "create" | "read" | "submit" | "review" | "decide
 
 Admissions, registrar, dean, and institution-admin roles may review and decide. An applicant may create, read, and submit only when `actor.userId === applicantPersonId` and the tenant matches.
 
-- [ ] **Step 4: Implement deterministic transitions**
+- [x] **Step 4: Implement deterministic transitions**
 
 `assertAdmissionTransition(current, next)` must allow:
 
@@ -177,7 +177,7 @@ Admissions, registrar, dean, and institution-admin roles may review and decide. 
 
 All other transitions throw `Invalid admission application transition.`
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 ```bash
 git add src/modules/admissions
@@ -187,10 +187,10 @@ git commit -m "feat(admissions): enforce application access and transitions"
 ### Task 3: Admissions Schema And RLS
 
 **Files:**
-- Create: `supabase/migrations/20260613020000_admissions_applications.sql`
+- Create: `supabase/migrations/20260613142628_admissions_applications.sql`
 - Create: `src/modules/admissions/__tests__/migration.test.ts`
 
-- [ ] **Step 1: Write the failing migration test**
+- [x] **Step 1: Write the failing migration test**
 
 The test must assert creation of:
 
@@ -210,7 +210,7 @@ and require:
 - admissions staff read/write policies;
 - append-only event update/delete rejection.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -218,7 +218,7 @@ Run:
 node --import tsx --test src/modules/admissions/__tests__/migration.test.ts
 ```
 
-- [ ] **Step 3: Create the append-only migration**
+- [x] **Step 3: Create the append-only migration**
 
 `academy_admission_applications` stores normalized application identity, target program/term, status, submission and decision metadata, idempotency key, and timestamps.
 
@@ -226,21 +226,21 @@ node --import tsx --test src/modules/admissions/__tests__/migration.test.ts
 
 Policies must call `academy_private.academy_current_person_id()`, `academy_private.academy_current_tenant_ids()`, and `academy_private.academy_has_active_role(...)`.
 
-- [ ] **Step 4: Verify migration statically and transactionally**
+- [x] **Step 4: Verify migration statically and transactionally**
 
 Run:
 
 ```bash
 node --import tsx --test src/modules/admissions/__tests__/migration.test.ts
-node --env-file=.env.local --input-type=module -e 'import fs from "node:fs/promises"; import pg from "pg"; const sql=await fs.readFile("supabase/migrations/20260613020000_admissions_applications.sql","utf8"); const client=new pg.Client({connectionString:process.env.DATABASE_URL}); await client.connect(); try { await client.query("begin"); await client.query(sql); await client.query("rollback"); console.log("Admissions migration transaction validated."); } finally { await client.end(); }'
+node --env-file=.env.local --input-type=module -e 'import fs from "node:fs/promises"; import pg from "pg"; const sql=await fs.readFile("supabase/migrations/20260613142628_admissions_applications.sql","utf8"); const client=new pg.Client({connectionString:process.env.DATABASE_URL}); await client.connect(); try { await client.query("begin"); await client.query(sql); await client.query("rollback"); console.log("Admissions migration transaction validated."); } finally { await client.end(); }'
 ```
 
 Expected: static tests pass and the migration executes inside `BEGIN`/`ROLLBACK`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20260613020000_admissions_applications.sql src/modules/admissions/__tests__/migration.test.ts
+git add supabase/migrations/20260613142628_admissions_applications.sql src/modules/admissions/__tests__/migration.test.ts
 git commit -m "feat(admissions): add tenant-isolated application storage"
 ```
 
@@ -253,7 +253,7 @@ git commit -m "feat(admissions): add tenant-isolated application storage"
 - Create: `src/modules/admissions/__tests__/service.test.ts`
 - Modify: `src/modules/audit/postgres-repository.ts`
 
-- [ ] **Step 1: Write failing repository tests**
+- [x] **Step 1: Write failing repository tests**
 
 Assert:
 
@@ -263,7 +263,7 @@ Assert:
 - row mapping normalizes dates;
 - duplicate idempotency returns the existing application.
 
-- [ ] **Step 2: Write failing service tests**
+- [x] **Step 2: Write failing service tests**
 
 Cover:
 
@@ -276,11 +276,11 @@ test("rejects cross-tenant commands before writes");
 test("rolls back application and audit writes together on failure");
 ```
 
-- [ ] **Step 3: Verify RED**
+- [x] **Step 3: Verify RED**
 
 Run the repository and service tests.
 
-- [ ] **Step 4: Implement repository methods**
+- [x] **Step 4: Implement repository methods**
 
 Required methods:
 
@@ -293,11 +293,11 @@ transition(tenantId, applicationId, expectedStatus, nextStatus, decision)
 appendEvent(event)
 ```
 
-- [ ] **Step 5: Implement service commands**
+- [x] **Step 5: Implement service commands**
 
 The service accepts scoped repositories and `PostgresAcademyAuditRepository`. It performs policy checks before repository calls, validates transitions, writes the application event and global audit event in the caller-owned transaction, and never stores raw request JSON.
 
-- [ ] **Step 6: Verify GREEN and commit**
+- [x] **Step 6: Verify GREEN and commit**
 
 ```bash
 git add src/modules/admissions src/modules/audit/postgres-repository.ts
@@ -315,7 +315,7 @@ git commit -m "feat(admissions): add audited application workflow"
 - Modify: `src/app/api/academy/api-utils.ts`
 - Modify: `src/modules/academy-auth/__tests__/request-database-boundary.test.ts`
 
-- [ ] **Step 1: Write failing route tests**
+- [x] **Step 1: Write failing route tests**
 
 Assert:
 
@@ -327,7 +327,7 @@ Assert:
 - unknown persistence failures return generic `500`;
 - responses omit event internals and audit metadata.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -335,11 +335,11 @@ Run:
 node --import tsx --test src/app/api/academy/admissions/__tests__/routes.test.ts
 ```
 
-- [ ] **Step 3: Add a typed conflict error**
+- [x] **Step 3: Add a typed conflict error**
 
 Create `AcademyConflictError` in `academy-auth/errors.ts` or a shared domain-error module and map it to `409` in `api-utils.ts`.
 
-- [ ] **Step 4: Implement thin route handlers**
+- [x] **Step 4: Implement thin route handlers**
 
 Each route must:
 
@@ -352,11 +352,11 @@ Each route must:
 7. call the admissions service;
 8. return a minimum-necessary response.
 
-- [ ] **Step 5: Extend the request-database boundary test**
+- [x] **Step 5: Extend the request-database boundary test**
 
 Add all admissions repository routes to `requestRepositoryRoutes`.
 
-- [ ] **Step 6: Verify GREEN and commit**
+- [x] **Step 6: Verify GREEN and commit**
 
 ```bash
 git add src/app/api/academy src/modules/academy-auth
@@ -372,7 +372,7 @@ git commit -m "feat(admissions): expose authenticated application APIs"
 - Create: `src/app/admissions/page.tsx`
 - Modify: `src/components/academy-shell.tsx`
 
-- [ ] **Step 1: Write failing review-model tests**
+- [x] **Step 1: Write failing review-model tests**
 
 Assert:
 
@@ -381,11 +381,11 @@ Assert:
 - applicant contact fields are included only for authorized staff;
 - application events, audit metadata, and idempotency keys are excluded.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run the focused review-model test.
 
-- [ ] **Step 3: Implement the read model and page**
+- [x] **Step 3: Implement the read model and page**
 
 The server page resolves a verified actor, requires admissions review access, loads through `withAcademyDatabaseContext`, and renders:
 
@@ -394,11 +394,11 @@ The server page resolves a verified actor, requires admissions review access, lo
 - clear empty state;
 - no mutation controls in this first UI slice.
 
-- [ ] **Step 4: Add navigation**
+- [x] **Step 4: Add navigation**
 
 Add `/admissions` to the Academy staff navigation with an admissions-appropriate icon and caption.
 
-- [ ] **Step 5: Verify tests, lint, build, and browser rendering**
+- [x] **Step 5: Verify tests, lint, build, and browser rendering**
 
 Run:
 
@@ -410,7 +410,7 @@ npm run build
 
 Start the app with configured local credentials and verify the admissions route shows allowed or denied state without seeded records.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/admissions src/components src/modules/admissions
@@ -429,7 +429,7 @@ git commit -m "feat(admissions): add persistent application review surface"
 - Modify: `docs/product/faith-based-academy-master-plan.md`
 - Modify: this plan to check completed tasks
 
-- [ ] **Step 1: Write ADR 0020**
+- [x] **Step 1: Write ADR 0020**
 
 Record:
 
@@ -440,11 +440,11 @@ Record:
 - append-only application event plus global audit event;
 - enrollment conversion deferred to Release 2 Slice 2.
 
-- [ ] **Step 2: Write the operations runbook**
+- [x] **Step 2: Write the operations runbook**
 
 Include account linking, draft creation, submission, decision, withdrawal, duplicate idempotency, incorrect decision recovery through forward events, access revocation, and incident response.
 
-- [ ] **Step 3: Update product status**
+- [x] **Step 3: Update product status**
 
 State separately:
 
@@ -452,7 +452,7 @@ State separately:
 - enrollment conversion, registration, attendance, grade entry, transcript issuance, and Student PWA persistence still planned;
 - no claim that Release 2 exit gate is complete.
 
-- [ ] **Step 4: Run the full verification gate**
+- [x] **Step 4: Run the full verification gate**
 
 ```bash
 npm test
@@ -462,7 +462,7 @@ git diff --check
 npm audit
 ```
 
-- [ ] **Step 5: Run migration and security verification**
+- [x] **Step 5: Run migration and security verification**
 
 Apply both security and admissions migrations in a rollback transaction and test:
 
@@ -473,7 +473,7 @@ Apply both security and admissions migrations in a rollback transaction and test
 - cross-tenant staff denied;
 - accepted application immutable except through explicit forward event.
 
-- [ ] **Step 6: Record evidence and commit**
+- [x] **Step 6: Record evidence and commit**
 
 ```bash
 git add README.md docs
