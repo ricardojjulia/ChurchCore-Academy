@@ -1,10 +1,10 @@
 import { AcademyDataRepository } from "@/modules/academy-data/postgres-repository";
 import { handleApi } from "@/app/api/academy/api-utils";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 
 export async function GET(request: Request) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     const dataset = await new AcademyDataRepository().loadDataset(actor.tenantId);
     return {
       students: dataset.students,
@@ -12,4 +12,3 @@ export async function GET(request: Request) {
     };
   });
 }
-

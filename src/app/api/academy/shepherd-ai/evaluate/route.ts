@@ -1,6 +1,6 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
 
 interface EvaluationResult {
@@ -35,8 +35,7 @@ export async function buildShepherdEvaluationPayload(actor: AcademyActor, runner
 
 export async function POST(request: Request) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     return buildShepherdEvaluationPayload(actor, () => runAcademicWorkflowEvaluationJob(actor.tenantId));
   });
 }
-

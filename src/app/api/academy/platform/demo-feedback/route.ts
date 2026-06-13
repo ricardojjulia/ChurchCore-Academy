@@ -13,9 +13,10 @@ const categorySet = new Set<string>(demoFeedbackCategories);
 export async function listDemoFeedbackRequest(
   request: Request,
   service: DemoFeedbackListService = new DemoFeedbackService(),
+  roleResolver: (headers: Headers) => Promise<string[]> = resolvePlatformRoles,
 ) {
   try {
-    assertPlatformStaffWorkspaceAccess(await resolvePlatformRoles(request.headers));
+    assertPlatformStaffWorkspaceAccess(await roleResolver(request.headers));
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Forbidden", 403);
   }

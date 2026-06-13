@@ -8,9 +8,9 @@ import { launchStudentLmsRequest } from "./route";
 const now = "2026-06-12T19:00:00.000Z";
 
 function withBootstrapFallback<T>(run: () => Promise<T>) {
-  process.env.ALLOW_STUDENT_BOOTSTRAP_HEADERS = "true";
+  process.env.ACADEMY_LOCAL_BOOTSTRAP_ENABLED = "true";
   return run().finally(() => {
-    delete process.env.ALLOW_STUDENT_BOOTSTRAP_HEADERS;
+    delete process.env.ACADEMY_LOCAL_BOOTSTRAP_ENABLED;
   });
 }
 
@@ -50,7 +50,7 @@ function peopleConfig(provider: LmsProvider): PeopleConfiguration {
   };
 }
 
-test("route resolves student actor from bootstrap headers when no Supabase session is available", async () => {
+test("route resolves student actor from explicit local bootstrap when no Supabase session is available", async () => {
   await withBootstrapFallback(async () => {
     const request = new Request("http://localhost/api/academy/student/lms/launch", {
       method: "POST",
@@ -136,7 +136,7 @@ test("non-student actor is rejected by access policy enforcement", async () => {
 });
 
 test("route returns available launch for Canvas tenant when launch config env is present", async () => {
-  process.env.ALLOW_STUDENT_BOOTSTRAP_HEADERS = "true";
+  process.env.ACADEMY_LOCAL_BOOTSTRAP_ENABLED = "true";
   process.env.CANVAS_LAUNCH_BASE_URL = "https://canvas.example.edu/login/oauth2/auth";
   process.env.CANVAS_LAUNCH_MODE = "oauth2";
 
@@ -173,7 +173,7 @@ test("route returns available launch for Canvas tenant when launch config env is
     assert.match(body.launch.auditReference, /:canvas:identity_launch$/);
     assert.match(body.launch.launchUrl ?? "", /^https:\/\/canvas\.example\.edu/);
   } finally {
-    delete process.env.ALLOW_STUDENT_BOOTSTRAP_HEADERS;
+    delete process.env.ACADEMY_LOCAL_BOOTSTRAP_ENABLED;
     delete process.env.CANVAS_LAUNCH_BASE_URL;
     delete process.env.CANVAS_LAUNCH_MODE;
   }

@@ -1,6 +1,6 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyGradingRecordsRepository } from "@/modules/grading-records/postgres-repository";
 import { GradingRecordsConfiguration } from "@/modules/grading-records/types";
 import { validateGradingRecordsConfiguration } from "@/modules/grading-records/validation";
@@ -26,7 +26,7 @@ export async function buildGradingRecordsConfigPayload(
 
 export async function GET(request: Request) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     return buildGradingRecordsConfigPayload(new AcademyGradingRecordsRepository(), actor, actor.tenantId);
   });
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { jsonError, jsonOk } from "@/app/api/academy/api-utils";
 import { resolveStudentAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { AcademyActor } from "@/modules/academy-auth/policy";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { PeopleConfiguration } from "@/modules/people/types";
 import {
@@ -11,6 +12,10 @@ import {
 interface StudentLmsLaunchPeopleReader {
   fetchPeopleConfiguration(tenantId: string): Promise<PeopleConfiguration>;
 }
+
+type StudentActorResolver = (
+  request: Request,
+) => Promise<{ actor: AcademyActor }>;
 
 interface LaunchRequestPayload {
   targetStudentPersonId: string;
@@ -57,10 +62,11 @@ function buildLaunchRequestPayload(request: Request, actorUserId: string, body: 
 export async function launchStudentLmsRequest(
   request: Request,
   repository: StudentLmsLaunchPeopleReader = new AcademyPeopleRepository(),
+  resolveActor: StudentActorResolver = resolveStudentAcademyActorFromSession,
 ) {
   let actor;
   try {
-    ({ actor } = await resolveStudentAcademyActorFromSession(request.headers));
+    ({ actor } = await resolveActor(request));
   } catch {
     return jsonError("Authentication required.", 401);
   }

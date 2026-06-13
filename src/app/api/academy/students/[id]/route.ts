@@ -1,6 +1,6 @@
 import { AcademyDataRepository } from "@/modules/academy-data/postgres-repository";
 import { handleApi } from "@/app/api/academy/api-utils";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -8,7 +8,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     const { id } = await context.params;
     const dataset = await new AcademyDataRepository().loadDataset(actor.tenantId);
     const student = dataset.students.find((item) => item.id === id);
@@ -27,4 +27,3 @@ export async function GET(request: Request, context: RouteContext) {
     };
   });
 }
-

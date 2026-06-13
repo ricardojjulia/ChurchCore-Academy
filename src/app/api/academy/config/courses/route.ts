@@ -1,6 +1,6 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import { CourseCatalogConfiguration } from "@/modules/course-catalog/types";
 import { validateCourseCatalogConfiguration } from "@/modules/course-catalog/validation";
@@ -26,7 +26,7 @@ export async function buildCourseCatalogConfigPayload(
 
 export async function GET(request: Request) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     return buildCourseCatalogConfigPayload(new AcademyCourseCatalogRepository(), actor, actor.tenantId);
   });
 }

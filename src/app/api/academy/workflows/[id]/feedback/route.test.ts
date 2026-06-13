@@ -28,6 +28,13 @@ test("feedback route rejects userId impersonation attempt", async () => {
         throw new Error("unexpected");
       },
     },
+    async () => ({
+      actor: {
+        userId: "actor-1",
+        tenantId: "tenant-1",
+        roles: ["academic_admin"],
+      },
+    }),
   );
 
   const payload = (await response.json()) as { error: string };
@@ -69,6 +76,13 @@ test("feedback route binds userId to authenticated actor", async () => {
         };
       },
     },
+    async () => ({
+      actor: {
+        userId: "actor-1",
+        tenantId: "tenant-1",
+        roles: ["academic_admin"],
+      },
+    }),
   );
 
   const payload = (await response.json()) as {

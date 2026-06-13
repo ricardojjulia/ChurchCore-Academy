@@ -1,6 +1,6 @@
 import { handleApi, jsonError } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademicWorkflowsPostgresService } from "@/modules/academic-workflows/postgres-service";
 import { WorkflowFeedbackRecord, WorkflowFeedbackType } from "@/modules/shepherd-ai/types";
 
@@ -40,12 +40,15 @@ export async function recordWorkflowFeedbackRequest(
   request: Request,
   context: RouteContext,
   service: WorkflowFeedbackService = new AcademicWorkflowsPostgresService(),
+  resolveActor: (
+    request: Request,
+  ) => Promise<{ actor: AcademyActor }> = resolveAcademyActorFromSession,
 ) {
   const body = await request.json().catch(() => ({}));
   const requestedUserId = typeof body.userId === "string" ? body.userId : undefined;
   const feedbackType = typeof body.feedbackType === "string" ? body.feedbackType : undefined;
   const notes = typeof body.notes === "string" ? body.notes : undefined;
-  const actor = resolveBootstrapAcademyActor(request.headers);
+  const { actor } = await resolveActor(request);
 
   if (requestedUserId && requestedUserId !== actor.userId) {
     return jsonError("Forbidden workflow feedback actor.", 403);
@@ -68,4 +71,3 @@ export async function recordWorkflowFeedbackRequest(
     return { feedback };
   });
 }
-

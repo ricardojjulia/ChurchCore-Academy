@@ -3,9 +3,8 @@ import test from "node:test";
 import { listDemoFeedbackRequest } from "@/app/api/academy/platform/demo-feedback/route";
 import { patchDemoFeedbackRequest } from "@/app/api/academy/platform/demo-feedback/[id]/route";
 
-const staffHeaders = {
-  "x-platform-role": "platform_staff",
-};
+const platformStaff = async () => ["platform_staff"];
+const noPlatformRole = async () => [];
 
 test("only platform staff can load triage records", async () => {
   const denied = await listDemoFeedbackRequest(
@@ -15,17 +14,19 @@ test("only platform staff can load triage records", async () => {
     {
       list: async () => [],
     },
+    noPlatformRole,
   );
 
   assert.equal(denied.status, 403);
 
   const allowed = await listDemoFeedbackRequest(
     new Request("http://localhost/api/academy/platform/demo-feedback?status=open", {
-      headers: staffHeaders,
+      headers: {},
     }),
     {
       list: async () => [{ id: "a" }],
     },
+    platformStaff,
   );
 
   assert.equal(allowed.status, 200);
@@ -42,6 +43,7 @@ test("only platform staff can mutate triage records", async () => {
     {
       update: async () => ({ id: "abc" }),
     },
+    noPlatformRole,
   );
 
   assert.equal(denied.status, 403);
@@ -49,13 +51,14 @@ test("only platform staff can mutate triage records", async () => {
   const allowed = await patchDemoFeedbackRequest(
     new Request("http://localhost/api/academy/platform/demo-feedback/abc", {
       method: "PATCH",
-      headers: { ...staffHeaders, "content-type": "application/json" },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ processed: true }),
     }),
     { params: Promise.resolve({ id: "abc" }) },
     {
       update: async () => ({ id: "abc", processed: true }),
     },
+    platformStaff,
   );
 
   assert.equal(allowed.status, 200);
@@ -65,13 +68,14 @@ test("mutation endpoint validates action allowlist", async () => {
   const response = await patchDemoFeedbackRequest(
     new Request("http://localhost/api/academy/platform/demo-feedback/abc", {
       method: "PATCH",
-      headers: { ...staffHeaders, "content-type": "application/json" },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ action: "not-valid" }),
     }),
     { params: Promise.resolve({ id: "abc" }) },
     {
       update: async () => ({ id: "abc" }),
     },
+    platformStaff,
   );
 
   assert.equal(response.status, 400);

@@ -1,6 +1,6 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademicWorkflowsPostgresService } from "@/modules/academic-workflows/postgres-service";
 import { WorkflowRecord } from "@/modules/shepherd-ai/types";
 
@@ -19,10 +19,9 @@ export async function completeWorkflowForActor(service: WorkflowCompletionServic
 
 export async function POST(request: Request, context: RouteContext) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     const { id } = await context.params;
     const workflow = await completeWorkflowForActor(new AcademicWorkflowsPostgresService(), actor, id);
     return { workflow };
   });
 }
-

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getStringParam, handleApi } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import { QueueFilters, ShepherdAiSuggestion, WorkflowActionRecord, WorkflowFeedbackRecord, WorkflowRecord } from "@/modules/shepherd-ai/types";
@@ -42,7 +42,7 @@ export async function buildWorkflowQueuePayload(
 
 export async function GET(request: NextRequest) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const { actor } = await resolveAcademyActorFromSession(request);
     const searchParams = request.nextUrl.searchParams;
     const filters: QueueFilters = {
       urgency: getStringParam(searchParams.get("urgency") ?? undefined) as QueueFilters["urgency"],
@@ -54,4 +54,3 @@ export async function GET(request: NextRequest) {
     return buildWorkflowQueuePayload(new ShepherdAiPostgresRepository(), actor, filters);
   });
 }
-
