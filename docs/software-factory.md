@@ -298,6 +298,10 @@ The factory currently has:
 - reviewer procedure
 - Product Opportunity Scout agent definition
 - test, lint, and build commands
+- approved production MVP remediation design
+- Release 1 implementation plan and security ADRs
+- auth and tenant-access operations runbook
+- verification evidence that distinguishes implemented, verified, planned, and externally blocked work
 - ShepherdAI guardrail docs and tests
 
 The next maturity step is to add actual domain-specific implementation plans for institution configuration, academic calendar, course catalog, grading, student PWA, LMS contracts, Moodle adapter, Canvas adapter, and ShepherdAI expansion.

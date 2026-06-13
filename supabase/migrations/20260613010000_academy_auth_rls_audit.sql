@@ -1,4 +1,9 @@
-create or replace function public.academy_current_external_subject()
+create schema if not exists academy_private;
+
+revoke all on schema academy_private from public;
+grant usage on schema academy_private to anon, authenticated;
+
+create or replace function academy_private.academy_current_external_subject()
 returns text
 language sql
 stable
@@ -11,7 +16,7 @@ as $$
   );
 $$;
 
-create or replace function public.academy_current_person_id()
+create or replace function academy_private.academy_current_person_id()
 returns text
 language sql
 stable
@@ -24,7 +29,7 @@ as $$
       select account.person_id
       from public.academy_account_links account
       where account.provider = 'supabase'
-        and account.external_subject = public.academy_current_external_subject()
+        and account.external_subject = academy_private.academy_current_external_subject()
         and account.status = 'active'
       order by account.created_at
       limit 1
@@ -32,7 +37,7 @@ as $$
   );
 $$;
 
-create or replace function public.academy_current_tenant_ids()
+create or replace function academy_private.academy_current_tenant_ids()
 returns text[]
 language sql
 stable
@@ -46,13 +51,13 @@ as $$
       select coalesce(array_agg(distinct account.tenant_id), array[]::text[])
       from public.academy_account_links account
       where account.provider = 'supabase'
-        and account.external_subject = public.academy_current_external_subject()
+        and account.external_subject = academy_private.academy_current_external_subject()
         and account.status = 'active'
     )
   end;
 $$;
 
-create or replace function public.academy_has_active_role(
+create or replace function academy_private.academy_has_active_role(
   p_tenant_id text,
   p_roles text[]
 )
@@ -70,8 +75,8 @@ as $$
      and assignment.person_id = account.person_id
     where account.provider = 'supabase'
       and (
-        account.external_subject = public.academy_current_external_subject()
-        or account.person_id = public.academy_current_person_id()
+        account.external_subject = academy_private.academy_current_external_subject()
+        or account.person_id = academy_private.academy_current_person_id()
       )
       and account.status = 'active'
       and account.tenant_id = p_tenant_id
@@ -82,7 +87,7 @@ as $$
   );
 $$;
 
-create or replace function public.academy_can_read_student(
+create or replace function academy_private.academy_can_read_student(
   p_tenant_id text,
   p_student_person_id text
 )
@@ -93,10 +98,10 @@ security definer
 set search_path = pg_catalog, public
 as $$
   select
-    p_tenant_id = any(public.academy_current_tenant_ids())
+    p_tenant_id = any(academy_private.academy_current_tenant_ids())
     and (
-      p_student_person_id = public.academy_current_person_id()
-      or public.academy_has_active_role(
+      p_student_person_id = academy_private.academy_current_person_id()
+      or academy_private.academy_has_active_role(
         p_tenant_id,
         array['institution_admin', 'dean', 'registrar', 'academic_admin', 'admissions', 'advisor']
       )
@@ -105,7 +110,7 @@ as $$
         from public.academy_student_relationships relationship
         where relationship.tenant_id = p_tenant_id
           and relationship.student_person_id = p_student_person_id
-          and relationship.related_person_id = public.academy_current_person_id()
+          and relationship.related_person_id = academy_private.academy_current_person_id()
           and relationship.status = 'active'
           and relationship.visibility <> 'none'
           and (relationship.starts_on is null or relationship.starts_on <= current_date)
@@ -113,6 +118,18 @@ as $$
       )
     );
 $$;
+
+revoke all on function academy_private.academy_current_external_subject() from public;
+revoke all on function academy_private.academy_current_person_id() from public;
+revoke all on function academy_private.academy_current_tenant_ids() from public;
+revoke all on function academy_private.academy_has_active_role(text, text[]) from public;
+revoke all on function academy_private.academy_can_read_student(text, text) from public;
+
+grant execute on function academy_private.academy_current_external_subject() to anon, authenticated;
+grant execute on function academy_private.academy_current_person_id() to anon, authenticated;
+grant execute on function academy_private.academy_current_tenant_ids() to anon, authenticated;
+grant execute on function academy_private.academy_has_active_role(text, text[]) to anon, authenticated;
+grant execute on function academy_private.academy_can_read_student(text, text) to anon, authenticated;
 
 create table if not exists public.academy_audit_events (
   id uuid primary key default gen_random_uuid(),
@@ -244,8 +261,8 @@ begin
     execute format('drop policy if exists academy_tenant_read on public.%I', table_name);
     execute format(
       'create policy academy_tenant_read on public.%I for select using (
-        tenant_id = any(public.academy_current_tenant_ids())
-        and public.academy_has_active_role(
+        tenant_id = any(academy_private.academy_current_tenant_ids())
+        and academy_private.academy_has_active_role(
           tenant_id,
           array[''institution_admin'', ''dean'', ''registrar'', ''academic_admin'']
         )
@@ -255,9 +272,9 @@ begin
     execute format('drop policy if exists academy_tenant_admin_write on public.%I', table_name);
     execute format(
       'create policy academy_tenant_admin_write on public.%I for all using (
-        public.academy_has_active_role(tenant_id, array[''institution_admin''])
+        academy_private.academy_has_active_role(tenant_id, array[''institution_admin''])
       ) with check (
-        public.academy_has_active_role(tenant_id, array[''institution_admin''])
+        academy_private.academy_has_active_role(tenant_id, array[''institution_admin''])
       )',
       table_name
     );
@@ -281,12 +298,12 @@ begin
     execute format('drop policy if exists academy_staff_access on public.%I', table_name);
     execute format(
       'create policy academy_staff_access on public.%I for all using (
-        public.academy_has_active_role(
+        academy_private.academy_has_active_role(
           tenant_id,
           array[''institution_admin'', ''dean'', ''registrar'', ''academic_admin'', ''admissions'', ''advisor'']
         )
       ) with check (
-        public.academy_has_active_role(
+        academy_private.academy_has_active_role(
           tenant_id,
           array[''institution_admin'', ''dean'', ''registrar'', ''academic_admin'', ''admissions'', ''advisor'']
         )
@@ -302,9 +319,9 @@ create policy academy_people_scoped_read
 on public.academy_people
 for select
 using (
-  id = public.academy_current_person_id()
-  or public.academy_can_read_student(tenant_id, id)
-  or public.academy_has_active_role(
+  id = academy_private.academy_current_person_id()
+  or academy_private.academy_can_read_student(tenant_id, id)
+  or academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'dean', 'registrar', 'academic_admin', 'admissions', 'advisor', 'faculty', 'teacher', 'professor']
   )
@@ -315,13 +332,13 @@ create policy academy_people_staff_write
 on public.academy_people
 for all
 using (
-  public.academy_has_active_role(
+  academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
 )
 with check (
-  public.academy_has_active_role(
+  academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
@@ -331,20 +348,20 @@ drop policy if exists academy_student_profiles_scoped_read on public.academy_stu
 create policy academy_student_profiles_scoped_read
 on public.academy_student_profiles
 for select
-using (public.academy_can_read_student(tenant_id, person_id));
+using (academy_private.academy_can_read_student(tenant_id, person_id));
 
 drop policy if exists academy_student_profiles_staff_write on public.academy_student_profiles;
 create policy academy_student_profiles_staff_write
 on public.academy_student_profiles
 for all
 using (
-  public.academy_has_active_role(
+  academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
 )
 with check (
-  public.academy_has_active_role(
+  academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
@@ -355,8 +372,8 @@ create policy academy_relationships_scoped_read
 on public.academy_student_relationships
 for select
 using (
-  related_person_id = public.academy_current_person_id()
-  or public.academy_can_read_student(tenant_id, student_person_id)
+  related_person_id = academy_private.academy_current_person_id()
+  or academy_private.academy_can_read_student(tenant_id, student_person_id)
 );
 
 drop policy if exists academy_relationships_staff_write on public.academy_student_relationships;
@@ -364,13 +381,13 @@ create policy academy_relationships_staff_write
 on public.academy_student_relationships
 for all
 using (
-  public.academy_has_active_role(
+  academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
 )
 with check (
-  public.academy_has_active_role(
+  academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
@@ -389,12 +406,12 @@ begin
     execute format('drop policy if exists academy_identity_admin on public.%I', table_name);
     execute format(
       'create policy academy_identity_admin on public.%I for all using (
-        public.academy_has_active_role(
+        academy_private.academy_has_active_role(
           tenant_id,
           array[''institution_admin'', ''registrar'', ''academic_admin'']
         )
       ) with check (
-        public.academy_has_active_role(
+        academy_private.academy_has_active_role(
           tenant_id,
           array[''institution_admin'', ''registrar'', ''academic_admin'']
         )
@@ -418,9 +435,9 @@ begin
     execute format('drop policy if exists academy_workflow_admin on public.%I', table_name);
     execute format(
       'create policy academy_workflow_admin on public.%I for all using (
-        public.academy_has_active_role(tenant_id, array[''academic_admin''])
+        academy_private.academy_has_active_role(tenant_id, array[''academic_admin''])
       ) with check (
-        public.academy_has_active_role(tenant_id, array[''academic_admin''])
+        academy_private.academy_has_active_role(tenant_id, array[''academic_admin''])
       )',
       table_name
     );
@@ -437,7 +454,7 @@ using (
     select 1
     from public.workflows workflow
     where workflow.id = workflow_actions.workflow_id
-      and public.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
+      and academy_private.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
   )
 )
 with check (
@@ -445,7 +462,7 @@ with check (
     select 1
     from public.workflows workflow
     where workflow.id = workflow_actions.workflow_id
-      and public.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
+      and academy_private.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
   )
 );
 
@@ -458,7 +475,7 @@ using (
     select 1
     from public.workflows workflow
     where workflow.id = workflow_feedback.workflow_id
-      and public.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
+      and academy_private.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
   )
 )
 with check (
@@ -466,7 +483,7 @@ with check (
     select 1
     from public.workflows workflow
     where workflow.id = workflow_feedback.workflow_id
-      and public.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
+      and academy_private.academy_has_active_role(workflow.tenant_id, array['academic_admin'])
   )
 );
 
@@ -475,7 +492,7 @@ create policy academy_audit_admin_read
 on public.academy_audit_events
 for select
 using (
-  public.academy_has_active_role(
+  academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'dean', 'registrar', 'academic_admin']
   )
@@ -486,8 +503,8 @@ create policy academy_audit_insert
 on public.academy_audit_events
 for insert
 with check (
-  tenant_id = any(public.academy_current_tenant_ids())
-  and actor_person_id = public.academy_current_person_id()
+  tenant_id = any(academy_private.academy_current_tenant_ids())
+  and actor_person_id = academy_private.academy_current_person_id()
 );
 
 revoke update, delete on public.academy_audit_events from authenticated;

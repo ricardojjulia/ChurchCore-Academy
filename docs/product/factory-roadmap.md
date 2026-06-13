@@ -2,7 +2,7 @@
 
 ## Current Position
 
-ChurchCore Academy has completed the product/factory foundation, Phases 1 through 8. The next implementation focus is Phase 9: Canvas Adapter.
+ChurchCore Academy has broad design and prototype coverage through the LMS adapter phases. Production MVP work is now governed by the approved five-release remediation program. Earlier phase completion means the design package or tested domain slice exists; it does not mean the corresponding operational workflow is production-complete.
 
 Completed:
 
@@ -30,15 +30,20 @@ Completed:
 - Moodle grade/progress return
 - Moodle reconciliation and provider docs
 - baseline verification with `npm test`, `npm run lint`, and `npm run build`
+- Release 1 verified-session authentication and safe API error mapping
+- Release 1 RLS and immutable audit migration
+- Release 1 protected-page removal of seeded runtime records
 
-Not started:
+In progress:
 
-- Canvas adapter
-- ShepherdAI expansion on the full Academy model
+- Release 1 request-scoped workflow mutation repositories
+- live role-by-role RLS and browser verification
+- dependency and supported Node runtime remediation
 
 Next:
 
-- Canvas adapter design package
+- close the Release 1 production security exit gate
+- execute Release 2 persistent academic MVP vertical slices
 
 ## Sprint Cadence
 

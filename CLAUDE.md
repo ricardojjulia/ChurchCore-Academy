@@ -49,6 +49,9 @@ supabase/migrations/ # Postgres migrations (SQL)
 - **Business logic lives in `src/modules/`.** API routes stay thin — resolve actor, call module, map errors.
 - **No LMS runtime code in this repo.** LMS providers are adapters under `src/modules/lms-contract/`.
 - **Tenant isolation is enforced in every module function before repository access.**
+- **Production identity comes only from a verified Supabase session.** Never authorize with request headers or `user_metadata`.
+- **Request-facing Postgres access must run through `withAcademyDatabaseContext`.** Service-role access is reserved for migrations and controlled workers.
+- **Runtime pages may not import `academy-data/mock-data`.** Tests, seed commands, and explicit non-production demo mode are the only allowed seeded-data paths.
 - **ShepherdAI is a deterministic signal engine.** No chatbot UI. No freeform LLM output surfaced directly to users.
 - **Student PWA surfaces only released, reviewed records.** No drafts, no held records, no provider secrets.
 - **Tests live next to the code they cover** under `src/modules/<domain>/__tests__/`.
@@ -71,6 +74,7 @@ supabase/migrations/ # Postgres migrations (SQL)
 - Do not call ShepherdAI from UI components or route handlers directly.
 - Do not use `any` type unless the existing file already does.
 - Do not resolve `process.env` inside module domain functions — resolve at the route layer.
+- Do not catch a persistence failure and return in-memory or seeded Academy records.
 
 ## Documentation map
 

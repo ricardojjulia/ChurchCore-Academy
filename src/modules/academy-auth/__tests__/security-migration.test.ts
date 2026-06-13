@@ -41,6 +41,11 @@ test("security migration protects every existing Academy table with forced RLS",
   assert.match(sql, /academy_current_tenant_ids/i);
   assert.match(sql, /academy_has_active_role/i);
   assert.match(sql, /academy_can_read_student/i);
+  assert.match(sql, /create schema if not exists academy_private/i);
+  assert.doesNotMatch(
+    sql,
+    /create or replace function public\.[a-z_]+\([^)]*\)[\s\S]{0,220}security definer/i,
+  );
 });
 
 test("security migration creates immutable tenant-scoped audit events", async () => {

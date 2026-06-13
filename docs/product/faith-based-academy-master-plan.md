@@ -19,6 +19,8 @@ This master plan has been reviewed through the ChurchCore Academy software facto
 - ShepherdAI guardrails: identified
 - Execution readiness: portfolio-level pass; each roadmap item still requires a detailed factory implementation plan before code
 
+The production MVP remediation design dated 2026-06-13 supersedes any interpretation that earlier prototype phases are production complete. Release 1 security work is implemented but still requires live RLS, browser-role, dependency, runtime, and workflow transaction verification. Admissions, registration, attendance, grade entry, operational transcripts, billing, payments, financial aid, reporting, communications, and executable provider workers remain later release work.
+
 ## Core Product Principles
 
 1. Faith-based by default, not generic with religious labels added later.
