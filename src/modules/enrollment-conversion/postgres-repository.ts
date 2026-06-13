@@ -118,15 +118,12 @@ export class PostgresEnrollmentConversionRepository {
     }
 
     const sequenceResult = await this.database.query(
-      `with ensured as (
-         insert into academy_student_number_sequences (tenant_id, next_value)
-         values ($1, 1)
-         on conflict (tenant_id) do nothing
-       )
-       update academy_student_number_sequences
-       set next_value = next_value + 1,
+      `insert into academy_student_number_sequences (
+         tenant_id, next_value, updated_at
+       ) values ($1, 2, now())
+       on conflict (tenant_id) do update
+       set next_value = academy_student_number_sequences.next_value + 1,
            updated_at = now()
-       where tenant_id = $1
        returning next_value - 1 as allocated_value`,
       [input.tenantId],
     );

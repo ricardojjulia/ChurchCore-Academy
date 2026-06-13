@@ -72,6 +72,12 @@ test("conversion uses tenant predicates and creates all records in order", async
   assert.match(sql, /academy_period_registrations/i);
   assert.match(sql, /update academy_admission_applications/i);
   assert.match(sql, /insert into academy_enrollment_conversion_events/i);
+  const sequenceCall = calls.find((call) =>
+    /academy_student_number_sequences/.test(call.sql),
+  );
+  assert.ok(sequenceCall);
+  assert.match(sequenceCall.sql, /on conflict[\s\S]*do update/i);
+  assert.doesNotMatch(sequenceCall.sql, /with ensured/i);
   for (const call of calls) {
     if (call.values?.includes("application-1")) {
       assert.ok(call.values.includes("tenant-1"));

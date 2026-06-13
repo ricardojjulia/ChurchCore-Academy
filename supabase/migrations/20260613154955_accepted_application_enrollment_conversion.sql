@@ -409,10 +409,23 @@ with check (
   )
 );
 
+create policy academy_audit_admissions_own_read
+on public.academy_audit_events
+for select
+to authenticated
+using (
+  actor_person_id = academy_private.academy_current_person_id()
+  and academy_private.academy_has_active_role(
+    tenant_id,
+    array['admissions']
+  )
+);
+
 revoke all on public.academy_program_enrollments from anon;
 revoke all on public.academy_period_registrations from anon;
 revoke all on public.academy_enrollment_conversion_events from anon;
 revoke all on public.academy_student_number_sequences from anon;
+revoke update, delete on public.academy_enrollment_conversion_events from authenticated;
 
 grant select, insert, update on public.academy_program_enrollments to authenticated;
 grant select, insert, update on public.academy_period_registrations to authenticated;

@@ -56,7 +56,7 @@ If a feature only exists because Moodle or Canvas behaves a certain way, it belo
 - Supabase `auth.getUser()` verifies the external session.
 - Active `academy_account_links` and role assignments resolve Academy person, tenant, and authority.
 - Request headers never grant production identity or roles.
-- Every Academy-owned table enables and forces RLS through the Release 1 security migration.
+- Every Academy-owned table enables and forces RLS through the Release 1 and domain migrations.
 - Protected server pages execute dataset reads inside `withAcademyDatabaseContext`.
 - Seeded Academy records are prohibited from runtime UI modules.
 - Audit records are append-only and reject secret-shaped metadata.
@@ -70,4 +70,8 @@ Request-facing reads and workflow mutations share verified request-scoped RLS tr
 - Applicants require an active `applicant` role and may access only their own application.
 - Authorized same-tenant staff may review and decide applications.
 - Every mutation is idempotent and writes immutable application and global audit events.
-- Acceptance is an input to a later enrollment-conversion transaction; it has no automatic SIS or LMS side effects.
+- Acceptance has no automatic SIS or LMS side effects.
+- An authorized conversion request creates the student role, student profile, program enrollment, and academic-period registration in one request-owned transaction.
+- Conversion retains the applicant role and leaves the application in the accepted state with immutable references to the created records.
+- Student numbers are allocated per tenant under a row lock; idempotency and unique application constraints prevent duplicate conversion.
+- Course-section registration, billing, financial aid, LMS provisioning, and Student PWA record release remain downstream workflows.

@@ -83,4 +83,12 @@ test("migration applies tenant-aware constraints and forced RLS", () => {
     sql,
     /revoke all on public\.academy_enrollment_conversion_events from anon/i,
   );
+  assert.match(
+    sql,
+    /revoke update, delete on public\.academy_enrollment_conversion_events from authenticated/i,
+  );
+  assert.match(
+    sql,
+    /create policy academy_audit_admissions_own_read[\s\S]*actor_person_id = academy_private\.academy_current_person_id\(\)/i,
+  );
 });

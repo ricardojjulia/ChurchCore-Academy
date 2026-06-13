@@ -1,11 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import pg from "pg";
-
-const migrationFiles = [
-  "supabase/migrations/20260613010000_academy_auth_rls_audit.sql",
-  "supabase/migrations/20260613142628_admissions_applications.sql",
-];
 
 async function setActor(
   client: pg.Client,
@@ -35,10 +29,6 @@ async function main() {
 
   try {
     await client.query("begin");
-    for (const file of migrationFiles) {
-      await client.query(await readFile(file, "utf8"));
-    }
-
     await client.query(`
       insert into public.academy_institution_profiles (
         tenant_id, institution_name, legal_name, primary_mode,

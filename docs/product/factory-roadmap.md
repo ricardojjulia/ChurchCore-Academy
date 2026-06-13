@@ -36,16 +36,19 @@ Completed:
 - Release 2 Slice 1 persistent admissions application-to-decision workflow
 - Release 2 Slice 1 authenticated admissions APIs and staff review page
 - Release 2 Slice 1 tenant-aware admissions constraints, forced RLS, idempotency, and immutable events
+- Release 2 Slice 2 accepted-application conversion into student profile, program enrollment, and period registration
+- Release 2 Slice 2 tenant-scoped student numbers, immutable conversion events, API/UI action, and live role matrix
+- clean local Supabase migration replay
 
 In progress:
 
-- live role-by-role RLS and browser verification
+- browser acceptance for the converted admissions workflow
 - dependency and supported Node runtime remediation
 
 Next:
 
 - close the Release 1 production security exit gate
-- convert accepted applications into student, enrollment, and registration transactions
+- build course-section registration and enrollment confirmation
 - execute attendance, grade entry, transcript issuance, and persistent Student PWA slices
 
 ## Sprint Cadence
