@@ -58,5 +58,4 @@ Never enable this flag in preview or production.
 
 - The new security migration validates in a real transaction.
 - The canonical local migration runner is blocked by an older migration that uses unsupported `CREATE POLICY IF NOT EXISTS` syntax.
-- Workflow mutation services still own internal transactions and must be refactored before request-scoped RLS context can cover those mutations.
 - Production approval requires live policy and browser-role verification.

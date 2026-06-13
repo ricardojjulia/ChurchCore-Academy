@@ -1,4 +1,5 @@
 import { handleApi } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
@@ -23,6 +24,12 @@ export async function buildInstitutionConfigPayload(repository: InstitutionConfi
 export async function GET(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    return buildInstitutionConfigPayload(new AcademyConfigRepository(), actor, actor.tenantId);
+    return withAcademyDatabaseContext(actor, (client) =>
+      buildInstitutionConfigPayload(
+        new AcademyConfigRepository(asAcademyDatabase(client)),
+        actor,
+        actor.tenantId,
+      ),
+    );
   });
 }

@@ -10,6 +10,7 @@ export default async function WorkflowQueuePage() {
   const evaluation = await runAcademicWorkflowEvaluationJob(
     actor.tenantId,
     dataset,
+    null,
   );
   const items = evaluation.workflows.getWorkflowQueue({ status: "all" });
 

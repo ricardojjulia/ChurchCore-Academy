@@ -79,7 +79,7 @@ Release 1 security foundations are implemented on the active security branch:
 - Student PWA routes require a verified student role and show empty states until persistent Release 2 read models are connected.
 - Immutable audit storage and a redacted audit repository are implemented.
 
-Release 1 is not yet production-approved. Remaining blockers include end-to-end RLS claim testing, request-scoped conversion of workflow mutation services, browser role verification, and a supported Node runtime. Releases 2–5 in the production MVP remediation spec remain planned.
+Release 1 is not yet production-approved. Remaining blockers include end-to-end RLS claim testing, browser role verification, the historical local migration-runner incompatibility, and a supported Node runtime. Releases 2–5 in the production MVP remediation spec remain planned.
 
 ## Local development
 

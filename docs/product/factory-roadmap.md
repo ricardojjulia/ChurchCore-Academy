@@ -36,7 +36,6 @@ Completed:
 
 In progress:
 
-- Release 1 request-scoped workflow mutation repositories
 - live role-by-role RLS and browser verification
 - dependency and supported Node runtime remediation
 

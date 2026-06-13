@@ -10,6 +10,10 @@ interface AcademyConnectionPool {
   connect(): Promise<AcademyQueryClient>;
 }
 
+export function asAcademyDatabase<T>(client: AcademyQueryClient): T {
+  return client as unknown as T;
+}
+
 export async function withAcademyDatabaseContext<T>(
   actor: AcademyActor,
   operation: (client: AcademyQueryClient) => Promise<T>,

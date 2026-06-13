@@ -5,7 +5,7 @@ interface DatabaseRow {
   [key: string]: unknown;
 }
 
-interface DatabaseLike {
+export interface AcademicWorkflowsDatabase {
   query(sql: string, params?: unknown[]): Promise<{ rowCount: number; rows: DatabaseRow[] }>;
 }
 
@@ -14,7 +14,10 @@ function nowIso() {
 }
 
 export class AcademicWorkflowsPostgresService {
-  constructor(private readonly database: DatabaseLike = getDatabasePool()) {}
+  constructor(
+    private readonly database: AcademicWorkflowsDatabase = getDatabasePool(),
+    private readonly managesTransactions = true,
+  ) {}
 
   async promoteSuggestion(tenantId: string, suggestionId: string, ownerUserId: string, assignedToUserId?: string, dueAt?: string) {
     const suggestionResult = await this.database.query("select * from ai_suggestions where id = $1 and tenant_id = $2", [suggestionId, tenantId]);
@@ -41,7 +44,9 @@ export class AcademicWorkflowsPostgresService {
       createdAt: nowIso(),
     };
 
-    await this.database.query("begin");
+    if (this.managesTransactions) {
+      await this.database.query("begin");
+    }
     try {
       await this.database.query(
         `insert into workflows (
@@ -77,9 +82,13 @@ export class AcademicWorkflowsPostgresService {
          on conflict (id) do nothing`,
         [`action-${workflow.id}-promote-${Date.now()}`, workflow.id, JSON.stringify({ suggestionId }), workflow.createdAt],
       );
-      await this.database.query("commit");
+      if (this.managesTransactions) {
+        await this.database.query("commit");
+      }
     } catch (error) {
-      await this.database.query("rollback");
+      if (this.managesTransactions) {
+        await this.database.query("rollback");
+      }
       throw error;
     }
 

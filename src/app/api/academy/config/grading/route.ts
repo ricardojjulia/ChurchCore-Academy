@@ -1,4 +1,5 @@
 import { handleApi } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyGradingRecordsRepository } from "@/modules/grading-records/postgres-repository";
@@ -27,6 +28,12 @@ export async function buildGradingRecordsConfigPayload(
 export async function GET(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    return buildGradingRecordsConfigPayload(new AcademyGradingRecordsRepository(), actor, actor.tenantId);
+    return withAcademyDatabaseContext(actor, (client) =>
+      buildGradingRecordsConfigPayload(
+        new AcademyGradingRecordsRepository(asAcademyDatabase(client)),
+        actor,
+        actor.tenantId,
+      ),
+    );
   });
 }

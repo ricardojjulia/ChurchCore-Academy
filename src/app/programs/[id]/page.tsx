@@ -20,6 +20,7 @@ export default async function ProgramPage({
   const evaluation = await runAcademicWorkflowEvaluationJob(
     actor.tenantId,
     dataset,
+    null,
   );
   const suggestions = evaluation.workflows.getProgramSuggestions(id);
   const graduationReady = suggestions.filter((item) => item.workflowCode === "graduation_eligibility_review");

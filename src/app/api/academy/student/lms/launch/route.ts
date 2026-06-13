@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { jsonError, jsonOk } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { resolveStudentAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
@@ -61,7 +62,7 @@ function buildLaunchRequestPayload(request: Request, actorUserId: string, body: 
 
 export async function launchStudentLmsRequest(
   request: Request,
-  repository: StudentLmsLaunchPeopleReader = new AcademyPeopleRepository(),
+  repository?: StudentLmsLaunchPeopleReader,
   resolveActor: StudentActorResolver = resolveStudentAcademyActorFromSession,
 ) {
   let actor;
@@ -80,21 +81,37 @@ export async function launchStudentLmsRequest(
 
   try {
     const launchRequest = buildLaunchRequestPayload(request, actor.userId, body);
-    const people = await repository.fetchPeopleConfiguration(actor.tenantId);
-    const launch = createStudentLmsLaunchResponse({
-      actor,
-      people,
-      ...resolveStudentLmsLaunchRoutingOptions({
-        tenantId: actor.tenantId,
-        moodleLaunchBaseUrl: environmentValue("MOODLE_LAUNCH_BASE_URL"),
-        moodleLaunchMode: process.env.MOODLE_LAUNCH_MODE,
-        canvasLaunchBaseUrl: environmentValue("CANVAS_LAUNCH_BASE_URL"),
-        canvasLaunchMode: process.env.CANVAS_LAUNCH_MODE,
-      }),
-      ...launchRequest,
-    });
+    const createResponse = async (
+      resolvedRepository: StudentLmsLaunchPeopleReader,
+    ) => {
+      const people = await resolvedRepository.fetchPeopleConfiguration(
+        actor.tenantId,
+      );
+      const launch = createStudentLmsLaunchResponse({
+        actor,
+        people,
+        ...resolveStudentLmsLaunchRoutingOptions({
+          tenantId: actor.tenantId,
+          moodleLaunchBaseUrl: environmentValue("MOODLE_LAUNCH_BASE_URL"),
+          moodleLaunchMode: process.env.MOODLE_LAUNCH_MODE,
+          canvasLaunchBaseUrl: environmentValue("CANVAS_LAUNCH_BASE_URL"),
+          canvasLaunchMode: process.env.CANVAS_LAUNCH_MODE,
+        }),
+        ...launchRequest,
+      });
 
-    return jsonOk({ launch });
+      return jsonOk({ launch });
+    };
+
+    if (repository) {
+      return await createResponse(repository);
+    }
+
+    return await withAcademyDatabaseContext(actor, (client) =>
+      createResponse(
+        new AcademyPeopleRepository(asAcademyDatabase(client)),
+      ),
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to resolve student LMS launch.";
 

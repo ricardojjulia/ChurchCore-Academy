@@ -8,6 +8,7 @@ export default async function FacultyPage() {
   const evaluation = await runAcademicWorkflowEvaluationJob(
     actor.tenantId,
     dataset,
+    null,
   );
   const suggestions = evaluation.workflows.getFacultySuggestions();
   const facultyWorkflows = evaluation.repository.workflows.filter((workflow) => workflow.workflowCode === "faculty_or_course_assignment_imbalance_review");

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getStringParam, handleApi } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
@@ -51,6 +52,12 @@ export async function GET(request: NextRequest) {
       assignee: getStringParam(searchParams.get("assignee") ?? undefined),
     };
 
-    return buildWorkflowQueuePayload(new ShepherdAiPostgresRepository(), actor, filters);
+    return withAcademyDatabaseContext(actor, (client) =>
+      buildWorkflowQueuePayload(
+        new ShepherdAiPostgresRepository(asAcademyDatabase(client)),
+        actor,
+        filters,
+      ),
+    );
   });
 }

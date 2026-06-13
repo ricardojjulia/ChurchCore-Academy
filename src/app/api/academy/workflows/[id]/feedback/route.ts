@@ -1,4 +1,5 @@
 import { handleApi, jsonError } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademicWorkflowsPostgresService } from "@/modules/academic-workflows/postgres-service";
@@ -39,7 +40,7 @@ export async function POST(request: Request, context: RouteContext) {
 export async function recordWorkflowFeedbackRequest(
   request: Request,
   context: RouteContext,
-  service: WorkflowFeedbackService = new AcademicWorkflowsPostgresService(),
+  service?: WorkflowFeedbackService,
   resolveActor: (
     request: Request,
   ) => Promise<{ actor: AcademyActor }> = resolveAcademyActorFromSession,
@@ -60,14 +61,27 @@ export async function recordWorkflowFeedbackRequest(
 
   return handleApi(async () => {
     const { id } = await context.params;
-    const feedback = await recordWorkflowFeedbackForActor(
-      service,
-      actor,
-      id,
-      actor.userId,
-      feedbackType as WorkflowFeedbackType,
-      notes,
-    );
-    return { feedback };
+    const recordFeedback = (resolvedService: WorkflowFeedbackService) =>
+      recordWorkflowFeedbackForActor(
+        resolvedService,
+        actor,
+        id,
+        actor.userId,
+        feedbackType as WorkflowFeedbackType,
+        notes,
+      );
+
+    if (service) {
+      return { feedback: await recordFeedback(service) };
+    }
+
+    return withAcademyDatabaseContext(actor, async (client) => ({
+      feedback: await recordFeedback(
+        new AcademicWorkflowsPostgresService(
+          asAcademyDatabase(client),
+          false,
+        ),
+      ),
+    }));
   });
 }

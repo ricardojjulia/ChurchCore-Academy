@@ -9,20 +9,25 @@ async function loadDatasetOrFallback(tenantId: string, dataset?: AcademyDataset)
   return loadRuntimeAcademyDataset(tenantId, { dataset });
 }
 
-export async function runAcademicWorkflowEvaluationJob(tenantId: string, dataset?: AcademyDataset) {
+export async function runAcademicWorkflowEvaluationJob(
+  tenantId: string,
+  dataset?: AcademyDataset,
+  persistenceOverride?: ShepherdAiPostgresRepository | null,
+) {
   const resolvedDataset = await loadDatasetOrFallback(tenantId, dataset);
-  let persistence = process.env.DATABASE_URL ? new ShepherdAiPostgresRepository() : undefined;
+  const persistence =
+    persistenceOverride === undefined
+      ? process.env.DATABASE_URL
+        ? new ShepherdAiPostgresRepository()
+        : undefined
+      : persistenceOverride ?? undefined;
   const { signals, suggestions } = aggregateAndEvaluateAcademy(resolvedDataset);
   const repository = new InMemoryAcademicWorkflowRepository();
   repository.seedSuggestions(suggestions);
 
   if (persistence) {
-    try {
-      await persistence.saveSignals(signals);
-      await persistence.saveSuggestions(suggestions);
-    } catch {
-      persistence = undefined;
-    }
+    await persistence.saveSignals(signals);
+    await persistence.saveSuggestions(suggestions);
   }
 
   const workflows = new AcademicWorkflowsService(resolvedDataset, repository);
@@ -89,22 +94,18 @@ export async function runAcademicWorkflowEvaluationJob(tenantId: string, dataset
   }
 
   if (persistence) {
-    try {
-      for (const action of repository.workflowActions) {
-        await persistence.insertWorkflowAction(action);
-      }
-
-      for (const feedback of repository.workflowFeedback) {
-        await persistence.insertWorkflowFeedback(feedback);
-      }
-
-      repository.seedSuggestions(await persistence.fetchSuggestions(resolvedDataset.tenantId));
-      repository.workflows = await persistence.fetchWorkflows(resolvedDataset.tenantId);
-      repository.workflowActions = await persistence.fetchWorkflowActions(resolvedDataset.tenantId);
-      repository.workflowFeedback = await persistence.fetchWorkflowFeedback(resolvedDataset.tenantId);
-    } catch {
-      persistence = undefined;
+    for (const action of repository.workflowActions) {
+      await persistence.insertWorkflowAction(action);
     }
+
+    for (const feedback of repository.workflowFeedback) {
+      await persistence.insertWorkflowFeedback(feedback);
+    }
+
+    repository.seedSuggestions(await persistence.fetchSuggestions(resolvedDataset.tenantId));
+    repository.workflows = await persistence.fetchWorkflows(resolvedDataset.tenantId);
+    repository.workflowActions = await persistence.fetchWorkflowActions(resolvedDataset.tenantId);
+    repository.workflowFeedback = await persistence.fetchWorkflowFeedback(resolvedDataset.tenantId);
   }
 
   return {

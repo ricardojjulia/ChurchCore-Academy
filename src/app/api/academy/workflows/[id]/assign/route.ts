@@ -1,4 +1,5 @@
 import { handleApi, jsonError } from "@/app/api/academy/api-utils";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademicWorkflowsPostgresService } from "@/modules/academic-workflows/postgres-service";
@@ -33,7 +34,17 @@ export async function POST(request: Request, context: RouteContext) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
     const { id } = await context.params;
-    const workflow = await assignWorkflowForActor(new AcademicWorkflowsPostgresService(), actor, id, assignedToUserId);
-    return { workflow };
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const workflow = await assignWorkflowForActor(
+        new AcademicWorkflowsPostgresService(
+          asAcademyDatabase(client),
+          false,
+        ),
+        actor,
+        id,
+        assignedToUserId,
+      );
+      return { workflow };
+    });
   });
 }

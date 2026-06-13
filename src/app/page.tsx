@@ -28,6 +28,7 @@ export default async function Home() {
   const evaluation = await runAcademicWorkflowEvaluationJob(
     actor.tenantId,
     dataset,
+    null,
   );
   const widgetItems = evaluation.workflows.getDashboardWidget(5);
   const highUrgencyCount = evaluation.suggestions.filter((item) => item.urgency === "high" || item.urgency === "critical").length;

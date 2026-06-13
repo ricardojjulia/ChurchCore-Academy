@@ -61,4 +61,4 @@ If a feature only exists because Moodle or Canvas behaves a certain way, it belo
 - Seeded Academy records are prohibited from runtime UI modules.
 - Audit records are append-only and reject secret-shaped metadata.
 
-Workflow mutation services still need a transaction-boundary refactor before they can safely share request-scoped RLS transactions. Until that work and live policy verification are complete, Release 1 is implemented but not production-approved.
+Request-facing reads and workflow mutations share verified request-scoped RLS transactions. Until live policy and browser-role verification are complete, Release 1 is implemented but not production-approved.
