@@ -1,8 +1,20 @@
 create unique index if not exists academy_student_profiles_tenant_id_idx
   on public.academy_student_profiles (tenant_id, id);
 
+create unique index if not exists academy_student_profiles_tenant_person_unique_idx
+  on public.academy_student_profiles (tenant_id, person_id);
+
 create unique index if not exists academy_person_role_assignments_tenant_id_idx
   on public.academy_person_role_assignments (tenant_id, id);
+
+create unique index if not exists academy_role_assignments_identity_unique_idx
+  on public.academy_person_role_assignments (
+    tenant_id,
+    person_id,
+    role,
+    scope_type,
+    coalesce(scope_id, '')
+  );
 
 alter table public.academy_admission_applications
   add column converted_at timestamptz,
@@ -191,6 +203,10 @@ begin
   if old.status = 'accepted'
      and conversion_was_empty
      and conversion_is_complete
+     and academy_private.academy_has_active_role(
+       new.tenant_id,
+       array['institution_admin', 'registrar', 'admissions']
+     )
      and new.status = old.status
      and new.applicant_person_id = old.applicant_person_id
      and new.program_id = old.program_id
@@ -371,6 +387,25 @@ with check (
   academy_private.academy_has_active_role(
     tenant_id,
     array['institution_admin', 'registrar', 'admissions']
+  )
+);
+
+drop policy if exists academy_identity_admin
+on public.academy_person_role_assignments;
+
+create policy academy_identity_admin
+on public.academy_person_role_assignments
+for all
+using (
+  academy_private.academy_has_active_role(
+    tenant_id,
+    array['institution_admin', 'registrar', 'academic_admin', 'admissions']
+  )
+)
+with check (
+  academy_private.academy_has_active_role(
+    tenant_id,
+    array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
 );
 

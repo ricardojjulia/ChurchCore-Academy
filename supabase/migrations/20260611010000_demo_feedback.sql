@@ -70,12 +70,18 @@ as $$
     or coalesce((auth.jwt() -> 'app_metadata' ->> 'role') in ('platform_staff', 'platform_admin'), false);
 $$;
 
-create policy if not exists academy_demo_feedback_staff_select
+drop policy if exists academy_demo_feedback_staff_select
+  on academy_demo_feedback;
+
+create policy academy_demo_feedback_staff_select
   on academy_demo_feedback
   for select
   using (academy_is_platform_staff());
 
-create policy if not exists academy_demo_feedback_staff_update
+drop policy if exists academy_demo_feedback_staff_update
+  on academy_demo_feedback;
+
+create policy academy_demo_feedback_staff_update
   on academy_demo_feedback
   for update
   using (academy_is_platform_staff())
