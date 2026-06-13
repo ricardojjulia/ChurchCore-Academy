@@ -73,3 +73,44 @@ test("normalizes explicit authorization errors into the denied state", async () 
   assert.equal(state.kind, "denied");
   assert.equal(state.badge, "Forbidden");
 });
+
+test("passes enrollment conversion capability into the review model", async () => {
+  const application = {
+    id: "application-1",
+    tenantId: "tenant-1",
+    applicantPersonId: "person-applicant",
+    programId: "program-1",
+    applicationTermId: "term-1",
+    legalName: "Jordan Rivera",
+    email: "jordan@example.com",
+    status: "accepted" as const,
+    createdAt: "2026-06-13T14:00:00.000Z",
+    updatedAt: "2026-06-13T15:00:00.000Z",
+  };
+
+  const registrarState = await loadAdmissionsPageState({
+    resolveActor: async () => ({
+      userId: "person-registrar",
+      tenantId: "tenant-1",
+      roles: ["registrar"],
+    }),
+    loadApplications: async () => [application],
+  });
+  assert.equal(registrarState.kind, "ready");
+  if (registrarState.kind === "ready") {
+    assert.equal(registrarState.model.applications[0].canConvert, true);
+  }
+
+  const deanState = await loadAdmissionsPageState({
+    resolveActor: async () => ({
+      userId: "person-dean",
+      tenantId: "tenant-1",
+      roles: ["dean"],
+    }),
+    loadApplications: async () => [application],
+  });
+  assert.equal(deanState.kind, "ready");
+  if (deanState.kind === "ready") {
+    assert.equal(deanState.model.applications[0].canConvert, false);
+  }
+});

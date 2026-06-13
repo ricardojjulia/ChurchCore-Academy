@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { AdmissionsConversionAction } from "@/components/admissions-conversion-action";
 import {
   Card,
   CardContent,
@@ -45,8 +46,8 @@ export function AdmissionsApplicationList({
         <CardHeader>
           <CardTitle>Application Review Queue</CardTitle>
           <CardDescription>
-            Persistent applicant records for staff review. Enrollment conversion
-            remains a separate controlled workflow.
+            Accepted applications can be converted once into active student,
+            program enrollment, and academic-period registration records.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -63,6 +64,7 @@ export function AdmissionsApplicationList({
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Decision</TableHead>
+                  <TableHead>Enrollment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -87,6 +89,24 @@ export function AdmissionsApplicationList({
                     </TableCell>
                     <TableCell>{application.submittedDate}</TableCell>
                     <TableCell>{application.decisionDate}</TableCell>
+                    <TableCell className="whitespace-normal">
+                      {application.conversionState === "converted" ? (
+                        <div>
+                          <Badge variant="secondary">Converted</Badge>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {application.studentNumber}
+                          </div>
+                        </div>
+                      ) : application.canConvert ? (
+                        <AdmissionsConversionAction
+                          applicationId={application.id}
+                        />
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          {application.conversionMessage}
+                        </div>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

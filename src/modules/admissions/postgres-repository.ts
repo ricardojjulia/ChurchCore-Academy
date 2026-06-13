@@ -155,10 +155,15 @@ export class PostgresAdmissionsRepository {
     }
 
     const result = await this.database.query(
-      `select *
-       from academy_admission_applications
-       where ${conditions.join(" and ")}
-       order by updated_at desc`,
+      `select application.*, profile.student_number
+       from academy_admission_applications application
+       left join academy_student_profiles profile
+         on profile.tenant_id = application.tenant_id
+        and profile.id = application.student_profile_id
+       where ${conditions
+         .map((condition) => `application.${condition}`)
+         .join(" and ")}
+       order by application.updated_at desc`,
       values,
     );
     return result.rows.map(mapAdmissionApplicationRow);

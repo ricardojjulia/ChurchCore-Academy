@@ -6,6 +6,7 @@ import { AcademyActor } from "@/modules/academy-auth/policy";
 import { assertAdmissionsAccess } from "@/modules/admissions/policy";
 import { buildAdmissionReviewModel } from "@/modules/admissions/review-model";
 import { AdmissionApplication } from "@/modules/admissions/types";
+import { canAccessEnrollmentConversion } from "@/modules/enrollment-conversion/policy";
 
 export type AdmissionsPageState =
   | {
@@ -35,6 +36,10 @@ export async function loadAdmissionsPageState(
       kind: "ready",
       model: buildAdmissionReviewModel(applications, {
         includeApplicantContact: true,
+        canConvertApplications: canAccessEnrollmentConversion(
+          actor,
+          actor.tenantId,
+        ),
       }),
     };
   } catch (error) {
