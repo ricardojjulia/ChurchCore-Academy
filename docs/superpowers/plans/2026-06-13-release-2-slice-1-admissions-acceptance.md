@@ -21,7 +21,7 @@
 - `src/modules/admissions/__tests__/service.test.ts`: transition, tenant, audit, and idempotency tests.
 - `src/modules/admissions/__tests__/repository.test.ts`: SQL tenant predicates and row mapping tests.
 - `src/modules/admissions/__tests__/migration.test.ts`: schema, constraints, indexes, RLS, and migration ordering tests.
-- `supabase/migrations/20260613020000_admissions_applications.sql`: persistent admissions schema and RLS policies.
+- `supabase/migrations/20260613142628_admissions_applications.sql`: persistent admissions schema and RLS policies.
 - `src/app/api/academy/admissions/applications/route.ts`: create and list applications.
 - `src/app/api/academy/admissions/applications/[id]/route.ts`: application detail.
 - `src/app/api/academy/admissions/applications/[id]/submit/route.ts`: applicant/staff submission.
@@ -187,7 +187,7 @@ git commit -m "feat(admissions): enforce application access and transitions"
 ### Task 3: Admissions Schema And RLS
 
 **Files:**
-- Create: `supabase/migrations/20260613020000_admissions_applications.sql`
+- Create: `supabase/migrations/20260613142628_admissions_applications.sql`
 - Create: `src/modules/admissions/__tests__/migration.test.ts`
 
 - [ ] **Step 1: Write the failing migration test**
@@ -232,7 +232,7 @@ Run:
 
 ```bash
 node --import tsx --test src/modules/admissions/__tests__/migration.test.ts
-node --env-file=.env.local --input-type=module -e 'import fs from "node:fs/promises"; import pg from "pg"; const sql=await fs.readFile("supabase/migrations/20260613020000_admissions_applications.sql","utf8"); const client=new pg.Client({connectionString:process.env.DATABASE_URL}); await client.connect(); try { await client.query("begin"); await client.query(sql); await client.query("rollback"); console.log("Admissions migration transaction validated."); } finally { await client.end(); }'
+node --env-file=.env.local --input-type=module -e 'import fs from "node:fs/promises"; import pg from "pg"; const sql=await fs.readFile("supabase/migrations/20260613142628_admissions_applications.sql","utf8"); const client=new pg.Client({connectionString:process.env.DATABASE_URL}); await client.connect(); try { await client.query("begin"); await client.query(sql); await client.query("rollback"); console.log("Admissions migration transaction validated."); } finally { await client.end(); }'
 ```
 
 Expected: static tests pass and the migration executes inside `BEGIN`/`ROLLBACK`.
@@ -240,7 +240,7 @@ Expected: static tests pass and the migration executes inside `BEGIN`/`ROLLBACK`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20260613020000_admissions_applications.sql src/modules/admissions/__tests__/migration.test.ts
+git add supabase/migrations/20260613142628_admissions_applications.sql src/modules/admissions/__tests__/migration.test.ts
 git commit -m "feat(admissions): add tenant-isolated application storage"
 ```
 
