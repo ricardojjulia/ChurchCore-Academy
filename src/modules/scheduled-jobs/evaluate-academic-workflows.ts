@@ -1,25 +1,12 @@
-import { academyDataset } from "@/modules/academy-data/mock-data";
-import { AcademyDataRepository } from "@/modules/academy-data/postgres-repository";
 import { AcademyDataset } from "@/modules/academy-data/types";
+import { loadRuntimeAcademyDataset } from "@/modules/academy-data/runtime-dataset";
 import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
 import { AcademicWorkflowsService } from "@/modules/academic-workflows/service";
 import { aggregateAndEvaluateAcademy } from "@/modules/shepherd-ai/evaluate-for-academy";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 
 async function loadDatasetOrFallback(tenantId: string, dataset?: AcademyDataset) {
-  if (dataset) {
-    return dataset;
-  }
-
-  if (process.env.DATABASE_URL) {
-    try {
-      return await new AcademyDataRepository().loadDataset(tenantId);
-    } catch {
-      return academyDataset;
-    }
-  }
-
-  return academyDataset;
+  return loadRuntimeAcademyDataset(tenantId, { dataset });
 }
 
 export async function runAcademicWorkflowEvaluationJob(tenantId: string, dataset?: AcademyDataset) {
