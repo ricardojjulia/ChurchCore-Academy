@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, Settings, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, ClipboardList, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, Settings, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,7 @@ interface AcademyShellProps {
 
 const navItems = [
   { href: "/", label: "Dashboard", caption: "Academic operations", icon: LayoutDashboard },
+  { href: "/admissions", label: "Admissions", caption: "Application review", icon: ClipboardList },
   { href: "/workflows", label: "Workflows", caption: "Review queue", icon: ListChecks },
   { href: "/students/stu-maya-bennett", label: "Students", caption: "Records and insights", icon: UsersRound },
   { href: "/programs/prog-biblical-studies", label: "Programs", caption: "Progress and readiness", icon: GraduationCap },

@@ -2,6 +2,7 @@ import {
   AcademyActor,
   AcademyRole,
 } from "@/modules/academy-auth/policy";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export type AdmissionsAction =
   | "create"
@@ -45,6 +46,6 @@ export function assertAdmissionsAccess(
   action: AdmissionsAction,
 ) {
   if (!canAccessAdmissions(actor, tenantId, applicantPersonId, action)) {
-    throw new Error("Forbidden admissions access.");
+    throw new AcademyAuthorizationError("Forbidden admissions access.");
   }
 }
