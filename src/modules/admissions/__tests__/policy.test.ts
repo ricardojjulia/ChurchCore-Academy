@@ -79,6 +79,18 @@ test("applicants, students, guardians, and faculty cannot decide applications", 
   }
 });
 
+test("student role alone does not grant applicant self-service", () => {
+  assert.equal(
+    canAccessAdmissions(
+      { ...applicant, roles: ["student"] },
+      "tenant-1",
+      "person-applicant",
+      "read",
+    ),
+    false,
+  );
+});
+
 test("cross-tenant actors are denied", () => {
   assert.equal(
     canAccessAdmissions(

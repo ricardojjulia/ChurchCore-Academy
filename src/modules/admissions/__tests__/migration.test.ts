@@ -33,5 +33,21 @@ test("admissions migration creates tenant-scoped applications and immutable even
   assert.match(sql, /force row level security/i);
   assert.match(sql, /academy_private\.academy_current_person_id/i);
   assert.match(sql, /academy_private\.academy_has_active_role/i);
+  assert.match(
+    sql,
+    /academy_has_active_role\(\s*tenant_id,\s*array\['applicant'\]/i,
+  );
+  assert.match(
+    sql,
+    /application\.id\s*=\s*academy_admission_application_events\.application_id/i,
+  );
+  assert.match(
+    sql,
+    /application\.tenant_id\s*=\s*academy_admission_application_events\.tenant_id/i,
+  );
   assert.match(sql, /before update or delete on public\.academy_admission_application_events/i);
+  assert.match(
+    sql,
+    /revoke update, delete on public\.academy_admission_application_events from anon, authenticated/i,
+  );
 });

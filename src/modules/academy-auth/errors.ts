@@ -11,3 +11,10 @@ export class AcademyAuthorizationError extends Error {
     this.name = "AcademyAuthorizationError";
   }
 }
+
+export class AcademyConflictError extends Error {
+  constructor(message = "Academy record conflict.") {
+    super(message);
+    this.name = "AcademyConflictError";
+  }
+}

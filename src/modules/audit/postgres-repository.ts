@@ -9,7 +9,7 @@ interface AuditRow {
   occurred_at: Date | string;
 }
 
-interface AuditQuery {
+export interface AcademyAuditQuery {
   query(
     text: string,
     values?: unknown[],
@@ -32,7 +32,7 @@ export function validateAuditMetadata(
 }
 
 export class PostgresAcademyAuditRepository {
-  constructor(private readonly database: AuditQuery = getDatabasePool()) {}
+  constructor(private readonly database: AcademyAuditQuery = getDatabasePool()) {}
 
   async append(input: AcademyAuditEventInput): Promise<AcademyAuditEvent> {
     const redactedMetadata = validateAuditMetadata(

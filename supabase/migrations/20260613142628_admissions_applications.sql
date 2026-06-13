@@ -70,6 +70,10 @@ for select
 using (
   tenant_id = any(academy_private.academy_current_tenant_ids())
   and applicant_person_id = academy_private.academy_current_person_id()
+  and academy_private.academy_has_active_role(
+    tenant_id,
+    array['applicant']
+  )
 );
 
 create policy academy_admission_staff_read
@@ -88,6 +92,10 @@ for insert
 with check (
   tenant_id = any(academy_private.academy_current_tenant_ids())
   and applicant_person_id = academy_private.academy_current_person_id()
+  and academy_private.academy_has_active_role(
+    tenant_id,
+    array['applicant']
+  )
   and status = 'draft'
 );
 
@@ -113,11 +121,19 @@ for update
 using (
   tenant_id = any(academy_private.academy_current_tenant_ids())
   and applicant_person_id = academy_private.academy_current_person_id()
+  and academy_private.academy_has_active_role(
+    tenant_id,
+    array['applicant']
+  )
   and status = 'draft'
 )
 with check (
   tenant_id = any(academy_private.academy_current_tenant_ids())
   and applicant_person_id = academy_private.academy_current_person_id()
+  and academy_private.academy_has_active_role(
+    tenant_id,
+    array['applicant']
+  )
   and status in ('draft', 'submitted', 'withdrawn')
 );
 
@@ -128,10 +144,16 @@ using (
   exists (
     select 1
     from public.academy_admission_applications application
-    where application.id = application_id
-      and application.tenant_id = tenant_id
+    where application.id = academy_admission_application_events.application_id
+      and application.tenant_id = academy_admission_application_events.tenant_id
       and (
-        application.applicant_person_id = academy_private.academy_current_person_id()
+        (
+          application.applicant_person_id = academy_private.academy_current_person_id()
+          and academy_private.academy_has_active_role(
+            application.tenant_id,
+            array['applicant']
+          )
+        )
         or academy_private.academy_has_active_role(
           application.tenant_id,
           array['institution_admin', 'dean', 'registrar', 'admissions']
@@ -149,10 +171,16 @@ with check (
   and exists (
     select 1
     from public.academy_admission_applications application
-    where application.id = application_id
-      and application.tenant_id = tenant_id
+    where application.id = academy_admission_application_events.application_id
+      and application.tenant_id = academy_admission_application_events.tenant_id
       and (
-        application.applicant_person_id = actor_person_id
+        (
+          application.applicant_person_id = academy_admission_application_events.actor_person_id
+          and academy_private.academy_has_active_role(
+            application.tenant_id,
+            array['applicant']
+          )
+        )
         or academy_private.academy_has_active_role(
           application.tenant_id,
           array['institution_admin', 'dean', 'registrar', 'admissions']
@@ -161,4 +189,4 @@ with check (
   )
 );
 
-revoke update, delete on public.academy_admission_application_events from authenticated;
+revoke update, delete on public.academy_admission_application_events from anon, authenticated;

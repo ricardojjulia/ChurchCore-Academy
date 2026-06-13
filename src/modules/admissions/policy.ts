@@ -32,6 +32,7 @@ export function canAccessAdmissions(
   }
 
   return (
+    actor.roles.includes("applicant") &&
     actor.userId === applicantPersonId &&
     (action === "create" || action === "read" || action === "submit")
   );
