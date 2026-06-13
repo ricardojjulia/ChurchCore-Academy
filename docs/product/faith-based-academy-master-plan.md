@@ -19,7 +19,7 @@ This master plan has been reviewed through the ChurchCore Academy software facto
 - ShepherdAI guardrails: identified
 - Execution readiness: portfolio-level pass; each roadmap item still requires a detailed factory implementation plan before code
 
-The production MVP remediation design dated 2026-06-13 supersedes any interpretation that earlier prototype phases are production complete. Release 1 security work is implemented but still requires live RLS, browser-role, dependency, runtime, and workflow transaction verification. Admissions, registration, attendance, grade entry, operational transcripts, billing, payments, financial aid, reporting, communications, and executable provider workers remain later release work.
+The production MVP remediation design dated 2026-06-13 supersedes any interpretation that earlier prototype phases are production complete. Release 1 security work is implemented but still requires live RLS, browser-role, dependency, and runtime verification. The first admissions vertical slice now supports persistent draft, submission, and staff decision records with tenant constraints, RLS, idempotency, audit events, APIs, and a review page. Enrollment conversion, registration, attendance, grade entry, operational transcripts, billing, payments, financial aid, reporting, communications, persistent Student PWA workflows, and executable provider workers remain later release work.
 
 ## Core Product Principles
 
@@ -115,9 +115,9 @@ Do not hardwire either provider into Academy. Let tenants choose Moodle, Canvas,
 
 ## Extended Domain Ownership
 
-Based on competitive research (see `docs/product/sis-competitive-research-and-expansion-roadmap.md`), ChurchCore Academy also owns the following domains not yet implemented:
+Based on competitive research (see `docs/product/sis-competitive-research-and-expansion-roadmap.md`), ChurchCore Academy also owns the following domains that are incomplete or not yet implemented:
 
-- Admissions and enrollment CRM (inquiry to enrolled lifecycle)
+- Admissions and enrollment CRM beyond the implemented application-to-decision slice
 - Student billing, payment plans, and account management
 - Financial aid packaging, FAFSA integration, and SAP tracking
 - Ministry formation and spiritual development records (non-graded, distinct from transcript)

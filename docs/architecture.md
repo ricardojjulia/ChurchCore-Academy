@@ -62,3 +62,12 @@ If a feature only exists because Moodle or Canvas behaves a certain way, it belo
 - Audit records are append-only and reject secret-shaped metadata.
 
 Request-facing reads and workflow mutations share verified request-scoped RLS transactions. Until live policy and browser-role verification are complete, Release 1 is implemented but not production-approved.
+
+## Admissions boundary
+
+- Admission applications are pre-student records, not student profiles or enrollments.
+- Applicant, program, term, deciding staff, and event references are constrained by tenant-aware composite foreign keys.
+- Applicants require an active `applicant` role and may access only their own application.
+- Authorized same-tenant staff may review and decide applications.
+- Every mutation is idempotent and writes immutable application and global audit events.
+- Acceptance is an input to a later enrollment-conversion transaction; it has no automatic SIS or LMS side effects.
