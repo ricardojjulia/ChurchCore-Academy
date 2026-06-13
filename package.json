@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "verify:admissions-rls": "node --env-file=.env.local --import tsx scripts/verify-admissions-rls.ts",
     "db:migrate:local": "node --env-file=.env.local --import tsx scripts/db-migrate-local.ts",
     "db:seed:local": "node --env-file=.env.local --import tsx scripts/db-seed-local.ts"
   },

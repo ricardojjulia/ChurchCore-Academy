@@ -1,9 +1,18 @@
+create unique index academy_people_tenant_id_idx
+  on public.academy_people (tenant_id, id);
+
+create unique index academy_programs_tenant_id_idx
+  on public.academy_programs (tenant_id, id);
+
+create unique index academy_academic_periods_tenant_id_idx
+  on public.academy_academic_periods (tenant_id, id);
+
 create table public.academy_admission_applications (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete restrict,
-  applicant_person_id text not null references public.academy_people(id) on delete restrict,
-  program_id text not null references public.academy_programs(id) on delete restrict,
-  application_term_id text references public.academy_academic_periods(id) on delete restrict,
+  applicant_person_id text not null,
+  program_id text not null,
+  application_term_id text,
   legal_name text not null,
   preferred_name text,
   email text not null,
@@ -12,12 +21,21 @@ create table public.academy_admission_applications (
     check (status in ('draft', 'submitted', 'under_review', 'accepted', 'declined', 'withdrawn')),
   submitted_at timestamptz,
   decided_at timestamptz,
-  decided_by_person_id text references public.academy_people(id) on delete restrict,
+  decided_by_person_id text,
   decision_reason text,
   idempotency_key text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (tenant_id, idempotency_key)
+  unique (tenant_id, id),
+  unique (tenant_id, idempotency_key),
+  foreign key (tenant_id, applicant_person_id)
+    references public.academy_people (tenant_id, id) on delete restrict,
+  foreign key (tenant_id, program_id)
+    references public.academy_programs (tenant_id, id) on delete restrict,
+  foreign key (tenant_id, application_term_id)
+    references public.academy_academic_periods (tenant_id, id) on delete restrict,
+  foreign key (tenant_id, decided_by_person_id)
+    references public.academy_people (tenant_id, id) on delete restrict
 );
 
 create index academy_admission_applications_tenant_status_idx
@@ -26,11 +44,68 @@ create index academy_admission_applications_tenant_status_idx
 create index academy_admission_applications_applicant_idx
   on public.academy_admission_applications (tenant_id, applicant_person_id, created_at desc);
 
+create or replace function public.academy_enforce_admission_application_transition()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+begin
+  if tg_op = 'INSERT' and new.status <> 'draft' then
+    raise exception 'New admission applications must be drafts.';
+  end if;
+
+  if new.status not in ('accepted', 'declined')
+     and (
+       new.decided_at is not null
+       or new.decided_by_person_id is not null
+       or new.decision_reason is not null
+     ) then
+    raise exception 'Non-terminal applications cannot contain decision metadata.';
+  end if;
+
+  if new.status in ('accepted', 'declined')
+     and (new.decided_at is null or new.decided_by_person_id is null) then
+    raise exception 'Terminal admission decisions require decision metadata.';
+  end if;
+
+  if new.status in ('submitted', 'under_review', 'accepted', 'declined')
+     and new.submitted_at is null then
+    raise exception 'Submitted admission applications require submitted_at.';
+  end if;
+
+  if tg_op = 'INSERT' then
+    return new;
+  end if;
+
+  if old.tenant_id <> new.tenant_id or old.id <> new.id then
+    raise exception 'Admission application identity is immutable.';
+  end if;
+
+  if old.status in ('accepted', 'declined') then
+    raise exception 'Accepted and declined applications are immutable.';
+  end if;
+
+  if new.status <> old.status and not (
+    (old.status = 'draft' and new.status in ('submitted', 'withdrawn'))
+    or (old.status = 'submitted' and new.status in ('under_review', 'accepted', 'declined', 'withdrawn'))
+    or (old.status = 'under_review' and new.status in ('accepted', 'declined', 'withdrawn'))
+  ) then
+    raise exception 'Invalid admission application transition.';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger academy_admission_application_transition
+before insert or update on public.academy_admission_applications
+for each row execute function public.academy_enforce_admission_application_transition();
+
 create table public.academy_admission_application_events (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete restrict,
-  application_id uuid not null references public.academy_admission_applications(id) on delete restrict,
-  actor_person_id text not null references public.academy_people(id) on delete restrict,
+  application_id uuid not null,
+  actor_person_id text not null,
   event_type text not null
     check (event_type in ('created', 'submitted', 'review_started', 'accepted', 'declined', 'withdrawn')),
   previous_status text,
@@ -39,7 +114,11 @@ create table public.academy_admission_application_events (
   correlation_id text,
   idempotency_key text not null,
   occurred_at timestamptz not null default now(),
-  unique (tenant_id, idempotency_key)
+  unique (tenant_id, idempotency_key),
+  foreign key (tenant_id, application_id)
+    references public.academy_admission_applications (tenant_id, id) on delete restrict,
+  foreign key (tenant_id, actor_person_id)
+    references public.academy_people (tenant_id, id) on delete restrict
 );
 
 create index academy_admission_events_application_time_idx

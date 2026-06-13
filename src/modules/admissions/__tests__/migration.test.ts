@@ -27,6 +27,22 @@ test("admissions migration creates tenant-scoped applications and immutable even
   assert.match(sql, /references public\.academy_people/i);
   assert.match(sql, /references public\.academy_programs/i);
   assert.match(sql, /references public\.academy_academic_periods/i);
+  assert.match(
+    sql,
+    /foreign key \(tenant_id, applicant_person_id\)\s+references public\.academy_people \(tenant_id, id\)/i,
+  );
+  assert.match(
+    sql,
+    /foreign key \(tenant_id, program_id\)\s+references public\.academy_programs \(tenant_id, id\)/i,
+  );
+  assert.match(
+    sql,
+    /foreign key \(tenant_id, application_term_id\)\s+references public\.academy_academic_periods \(tenant_id, id\)/i,
+  );
+  assert.match(
+    sql,
+    /foreign key \(tenant_id, application_id\)\s+references public\.academy_admission_applications \(tenant_id, id\)/i,
+  );
   assert.match(sql, /check \(status in \(/i);
   assert.match(sql, /idempotency_key/i);
   assert.match(sql, /enable row level security/i);
@@ -50,4 +66,14 @@ test("admissions migration creates tenant-scoped applications and immutable even
     sql,
     /revoke update, delete on public\.academy_admission_application_events from anon, authenticated/i,
   );
+  assert.match(
+    sql,
+    /before insert or update on public\.academy_admission_applications/i,
+  );
+  assert.match(sql, /Accepted and declined applications are immutable/i);
+  assert.match(sql, /Invalid admission application transition/i);
+  assert.match(sql, /New admission applications must be drafts/i);
+  assert.match(sql, /Non-terminal applications cannot contain decision metadata/i);
+  assert.match(sql, /Terminal admission decisions require decision metadata/i);
+  assert.match(sql, /Submitted admission applications require submitted_at/i);
 });
