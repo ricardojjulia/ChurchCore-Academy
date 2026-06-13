@@ -9,7 +9,7 @@ import { AcademyActor } from "@/modules/academy-auth/policy";
 const applicant: AcademyActor = {
   userId: "person-applicant",
   tenantId: "tenant-1",
-  roles: ["student"],
+  roles: ["applicant"],
 };
 
 const admissionsStaff: AcademyActor = {
@@ -60,8 +60,8 @@ test("admissions staff can read and decide same-tenant applications", () => {
   );
 });
 
-test("students, guardians, and faculty cannot decide applications", () => {
-  for (const role of ["student", "guardian", "faculty"] as const) {
+test("applicants, students, guardians, and faculty cannot decide applications", () => {
+  for (const role of ["applicant", "student", "guardian", "faculty"] as const) {
     assert.throws(
       () =>
         assertAdmissionsAccess(

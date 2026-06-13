@@ -25,6 +25,7 @@ const academyRoles = new Set<AcademyRole>([
   "registrar",
   "academic_admin",
   "admissions",
+  "applicant",
   "advisor",
   "faculty",
   "teacher",
