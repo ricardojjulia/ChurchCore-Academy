@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ricardojjulia/ChurchCore-Academy/security
+    about: Report vulnerabilities privately through the Security tab.
+  - name: Documentation and support
+    url: https://github.com/ricardojjulia/ChurchCore-Academy/blob/main/SUPPORT.md
+    about: Review support guidance before opening an issue.
