@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+export const dynamic = "force-dynamic";
+
 type ViewId = "dashboard" | "agents" | "docs" | "history" | "tasks" | "decisions" | "risks" | "release";
 type HqTaskStatus = "backlog" | "ready" | "in_progress" | "review" | "blocked" | "done";
 type HqTaskPriority = "P0" | "P1" | "P2" | "P3";
