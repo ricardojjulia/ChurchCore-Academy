@@ -305,7 +305,13 @@ function classFor(source: HqTaskSource) {
 }
 
 export default function HQPage() {
-  const supabase = useMemo(() => createClient(), []);
+  const hasPublicSupabaseEnv =
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+  const supabase = useMemo(
+    () => (hasPublicSupabaseEnv ? createClient() : null),
+    [hasPublicSupabaseEnv],
+  );
   const authUidRef = useRef<string | null>(null);
   const streamingRef = useRef("");
 
@@ -331,6 +337,11 @@ export default function HQPage() {
   const currentAgent = AGENTS[activeAgent] ?? AGENTS.architect;
 
   const hydrate = useCallback(async () => {
+    if (!supabase) {
+      setError("HQ requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
+      return;
+    }
+
     setError(null);
     const {
       data: { user },
@@ -380,6 +391,10 @@ export default function HQPage() {
   }, [hydrate]);
 
   async function persistSession(agent: AgentDef, prompt: string, response: string) {
+    if (!supabase) {
+      throw new Error("HQ requires Supabase browser configuration.");
+    }
+
     const { data, error: insertError } = await supabase
       .from("hq_sessions")
       .insert({
@@ -499,6 +514,10 @@ export default function HQPage() {
   }
 
   async function dbAddTask(title: string, owner?: string | null, priority: HqTaskPriority = "P2", source: HqTaskSource = "manual") {
+    if (!supabase) {
+      throw new Error("HQ requires Supabase browser configuration.");
+    }
+
     const { data, error: insertError } = await supabase
       .from("hq_tasks")
       .insert({ title, status: "backlog", owner, priority, source })
@@ -514,6 +533,10 @@ export default function HQPage() {
   }
 
   async function dbUpdateTaskStatus(taskId: string, status: HqTaskStatus) {
+    if (!supabase) {
+      throw new Error("HQ requires Supabase browser configuration.");
+    }
+
     const old = tasks;
     setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status } : task)));
 
@@ -526,6 +549,10 @@ export default function HQPage() {
   }
 
   async function dbDeleteTask(taskId: string) {
+    if (!supabase) {
+      throw new Error("HQ requires Supabase browser configuration.");
+    }
+
     const old = tasks;
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
 
@@ -537,6 +564,11 @@ export default function HQPage() {
   }
 
   async function runCouncilReview() {
+    if (!supabase) {
+      setError("HQ requires Supabase browser configuration.");
+      return;
+    }
+
     const prompt = `${CONSENSUS_PROMPT}${feature}`;
     setView("agents");
     setActiveAgent("product");
