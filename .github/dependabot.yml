@@ -6,8 +6,32 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
+      mantine:
+        patterns:
+          - "@mantine/*"
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
       development-dependencies:
         dependency-type: development
+        exclude-patterns:
+          - "eslint-config-next"
+          - "@types/react"
+          - "@types/react-dom"
+    ignore:
+      - dependency-name: "eslint"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: github-actions
     directory: /
