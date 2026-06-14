@@ -79,7 +79,7 @@ Release 1 security foundations are implemented on the active security branch:
 - Student PWA routes require a verified student role and show empty states until persistent Release 2 read models are connected.
 - Immutable audit storage and a redacted audit repository are implemented.
 
-Release 2 Slice 1 admissions acceptance is also implemented on its stacked feature branch:
+Release 2 admissions and enrollment conversion are implemented:
 
 - persistent pre-student applications;
 - applicant draft and submission workflow;
@@ -87,8 +87,11 @@ Release 2 Slice 1 admissions acceptance is also implemented on its stacked featu
 - idempotent mutations with immutable domain and global audit events;
 - composite tenant foreign keys and forced RLS;
 - authenticated APIs and a persistent `/admissions` review page.
+- an explicit, authorized conversion action for accepted applications with an academic period;
+- one transaction that creates the student role, student profile, program enrollment, period registration, immutable conversion event, and global audit event;
+- tenant-scoped student-number allocation, same-key replay, forced RLS, and live role-matrix verification.
 
-Acceptance does not automatically create a student or enrollment. Release 1 is not yet production-approved, and the broader Release 2 exit gate remains open. Registration, attendance, faculty grade entry, operational transcripts, Student PWA persistence, billing, payments, financial aid, reporting/exports, communications, and executable LMS workers remain planned.
+Acceptance alone still has no SIS side effects. Release 1 is not yet production-approved, and the broader Release 2 exit gate remains open. Course-section registration, attendance, faculty grade entry, operational transcripts, Student PWA persistence, billing, payments, financial aid, reporting/exports, communications, and executable LMS workers remain planned.
 
 ## Local development
 
@@ -145,7 +148,7 @@ Browser-generated session IDs can be rotated by the browser session lifecycle. P
 ## Next delivery gates
 
 1. Complete Release 1 live RLS/browser role verification and runtime remediation.
-2. Convert accepted applications into controlled student, enrollment, and registration transactions.
+2. Build course-section registration and enrollment confirmation.
 3. Build Release 2 attendance, grade entry, transcript issuance, and persistent Student PWA workflows.
 4. Build Release 3 billing, Stripe payments, institutional aid, and student account workflows.
 5. Build regulated federal-aid capabilities only behind sandbox certification and production activation gates.
@@ -167,6 +170,8 @@ See [docs/architecture.md](docs/architecture.md) and [docs/shepherd-ai-academy.m
 - [Production MVP Remediation Design](docs/superpowers/specs/2026-06-13-production-mvp-remediation-design.md)
 - [Release 1 Security Plan](docs/superpowers/plans/2026-06-13-release-1-production-security-foundation.md)
 - [Release 2 Admissions Acceptance Plan](docs/superpowers/plans/2026-06-13-release-2-slice-1-admissions-acceptance.md)
+- [Release 2 Enrollment Conversion Design](docs/superpowers/specs/2026-06-13-accepted-application-enrollment-conversion-design.md)
+- [Release 2 Enrollment Conversion Plan](docs/superpowers/plans/2026-06-13-release-2-slice-2-enrollment-conversion.md)
 - [Admissions Operations Runbook](docs/runbooks/admissions-operations.md)
 - [Academy Auth And Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
 - [Platform Design Spec](docs/superpowers/specs/2026-06-01-faith-based-academy-platform-design.md)

@@ -59,6 +59,30 @@ export function mapAdmissionApplicationRow(
       row.decision_reason === null || row.decision_reason === undefined
         ? undefined
         : String(row.decision_reason),
+    convertedAt: optionalIso(row.converted_at),
+    convertedByPersonId:
+      row.converted_by_person_id === null ||
+      row.converted_by_person_id === undefined
+        ? undefined
+        : String(row.converted_by_person_id),
+    studentProfileId:
+      row.student_profile_id === null || row.student_profile_id === undefined
+        ? undefined
+        : String(row.student_profile_id),
+    programEnrollmentId:
+      row.program_enrollment_id === null ||
+      row.program_enrollment_id === undefined
+        ? undefined
+        : String(row.program_enrollment_id),
+    periodRegistrationId:
+      row.period_registration_id === null ||
+      row.period_registration_id === undefined
+        ? undefined
+        : String(row.period_registration_id),
+    studentNumber:
+      row.student_number === null || row.student_number === undefined
+        ? undefined
+        : String(row.student_number),
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
   };
@@ -131,10 +155,15 @@ export class PostgresAdmissionsRepository {
     }
 
     const result = await this.database.query(
-      `select *
-       from academy_admission_applications
-       where ${conditions.join(" and ")}
-       order by updated_at desc`,
+      `select application.*, profile.student_number
+       from academy_admission_applications application
+       left join academy_student_profiles profile
+         on profile.tenant_id = application.tenant_id
+        and profile.id = application.student_profile_id
+       where ${conditions
+         .map((condition) => `application.${condition}`)
+         .join(" and ")}
+       order by application.updated_at desc`,
       values,
     );
     return result.rows.map(mapAdmissionApplicationRow);

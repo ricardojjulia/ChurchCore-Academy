@@ -2,6 +2,7 @@ import {
   AdmissionApplication,
   AdmissionApplicationStatus,
 } from "@/modules/admissions/types";
+import { evaluateEnrollmentConversionEligibility } from "@/modules/enrollment-conversion/eligibility";
 
 export interface AdmissionReviewMetric {
   label: string;
@@ -19,6 +20,14 @@ export interface AdmissionReviewItem {
   decisionDate: string;
   email?: string;
   phone?: string;
+  conversionState:
+    | "not_applicable"
+    | "ready"
+    | "blocked"
+    | "converted";
+  conversionMessage: string;
+  canConvert: boolean;
+  studentNumber?: string;
 }
 
 export interface AdmissionReviewModel {
@@ -46,7 +55,10 @@ function formatStatus(status: AdmissionApplicationStatus) {
 
 export function buildAdmissionReviewModel(
   applications: AdmissionApplication[],
-  options: { includeApplicantContact: boolean },
+  options: {
+    includeApplicantContact: boolean;
+    canConvertApplications: boolean;
+  },
 ): AdmissionReviewModel {
   const count = (...statuses: AdmissionApplicationStatus[]) =>
     applications.filter((application) => statuses.includes(application.status))
@@ -75,20 +87,49 @@ export function buildAdmissionReviewModel(
         detail: "Decision recorded",
       },
     ],
-    applications: applications.map((application) => ({
-      id: application.id,
-      applicantName: application.preferredName ?? application.legalName,
-      programId: application.programId,
-      status: application.status,
-      statusLabel: formatStatus(application.status),
-      submittedDate: formatDate(application.submittedAt),
-      decisionDate: formatDate(application.decidedAt),
-      ...(options.includeApplicantContact
-        ? {
-            email: application.email,
-            phone: application.phone,
-          }
-        : {}),
-    })),
+    applications: applications.map((application) => {
+      const eligibility =
+        evaluateEnrollmentConversionEligibility(application);
+      let conversionState: AdmissionReviewItem["conversionState"] =
+        "not_applicable";
+      let conversionMessage = "Not eligible for enrollment conversion.";
+
+      if (eligibility.kind === "already_converted") {
+        conversionState = "converted";
+        conversionMessage = "Student record created.";
+      } else if (application.status === "accepted") {
+        if (eligibility.kind === "eligible") {
+          conversionState = "ready";
+          conversionMessage = options.canConvertApplications
+            ? "Ready to create the student record."
+            : "Registrar or admissions authorization is required.";
+        } else {
+          conversionState = "blocked";
+          conversionMessage = eligibility.reason;
+        }
+      }
+
+      return {
+        id: application.id,
+        applicantName: application.preferredName ?? application.legalName,
+        programId: application.programId,
+        status: application.status,
+        statusLabel: formatStatus(application.status),
+        submittedDate: formatDate(application.submittedAt),
+        decisionDate: formatDate(application.decidedAt),
+        conversionState,
+        conversionMessage,
+        canConvert:
+          conversionState === "ready" &&
+          options.canConvertApplications,
+        studentNumber: application.studentNumber,
+        ...(options.includeApplicantContact
+          ? {
+              email: application.email,
+              phone: application.phone,
+            }
+          : {}),
+      };
+    }),
   };
 }

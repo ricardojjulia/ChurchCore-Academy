@@ -56,6 +56,6 @@ Never enable this flag in preview or production.
 
 ## Known Release 1 constraints
 
-- The new security migration validates in a real transaction.
-- The canonical local migration runner is blocked by an older migration that uses unsupported `CREATE POLICY IF NOT EXISTS` syntax.
+- The security and enrollment migrations validate through a clean local Supabase reset.
+- Live admissions and enrollment-conversion role matrices run inside rolled-back transactions.
 - Production approval requires live policy and browser-role verification.

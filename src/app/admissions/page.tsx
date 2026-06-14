@@ -43,7 +43,7 @@ export default async function AdmissionsPage() {
       activeHref="/admissions"
       eyebrow="Admissions"
       title="Application review"
-      subtitle="Review persistent applicant records, submission state, and staff decisions before enrollment conversion."
+      subtitle="Review applicant decisions and convert accepted records into active student enrollment."
       badge="Admissions staff view"
     >
       <AdmissionsApplicationList model={state.model} />

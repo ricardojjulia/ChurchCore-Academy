@@ -16,7 +16,21 @@ Reviewers require an active `admissions`, `registrar`, `dean`, or `institution_a
 2. Submit the owned draft through `POST /api/academy/admissions/applications/:id/submit`.
 3. Reviewers inspect persistent records at `/admissions` or through the authenticated APIs.
 4. Record `accepted` or `declined` through `POST /api/academy/admissions/applications/:id/decision`.
-5. Do not create enrollment or student records manually from acceptance. That conversion belongs to Release 2 Slice 2.
+5. Confirm the accepted application has an application term.
+6. Convert through `POST /api/academy/admissions/applications/:id/convert` with an `Idempotency-Key`, or use **Convert to student** at `/admissions`.
+7. Confirm the row displays the assigned student number.
+
+Conversion is limited to `admissions`, `registrar`, and `institution_admin`. Deans may review and decide applications but cannot activate student identity.
+
+The transaction creates:
+
+- an active student role while retaining the applicant role;
+- one student profile and tenant-scoped student number;
+- one active program enrollment;
+- one academic-period registration;
+- immutable conversion and global audit events.
+
+Do not manually create these records or use conversion to create course-section registration, billing, aid, LMS, or Student PWA release records.
 
 ## Duplicate requests
 
@@ -52,6 +66,7 @@ Run the database role matrix against a configured local database:
 
 ```bash
 npm run verify:admissions-rls
+npm run verify:enrollment-conversion-rls
 ```
 
-The script runs entirely inside a rolled-back transaction.
+Both scripts run entirely inside rolled-back transactions.

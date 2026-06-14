@@ -21,6 +21,12 @@ export interface AdmissionApplication {
   decidedAt?: string;
   decidedByPersonId?: string;
   decisionReason?: string;
+  convertedAt?: string;
+  convertedByPersonId?: string;
+  studentProfileId?: string;
+  programEnrollmentId?: string;
+  periodRegistrationId?: string;
+  studentNumber?: string;
   createdAt: string;
   updatedAt: string;
 }
