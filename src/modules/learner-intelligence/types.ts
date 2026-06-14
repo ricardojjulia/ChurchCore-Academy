@@ -54,6 +54,7 @@ export interface LearnerIntelligenceConsentInput {
 }
 
 export interface LearnerIntelligenceConsentRecord {
+  id?: string;
   tenantId: string;
   learnerId: string;
   consentBehavioralTracking: boolean;
@@ -64,6 +65,16 @@ export interface LearnerIntelligenceConsentRecord {
   consentVersion: string;
   consentedAt: string;
   revokedAt?: string;
+  revocationReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LearnerConsentRevocationInput {
+  tenantId: string;
+  learnerId: string;
+  consentVersion: string;
+  reason: string;
 }
 
 export interface LearnerMemoryEntryInput {
@@ -138,6 +149,12 @@ export interface LearnerIntelligenceRepository {
   upsertConsent(consent: LearnerIntelligenceConsentInput): Promise<void>;
   insertMemoryEntry(entry: LearnerMemoryEntryInput): Promise<void>;
   fetchLatestConsent(tenantId: string, learnerId: string): Promise<LearnerIntelligenceConsentRecord | null>;
+  listConsentHistory(
+    tenantId: string,
+    learnerId: string,
+    limit: number,
+  ): Promise<LearnerIntelligenceConsentRecord[]>;
+  revokeConsent(input: LearnerConsentRevocationInput): Promise<LearnerIntelligenceConsentRecord>;
   listMemoryEntries(tenantId: string, learnerId: string, limit: number): Promise<LearnerMemoryEntryRecord[]>;
   listInterventions(tenantId: string, options: LearnerInterventionQueryOptions): Promise<LearnerInterventionRecord[]>;
   updateInterventionStatus(

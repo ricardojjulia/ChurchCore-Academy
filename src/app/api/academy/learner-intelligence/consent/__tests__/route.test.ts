@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AcademyActor } from "@/modules/academy-auth/policy";
-import { submitLearnerConsentRequest } from "@/app/api/academy/learner-intelligence/consent/route";
+import {
+  getLearnerConsentRequest,
+  revokeLearnerConsentRequest,
+  submitLearnerConsentRequest,
+} from "@/app/api/academy/learner-intelligence/consent/route";
 
 const actor: AcademyActor = {
   userId: "student-1",
@@ -102,4 +106,94 @@ test("POST consent returns 403 when service rejects cross-learner consent write"
 
   assert.equal(response.status, 403);
   assert.deepEqual(await response.json(), { error: "Forbidden learner intelligence consent write." });
+});
+
+test("GET consent returns current consent and history for the learner", async () => {
+  const request = new Request(
+    "http://localhost/api/academy/learner-intelligence/consent?includeHistory=true",
+  );
+
+  const response = await getLearnerConsentRequest(
+    request,
+    {
+      getConsent: async () => ({
+        tenantId: actor.tenantId,
+        learnerId: actor.userId,
+        consentBehavioralTracking: true,
+        consentAiMemory: true,
+        consentSocialGraph: false,
+        consentPredictiveModeling: false,
+        consentLearnerMirror: true,
+        consentVersion: "v1",
+        consentedAt: "2026-06-14T12:00:00.000Z",
+      }),
+      listConsentHistory: async () => [],
+    },
+    actor,
+  );
+
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.current.consentVersion, "v1");
+  assert.deepEqual(body.history, []);
+});
+
+test("DELETE consent revokes the learner current version", async () => {
+  const request = new Request("http://localhost/api/academy/learner-intelligence/consent", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      learnerId: actor.userId,
+      consentVersion: "v1",
+      reason: "I no longer want this processing.",
+    }),
+  });
+
+  const response = await revokeLearnerConsentRequest(
+    request,
+    {
+      revokeConsent: async (_serviceActor, input) => ({
+        tenantId: input.tenantId,
+        learnerId: input.learnerId,
+        consentBehavioralTracking: true,
+        consentAiMemory: true,
+        consentSocialGraph: false,
+        consentPredictiveModeling: false,
+        consentLearnerMirror: true,
+        consentVersion: input.consentVersion,
+        consentedAt: "2026-06-14T12:00:00.000Z",
+        revokedAt: "2026-06-14T15:00:00.000Z",
+        revocationReason: input.reason,
+      }),
+    },
+    actor,
+  );
+
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.consent.revocationReason, "I no longer want this processing.");
+});
+
+test("DELETE consent returns 400 for missing revocation reason", async () => {
+  const request = new Request("http://localhost/api/academy/learner-intelligence/consent", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      learnerId: actor.userId,
+      consentVersion: "v1",
+    }),
+  });
+
+  const response = await revokeLearnerConsentRequest(
+    request,
+    {
+      revokeConsent: async () => {
+        throw new Error("should not run");
+      },
+    },
+    actor,
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "consentVersion and reason are required." });
 });

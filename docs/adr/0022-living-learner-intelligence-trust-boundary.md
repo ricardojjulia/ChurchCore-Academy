@@ -53,7 +53,7 @@ of the production API:
 
 ## Follow-up
 
-- Add database-backed RLS verification for each actor and consent state.
-- Add consent revocation and learner-facing consent history workflows.
+- Implement the scheduled retention job, deletion receipts, and governed export
+  workflow defined in `docs/policies/llis-data-retention-and-deletion.md`.
 - Add the first deterministic snapshot computation before introducing model
   generated predictions.

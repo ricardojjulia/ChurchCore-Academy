@@ -734,6 +734,154 @@
   display: none;
 }
 
+.student-consent {
+  display: grid;
+  gap: 1rem;
+}
+
+.student-consent-intro,
+.student-consent form,
+.student-consent-revoke,
+.student-consent-history {
+  border: 1px solid #dce4ed;
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1.2rem;
+}
+
+.student-consent-intro {
+  display: flex;
+  gap: 0.85rem;
+  color: #365c49;
+  background: #f0f8f3;
+}
+
+.student-consent-intro svg,
+.student-consent-history svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: 0 0 auto;
+}
+
+.student-consent-intro p,
+.student-consent-intro h2,
+.student-consent-intro span,
+.student-consent-revoke h3,
+.student-consent-revoke p,
+.student-consent-history h3,
+.student-consent-history p {
+  margin: 0;
+}
+
+.student-consent-intro p {
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-consent-intro h2 {
+  margin-top: 0.3rem;
+  color: #203d30;
+}
+
+.student-consent-intro span,
+.student-consent-revoke p,
+.student-consent-history p {
+  display: block;
+  margin-top: 0.35rem;
+  color: #607266;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.student-consent-options {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.student-consent-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e0e7ef;
+  border-radius: 0.85rem;
+  padding: 0.9rem;
+}
+
+.student-consent-option strong,
+.student-consent-option small {
+  display: block;
+}
+
+.student-consent-option strong {
+  color: #294158;
+  font-size: 0.9rem;
+}
+
+.student-consent-option small {
+  margin-top: 0.25rem;
+  color: #6b7a8e;
+  line-height: 1.45;
+}
+
+.student-consent-option input {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+}
+
+.student-consent-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.student-consent-actions span {
+  color: #5f7085;
+  font-size: 0.8rem;
+}
+
+.student-consent-revoke {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.student-consent-revoke textarea {
+  min-height: 6rem;
+  resize: vertical;
+  border: 1px solid #ccd7e3;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  font: inherit;
+}
+
+.student-consent-history > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.student-consent-history ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-consent-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #e5ebf1;
+  padding-top: 0.7rem;
+  color: #5f7085;
+  font-size: 0.82rem;
+}
+
 .student-offline-page {
   display: grid;
   min-height: 100vh;

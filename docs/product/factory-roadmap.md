@@ -11,13 +11,13 @@ Current delivery sequence:
 
 1. Governed foundation: verified identity, tenant RLS, learner-owned consent,
    append-only evidence, memory, and intervention review.
-2. Consent lifecycle and evidence ledger.
+2. Consent lifecycle and evidence ledger: complete.
 3. Deterministic identity snapshot computation with explainability.
 4. Human-reviewed intervention generation and faculty/advisor work queues.
 5. Learner mirror and social intelligence only after separate Council review.
 
-Predictive computation remains blocked until Slice 2 exits with database-backed
-RLS verification and an approved retention/deletion policy.
+Deterministic identity snapshot work may begin. Model-generated prediction and
+autonomous intervention remain blocked pending separate Council approval.
 
 ## Current Position
 

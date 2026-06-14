@@ -4,6 +4,7 @@ import {
   LearnerInterventionStatusHistoryRecord,
   LearnerInterventionStatusUpdateInput,
   LearnerInterventionRecord,
+  LearnerConsentRevocationInput,
   LearnerIntelligenceConsentRecord,
   LearnerIntelligenceConsentInput,
   LearnerMemoryEntryRecord,
@@ -25,6 +26,7 @@ function toIsoString(value: unknown) {
 
 function mapConsentRow(row: Record<string, unknown>): LearnerIntelligenceConsentRecord {
   return {
+    id: row.id ? String(row.id) : undefined,
     tenantId: String(row.tenant_id),
     learnerId: String(row.learner_id),
     consentBehavioralTracking: Boolean(row.consent_behavioral_tracking),
@@ -35,6 +37,9 @@ function mapConsentRow(row: Record<string, unknown>): LearnerIntelligenceConsent
     consentVersion: String(row.consent_version),
     consentedAt: toIsoString(row.consented_at),
     revokedAt: row.revoked_at ? toIsoString(row.revoked_at) : undefined,
+    revocationReason: row.revocation_reason ? String(row.revocation_reason) : undefined,
+    createdAt: row.created_at ? toIsoString(row.created_at) : undefined,
+    updatedAt: row.updated_at ? toIsoString(row.updated_at) : undefined,
   };
 }
 
@@ -143,6 +148,7 @@ export class LearnerIntelligencePostgresRepository implements LearnerIntelligenc
         consent.consentedAt ?? new Date().toISOString(),
       ],
     );
+
   }
 
   async insertMemoryEntry(entry: LearnerMemoryEntryInput) {
@@ -180,8 +186,9 @@ export class LearnerIntelligencePostgresRepository implements LearnerIntelligenc
 
   async fetchLatestConsent(tenantId: string, learnerId: string) {
     const result = await this.pool.query(
-      `select tenant_id, learner_id, consent_behavioral_tracking, consent_ai_memory, consent_social_graph,
-              consent_predictive_modeling, consent_learner_mirror, consent_version, consented_at, revoked_at
+      `select id, tenant_id, learner_id, consent_behavioral_tracking, consent_ai_memory, consent_social_graph,
+              consent_predictive_modeling, consent_learner_mirror, consent_version, consented_at, revoked_at,
+              revocation_reason, created_at, updated_at
        from academy_learner_intelligence_consent
        where tenant_id = $1 and learner_id = $2
        order by consented_at desc
@@ -191,6 +198,42 @@ export class LearnerIntelligencePostgresRepository implements LearnerIntelligenc
 
     if (result.rowCount === 0) {
       return null;
+    }
+
+    return mapConsentRow(result.rows[0]);
+  }
+
+  async listConsentHistory(tenantId: string, learnerId: string, limit: number) {
+    const result = await this.pool.query(
+      `select id, tenant_id, learner_id, consent_behavioral_tracking, consent_ai_memory, consent_social_graph,
+              consent_predictive_modeling, consent_learner_mirror, consent_version, consented_at, revoked_at,
+              revocation_reason, created_at, updated_at
+       from academy_learner_intelligence_consent
+       where tenant_id = $1 and learner_id = $2
+       order by consented_at desc, created_at desc
+       limit $3`,
+      [tenantId, learnerId, limit],
+    );
+
+    return result.rows.map(mapConsentRow);
+  }
+
+  async revokeConsent(input: LearnerConsentRevocationInput) {
+    const result = await this.pool.query(
+      `update academy_learner_intelligence_consent
+       set revoked_at = now(),
+           revocation_reason = $4,
+           updated_at = now()
+       where tenant_id = $1
+         and learner_id = $2
+         and consent_version = $3
+         and revoked_at is null
+       returning *`,
+      [input.tenantId, input.learnerId, input.consentVersion, input.reason],
+    );
+
+    if (result.rowCount === 0) {
+      throw new Error(`Consent version ${input.consentVersion} was not found or is already revoked.`);
     }
 
     return mapConsentRow(result.rows[0]);

@@ -40,3 +40,10 @@ computation is enabled.
 - tests cover learner, cross-learner, staff, unauthenticated, and cross-tenant
   cases
 - build, focused lint, full tests, migration checks, and RLS verification pass
+
+## Delivery Status
+
+Completed on June 14, 2026. The evidence ledger is database-generated so direct
+authenticated SQL cannot bypass or forge consent history. The governing
+retention policy is recorded in
+`docs/policies/llis-data-retention-and-deletion.md`.

@@ -11,6 +11,7 @@ test("local migration discovery includes learner intelligence foundation, RLS, a
   assert.ok(names.includes("20260614010000_learner_intelligence_foundation.sql"));
   assert.ok(names.includes("20260614020000_learner_intelligence_rls.sql"));
   assert.ok(names.includes("20260614030000_learner_intervention_status_history.sql"));
+  assert.ok(names.includes("20260614204907_learner_consent_evidence.sql"));
   assert.ok(
     names.indexOf("20260614010000_learner_intelligence_foundation.sql") <
       names.indexOf("20260614020000_learner_intelligence_rls.sql"),
@@ -19,6 +20,30 @@ test("local migration discovery includes learner intelligence foundation, RLS, a
     names.indexOf("20260614020000_learner_intelligence_rls.sql") <
       names.indexOf("20260614030000_learner_intervention_status_history.sql"),
   );
+  assert.ok(
+    names.indexOf("20260614030000_learner_intervention_status_history.sql") <
+      names.indexOf("20260614204907_learner_consent_evidence.sql"),
+  );
+});
+
+test("consent evidence migration creates an immutable tenant-scoped ledger", async () => {
+  const sql = await readFile(
+    join(process.cwd(), "supabase/migrations/20260614204907_learner_consent_evidence.sql"),
+    "utf8",
+  );
+
+  assert.match(sql, /create table if not exists public\.academy_learner_consent_events/i);
+  assert.match(sql, /action text not null[\s\S]*granted[\s\S]*updated[\s\S]*revoked/i);
+  assert.match(sql, /foreign key \(tenant_id, consent_id\)/i);
+  assert.match(sql, /force row level security/i);
+  assert.match(sql, /academy_learner_consent_events: learner read/i);
+  assert.doesNotMatch(sql, /create policy "academy_learner_consent_events: learner insert"/i);
+  assert.match(sql, /academy_learner_consent_events_immutable/i);
+  assert.match(sql, /academy_record_learner_consent_event/i);
+  assert.match(sql, /after insert or update on public\.academy_learner_intelligence_consent/i);
+  assert.match(sql, /grant select on public\.academy_learner_consent_events to authenticated/i);
+  assert.match(sql, /revoke insert on public\.academy_learner_consent_events from authenticated/i);
+  assert.doesNotMatch(sql, /grant select, insert on public\.academy_learner_consent_events/i);
 });
 
 test("learner intelligence migration creates phase-1 foundation tables and indexes", async () => {

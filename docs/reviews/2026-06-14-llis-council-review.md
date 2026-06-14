@@ -56,18 +56,28 @@ human-reviewed interventions, and auditable status changes.
 - learner mirror UI
 - social graph analysis
 - faculty and advisor work queues
-- retention, deletion, export, and legal-hold operations
-- production database RLS matrix verification
+- automated retention jobs, deletion receipts, export delivery, and legal-hold
+  operations
+
+## Slice 2 Closeout
+
+The consent lifecycle and evidence ledger are implemented:
+
+1. current consent, history, and explicit revocation APIs
+2. database-generated immutable evidence for grant, update, and revocation
+3. learner-facing privacy controls in the Student PWA
+4. database-backed RLS verification for learner, faculty, advisor, registrar,
+   institution administrator, unauthenticated, and cross-tenant actors
+5. approved retention, deletion, export, and legal-hold policy
 
 ## Next Slice
 
-Build the consent lifecycle and evidence ledger:
+Build deterministic identity snapshots:
 
-1. consent read/history and explicit revocation APIs
-2. immutable consent audit events
-3. learner-facing consent controls
-4. database-backed RLS tests for learner, faculty, advisor, registrar, and
-   institution administrator actors
-5. retention and deletion policy artifact
+1. deterministic, versioned computation with no model-generated labels
+2. source-event traceability and explanation payloads
+3. expiry and recomputation rules
+4. staff review surface without autonomous actions
+5. database and API verification against revoked predictive consent
 
-Predictive computation remains blocked until this slice is merged and verified.
+Model-generated prediction and autonomous intervention remain blocked.
