@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
-import { academyDataset } from "@/modules/academy-data/mock-data";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
 import { headers } from "next/headers";
 
@@ -184,9 +183,9 @@ export default async function Home() {
       </section>
 
       <section className="ops-stats-grid">
-        <DashboardMetric label="Students evaluated" value={academyDataset.students.length} icon={<UsersRound />} detail="Seeded local dataset" />
-        <DashboardMetric label="Programs" value={academyDataset.programs.length} icon={<GraduationCap />} detail="Tracked academic programs" />
-        <DashboardMetric label="Faculty records" value={academyDataset.faculty.length} icon={<BookOpenCheck />} detail="Load and advisor review" />
+        <DashboardMetric label="Students evaluated" value={evaluation.dataset.students.length} icon={<UsersRound />} detail="Tenant-scoped runtime dataset" />
+        <DashboardMetric label="Programs" value={evaluation.dataset.programs.length} icon={<GraduationCap />} detail="Tracked academic programs" />
+        <DashboardMetric label="Faculty records" value={evaluation.dataset.faculty.length} icon={<BookOpenCheck />} detail="Load and advisor review" />
         <DashboardMetric label="Signal categories" value={5} icon={<Sparkles />} detail="Enrollment, records, progress, transcripts, faculty" />
       </section>
     </AcademyShell>

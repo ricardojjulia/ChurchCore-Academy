@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { handleApi, jsonError } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
-import { resolveBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveLocalBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import { InstitutionProfile } from "@/modules/academy-config/types";
 import {
@@ -681,7 +681,7 @@ export async function buildLmsProgressReturnPlanPayload(
 
 export async function GET(request: Request) {
   return handleApi(async () => {
-    const actor = resolveBootstrapAcademyActor(request.headers);
+    const actor = resolveLocalBootstrapAcademyActor(request);
     const requestCorrelationId = correlationId(request.headers);
 
     return buildLmsContractDescriptorPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId);
@@ -689,7 +689,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const actor = resolveBootstrapAcademyActor(request.headers);
   const requestCorrelationId = correlationId(request.headers);
 
   let body: unknown;
@@ -713,6 +712,7 @@ export async function POST(request: Request) {
   if (operation === "course_shell_plan") {
     try {
       const input = parseCourseShellPlanInput(payload);
+      const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
         buildLmsCourseShellPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
       );
@@ -724,6 +724,7 @@ export async function POST(request: Request) {
   if (operation === "roster_sync_plan") {
     try {
       const input = parseRosterSyncPlanInput(payload);
+      const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
         buildLmsRosterSyncPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
       );
@@ -735,6 +736,7 @@ export async function POST(request: Request) {
   if (operation === "grade_return_plan") {
     try {
       const input = parseGradeReturnPlanInput(payload);
+      const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
         buildLmsGradeReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
       );
@@ -746,6 +748,7 @@ export async function POST(request: Request) {
   if (operation === "progress_return_plan") {
     try {
       const input = parseProgressReturnPlanInput(payload);
+      const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
         buildLmsProgressReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
       );

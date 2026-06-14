@@ -1,7 +1,7 @@
 import { AcademyShell } from "@/components/academy-shell";
 import { WorkflowQueueBoard } from "@/components/academy-workflow-queue";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { headers, cookies } from "next/headers";
+import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";

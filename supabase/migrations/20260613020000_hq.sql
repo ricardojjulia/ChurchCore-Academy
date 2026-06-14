@@ -29,6 +29,7 @@ create index if not exists idx_hq_sessions_user_agent on public.hq_sessions(user
 create index if not exists idx_hq_sessions_created on public.hq_sessions(created_at desc);
 
 alter table public.hq_sessions enable row level security;
+alter table public.hq_sessions force row level security;
 
 create policy if not exists "hq_sessions: users manage own"
   on public.hq_sessions
@@ -54,6 +55,7 @@ create table if not exists public.hq_tasks (
 );
 
 alter table public.hq_tasks enable row level security;
+alter table public.hq_tasks force row level security;
 
 create policy if not exists "hq_tasks: staff read all"
   on public.hq_tasks
@@ -88,6 +90,7 @@ create table if not exists public.hq_risks (
 );
 
 alter table public.hq_risks enable row level security;
+alter table public.hq_risks force row level security;
 
 create policy if not exists "hq_risks: staff read all"
   on public.hq_risks
@@ -121,6 +124,7 @@ create table if not exists public.hq_decisions (
 );
 
 alter table public.hq_decisions enable row level security;
+alter table public.hq_decisions force row level security;
 
 create policy if not exists "hq_decisions: staff read all"
   on public.hq_decisions
