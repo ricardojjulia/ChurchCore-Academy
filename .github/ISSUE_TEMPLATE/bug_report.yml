@@ -1,0 +1,69 @@
+name: Bug report
+description: Report a reproducible ChurchCore Academy defect
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security vulnerabilities or include real student, institution, authentication, or financial data here. Follow SECURITY.md for private reporting.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: main at abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      options:
+        - Authentication and tenant access
+        - Institution configuration
+        - Admissions and enrollment
+        - Students, guardians, or faculty
+        - Calendar, courses, or grading
+        - Student PWA
+        - LMS integration
+        - ShepherdAI or learner intelligence
+        - Database or migrations
+        - Documentation or tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start from...
+        2. Run...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Relevant command output
+      description: Paste sanitized output only. Never include environment files, tokens, credentials, or private records.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I removed secrets and private data.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

@@ -1,0 +1,55 @@
+name: Feature request
+description: Propose a focused product or engineering improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: input
+    id: users
+    attributes:
+      label: Primary users
+      placeholder: Registrar, student, guardian, faculty, institution administrator
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user or institutional problem, not only the desired UI.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: What should be measurably possible when this is complete?
+    validations:
+      required: true
+  - type: dropdown
+    id: institution
+    attributes:
+      label: Institution modes affected
+      multiple: true
+      options:
+        - Bible school or ministry institute
+        - Children's school
+        - Seminary
+        - College
+        - University
+        - Mixed institution
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Data and integration considerations
+      description: Note student, guardian, transcript, billing, LMS, ShepherdAI, LLIS, privacy, or regulatory impact.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched the roadmap and existing issues.
+          required: true
+        - label: This request is scoped to one reviewable outcome.
+          required: true

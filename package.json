@@ -1,7 +1,22 @@
 {
   "name": "churchcore-academy",
   "version": "0.1.0",
+  "description": "Multi-tenant education management and student information platform for faith-based institutions.",
   "private": true,
+  "license": "MIT",
+  "author": "ChurchCore Academy contributors",
+  "homepage": "https://github.com/ricardojjulia/ChurchCore-Academy#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ricardojjulia/ChurchCore-Academy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ricardojjulia/ChurchCore-Academy/issues"
+  },
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

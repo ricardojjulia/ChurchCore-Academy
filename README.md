@@ -1,183 +1,193 @@
-# ChurchCore Academy
+<div align="center">
+  <img src="public/academy-mark.svg" alt="ChurchCore Academy" width="88" />
 
-This repository is the codebase for **ChurchCore Academy**, a faith-based education management system and student information system for Bible schools, children's schools, seminaries, colleges, and universities.
+  # ChurchCore Academy
 
-ChurchCore Academy is designed to help faith-based institutions manage students, academic years, terms, divisions, programs, courses, grading, faculty, institutional records, transcripts, academic workflows, and student-facing services through a configurable Academy core and student PWA.
+  **A multi-tenant education management and student information platform for faith-based institutions.**
 
-## Boundary
+  Bible schools, ministry institutes, children's schools, seminaries, colleges, universities, and mixed-mode academies can share one configurable academic core without making an LMS the system of record.
 
-- This repo is **not** a Moodle fork.
-- This repo owns the faith-based SIS, education-management workflows, enrollment, academic years, terms, course catalog, grading models, student records, transcripts, faculty/teacher workflows, graduation tracking, compliance review, and institutional academic operations.
-- The LMS must live outside this repository and integrate through provider adapters.
-- Integration between the two systems should happen through explicit contracts such as SSO, roster sync, enrollment sync, grade/progress exchange, and launch/logout flows.
-- ChurchCore Academy is **not** the LMS.
+  [![Status](https://img.shields.io/badge/status-active%20development-D97706)](#project-status)
+  [![CI](https://github.com/ricardojjulia/ChurchCore-Academy/actions/workflows/ci.yml/badge.svg)](https://github.com/ricardojjulia/ChurchCore-Academy/actions/workflows/ci.yml)
+  [![License: MIT](https://img.shields.io/badge/license-MIT-2563EB.svg)](LICENSE)
+  [![Next.js](https://img.shields.io/badge/Next.js-16-111827)](https://nextjs.org/)
+  [![React](https://img.shields.io/badge/React-19-149ECA)](https://react.dev/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6)](https://www.typescriptlang.org/)
+  [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3FCF8E)](https://supabase.com/)
+</div>
 
-## Institution types
+> [!IMPORTANT]
+> ChurchCore Academy is under active development and is not yet approved for production academic records. The repository contains tested foundations and working vertical slices, but several core SIS workflows remain on the roadmap.
 
-ChurchCore Academy should support multiple faith-based education models with the same core architecture:
+## Why ChurchCore Academy
 
-- Bible schools and ministry training institutes
-- children's schools and K-12-style programs
-- certificate programs and academies
-- seminaries and theological schools
-- colleges and universities
+Most education systems assume either a conventional K-12 school or a standard university. Faith-based institutions often combine certificate programs, ministry formation, children's education, continuing education, seminaries, and degree-bearing programs under one organization.
 
-Each institution should be able to configure its own academic calendar, sub-divisions, course durations, grading model, faculty/teacher roles, student lifecycle, and LMS provider.
+ChurchCore Academy is designed around that variability:
 
-## ShepherdAI Academy
+- configurable institution modes, calendars, subdivisions, credits, clock hours, and grading
+- tenant-scoped people, roles, guardians, faculty, students, and academic records
+- provider-neutral LMS integration for Moodle, Canvas, or no-LMS operation
+- a first-class Student PWA rather than an LMS wrapper
+- deterministic, human-reviewed academic workflow recommendations through ShepherdAI Academy
+- governed learner intelligence with explicit learner consent and database-enforced isolation
 
-This repository now includes the first foundation for **ShepherdAI for ChurchCore Academy**.
+## Project Status
 
-ShepherdAI Academy is:
+| Area | Status | Notes |
+| --- | --- | --- |
+| Institution configuration | Foundation complete | Configurable institution modes and operating rules |
+| Academic calendars and subdivisions | Foundation complete | Years, periods, windows, campuses, schools, and departments |
+| Course catalog and sections | Foundation complete | Provider-neutral LMS mapping contracts included |
+| People, roles, guardians, and faculty | Foundation complete | Tenant and relationship-scoped access models |
+| Grading and transcript rules | Foundation complete | Domain rules exist; operational grade entry and issuance remain planned |
+| Authentication and tenant isolation | Implemented, exit gate open | Verified Supabase sessions, request-scoped database context, forced RLS |
+| Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion |
+| Student PWA | Working shell and read surfaces | Persistence is incomplete for several student workflows |
+| LMS integrations | Contract and adapter foundations | Moodle/Canvas execution workers remain incomplete |
+| ShepherdAI Academy | Deterministic foundation | Human-reviewed academic workflow recommendations only |
+| Living Learner Intelligence System | Governed foundation | Consent lifecycle and immutable evidence ledger implemented |
+| Billing, aid, reporting, communications | Planned | Not production-complete |
 
-- an explainable Academic Workflow recommendation engine
-- deterministic first
-- product-specific to ChurchCore Academy
-- human-reviewed and audit-friendly
+See [Project Status](docs/project-status.md) and the [Factory Roadmap](docs/product/factory-roadmap.md) for the detailed delivery position.
 
-ShepherdAI Academy is not:
+## Product Boundary
 
-- a chatbot
-- a conversational AI assistant
-- a cross-product intelligence layer
-- a source of final graduation or standing decisions without deterministic institutional rules
+ChurchCore Academy owns the SIS and academic administration layer:
 
-## Stack
+- admissions, enrollment, registration, records, grading, transcripts, and graduation
+- institution configuration, calendars, programs, courses, sections, people, and permissions
+- student, guardian, faculty, advisor, registrar, and administrator workflows
+- provider-neutral LMS launch, synchronization contracts, audits, and reconciliation
 
-- `Next.js` App Router
-- `React`
-- `TypeScript`
-- `Tailwind CSS`
-- `Supabase` for database, auth, and storage
-- `Vercel` for deployment
+It does **not** own Moodle or Canvas runtime behavior, course-content delivery, LMS plugins, themes, or provider internals. An LMS may deliver learning; Academy remains the academic system of record.
 
-## Current Academy scope
+## Architecture
 
-- institution configuration
-- academic year, term, session, cohort, and sub-division setup
-- student, guardian, faculty, teacher, professor, and administrator records
-- course catalog, course types, course durations, and section setup
-- grading scales, grading types, GPA rules, pass/fail rules, narrative evaluation, and transcript rules
-- incomplete enrollment follow-up
-- missing student documentation review
-- graduation eligibility review
-- academic standing or credit progress review
-- transcript or records inconsistency review
-- faculty or course assignment imbalance review
-- student PWA for schedule, grades, documents, registration, progress, messages, and LMS launch
-- optional LMS provider integration through Moodle, Canvas, or no-LMS mode
-
-## Production MVP status
-
-Release 1 security foundations are implemented on the active security branch:
-
-- Academy APIs derive identity from verified Supabase sessions.
-- Tenant, Academy person, and active roles come from persisted account links and role assignments.
-- Caller-supplied Academy headers cannot grant production authority.
-- Academy tables have an append-only migration that enables and forces RLS with tenant, staff, student, and guardian policy families.
-- Protected dashboard and record pages load authenticated tenant data and fail closed instead of serving seeded records.
-- Student PWA routes require a verified student role and show empty states until persistent Release 2 read models are connected.
-- Immutable audit storage and a redacted audit repository are implemented.
-
-Release 2 admissions and enrollment conversion are implemented:
-
-- persistent pre-student applications;
-- applicant draft and submission workflow;
-- same-tenant staff acceptance or decline;
-- idempotent mutations with immutable domain and global audit events;
-- composite tenant foreign keys and forced RLS;
-- authenticated APIs and a persistent `/admissions` review page.
-- an explicit, authorized conversion action for accepted applications with an academic period;
-- one transaction that creates the student role, student profile, program enrollment, period registration, immutable conversion event, and global audit event;
-- tenant-scoped student-number allocation, same-key replay, forced RLS, and live role-matrix verification.
-
-Acceptance alone still has no SIS side effects. Release 1 is not yet production-approved, and the broader Release 2 exit gate remains open. Course-section registration, attendance, faculty grade entry, operational transcripts, Student PWA persistence, billing, payments, financial aid, reporting/exports, communications, and executable LMS workers remain planned.
-
-## Local development
-
-1. Copy `.env.example` to `.env.local`
-2. Set:
-   `NEXT_PUBLIC_SUPABASE_URL`
-   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-   `SUPABASE_SERVICE_ROLE_KEY`
-   `DEMO_MODE_ENABLED`
-   `NEXT_PUBLIC_DEMO_MODE_ENABLED`
-   `NEXT_PUBLIC_DEMO_VERSION`
-   `DATABASE_URL`
-   `ACADEMY_LOCAL_BOOTSTRAP_ENABLED` (local loopback development only)
-3. Install dependencies:
-
-```bash
-npm install
+```mermaid
+flowchart LR
+    U[Students and Staff] --> N[Next.js App Router]
+    N --> A[Academy Services and Policies]
+    A --> D[(Supabase Postgres)]
+    A --> S[ShepherdAI Academy]
+    A --> L[LMS Provider Contract]
+    L --> M[Moodle]
+    L --> C[Canvas]
+    L --> X[No-LMS Mode]
+    D --> R[Forced RLS and Audit Evidence]
 ```
 
-4. Start the app:
+Core architectural rules:
+
+1. Supabase verifies the external session.
+2. Persisted account links and active role assignments establish Academy identity.
+3. Request transactions set tenant and person context for PostgreSQL RLS.
+4. Caller-supplied headers and editable JWT metadata never grant production authority.
+5. Official academic records remain inside Academy.
+6. LMS behavior stays behind provider-neutral contracts.
+7. AI-assisted workflows are explainable, scoped, and human-reviewed.
+
+Read [Architecture](docs/architecture.md), [Technology](docs/technology.md), and the [Architecture Decision Records](docs/adr/README.md).
+
+## Technology
+
+| Layer | Technology |
+| --- | --- |
+| Web application | Next.js 16 App Router, React 19, TypeScript 6 |
+| UI | Mantine 9, CSS, Lucide icons |
+| Data and identity | Supabase Auth, PostgreSQL, Row Level Security |
+| Database access | `pg`, request-scoped transactions, SQL migrations |
+| Testing | Node test runner with `tsx` |
+| Quality | ESLint 9, Next.js production builds, database role-matrix verification |
+| Deployment target | Vercel-compatible Next.js runtime and Supabase |
+| Integrations | Provider-neutral LMS contract, Moodle, Canvas, no-LMS mode |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 24 or newer
+- npm 11 or newer
+- Docker-compatible runtime for local Supabase
+- [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
+
+### Installation
 
 ```bash
+git clone https://github.com/ricardojjulia/ChurchCore-Academy.git
+cd ChurchCore-Academy
+npm install
+cp .env.example .env.local
+supabase start
+npm run db:migrate:local
+npm run db:seed:local
 npm run dev
 ```
 
-5. Open `http://localhost:3000`
+Open [http://localhost:3000](http://localhost:3000).
 
-Protected Academy pages and APIs fail closed without Supabase and database configuration. Seeded records are available only through tests, seed commands, or explicit non-production demo mode.
+Protected pages fail closed without a valid Supabase session and matching Academy identity records. Local header bootstrap is disabled unless explicitly enabled and is never allowed in production.
 
-## Demo feedback and triage
+### Environment
 
-ChurchCore Academy now includes a demo-only feedback and error-triage pipeline.
+`.env.example` documents the supported local variables. At minimum, configure:
 
-- Enable demo mode with both:
-   - `DEMO_MODE_ENABLED=true` (server gate)
-   - `NEXT_PUBLIC_DEMO_MODE_ENABLED=true` (client gate)
-- Optional demo label:
-   - `NEXT_PUBLIC_DEMO_VERSION=2026.06.11`
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+```
 
-When enabled, demo users can submit feedback from the global floating button and unhandled React render errors are captured through a global error boundary.
+Never expose `SUPABASE_SERVICE_ROLE_KEY` to browser code or commit populated environment files.
 
-Platform staff triage workspace:
+## Commands
 
-- route: `/settings/demo-feedback`
-- API list: `GET /api/academy/platform/demo-feedback`
-- API mutate: `PATCH /api/academy/platform/demo-feedback/:id`
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create a production build and run TypeScript checks |
+| `npm run start` | Start the production server |
+| `npm run lint` | Run repository linting |
+| `npm test` | Run the complete automated test suite |
+| `npm run db:migrate:local` | Apply ordered SQL migrations to local Postgres |
+| `npm run db:seed:local` | Seed local Academy data |
+| `npm run verify:admissions-rls` | Verify the admissions database role matrix |
+| `npm run verify:enrollment-conversion-rls` | Verify enrollment-conversion isolation |
+| `npm run verify:llis-consent-rls` | Verify LLIS consent and evidence isolation |
 
-Submission API:
+## Repository Layout
 
-- `POST /api/academy/demo-feedback`
+```text
+src/app/                 Next.js pages, layouts, and API routes
+src/components/          Shared UI and Student PWA components
+src/modules/             Domain modules, policies, services, repositories, tests
+src/lib/                 Database, Supabase, migration, and runtime utilities
+supabase/migrations/     Ordered PostgreSQL schema and RLS migrations
+scripts/                 Local database and live role-matrix verification
+docs/adr/                Architecture decision records
+docs/product/            Product strategy and factory roadmap
+docs/runbooks/           Operational procedures
+docs/superpowers/        Approved design specs and implementation plans
+```
 
-Browser-generated session IDs can be rotated by the browser session lifecycle. Per-session throttling helps reduce accidental floods but is not complete bot protection.
+## Documentation
 
-## Next delivery gates
-
-1. Complete Release 1 live RLS/browser role verification and runtime remediation.
-2. Build course-section registration and enrollment confirmation.
-3. Build Release 2 attendance, grade entry, transcript issuance, and persistent Student PWA workflows.
-4. Build Release 3 billing, Stripe payments, institutional aid, and student account workflows.
-5. Build regulated federal-aid capabilities only behind sandbox certification and production activation gates.
-6. Execute Moodle and Canvas operations through audited outbox workers in Release 5.
-
-## Suggested layout
-
-- `apps/` for deployable applications
-- `packages/` for shared libraries
-- `docs/` for architecture and integration notes
-
-See [docs/architecture.md](docs/architecture.md) and [docs/shepherd-ai-academy.md](docs/shepherd-ai-academy.md).
-
-## Planning docs
-
-- [Faith-Based Academy Master Plan](docs/product/faith-based-academy-master-plan.md)
+- [Documentation Index](docs/README.md)
+- [Architecture Boundary](docs/architecture.md)
+- [Technology Overview](docs/technology.md)
+- [Project Status](docs/project-status.md)
+- [Product Master Plan](docs/product/faith-based-academy-master-plan.md)
 - [Factory Roadmap](docs/product/factory-roadmap.md)
-- [Software Factory](docs/software-factory.md) for Codex, GitHub Copilot, Claude Code, and similar AI coding tools
-- [Production MVP Remediation Design](docs/superpowers/specs/2026-06-13-production-mvp-remediation-design.md)
-- [Release 1 Security Plan](docs/superpowers/plans/2026-06-13-release-1-production-security-foundation.md)
-- [Release 2 Admissions Acceptance Plan](docs/superpowers/plans/2026-06-13-release-2-slice-1-admissions-acceptance.md)
-- [Release 2 Enrollment Conversion Design](docs/superpowers/specs/2026-06-13-accepted-application-enrollment-conversion-design.md)
-- [Release 2 Enrollment Conversion Plan](docs/superpowers/plans/2026-06-13-release-2-slice-2-enrollment-conversion.md)
-- [Admissions Operations Runbook](docs/runbooks/admissions-operations.md)
-- [Academy Auth And Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
-- [Platform Design Spec](docs/superpowers/specs/2026-06-01-faith-based-academy-platform-design.md)
-- [Institution Type And Operating Rules Design](docs/superpowers/specs/2026-06-01-institution-type-operating-rules-design.md)
-- [Implementation Master Plan](docs/superpowers/plans/2026-06-01-faith-based-academy-master-plan.md)
-- [Dual LMS Provider Strategy](docs/lms-dual-provider-strategy.md)
-- [ADR Procedure](docs/adr/README.md)
-- [Reviewer Procedure](docs/reviews/reviewer-procedure.md)
-- [Product Opportunity Scout](docs/agents/product-opportunity-scout.md)
+- [Software Factory](docs/software-factory.md)
+- [LMS Provider Strategy](docs/lms-dual-provider-strategy.md)
+- [ShepherdAI Academy](docs/shepherd-ai-academy.md)
+- [Authentication and Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
+
+## Contributing
+
+Review [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request. Changes that affect identity, tenant isolation, student records, transcripts, LMS synchronization, ShepherdAI, or learner intelligence require focused security and data-boundary verification.
+
+## License
+
+ChurchCore Academy is available under the [MIT License](LICENSE).
