@@ -9,6 +9,12 @@ const requestRepositoryRoutes = [
   "src/app/api/academy/admissions/applications/[id]/submit/route.ts",
   "src/app/api/academy/admissions/applications/[id]/decision/route.ts",
   "src/app/api/academy/admissions/applications/[id]/convert/route.ts",
+  "src/app/api/academy/learner-intelligence/consent/route.ts",
+  "src/app/api/academy/learner-intelligence/events/route.ts",
+  "src/app/api/academy/learner-intelligence/interventions/route.ts",
+  "src/app/api/academy/learner-intelligence/interventions/[id]/history/route.ts",
+  "src/app/api/academy/learner-intelligence/interventions/[id]/status/route.ts",
+  "src/app/api/academy/learner-intelligence/memory/route.ts",
   "src/app/api/academy/config/calendar/route.ts",
   "src/app/api/academy/config/courses/route.ts",
   "src/app/api/academy/config/grading/route.ts",
@@ -34,6 +40,21 @@ test("request-facing Academy repositories use verified database context", async 
   for (const relativePath of requestRepositoryRoutes) {
     const source = await readFile(path.join(process.cwd(), relativePath), "utf8");
     if (!source.includes("withAcademyDatabaseContext")) {
+      violations.push(relativePath);
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+test("request-facing Academy repositories resolve identity from the verified session", async () => {
+  const violations: string[] = [];
+
+  for (const relativePath of requestRepositoryRoutes.filter((route) =>
+    route.includes("/learner-intelligence/"),
+  )) {
+    const source = await readFile(path.join(process.cwd(), relativePath), "utf8");
+    if (!source.includes("resolveAcademyActorFromSession")) {
       violations.push(relativePath);
     }
   }

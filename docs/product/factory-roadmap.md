@@ -1,5 +1,24 @@
 # ChurchCore Academy Factory Roadmap
 
+## Living Learner Intelligence System
+
+Council conditionally approved the LLIS governed foundation on June 14, 2026.
+The trust boundary and conditions are recorded in
+`docs/adr/0022-living-learner-intelligence-trust-boundary.md` and
+`docs/reviews/2026-06-14-llis-council-review.md`.
+
+Current delivery sequence:
+
+1. Governed foundation: verified identity, tenant RLS, learner-owned consent,
+   append-only evidence, memory, and intervention review.
+2. Consent lifecycle and evidence ledger.
+3. Deterministic identity snapshot computation with explainability.
+4. Human-reviewed intervention generation and faculty/advisor work queues.
+5. Learner mirror and social intelligence only after separate Council review.
+
+Predictive computation remains blocked until Slice 2 exits with database-backed
+RLS verification and an approved retention/deletion policy.
+
 ## Current Position
 
 ChurchCore Academy has broad design and prototype coverage through the LMS adapter phases. Production MVP work is now governed by the approved five-release remediation program. Earlier phase completion means the design package or tested domain slice exists; it does not mean the corresponding operational workflow is production-complete.

@@ -10,12 +10,14 @@ const securityMigrationName =
 test("security migration protects every existing Academy table with forced RLS", async () => {
   const migrations = await listMigrationFiles(process.cwd());
   const tableNames = new Set<string>();
+  let laterMigrationSql = "";
 
   for (const migration of migrations) {
     if (migration.name === securityMigrationName) continue;
     const sql = await readFile(migration.path, "utf8");
+    laterMigrationSql += `\n${sql}`;
     for (const match of sql.matchAll(
-      /create table if not exists ([a-z_]+)/gi,
+      /create table if not exists (?:public\.)?([a-z_]+)/gi,
     )) {
       tableNames.add(match[1].toLowerCase());
     }
@@ -27,10 +29,19 @@ test("security migration protects every existing Academy table with forced RLS",
   );
 
   for (const tableName of tableNames) {
-    assert.match(
-      sql,
-      new RegExp(`'${tableName}'`, "i"),
-      `${tableName} must be present in the protected table inventory`,
+    const listedInSecurityInventory = new RegExp(`'${tableName}'`, "i").test(sql);
+    const enablesOwnRls = new RegExp(
+      `alter table (?:public\\.)?${tableName} enable row level security`,
+      "i",
+    ).test(laterMigrationSql);
+    const forcesOwnRls = new RegExp(
+      `alter table (?:public\\.)?${tableName} force row level security`,
+      "i",
+    ).test(laterMigrationSql);
+
+    assert.ok(
+      listedInSecurityInventory || (enablesOwnRls && forcesOwnRls),
+      `${tableName} must be in the security inventory or enable and force RLS in its own migration`,
     );
   }
 
