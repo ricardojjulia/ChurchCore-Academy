@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, ClipboardList, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, Settings, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, LogOut, Settings, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -9,12 +9,13 @@ interface AcademyShellProps {
   eyebrow?: string;
   badge?: string;
   activeHref?: string;
+  userEmail?: string | null;
+  signOutAction?: () => Promise<void>;
   children: React.ReactNode;
 }
 
 const navItems = [
   { href: "/", label: "Dashboard", caption: "Academic operations", icon: LayoutDashboard },
-  { href: "/admissions", label: "Admissions", caption: "Application review", icon: ClipboardList },
   { href: "/workflows", label: "Workflows", caption: "Review queue", icon: ListChecks },
   { href: "/students/stu-maya-bennett", label: "Students", caption: "Records and insights", icon: UsersRound },
   { href: "/programs/prog-biblical-studies", label: "Programs", caption: "Progress and readiness", icon: GraduationCap },
@@ -27,7 +28,7 @@ const navItems = [
   { href: "/settings/demo-feedback", label: "Demo Feedback", caption: "Platform triage", icon: ListChecks },
 ];
 
-export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/", children }: AcademyShellProps) {
+export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/", userEmail, signOutAction, children }: AcademyShellProps) {
   return (
     <div className="academy-app">
       <aside className="academy-sidebar">
@@ -79,10 +80,17 @@ export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/"
               <UserRound />
             </div>
             <div>
-              <strong>Registrar Admin</strong>
+              <strong>{userEmail ?? "Registrar Admin"}</strong>
               <span>Institution staff</span>
             </div>
           </div>
+          {signOutAction ? (
+            <form action={signOutAction}>
+              <Button type="submit" variant="ghost" size="icon" aria-label="Log out">
+                <LogOut />
+              </Button>
+            </form>
+          ) : null}
         </div>
       </aside>
 

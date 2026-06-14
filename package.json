@@ -18,9 +18,9 @@
     "npm": ">=11"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3200",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --port 3200",
     "lint": "eslint",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "verify:admissions-rls": "node --env-file=.env.local --import tsx scripts/verify-admissions-rls.ts",
