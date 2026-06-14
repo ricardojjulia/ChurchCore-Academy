@@ -47,13 +47,13 @@
     "postcss": "^8.5.10"
   },
   "devDependencies": {
-    "@types/node": "^24.12.2",
+    "@types/node": "^25.9.3",
     "@types/pg": "^8.15.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "agent-browser": "^0.27.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.4",
+    "agent-browser": "^0.27.3",
+    "eslint": "^10.5.0",
+    "eslint-config-next": "^16.2.9",
     "tsx": "^4.20.3",
     "typescript": "^6.0.3"
   }
