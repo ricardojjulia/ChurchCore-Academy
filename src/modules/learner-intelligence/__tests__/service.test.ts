@@ -12,9 +12,13 @@ function createRepositorySpy() {
     listMemory: 0,
     listInterventions: 0,
     listHistory: 0,
+    consentReads: 0,
+    consentHistory: 0,
+    consentRevocations: 0,
   };
 
   let latestConsent: LearnerIntelligenceConsentRecord | null = {
+    id: "consent-1",
     tenantId: "tenant-1",
     learnerId: "student-2",
     consentBehavioralTracking: true,
@@ -30,14 +34,28 @@ function createRepositorySpy() {
     async recordActivityEvent() {
       calls.events += 1;
     },
-    async upsertConsent() {
+    async upsertConsent(input) {
       calls.consent += 1;
+      void input;
     },
     async insertMemoryEntry() {
       calls.memory += 1;
     },
     async fetchLatestConsent() {
+      calls.consentReads += 1;
       return latestConsent;
+    },
+    async listConsentHistory() {
+      calls.consentHistory += 1;
+      return latestConsent ? [latestConsent] : [];
+    },
+    async revokeConsent() {
+      calls.consentRevocations += 1;
+      return {
+        ...latestConsent!,
+        revokedAt: "2026-06-14T15:00:00.000Z",
+        revocationReason: "I no longer want this processing.",
+      };
     },
     async listMemoryEntries() {
       calls.listMemory += 1;
@@ -179,6 +197,92 @@ test("rejects staff attempts to grant or change learner consent", async () => {
   );
 
   assert.equal(calls.consent, 0);
+});
+
+test("allows learners to read their current consent and version history", async () => {
+  const { repository, calls } = createRepositorySpy();
+  const service = new LearnerIntelligenceService(repository);
+
+  const current = await service.getConsent(studentActor, "tenant-1", "student-1");
+  const history = await service.listConsentHistory(studentActor, "tenant-1", "student-1", 10);
+
+  assert.equal(current?.consentVersion, "2026-06");
+  assert.equal(history.length, 1);
+  assert.equal(calls.consentReads, 1);
+  assert.equal(calls.consentHistory, 1);
+});
+
+test("rejects learners reading another learner consent history", async () => {
+  const { repository, calls } = createRepositorySpy();
+  const service = new LearnerIntelligenceService(repository);
+
+  await assert.rejects(
+    () => service.listConsentHistory(studentActor, "tenant-1", "student-2", 10),
+    /Forbidden learner intelligence consent read\./,
+  );
+
+  assert.equal(calls.consentHistory, 0);
+});
+
+test("allows authorized staff to read learner consent without changing it", async () => {
+  const { repository, calls } = createRepositorySpy();
+  const service = new LearnerIntelligenceService(repository);
+
+  await service.getConsent(academicAdminActor, "tenant-1", "student-2");
+
+  assert.equal(calls.consentReads, 1);
+  assert.equal(calls.consent, 0);
+});
+
+test("allows learners to revoke their current consent", async () => {
+  const { repository, calls } = createRepositorySpy();
+  const service = new LearnerIntelligenceService(repository);
+
+  const revoked = await service.revokeConsent(studentActor, {
+    tenantId: "tenant-1",
+    learnerId: "student-1",
+    consentVersion: "2026-06",
+    reason: "I no longer want this processing.",
+  });
+
+  assert.ok(revoked.revokedAt);
+  assert.equal(calls.consentRevocations, 1);
+});
+
+test("rejects staff attempts to revoke learner consent", async () => {
+  const { repository, calls } = createRepositorySpy();
+  const service = new LearnerIntelligenceService(repository);
+
+  await assert.rejects(
+    () =>
+      service.revokeConsent(academicAdminActor, {
+        tenantId: "tenant-1",
+        learnerId: "student-2",
+        consentVersion: "2026-06",
+        reason: "Administrative request.",
+      }),
+    /Forbidden learner intelligence consent write\./,
+  );
+
+  assert.equal(calls.consentRevocations, 0);
+});
+
+test("rejects consent revocation without a meaningful reason", async () => {
+  const { repository, calls } = createRepositorySpy();
+  const service = new LearnerIntelligenceService(repository);
+
+  await assert.rejects(
+    () =>
+      service.revokeConsent(studentActor, {
+        tenantId: "tenant-1",
+        learnerId: "student-1",
+        consentVersion: "2026-06",
+        reason: " ",
+      }),
+    /reason is required\./,
+  );
+
+  assert.equal(calls.consentRevocations, 0);
 });
 
 test("allows memory writes only for approved staff roles", async () => {

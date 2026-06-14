@@ -21,6 +21,7 @@ const iconByName = {
   documents: FileText,
   messages: MessageSquare,
   learning: LibraryBig,
+  privacy: ShieldCheck,
 };
 
 export function StudentPwaShell({

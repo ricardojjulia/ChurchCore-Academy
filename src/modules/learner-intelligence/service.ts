@@ -5,6 +5,7 @@ import {
 } from "@/modules/learner-intelligence/consent-guard";
 import {
   LearnerActivityEventInput,
+  LearnerConsentRevocationInput,
   LearnerInterventionQueryOptions,
   LearnerInterventionRecord,
   LearnerInterventionStatusHistoryRecord,
@@ -36,6 +37,14 @@ const memoryWriteRoles: ReadonlySet<AcademyRole> = new Set([
   "dean",
   "registrar",
   "academic_admin",
+]);
+
+const consentReadRoles: ReadonlySet<AcademyRole> = new Set([
+  "institution_admin",
+  "dean",
+  "registrar",
+  "academic_admin",
+  "advisor",
 ]);
 
 const allowedInterventionTransitions: Record<string, ReadonlySet<string>> = {
@@ -74,6 +83,43 @@ export class LearnerIntelligenceService {
 
     const validated = validateLearnerIntelligenceConsentInput(input);
     await this.repository.upsertConsent(validated);
+  }
+
+  async getConsent(actor: AcademyActor, tenantId: string, learnerId: string) {
+    this.assertConsentReadAccess(actor, tenantId, learnerId);
+    return this.repository.fetchLatestConsent(tenantId, learnerId);
+  }
+
+  async listConsentHistory(actor: AcademyActor, tenantId: string, learnerId: string, limit = 25) {
+    this.assertConsentReadAccess(actor, tenantId, learnerId);
+    const boundedLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+    return this.repository.listConsentHistory(tenantId, learnerId, boundedLimit);
+  }
+
+  async revokeConsent(actor: AcademyActor, input: LearnerConsentRevocationInput) {
+    this.assertSameTenant(actor, input.tenantId, "Forbidden learner intelligence consent write.");
+    if (actor.userId !== input.learnerId) {
+      throw new Error("Forbidden learner intelligence consent write.");
+    }
+
+    const consentVersion = input.consentVersion.trim();
+    const reason = input.reason.trim();
+    if (!consentVersion) {
+      throw new Error("consentVersion is required.");
+    }
+    if (!reason) {
+      throw new Error("reason is required.");
+    }
+    if (reason.length > 500) {
+      throw new Error("reason must be 500 characters or fewer.");
+    }
+
+    return this.repository.revokeConsent({
+      tenantId: input.tenantId,
+      learnerId: input.learnerId,
+      consentVersion,
+      reason,
+    });
   }
 
   async writeMemoryEntry(actor: AcademyActor, input: LearnerMemoryEntryInput) {
@@ -189,4 +235,14 @@ export class LearnerIntelligenceService {
       throw new Error(errorMessage);
     }
   }
+
+  private assertConsentReadAccess(actor: AcademyActor, tenantId: string, learnerId: string) {
+    this.assertSameTenant(actor, tenantId, "Forbidden learner intelligence consent read.");
+    const canReadOwnConsent = actor.userId === learnerId;
+    const canReadAsStaff = actor.roles.some((role) => consentReadRoles.has(role));
+    if (!canReadOwnConsent && !canReadAsStaff) {
+      throw new Error("Forbidden learner intelligence consent read.");
+    }
+  }
+
 }
