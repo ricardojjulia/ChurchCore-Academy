@@ -1,3 +1,6 @@
+create unique index if not exists academy_course_sections_tenant_id_idx
+  on public.academy_course_sections (tenant_id, id);
+
 create table if not exists public.academy_course_section_registrations (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles (tenant_id) on delete restrict,

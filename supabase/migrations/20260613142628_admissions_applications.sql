@@ -1,13 +1,13 @@
-create unique index academy_people_tenant_id_idx
+create unique index if not exists academy_people_tenant_id_idx
   on public.academy_people (tenant_id, id);
 
-create unique index academy_programs_tenant_id_idx
+create unique index if not exists academy_programs_tenant_id_idx
   on public.academy_programs (tenant_id, id);
 
-create unique index academy_academic_periods_tenant_id_idx
+create unique index if not exists academy_academic_periods_tenant_id_idx
   on public.academy_academic_periods (tenant_id, id);
 
-create table public.academy_admission_applications (
+create table if not exists public.academy_admission_applications (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete restrict,
   applicant_person_id text not null,
@@ -38,10 +38,10 @@ create table public.academy_admission_applications (
     references public.academy_people (tenant_id, id) on delete restrict
 );
 
-create index academy_admission_applications_tenant_status_idx
+create index if not exists academy_admission_applications_tenant_status_idx
   on public.academy_admission_applications (tenant_id, status, updated_at desc);
 
-create index academy_admission_applications_applicant_idx
+create index if not exists academy_admission_applications_applicant_idx
   on public.academy_admission_applications (tenant_id, applicant_person_id, created_at desc);
 
 create or replace function public.academy_enforce_admission_application_transition()
@@ -97,11 +97,14 @@ begin
 end;
 $$;
 
+drop trigger if exists academy_admission_application_transition
+on public.academy_admission_applications;
+
 create trigger academy_admission_application_transition
 before insert or update on public.academy_admission_applications
 for each row execute function public.academy_enforce_admission_application_transition();
 
-create table public.academy_admission_application_events (
+create table if not exists public.academy_admission_application_events (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete restrict,
   application_id uuid not null,
@@ -121,7 +124,7 @@ create table public.academy_admission_application_events (
     references public.academy_people (tenant_id, id) on delete restrict
 );
 
-create index academy_admission_events_application_time_idx
+create index if not exists academy_admission_events_application_time_idx
   on public.academy_admission_application_events (tenant_id, application_id, occurred_at);
 
 create or replace function public.academy_reject_admission_event_mutation()
@@ -134,6 +137,9 @@ begin
 end;
 $$;
 
+drop trigger if exists academy_admission_events_immutable
+on public.academy_admission_application_events;
+
 create trigger academy_admission_events_immutable
 before update or delete on public.academy_admission_application_events
 for each row execute function public.academy_reject_admission_event_mutation();
@@ -142,6 +148,9 @@ alter table public.academy_admission_applications enable row level security;
 alter table public.academy_admission_applications force row level security;
 alter table public.academy_admission_application_events enable row level security;
 alter table public.academy_admission_application_events force row level security;
+
+drop policy if exists academy_admission_applicant_read
+on public.academy_admission_applications;
 
 create policy academy_admission_applicant_read
 on public.academy_admission_applications
@@ -155,6 +164,9 @@ using (
   )
 );
 
+drop policy if exists academy_admission_staff_read
+on public.academy_admission_applications;
+
 create policy academy_admission_staff_read
 on public.academy_admission_applications
 for select
@@ -164,6 +176,9 @@ using (
     array['institution_admin', 'dean', 'registrar', 'admissions']
   )
 );
+
+drop policy if exists academy_admission_applicant_create
+on public.academy_admission_applications;
 
 create policy academy_admission_applicant_create
 on public.academy_admission_applications
@@ -177,6 +192,9 @@ with check (
   )
   and status = 'draft'
 );
+
+drop policy if exists academy_admission_staff_write
+on public.academy_admission_applications;
 
 create policy academy_admission_staff_write
 on public.academy_admission_applications
@@ -193,6 +211,9 @@ with check (
     array['institution_admin', 'dean', 'registrar', 'admissions']
   )
 );
+
+drop policy if exists academy_admission_applicant_update
+on public.academy_admission_applications;
 
 create policy academy_admission_applicant_update
 on public.academy_admission_applications
@@ -215,6 +236,9 @@ with check (
   )
   and status in ('draft', 'submitted', 'withdrawn')
 );
+
+drop policy if exists academy_admission_event_read
+on public.academy_admission_application_events;
 
 create policy academy_admission_event_read
 on public.academy_admission_application_events
@@ -240,6 +264,9 @@ using (
       )
   )
 );
+
+drop policy if exists academy_admission_event_insert
+on public.academy_admission_application_events;
 
 create policy academy_admission_event_insert
 on public.academy_admission_application_events
