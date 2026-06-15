@@ -47,39 +47,115 @@ export function LoginForm({ nextPath }: LoginFormProps) {
     router.refresh();
   }
 
-  return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[linear-gradient(130deg,#edf2f8_0%,#d6e0ea_45%,#c4d0de_100%)] px-4 py-8">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(115deg,rgba(255,255,255,0.24)_0px,rgba(255,255,255,0.24)_1px,rgba(255,255,255,0)_1px,rgba(255,255,255,0)_12px)] opacity-45" />
-        <div className="absolute left-[-10rem] top-[-8rem] h-80 w-80 rounded-full bg-white/30 blur-3xl" />
-        <div className="absolute bottom-[-9rem] right-[-8rem] h-96 w-96 rounded-full bg-slate-100/55 blur-3xl" />
-      </div>
+  const shellStyle = {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    padding: "2rem 1rem",
+    background:
+      "linear-gradient(140deg, #edf2f8 0%, #d7e1ec 48%, #c5d1de 100%)",
+  } as const;
 
-      <div className="relative z-10 w-full max-w-md">
-        <Card className="w-full rounded-3xl border-slate-300/70 bg-[linear-gradient(160deg,rgba(252,253,255,0.96)_0%,rgba(233,239,247,0.94)_100%)] shadow-[0_34px_90px_-26px_rgba(15,23,42,0.35)] backdrop-blur">
-          <CardHeader className="space-y-4 pb-4 text-center">
-            <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-300/80 bg-slate-100/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">
-              <Sparkles className="h-3.5 w-3.5" />
+  const frameStyle = {
+    width: "100%",
+    maxWidth: "32rem",
+    position: "relative",
+    zIndex: 1,
+  } as const;
+
+  const cardStyle = {
+    borderRadius: "1.6rem",
+    border: "1px solid rgba(100, 116, 139, 0.34)",
+    background:
+      "linear-gradient(165deg, rgba(252,253,255,0.97), rgba(233,239,247,0.94))",
+    boxShadow:
+      "0 34px 90px -26px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.7)",
+  } as const;
+
+  const backLinkStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.5rem",
+    minHeight: "2.6rem",
+    borderRadius: "0.75rem",
+    border: "1px solid rgba(100,116,139,0.45)",
+    background: "rgba(255,255,255,0.7)",
+    color: "#334155",
+    fontSize: "0.9rem",
+    fontWeight: 600,
+    textDecoration: "none",
+  } as const;
+
+  return (
+    <main style={shellStyle}>
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "repeating-linear-gradient(115deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 1px, rgba(255,255,255,0) 1px, rgba(255,255,255,0) 12px)",
+          opacity: 0.45,
+        }}
+      />
+
+      <div style={frameStyle}>
+        <Card style={cardStyle}>
+          <CardHeader style={{ textAlign: "center", paddingBottom: "0.4rem" }}>
+            <p
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                margin: "0 auto",
+                borderRadius: "999px",
+                border: "1px solid rgba(100,116,139,0.42)",
+                background: "rgba(241,245,249,0.88)",
+                padding: "0.25rem 0.7rem",
+                fontSize: "0.7rem",
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "#334155",
+              }}
+            >
+              <Sparkles size={14} />
               ChurchCore Academy
             </p>
 
-            <CardTitle className="text-3xl font-bold leading-tight text-slate-900 sm:text-[2.05rem]">
+            <CardTitle style={{ marginTop: "0.9rem", fontSize: "2rem", lineHeight: 1.1, color: "#0f172a" }}>
               Welcome back
             </CardTitle>
 
-            <CardDescription className="mx-auto max-w-md text-sm text-slate-600 sm:text-base">
+            <CardDescription style={{ marginTop: "0.45rem", maxWidth: "26rem", marginInline: "auto", color: "#5b6b7f" }}>
               Sign in to access your Academy workspace and continue serving students with clarity and care.
             </CardDescription>
 
-            <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-300/70 bg-white/70 px-3 py-1 text-xs font-medium text-slate-600">
-              <Shield className="h-3.5 w-3.5" />
+            <p
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                margin: "0.9rem auto 0",
+                borderRadius: "999px",
+                border: "1px solid rgba(100,116,139,0.36)",
+                background: "rgba(255,255,255,0.76)",
+                padding: "0.3rem 0.8rem",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                color: "#465a71",
+              }}
+            >
+              <Shield size={14} />
               Secure tenant-aware access
             </p>
           </CardHeader>
 
           <CardContent>
-            <form className="grid gap-5" onSubmit={onSubmit}>
-              <label className="grid gap-2 text-sm font-semibold text-slate-700">
+            <form style={{ display: "grid", gap: "1.1rem" }} onSubmit={onSubmit}>
+              <label style={{ display: "grid", gap: "0.45rem", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>
                 Email
                 <Input
                   type="email"
@@ -87,10 +163,10 @@ export function LoginForm({ nextPath }: LoginFormProps) {
                   autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.currentTarget.value)}
-                  className="h-11 border-slate-300/80 bg-white/85"
+                  style={{ height: "2.9rem" }}
                 />
               </label>
-              <label className="grid gap-2 text-sm font-semibold text-slate-700">
+              <label style={{ display: "grid", gap: "0.45rem", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>
                 Password
                 <Input
                   type="password"
@@ -98,36 +174,38 @@ export function LoginForm({ nextPath }: LoginFormProps) {
                   autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.currentTarget.value)}
-                  className="h-11 border-slate-300/80 bg-white/85"
+                  style={{ height: "2.9rem" }}
                 />
               </label>
 
               {error ? (
-                <p className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  <AlertCircle className="h-4 w-4" />
+                <p style={{ display: "flex", alignItems: "center", gap: "0.5rem", borderRadius: "0.6rem", border: "1px solid #efb8b8", background: "#fdf0f0", padding: "0.6rem 0.75rem", fontSize: "0.9rem", color: "#8a2b2b" }}>
+                  <AlertCircle size={16} />
                   {error}
                 </p>
               ) : null}
 
-              <div className="grid gap-3 pt-1">
+              <div style={{ display: "grid", gap: "0.7rem", paddingTop: "0.3rem" }}>
                 <Button
                   type="submit"
                   size="lg"
                   loading={loading}
-                  className="h-11 border border-slate-400/60 bg-[linear-gradient(165deg,#7c8797_0%,#5b6471_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
+                  style={{
+                    height: "2.9rem",
+                    border: "1px solid rgba(95,108,126,0.65)",
+                    background: "linear-gradient(165deg, #7c8797 0%, #5b6471 100%)",
+                    color: "#fff",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
+                    fontWeight: 700,
+                  }}
                 >
                   <KeyRound />
                   Log in
                 </Button>
-                <Button
-                  size="default"
-                  variant="outline"
-                  render={<Link href="/" />}
-                  className="h-10 border-slate-400/70 bg-white/60 text-slate-700"
-                >
+                <Link href="/" style={backLinkStyle}>
                   Back to Dashboard
                   <ArrowRight />
-                </Button>
+                </Link>
               </div>
             </form>
           </CardContent>
