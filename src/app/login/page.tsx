@@ -4,7 +4,7 @@ function sanitizeNextPath(raw: string | string[] | undefined) {
   const value = Array.isArray(raw) ? raw[0] : raw;
 
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return "/hq";
+    return "/";
   }
 
   return value;
