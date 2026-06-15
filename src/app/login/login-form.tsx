@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, GraduationCap, KeyRound, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,6 +25,15 @@ export function LoginForm() {
 
     setLoading(true);
     setError(null);
+
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch (clientError) {
+      setError(clientError instanceof Error ? clientError.message : "Authentication is not configured.");
+      setLoading(false);
+      return;
+    }
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
