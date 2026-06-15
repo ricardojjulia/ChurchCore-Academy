@@ -31,13 +31,15 @@ create index if not exists idx_hq_sessions_created on public.hq_sessions(created
 alter table public.hq_sessions enable row level security;
 alter table public.hq_sessions force row level security;
 
-create policy if not exists "hq_sessions: users manage own"
+drop policy if exists "hq_sessions: users manage own" on public.hq_sessions;
+create policy "hq_sessions: users manage own"
   on public.hq_sessions
   for all
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
-create policy if not exists "hq_sessions: admins read all"
+drop policy if exists "hq_sessions: admins read all" on public.hq_sessions;
+create policy "hq_sessions: admins read all"
   on public.hq_sessions
   for select
   using (public.current_user_role() = 'admin');
@@ -57,23 +59,27 @@ create table if not exists public.hq_tasks (
 alter table public.hq_tasks enable row level security;
 alter table public.hq_tasks force row level security;
 
-create policy if not exists "hq_tasks: staff read all"
+drop policy if exists "hq_tasks: staff read all" on public.hq_tasks;
+create policy "hq_tasks: staff read all"
   on public.hq_tasks
   for select to authenticated
   using (public.current_user_role() in ('admin','manager','teacher'));
 
-create policy if not exists "hq_tasks: managers+ write"
+drop policy if exists "hq_tasks: managers+ write" on public.hq_tasks;
+create policy "hq_tasks: managers+ write"
   on public.hq_tasks
   for insert to authenticated
   with check (public.current_user_role() in ('admin','manager'));
 
-create policy if not exists "hq_tasks: managers+ update"
+drop policy if exists "hq_tasks: managers+ update" on public.hq_tasks;
+create policy "hq_tasks: managers+ update"
   on public.hq_tasks
   for update to authenticated
   using (public.current_user_role() in ('admin','manager'))
   with check (public.current_user_role() in ('admin','manager'));
 
-create policy if not exists "hq_tasks: admins delete"
+drop policy if exists "hq_tasks: admins delete" on public.hq_tasks;
+create policy "hq_tasks: admins delete"
   on public.hq_tasks
   for delete to authenticated
   using (public.current_user_role() = 'admin');
@@ -92,23 +98,27 @@ create table if not exists public.hq_risks (
 alter table public.hq_risks enable row level security;
 alter table public.hq_risks force row level security;
 
-create policy if not exists "hq_risks: staff read all"
+drop policy if exists "hq_risks: staff read all" on public.hq_risks;
+create policy "hq_risks: staff read all"
   on public.hq_risks
   for select to authenticated
   using (public.current_user_role() in ('admin','manager','teacher'));
 
-create policy if not exists "hq_risks: managers+ write"
+drop policy if exists "hq_risks: managers+ write" on public.hq_risks;
+create policy "hq_risks: managers+ write"
   on public.hq_risks
   for insert to authenticated
   with check (public.current_user_role() in ('admin','manager'));
 
-create policy if not exists "hq_risks: managers+ update"
+drop policy if exists "hq_risks: managers+ update" on public.hq_risks;
+create policy "hq_risks: managers+ update"
   on public.hq_risks
   for update to authenticated
   using (public.current_user_role() in ('admin','manager'))
   with check (public.current_user_role() in ('admin','manager'));
 
-create policy if not exists "hq_risks: admins delete"
+drop policy if exists "hq_risks: admins delete" on public.hq_risks;
+create policy "hq_risks: admins delete"
   on public.hq_risks
   for delete to authenticated
   using (public.current_user_role() = 'admin');
@@ -126,23 +136,27 @@ create table if not exists public.hq_decisions (
 alter table public.hq_decisions enable row level security;
 alter table public.hq_decisions force row level security;
 
-create policy if not exists "hq_decisions: staff read all"
+drop policy if exists "hq_decisions: staff read all" on public.hq_decisions;
+create policy "hq_decisions: staff read all"
   on public.hq_decisions
   for select to authenticated
   using (public.current_user_role() in ('admin','manager','teacher'));
 
-create policy if not exists "hq_decisions: managers+ write"
+drop policy if exists "hq_decisions: managers+ write" on public.hq_decisions;
+create policy "hq_decisions: managers+ write"
   on public.hq_decisions
   for insert to authenticated
   with check (public.current_user_role() in ('admin','manager'));
 
-create policy if not exists "hq_decisions: managers+ update"
+drop policy if exists "hq_decisions: managers+ update" on public.hq_decisions;
+create policy "hq_decisions: managers+ update"
   on public.hq_decisions
   for update to authenticated
   using (public.current_user_role() in ('admin','manager'))
   with check (public.current_user_role() in ('admin','manager'));
 
-create policy if not exists "hq_decisions: admins delete"
+drop policy if exists "hq_decisions: admins delete" on public.hq_decisions;
+create policy "hq_decisions: admins delete"
   on public.hq_decisions
   for delete to authenticated
   using (public.current_user_role() = 'admin');
