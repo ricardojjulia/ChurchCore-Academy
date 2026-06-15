@@ -4,6 +4,9 @@ import { PostgresAcademyIdentityRepository } from "@/modules/academy-auth/postgr
 import { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 import {
   AcademyIdentityRepository,
+  PlatformSession,
+  PlatformSessionRepository,
+  resolvePlatformSession,
   resolveAcademyIdentity,
 } from "@/modules/academy-auth/session-resolver";
 
@@ -89,8 +92,33 @@ interface SessionUserReader {
 export interface ResolveAcademyActorDependencies {
   sessionClient?: SessionUserReader;
   identityRepository?: AcademyIdentityRepository;
+  platformSessionRepository?: PlatformSessionRepository;
   now?: string;
   environment?: NodeJS.ProcessEnv;
+  preferredTenantId?: string;
+  demoTenantId?: string;
+}
+
+export async function resolvePlatformSessionForServerComponent(
+  dependencies: ResolveAcademyActorDependencies = {},
+): Promise<PlatformSession> {
+  const sessionClient = dependencies.sessionClient ?? (await createClient());
+  const { data, error } = await sessionClient.auth.getUser();
+
+  if (error || !data.user) {
+    throw new AcademyAuthenticationError();
+  }
+
+  return resolvePlatformSession(
+    dependencies.platformSessionRepository ??
+      new PostgresAcademyIdentityRepository(),
+    data.user.id,
+    {
+      asOf: dependencies.now,
+      preferredTenantId: dependencies.preferredTenantId,
+      demoTenantId: dependencies.demoTenantId ?? "cca-main",
+    },
+  );
 }
 
 export async function resolveAcademyActorForServerComponent(
