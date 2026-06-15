@@ -9,7 +9,7 @@ import { DemoAppErrorBoundary } from "@/components/demo-error-boundary";
 import { DemoSessionProvider } from "@/components/demo-session-provider";
 
 const theme = createTheme({
-  primaryColor: "indigo",
+  primaryColor: "gray",
   defaultRadius: "md",
   fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
   headings: {
@@ -20,11 +20,12 @@ const theme = createTheme({
     Button: {
       defaultProps: {
         size: "xs",
+        radius: "xl",
       },
     },
     Card: {
       defaultProps: {
-        radius: "md",
+        radius: "lg",
         withBorder: true,
       },
     },
