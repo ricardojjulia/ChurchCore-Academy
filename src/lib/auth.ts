@@ -20,7 +20,7 @@ interface SessionUserRecord {
 
 interface PlatformSessionLike {
   platformRoles: string[];
-  activeTenant: {
+  activeTenant?: {
     tenantId: string;
     roles: string[];
   };
@@ -30,7 +30,7 @@ export function buildUserSession(
   user: SessionUserRecord,
   platformSession?: PlatformSessionLike | null,
 ): UserSession {
-  const activeTenantRole = platformSession?.activeTenant.roles[0] ?? null;
+  const activeTenantRole = platformSession?.activeTenant?.roles[0] ?? null;
   const metadataRole = (user.user_metadata?.role as string) || null;
   const metadataTenantId = (user.user_metadata?.tenant_id as string) || null;
 
@@ -38,7 +38,7 @@ export function buildUserSession(
     id: user.id,
     email: user.email || null,
     role: activeTenantRole ?? metadataRole,
-    tenantId: platformSession?.activeTenant.tenantId ?? metadataTenantId,
+    tenantId: platformSession?.activeTenant?.tenantId ?? metadataTenantId,
     platformRoles: platformSession?.platformRoles ?? [],
   };
 }

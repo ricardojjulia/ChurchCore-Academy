@@ -104,15 +104,11 @@ export class PostgresAcademyIdentityRepository
     try {
       const result = await this.database.query(
         `select distinct assignment.role
-         from academy_account_links account
-         join academy_platform_role_assignments assignment
-           on assignment.external_subject = account.external_subject
-          and assignment.status = 'active'
-          and (assignment.starts_on is null or assignment.starts_on <= $2::timestamptz::date)
-          and (assignment.ends_on is null or assignment.ends_on >= $2::timestamptz::date)
-         where account.provider = 'supabase'
-           and account.external_subject = $1
-           and account.status = 'active'`,
+         from academy_platform_role_assignments assignment
+         where assignment.external_subject = $1
+           and assignment.status = 'active'
+           and (assignment.starts_on is null or assignment.starts_on <= $2::timestamptz::date)
+           and (assignment.ends_on is null or assignment.ends_on >= $2::timestamptz::date)`,
         [externalSubject, asOf],
       );
 
@@ -123,6 +119,28 @@ export class PostgresAcademyIdentityRepository
       const message = error instanceof Error ? error.message : "";
       if (message.includes("academy_platform_role_assignments")) {
         return [];
+      }
+      throw error;
+    }
+  }
+
+  async findPreferredTenantId(
+    externalSubject: string,
+  ): Promise<string | undefined> {
+    try {
+      const result = await this.database.query(
+        `select preference.active_tenant_id as tenant_id
+         from academy_platform_user_preferences preference
+         where preference.external_subject = $1`,
+        [externalSubject],
+      );
+
+      const row = (result.rows as Array<{ tenant_id?: string }>)[0];
+      return row?.tenant_id;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("academy_platform_user_preferences")) {
+        return undefined;
       }
       throw error;
     }

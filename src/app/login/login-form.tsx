@@ -3,17 +3,12 @@
 import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowRight, KeyRound, Shield, Sparkles } from "lucide-react";
+import { AlertCircle, ArrowRight, GraduationCap, KeyRound, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 
-interface LoginFormProps {
-  nextPath: string;
-}
-
-export function LoginForm({ nextPath }: LoginFormProps) {
+export function LoginForm() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -43,174 +38,83 @@ export function LoginForm({ nextPath }: LoginFormProps) {
       return;
     }
 
-    router.push(nextPath);
+    router.push("/");
     router.refresh();
   }
 
-  const shellStyle = {
-    minHeight: "100vh",
-    display: "grid",
-    placeItems: "center",
-    padding: "2rem 1rem",
-    background:
-      "linear-gradient(140deg, #edf2f8 0%, #d7e1ec 48%, #c5d1de 100%)",
-  } as const;
-
-  const frameStyle = {
-    width: "100%",
-    maxWidth: "32rem",
-    position: "relative",
-    zIndex: 1,
-  } as const;
-
-  const cardStyle = {
-    borderRadius: "1.6rem",
-    border: "1px solid rgba(100, 116, 139, 0.34)",
-    background:
-      "linear-gradient(165deg, rgba(252,253,255,0.97), rgba(233,239,247,0.94))",
-    boxShadow:
-      "0 34px 90px -26px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.7)",
-  } as const;
-
-  const backLinkStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "0.5rem",
-    minHeight: "2.6rem",
-    borderRadius: "0.75rem",
-    border: "1px solid rgba(100,116,139,0.45)",
-    background: "rgba(255,255,255,0.7)",
-    color: "#334155",
-    fontSize: "0.9rem",
-    fontWeight: 600,
-    textDecoration: "none",
-  } as const;
-
   return (
-    <main style={shellStyle}>
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#071426] px-4 py-10 text-slate-950">
       <div
         aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none",
-          background:
-            "repeating-linear-gradient(115deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 1px, rgba(255,255,255,0) 1px, rgba(255,255,255,0) 12px)",
-          opacity: 0.45,
-        }}
+        className="absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(74,144,226,0.32),transparent_34%),radial-gradient(circle_at_86%_84%,rgba(25,132,148,0.28),transparent_38%),linear-gradient(145deg,#071426_0%,#102642_54%,#12334d_100%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 opacity-35 [background-image:repeating-linear-gradient(115deg,rgba(148,190,233,0.22)_0,rgba(148,190,233,0.22)_1px,transparent_1px,transparent_14px)]"
       />
 
-      <div style={frameStyle}>
-        <Card style={cardStyle}>
-          <CardHeader style={{ textAlign: "center", paddingBottom: "0.4rem" }}>
-            <p
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                margin: "0 auto",
-                borderRadius: "999px",
-                border: "1px solid rgba(100,116,139,0.42)",
-                background: "rgba(241,245,249,0.88)",
-                padding: "0.25rem 0.7rem",
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                color: "#334155",
-              }}
-            >
-              <Sparkles size={14} />
-              ChurchCore Academy
+      <section className="relative z-10 w-full max-w-md rounded-[1.75rem] border border-white/35 bg-white/95 p-8 shadow-[0_34px_90px_-30px_rgba(0,0,0,0.72)] backdrop-blur">
+        <div className="mb-7 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#123c69] text-white shadow-lg shadow-blue-950/20">
+            <GraduationCap className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#2c5d8e]">ChurchCore Academy</p>
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#102f4b]">Welcome back</h1>
+          <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-slate-600">
+            Sign in to access your Academy workspace and continue serving students with clarity and care.
+          </p>
+          <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-[#24527f]">
+            <Shield className="h-3.5 w-3.5" aria-hidden="true" />
+            Secure tenant-aware access
+          </div>
+        </div>
+
+        <form className="grid gap-4" onSubmit={onSubmit}>
+          <label className="grid gap-2 text-sm font-semibold text-[#1f456d]">
+            Email
+            <Input
+              className="h-12 rounded-xl border-slate-200 bg-white text-base shadow-inner shadow-slate-100"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.currentTarget.value)}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-[#1f456d]">
+            Password
+            <Input
+              className="h-12 rounded-xl border-slate-200 bg-white text-base shadow-inner shadow-slate-100"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.currentTarget.value)}
+            />
+          </label>
+
+          {error ? (
+            <p className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+              <AlertCircle className="h-4 w-4 flex-none" />
+              {error}
             </p>
+          ) : null}
 
-            <CardTitle style={{ marginTop: "0.9rem", fontSize: "2rem", lineHeight: 1.1, color: "#0f172a" }}>
-              Welcome back
-            </CardTitle>
-
-            <CardDescription style={{ marginTop: "0.45rem", maxWidth: "26rem", marginInline: "auto", color: "#5b6b7f" }}>
-              Sign in to access your Academy workspace and continue serving students with clarity and care.
-            </CardDescription>
-
-            <p
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                margin: "0.9rem auto 0",
-                borderRadius: "999px",
-                border: "1px solid rgba(100,116,139,0.36)",
-                background: "rgba(255,255,255,0.76)",
-                padding: "0.3rem 0.8rem",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                color: "#465a71",
-              }}
+          <div className="grid gap-3 pt-2">
+            <Button type="submit" size="lg" loading={loading} className="h-12 rounded-xl bg-[#2763a6] text-base shadow-lg shadow-blue-900/20 hover:bg-[#1f548f]">
+              <KeyRound className="h-5 w-5" />
+              Log in
+            </Button>
+            <Link
+              href="/"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 text-sm font-semibold text-[#1a3d61] transition-colors hover:bg-blue-100"
             >
-              <Shield size={14} />
-              Secure tenant-aware access
-            </p>
-          </CardHeader>
-
-          <CardContent>
-            <form style={{ display: "grid", gap: "1.1rem" }} onSubmit={onSubmit}>
-              <label style={{ display: "grid", gap: "0.45rem", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>
-                Email
-                <Input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.currentTarget.value)}
-                  style={{ height: "2.9rem" }}
-                />
-              </label>
-              <label style={{ display: "grid", gap: "0.45rem", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>
-                Password
-                <Input
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.currentTarget.value)}
-                  style={{ height: "2.9rem" }}
-                />
-              </label>
-
-              {error ? (
-                <p style={{ display: "flex", alignItems: "center", gap: "0.5rem", borderRadius: "0.6rem", border: "1px solid #efb8b8", background: "#fdf0f0", padding: "0.6rem 0.75rem", fontSize: "0.9rem", color: "#8a2b2b" }}>
-                  <AlertCircle size={16} />
-                  {error}
-                </p>
-              ) : null}
-
-              <div style={{ display: "grid", gap: "0.7rem", paddingTop: "0.3rem" }}>
-                <Button
-                  type="submit"
-                  size="lg"
-                  loading={loading}
-                  style={{
-                    height: "2.9rem",
-                    border: "1px solid rgba(95,108,126,0.65)",
-                    background: "linear-gradient(165deg, #7c8797 0%, #5b6471 100%)",
-                    color: "#fff",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
-                    fontWeight: 700,
-                  }}
-                >
-                  <KeyRound />
-                  Log in
-                </Button>
-                <Link href="/" style={backLinkStyle}>
-                  Back to Dashboard
-                  <ArrowRight />
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+              Back to Dashboard
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </form>
+      </section>
     </main>
   );
 }

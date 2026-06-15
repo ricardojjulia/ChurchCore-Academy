@@ -2,11 +2,43 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
+function getUpstreamErrorMessage(data: unknown) {
+  if (!data || typeof data !== "object") {
+    return "AI request failed.";
+  }
+
+  const error = (data as { error?: unknown }).error;
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+
+  const message = (data as { message?: unknown }).message;
+  if (typeof message === "string" && message.length > 0) {
+    return message;
+  }
+
+  return "AI request failed.";
+}
+
 export async function POST(request: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
-    return Response.json({ error: "ANTHROPIC_API_KEY is not configured." }, { status: 500 });
+    return Response.json(
+      { error: "AI council is unavailable in this environment." },
+      {
+        status: 503,
+        headers: { "x-ai-error-message": "AI council is unavailable in this environment." },
+      },
+    );
   }
 
   const body = await request.json();
@@ -35,5 +67,16 @@ export async function POST(request: NextRequest) {
   }
 
   const data = await upstream.json();
+  if (!upstream.ok) {
+    const message = getUpstreamErrorMessage(data);
+    return Response.json(
+      { error: message },
+      {
+        status: upstream.status,
+        headers: { "x-ai-error-message": message },
+      },
+    );
+  }
+
   return Response.json(data, { status: upstream.status });
 }

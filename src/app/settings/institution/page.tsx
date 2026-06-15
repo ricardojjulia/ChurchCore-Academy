@@ -32,8 +32,8 @@ export default async function InstitutionSettingsPage() {
                 <Building2 />
               </div>
               <div>
-                <CardTitle>Institution Profile</CardTitle>
-                <CardDescription>Tenant identity and supported faith-based education modes.</CardDescription>
+                <CardTitle className="text-lg font-bold text-foreground">Institution Profile</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">Tenant identity and supported faith-based education modes.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -58,8 +58,8 @@ export default async function InstitutionSettingsPage() {
                 <GraduationCap />
               </div>
               <div>
-                <CardTitle>Operating Rules</CardTitle>
-                <CardDescription>Academic-year, record, guardian, credit, and transcript behavior.</CardDescription>
+                <CardTitle className="text-lg font-bold text-foreground">Operating Rules</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">Academic-year, record, guardian, credit, and transcript behavior.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -77,8 +77,8 @@ export default async function InstitutionSettingsPage() {
                 <BookOpenCheck />
               </div>
               <div>
-                <CardTitle>Enabled Capabilities</CardTitle>
-                <CardDescription>Portals, registrar workflows, graduation workflows, and ShepherdAI support.</CardDescription>
+                <CardTitle className="text-lg font-bold text-foreground">Enabled Capabilities</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">Portals, registrar workflows, graduation workflows, and ShepherdAI support.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -98,8 +98,8 @@ export default async function InstitutionSettingsPage() {
                 <PlugZap />
               </div>
               <div>
-                <CardTitle>LMS Preference</CardTitle>
-                <CardDescription>Provider-neutral posture for no-LMS, Moodle, and Canvas planning.</CardDescription>
+                <CardTitle className="text-lg font-bold text-foreground">LMS Preference</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">Provider-neutral posture for no-LMS, Moodle, and Canvas planning.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -117,8 +117,8 @@ export default async function InstitutionSettingsPage() {
                 {model.validation.length === 0 ? <CheckCircle2 /> : <AlertTriangle />}
               </div>
               <div>
-                <CardTitle>Validation Review</CardTitle>
-                <CardDescription>Configuration checks from the Academy institution profile validator.</CardDescription>
+                <CardTitle className="text-lg font-bold text-foreground">Validation Review</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">Configuration checks from the Academy institution profile validator.</CardDescription>
               </div>
             </div>
           </CardHeader>

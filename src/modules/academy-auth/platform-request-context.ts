@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { PostgresAcademyIdentityRepository } from "@/modules/academy-auth/postgres-identity-repository";
 
 const allowedPlatformRoles = new Set(["platform_staff", "platform_admin"]);
 
@@ -25,7 +26,15 @@ export async function resolvePlatformRoles() {
     }
 
     const appMetadataRole = typeof data.user.app_metadata?.role === "string" ? data.user.app_metadata.role : null;
-    return uniqueRoles(parseRoleList(appMetadataRole));
+    const metadataRoles = parseRoleList(appMetadataRole);
+
+    // Prefer persisted platform-role assignments, and merge metadata for backwards compatibility.
+    const repositoryRoles = await new PostgresAcademyIdentityRepository().findPlatformRoles(
+      data.user.id,
+      new Date().toISOString(),
+    );
+
+    return uniqueRoles([...repositoryRoles, ...metadataRoles]);
   } catch {
     return [];
   }

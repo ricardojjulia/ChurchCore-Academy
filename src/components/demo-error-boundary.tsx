@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { notifications } from "@mantine/notifications";
 import { Button } from "@/components/ui/button";
 import { useDemoSession } from "@/components/demo-session-provider";
+import { notifyAcademy } from "@/lib/ui/notifications";
 import { reportCapturedDemoError } from "@/modules/demo-feedback/client-reporting";
 
 interface DemoErrorBoundaryState {
@@ -35,8 +35,8 @@ class DemoErrorBoundaryClass extends React.Component<
       return;
     }
 
-    notifications.show({
-      color: "yellow",
+    notifyAcademy({
+      tone: "warning",
       title: "Error captured",
       message: "A demo error was captured for triage.",
     });

@@ -159,23 +159,21 @@ export class AcademyPeopleRepository {
   constructor(private readonly pool: Queryable = getDatabasePool()) {}
 
   async fetchPeopleConfiguration(tenantId: string) {
-    const [institutionProfile, people, roleAssignments, studentProfiles, staffProfiles, relationships, accountLinks] = await Promise.all([
-      this.pool.query(
-        `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
-                capabilities, lms_preference, created_at, updated_at
-         from academy_institution_profiles
-         where tenant_id = $1`,
-        [tenantId],
-      ),
-      this.pool.query("select * from academy_people where tenant_id = $1 order by display_name asc", [tenantId]),
-      this.pool.query("select * from academy_person_role_assignments where tenant_id = $1 order by person_id asc, role asc", [tenantId]),
-      this.pool.query("select * from academy_student_profiles where tenant_id = $1 order by student_number asc", [tenantId]),
-      this.pool.query("select * from academy_staff_profiles where tenant_id = $1 order by staff_number asc", [tenantId]),
-      this.pool.query("select * from academy_student_relationships where tenant_id = $1 order by student_person_id asc, relationship_type asc", [
-        tenantId,
-      ]),
-      this.pool.query("select * from academy_account_links where tenant_id = $1 order by provider asc, external_subject asc", [tenantId]),
+    const institutionProfile = await this.pool.query(
+      `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
+              capabilities, lms_preference, created_at, updated_at
+       from academy_institution_profiles
+       where tenant_id = $1`,
+      [tenantId],
+    );
+    const people = await this.pool.query("select * from academy_people where tenant_id = $1 order by display_name asc", [tenantId]);
+    const roleAssignments = await this.pool.query("select * from academy_person_role_assignments where tenant_id = $1 order by person_id asc, role asc", [tenantId]);
+    const studentProfiles = await this.pool.query("select * from academy_student_profiles where tenant_id = $1 order by student_number asc", [tenantId]);
+    const staffProfiles = await this.pool.query("select * from academy_staff_profiles where tenant_id = $1 order by staff_number asc", [tenantId]);
+    const relationships = await this.pool.query("select * from academy_student_relationships where tenant_id = $1 order by student_person_id asc, relationship_type asc", [
+      tenantId,
     ]);
+    const accountLinks = await this.pool.query("select * from academy_account_links where tenant_id = $1 order by provider asc, external_subject asc", [tenantId]);
 
     if (institutionProfile.rowCount === 0) {
       throw new Error(`Institution profile for tenant ${tenantId} was not found.`);

@@ -28,7 +28,7 @@ interface PlatformSessionRouteDependencies {
       tenantId: string;
       roles: string[];
     }>;
-    activeTenant: {
+    activeTenant?: {
       personId: string;
       tenantId: string;
       roles: string[];

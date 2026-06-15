@@ -172,22 +172,20 @@ export class AcademyGradingRecordsRepository {
   constructor(private readonly pool: Queryable = getDatabasePool()) {}
 
   async fetchGradingRecordsConfiguration(tenantId: string) {
-    const [institutionProfile, gradingProfile, scales, scaleBands, ruleSets, officialRecordRules, standingRules] = await Promise.all([
-      this.pool.query(
-        `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
-                capabilities, lms_preference, created_at, updated_at
-         from academy_institution_profiles
-         where tenant_id = $1`,
-        [tenantId],
-      ),
-      this.pool.query("select * from academy_grading_profiles where tenant_id = $1", [tenantId]),
-      this.pool.query("select * from academy_evaluation_scales where tenant_id = $1 order by scale_type asc, name asc", [tenantId]),
-      this.pool.query("select * from academy_evaluation_scale_bands where tenant_id = $1 order by scale_id asc, sequence asc", [tenantId]),
-      this.pool.query("select * from academy_evaluation_rule_sets where tenant_id = $1 order by course_id asc, record_type asc", [tenantId]),
-      this.pool.query("select * from academy_official_record_rules where tenant_id = $1 order by record_type asc", [tenantId]),
-      this.pool.query("select * from academy_academic_standing_rules where tenant_id = $1 order by standing_type asc, name asc", [
-        tenantId,
-      ]),
+    const institutionProfile = await this.pool.query(
+      `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
+              capabilities, lms_preference, created_at, updated_at
+       from academy_institution_profiles
+       where tenant_id = $1`,
+      [tenantId],
+    );
+    const gradingProfile = await this.pool.query("select * from academy_grading_profiles where tenant_id = $1", [tenantId]);
+    const scales = await this.pool.query("select * from academy_evaluation_scales where tenant_id = $1 order by scale_type asc, name asc", [tenantId]);
+    const scaleBands = await this.pool.query("select * from academy_evaluation_scale_bands where tenant_id = $1 order by scale_id asc, sequence asc", [tenantId]);
+    const ruleSets = await this.pool.query("select * from academy_evaluation_rule_sets where tenant_id = $1 order by course_id asc, record_type asc", [tenantId]);
+    const officialRecordRules = await this.pool.query("select * from academy_official_record_rules where tenant_id = $1 order by record_type asc", [tenantId]);
+    const standingRules = await this.pool.query("select * from academy_academic_standing_rules where tenant_id = $1 order by standing_type asc, name asc", [
+      tenantId,
     ]);
 
     if (institutionProfile.rowCount === 0) {

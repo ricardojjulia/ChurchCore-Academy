@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Modal, Select } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { MessageSquareWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useDemoSession } from "@/components/demo-session-provider";
+import { notifyAcademy } from "@/lib/ui/notifications";
 import { submitDemoFeedback } from "@/modules/demo-feedback/client-reporting";
 import { DemoFeedbackCategory, demoFeedbackCategories } from "@/modules/demo-feedback/types";
 
@@ -34,16 +35,16 @@ export function DemoFeedbackButton() {
       const ok = await submitDemoFeedback(category, session, { note: note.trim() || undefined });
 
       if (!ok) {
-        notifications.show({
-          color: "red",
+        notifyAcademy({
+          tone: "error",
           title: "Unable to submit feedback",
           message: "Your feedback could not be saved. Please try again.",
         });
         return;
       }
 
-      notifications.show({
-        color: "green",
+      notifyAcademy({
+        tone: "success",
         title: "Feedback sent",
         message: "Thank you. Your demo feedback was captured for platform triage.",
       });
@@ -51,8 +52,8 @@ export function DemoFeedbackButton() {
       setCategory(null);
       setNote("");
     } catch {
-      notifications.show({
-        color: "red",
+      notifyAcademy({
+        tone: "error",
         title: "Unable to submit feedback",
         message: "Your feedback could not be saved. Please try again.",
       });
@@ -73,16 +74,19 @@ export function DemoFeedbackButton() {
         Demo Feedback
       </Button>
 
-      <Modal opened={opened} onClose={() => setOpened(false)} title="Demo feedback" centered>
+      <Dialog open={opened} onOpenChange={setOpened}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Demo feedback</DialogTitle>
+          </DialogHeader>
         <div className="demo-feedback-form">
           <Select
             label="Category"
             placeholder="Select feedback category"
             data={categoryOptions}
-            value={category}
-            onChange={(value) => setCategory((value ?? null) as DemoFeedbackCategory | null)}
+            value={category ?? ""}
+            onChange={(value) => setCategory((value || null) as DemoFeedbackCategory | null)}
             required
-            comboboxProps={{ withinPortal: true }}
           />
 
           <label className="demo-feedback-note-label" htmlFor="demo-feedback-note">
@@ -107,7 +111,8 @@ export function DemoFeedbackButton() {
             </Button>
           </div>
         </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -48,3 +48,27 @@ test("buildUserSession falls back to metadata when no platform session exists", 
     platformRoles: [],
   });
 });
+
+test("buildUserSession falls back to metadata when platform session has no active tenant", () => {
+  const session = buildUserSession(
+    {
+      id: "supabase-user-3",
+      email: "platform@example.com",
+      user_metadata: {
+        role: "platform_admin",
+        tenant_id: "cca-main",
+      },
+    },
+    {
+      platformRoles: ["platform_admin"],
+    },
+  );
+
+  assert.deepEqual(session, {
+    id: "supabase-user-3",
+    email: "platform@example.com",
+    role: "platform_admin",
+    tenantId: "cca-main",
+    platformRoles: ["platform_admin"],
+  });
+});

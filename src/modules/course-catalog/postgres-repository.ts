@@ -221,28 +221,25 @@ export class AcademyCourseCatalogRepository {
   constructor(private readonly pool: Queryable = getDatabasePool()) {}
 
   async fetchCourseCatalogConfiguration(tenantId: string) {
-    const [institutionProfile, catalogProfile, academicYears, academicPeriods, subdivisions, courses, sections, prerequisites, lmsMappings] =
-      await Promise.all([
-        this.pool.query(
-          `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
-                  capabilities, lms_preference, created_at, updated_at
-           from academy_institution_profiles
-           where tenant_id = $1`,
-          [tenantId],
-        ),
-        this.pool.query("select * from academy_course_catalog_profiles where tenant_id = $1", [tenantId]),
-        this.pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]),
-        this.pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]),
-        this.pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [
-          tenantId,
-        ]),
-        this.pool.query("select * from academy_courses where tenant_id = $1 order by code asc", [tenantId]),
-        this.pool.query("select * from academy_course_sections where tenant_id = $1 order by section_code asc", [tenantId]),
-        this.pool.query("select * from academy_course_prerequisites where tenant_id = $1 order by course_id asc", [tenantId]),
-        this.pool.query("select * from academy_course_lms_mappings where tenant_id = $1 order by mapping_status asc, provider asc", [
-          tenantId,
-        ]),
-      ]);
+    const institutionProfile = await this.pool.query(
+      `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
+              capabilities, lms_preference, created_at, updated_at
+       from academy_institution_profiles
+       where tenant_id = $1`,
+      [tenantId],
+    );
+    const catalogProfile = await this.pool.query("select * from academy_course_catalog_profiles where tenant_id = $1", [tenantId]);
+    const academicYears = await this.pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]);
+    const academicPeriods = await this.pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]);
+    const subdivisions = await this.pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [
+      tenantId,
+    ]);
+    const courses = await this.pool.query("select * from academy_courses where tenant_id = $1 order by code asc", [tenantId]);
+    const sections = await this.pool.query("select * from academy_course_sections where tenant_id = $1 order by section_code asc", [tenantId]);
+    const prerequisites = await this.pool.query("select * from academy_course_prerequisites where tenant_id = $1 order by course_id asc", [tenantId]);
+    const lmsMappings = await this.pool.query("select * from academy_course_lms_mappings where tenant_id = $1 order by mapping_status asc, provider asc", [
+      tenantId,
+    ]);
 
     if (institutionProfile.rowCount === 0) {
       throw new Error(`Institution profile for tenant ${tenantId} was not found.`);

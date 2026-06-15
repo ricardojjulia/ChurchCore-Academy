@@ -75,3 +75,21 @@ test("platform session route maps authentication failures to 401", async () => {
     error: "Authentication required.",
   });
 });
+
+test("platform session route returns platform roles even without tenant memberships", async () => {
+  const response = await getPlatformSession(
+    new Request("http://localhost/api/platform/session"),
+    {
+      resolveSession: async () => ({
+        platformRoles: ["platform_admin"],
+        tenants: [],
+      }),
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    platformRoles: ["platform_admin"],
+    tenants: [],
+  });
+});

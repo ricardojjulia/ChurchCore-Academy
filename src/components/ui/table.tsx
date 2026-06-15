@@ -1,39 +1,38 @@
 "use client";
 
 import * as React from "react";
-import { Table as MantineTable } from "@mantine/core";
 import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <MantineTable.ScrollContainer minWidth={760}>
-      <MantineTable striped highlightOnHover withTableBorder withColumnBorders={false} className={className} {...props} />
-    </MantineTable.ScrollContainer>
+    <div className="w-full overflow-auto">
+      <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
+    </div>
   );
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <MantineTable.Thead className={className} {...props} />;
+  return <thead className={cn("[&_tr]:border-b", className)} {...props} />;
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
-  return <MantineTable.Tbody className={className} {...props} />;
+  return <tbody className={cn("[&_tr:last-child]:border-0", className)} {...props} />;
 }
 
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
-  return <MantineTable.Tfoot className={className} {...props} />;
+  return <tfoot className={cn("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", className)} {...props} />;
 }
 
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return <MantineTable.Tr className={className} {...props} />;
+  return <tr className={cn("border-b transition-colors hover:bg-muted/50", className)} {...props} />;
 }
 
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return <MantineTable.Th className={cn("mantine-table-head", className)} {...props} />;
+  return <th className={cn("h-11 px-3 text-left align-middle font-semibold text-muted-foreground", className)} {...props} />;
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <MantineTable.Td className={className} {...props} />;
+  return <td className={cn("px-3 py-3 align-middle", className)} {...props} />;
 }
 
 function TableCaption({ className, ...props }: React.ComponentProps<"caption">) {

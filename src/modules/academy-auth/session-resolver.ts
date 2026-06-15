@@ -29,7 +29,7 @@ export interface PlatformSession {
   externalSubject: string;
   platformRoles: PlatformRole[];
   tenants: PlatformTenantMembership[];
-  activeTenant: PlatformTenantMembership;
+  activeTenant?: PlatformTenantMembership;
 }
 
 export interface PlatformSessionRepository extends AcademyIdentityRepository {
@@ -37,6 +37,9 @@ export interface PlatformSessionRepository extends AcademyIdentityRepository {
     externalSubject: string,
     asOf: string,
   ): Promise<PlatformRole[]>;
+  findPreferredTenantId?(
+    externalSubject: string,
+  ): Promise<string | undefined>;
 }
 
 export interface ResolvePlatformSessionOptions {
@@ -97,14 +100,19 @@ export async function resolvePlatformSession(
     (membership) => membership.roles.length > 0,
   );
 
-  if (tenants.length === 0) {
+  if (tenants.length === 0 && platformRoles.length === 0) {
     throw new AcademyAuthenticationError(
       "The account does not have an active Academy tenant.",
     );
   }
 
+  const persistedPreferredTenantId = options.preferredTenantId
+    ? undefined
+    : await repository.findPreferredTenantId?.(externalSubject);
+
   const activeTenant =
     tenants.find((tenant) => tenant.tenantId === options.preferredTenantId) ??
+    tenants.find((tenant) => tenant.tenantId === persistedPreferredTenantId) ??
     tenants.find((tenant) => tenant.tenantId === options.demoTenantId) ??
     tenants[0];
 

@@ -2,23 +2,31 @@ import { jsonError, jsonOk } from "@/app/api/academy/api-utils";
 import { AcademyAuthenticationError } from "@/modules/academy-auth/errors";
 import { resolvePlatformSessionForServerComponent } from "@/modules/academy-auth/request-context";
 import { ACTIVE_TENANT_COOKIE } from "@/app/api/platform/session/route";
+import { PostgresPlatformAdminRepository } from "@/modules/platform-admin/postgres-repository";
+import { PlatformAdminService } from "@/modules/platform-admin/service";
 
 interface SelectTenantRouteDependencies {
   resolveSession(preferredTenantId?: string): Promise<{
+    externalSubject?: string;
     tenants: Array<{
       tenantId: string;
       roles: string[];
     }>;
-    activeTenant: {
+    activeTenant?: {
       tenantId: string;
       roles: string[];
     };
   }>;
+  saveSelection?(externalSubject: string, tenantId: string): Promise<void>;
 }
 
 const dependencies: SelectTenantRouteDependencies = {
   resolveSession: async (preferredTenantId) =>
     resolvePlatformSessionForServerComponent({ preferredTenantId }),
+  saveSelection: async (externalSubject, tenantId) =>
+    new PlatformAdminService(
+      new PostgresPlatformAdminRepository(),
+    ).saveActiveTenantSelection({ externalSubject, tenantId }),
 };
 
 export async function selectPlatformTenant(
@@ -48,6 +56,14 @@ export async function selectPlatformTenant(
     const session = await routeDependencies.resolveSession(tenantId);
     if (!session.tenants.some((tenant) => tenant.tenantId === tenantId)) {
       return jsonError("Forbidden tenant selection.", 403);
+    }
+
+    if (!session.activeTenant || session.activeTenant.tenantId !== tenantId) {
+      return jsonError("Forbidden tenant selection.", 403);
+    }
+
+    if (session.externalSubject && routeDependencies.saveSelection) {
+      await routeDependencies.saveSelection(session.externalSubject, tenantId);
     }
 
     const response = jsonOk({

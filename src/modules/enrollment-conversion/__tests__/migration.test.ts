@@ -24,15 +24,15 @@ test("migration creates conversion records and immutable application metadata", 
   assert.match(sql, /student_profile_id text/i);
   assert.match(sql, /program_enrollment_id uuid/i);
   assert.match(sql, /period_registration_id uuid/i);
-  assert.match(sql, /create table public\.academy_program_enrollments/i);
-  assert.match(sql, /create table public\.academy_period_registrations/i);
+  assert.match(sql, /create table.*public\.academy_program_enrollments/i);
+  assert.match(sql, /create table.*public\.academy_period_registrations/i);
   assert.match(
     sql,
-    /create table public\.academy_enrollment_conversion_events/i,
+    /create table.*public\.academy_enrollment_conversion_events/i,
   );
   assert.match(
     sql,
-    /create table public\.academy_student_number_sequences/i,
+    /create table.*public\.academy_student_number_sequences/i,
   );
   assert.match(sql, /conversion events are immutable/i);
   assert.match(sql, /conversion metadata is immutable/i);

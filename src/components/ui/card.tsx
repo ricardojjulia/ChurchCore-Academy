@@ -1,32 +1,31 @@
 import * as React from "react";
-import { Card as MantineCard, Text, Title } from "@mantine/core";
 import { cn } from "@/lib/utils";
 
 function Card({ className, children, ...props }: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
   return (
-    <MantineCard className={className} shadow="xs" padding="md" {...props}>
+    <div className={cn("rounded-xl border border-border bg-card text-card-foreground shadow-sm", className)} {...props}>
       {children}
-    </MantineCard>
+    </div>
   );
 }
 
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("mantine-card-header", className)} {...props} />;
+  return <div className={cn("flex flex-col gap-1.5 p-6", className)} {...props} />;
 }
 
 function CardTitle({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
-    <Title order={3} className={className} {...props}>
+    <h3 className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props}>
       {children}
-    </Title>
+    </h3>
   );
 }
 
 function CardDescription({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
-    <Text size="sm" c="dimmed" className={className} {...props}>
+    <p className={cn("text-sm text-muted-foreground", className)} {...props}>
       {children}
-    </Text>
+    </p>
   );
 }
 
@@ -35,11 +34,11 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("mantine-card-content", className)} {...props} />;
+  return <div className={cn("p-6 pt-0", className)} {...props} />;
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={className} {...props} />;
+  return <div className={cn("flex items-center p-6 pt-0", className)} {...props} />;
 }
 
 export { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent };

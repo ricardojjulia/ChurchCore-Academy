@@ -196,22 +196,54 @@ test("prefers an explicit tenant selection for platform session resolution", asy
   assert.deepEqual(resolved.activeTenant?.roles, ["registrar"]);
 });
 
-test("rejects platform-admin sessions without any accessible tenant membership", async () => {
-  await assert.rejects(
-    () =>
-      resolvePlatformSession(
-        platformRepository({
-          identities: [],
-          platformRoles: ["platform_admin"],
-        }),
-        "supabase-user-1",
-        {
-          asOf: "2026-06-15T12:00:00.000Z",
-          demoTenantId: "cca-main",
-        },
-      ),
-    /active Academy tenant/,
+test("uses saved preferred tenant when explicit selection is absent", async () => {
+  const resolved = await resolvePlatformSession(
+    {
+      ...platformRepository({
+        identities: [
+          {
+            externalSubject: "supabase-user-1",
+            personId: "person-1",
+            tenantId: "cca-main",
+            roles: ["institution_admin"],
+          },
+          {
+            externalSubject: "supabase-user-1",
+            personId: "person-2",
+            tenantId: "tenant-2",
+            roles: ["registrar"],
+          },
+        ],
+        platformRoles: ["platform_admin"],
+      }),
+      findPreferredTenantId: async () => "tenant-2",
+    },
+    "supabase-user-1",
+    {
+      asOf: "2026-06-15T12:00:00.000Z",
+      demoTenantId: "cca-main",
+    },
   );
+
+  assert.equal(resolved.activeTenant?.tenantId, "tenant-2");
+});
+
+test("allows platform-admin sessions without tenant memberships", async () => {
+  const resolved = await resolvePlatformSession(
+    platformRepository({
+      identities: [],
+      platformRoles: ["platform_admin"],
+    }),
+    "supabase-user-1",
+    {
+      asOf: "2026-06-15T12:00:00.000Z",
+      demoTenantId: "cca-main",
+    },
+  );
+
+  assert.deepEqual(resolved.platformRoles, ["platform_admin"]);
+  assert.deepEqual(resolved.tenants, []);
+  assert.equal(resolved.activeTenant, undefined);
 });
 
 test("does not default a missing role to institution_admin", async () => {
