@@ -9,6 +9,9 @@ import {
 import {
   convertAdmissionApplicationRequest,
 } from "@/app/api/academy/admissions/applications/[id]/convert/route";
+import {
+  confirmEnrollmentRequest,
+} from "@/app/api/academy/admissions/applications/[id]/enrollment-confirmation/route";
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
   requireIdempotencyKey,
@@ -21,6 +24,7 @@ import {
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import { AdmissionApplication } from "@/modules/admissions/types";
 import { EnrollmentConversionResult } from "@/modules/enrollment-conversion/types";
+import { CourseRegistrationResult } from "@/modules/course-registration/types";
 
 const applicant: AcademyActor = {
   userId: "person-applicant",
@@ -336,6 +340,200 @@ test("conversion route returns the safe conversion projection and maps conflicts
       convert: async () => {
         throw new AcademyConflictError(
           "Application was already converted with another idempotency key.",
+        );
+      },
+    },
+  );
+  assert.equal(conflict.status, 409);
+});
+
+test("enrollment confirmation route validates authentication, idempotency key, and payload", async () => {
+  const context = { params: Promise.resolve({ id: "application-1" }) };
+  const registration: CourseRegistrationResult = {
+    registrationId: "registration-1",
+    applicationId: "application-1",
+    studentProfileId: "profile-1",
+    studentPersonId: "person-student",
+    courseSectionId: "section-101-a",
+    programEnrollmentId: "program-enrollment-1",
+    periodRegistrationId: "period-registration-1",
+    registeredAt: "2026-06-14T10:00:00.000Z",
+    confirmedAt: "2026-06-14T10:00:00.000Z",
+    idempotencyKey: "key-confirm-1",
+  };
+
+  const unauthenticated = await confirmEnrollmentRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/enrollment-confirmation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "key-confirm-1",
+        },
+        body: JSON.stringify({ courseSectionId: "section-101-a" }),
+      },
+    ),
+    context,
+    {
+      resolveActor: async () => {
+        throw new AcademyAuthenticationError();
+      },
+      confirm: async () => registration,
+    },
+  );
+  assert.equal(unauthenticated.status, 401);
+
+  const missingKey = await confirmEnrollmentRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/enrollment-confirmation",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ courseSectionId: "section-101-a" }),
+      },
+    ),
+    context,
+    {
+      resolveActor: async () => ({
+        userId: "person-registrar",
+        tenantId: "tenant-1",
+        roles: ["registrar"],
+      }),
+      confirm: async () => registration,
+    },
+  );
+  assert.equal(missingKey.status, 400);
+
+  const malformed = await confirmEnrollmentRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/enrollment-confirmation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "key-confirm-2",
+        },
+        body: JSON.stringify("not-an-object"),
+      },
+    ),
+    context,
+    {
+      resolveActor: async () => ({
+        userId: "person-registrar",
+        tenantId: "tenant-1",
+        roles: ["registrar"],
+      }),
+      confirm: async () => registration,
+    },
+  );
+  assert.equal(malformed.status, 400);
+
+  const invalid = await confirmEnrollmentRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/enrollment-confirmation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "key-confirm-3",
+        },
+        body: JSON.stringify({}),
+      },
+    ),
+    context,
+    {
+      resolveActor: async () => ({
+        userId: "person-registrar",
+        tenantId: "tenant-1",
+        roles: ["registrar"],
+      }),
+      confirm: async () => registration,
+    },
+  );
+  assert.equal(invalid.status, 400);
+});
+
+test("enrollment confirmation route returns safe projection and maps conflicts", async () => {
+  const context = { params: Promise.resolve({ id: "application-1" }) };
+  const actor: AcademyActor = {
+    userId: "person-registrar",
+    tenantId: "tenant-1",
+    roles: ["registrar"],
+  };
+
+  const success = await confirmEnrollmentRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/enrollment-confirmation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "key-confirm-4",
+          "x-correlation-id": "corr-confirm-1",
+        },
+        body: JSON.stringify({
+          courseSectionId: "section-101-a",
+          confirmationNote: "Registrar confirmed placement.",
+        }),
+      },
+    ),
+    context,
+    {
+      resolveActor: async () => actor,
+      confirm: async (receivedActor, input) => {
+        assert.equal(receivedActor, actor);
+        assert.equal(input.applicationId, "application-1");
+        assert.equal(input.courseSectionId, "section-101-a");
+        assert.equal(input.correlationId, "corr-confirm-1");
+        assert.equal(input.idempotencyKey, "key-confirm-4");
+
+        return {
+          registrationId: "registration-1",
+          applicationId: "application-1",
+          studentProfileId: "profile-1",
+          studentPersonId: "person-student",
+          courseSectionId: "section-101-a",
+          programEnrollmentId: "program-enrollment-1",
+          periodRegistrationId: "period-registration-1",
+          registeredAt: "2026-06-14T10:00:00.000Z",
+          confirmedAt: "2026-06-14T10:00:00.000Z",
+          idempotencyKey: "key-confirm-4",
+        };
+      },
+    },
+  );
+  assert.equal(success.status, 200);
+  assert.deepEqual(await success.json(), {
+    applicationId: "application-1",
+    registrationId: "registration-1",
+    studentProfileId: "profile-1",
+    studentPersonId: "person-student",
+    programEnrollmentId: "program-enrollment-1",
+    periodRegistrationId: "period-registration-1",
+    courseSectionId: "section-101-a",
+    registeredAt: "2026-06-14T10:00:00.000Z",
+    confirmedAt: "2026-06-14T10:00:00.000Z",
+  });
+
+  const conflict = await confirmEnrollmentRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/enrollment-confirmation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "key-confirm-5",
+        },
+        body: JSON.stringify({ courseSectionId: "section-101-a" }),
+      },
+    ),
+    context,
+    {
+      resolveActor: async () => actor,
+      confirm: async () => {
+        throw new AcademyConflictError(
+          "Only accepted admissions can register course sections.",
         );
       },
     },

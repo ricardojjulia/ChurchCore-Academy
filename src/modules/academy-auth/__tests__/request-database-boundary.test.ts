@@ -9,6 +9,7 @@ const requestRepositoryRoutes = [
   "src/app/api/academy/admissions/applications/[id]/submit/route.ts",
   "src/app/api/academy/admissions/applications/[id]/decision/route.ts",
   "src/app/api/academy/admissions/applications/[id]/convert/route.ts",
+  "src/app/api/academy/admissions/applications/[id]/enrollment-confirmation/route.ts",
   "src/app/api/academy/learner-intelligence/consent/route.ts",
   "src/app/api/academy/learner-intelligence/events/route.ts",
   "src/app/api/academy/learner-intelligence/interventions/route.ts",

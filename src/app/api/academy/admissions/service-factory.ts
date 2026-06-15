@@ -16,6 +16,11 @@ import {
   PostgresEnrollmentConversionRepository,
 } from "@/modules/enrollment-conversion/postgres-repository";
 import { EnrollmentConversionService } from "@/modules/enrollment-conversion/service";
+import {
+  CourseRegistrationDatabase,
+  PostgresCourseRegistrationRepository,
+} from "@/modules/course-registration/postgres-repository";
+import { CourseRegistrationService } from "@/modules/course-registration/service";
 
 export function createAdmissionsService(client: AcademyQueryClient) {
   return new AdmissionsService(
@@ -37,6 +42,14 @@ export function createEnrollmentConversionService(
     ),
     new PostgresAcademyAuditRepository(
       asAcademyDatabase<AcademyAuditQuery>(client),
+    ),
+  );
+}
+
+export function createCourseRegistrationService(client: AcademyQueryClient) {
+  return new CourseRegistrationService(
+    new PostgresCourseRegistrationRepository(
+      asAcademyDatabase<CourseRegistrationDatabase>(client),
     ),
   );
 }
