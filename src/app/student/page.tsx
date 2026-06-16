@@ -1,13 +1,19 @@
-import { StudentPwaPlaceholder, StudentPwaShell } from "@/components/student-pwa-shell";
+import { StudentDashboardView } from "@/components/student-dashboard-view";
+import { StudentPwaShell } from "@/components/student-pwa-shell";
+import { loadStudentPwaPageModel } from "@/modules/student-pwa/server-read-model";
 
-export default function StudentHomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function StudentHomePage() {
+  const model = await loadStudentPwaPageModel();
+
   return (
     <StudentPwaShell
       activeHref="/student"
       title="Student dashboard"
-      description="Your released Academy records will appear after persistent student read models are connected."
+      description={`Released Academy records for ${model.student.displayName}.`}
     >
-      <StudentPwaPlaceholder activeHref="/student" actionLabel="Your dashboard is not available yet" />
+      <StudentDashboardView model={model} />
     </StudentPwaShell>
   );
 }

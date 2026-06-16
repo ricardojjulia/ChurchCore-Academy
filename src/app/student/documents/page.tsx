@@ -1,9 +1,15 @@
-import { StudentPwaPlaceholder, StudentPwaShell } from "@/components/student-pwa-shell";
+import { StudentDocumentsView } from "@/components/student-documents-view";
+import { StudentPwaShell } from "@/components/student-pwa-shell";
+import { loadStudentPwaPageModel } from "@/modules/student-pwa/server-read-model";
 
-export default function StudentDocumentsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function StudentDocumentsPage() {
+  const model = await loadStudentPwaPageModel();
+
   return (
     <StudentPwaShell activeHref="/student/documents" title="Documents" description="Review Academy-owned documents and requests.">
-      <StudentPwaPlaceholder activeHref="/student/documents" actionLabel="Your documents are not available yet" />
+      <StudentDocumentsView model={model} />
     </StudentPwaShell>
   );
 }
