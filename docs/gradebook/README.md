@@ -2,7 +2,7 @@
 
 ADR: `docs/adr/0024-gradebook-system.md`
 
-Phase: 1, Sprint 1.1
+Phase: 1, Sprint 1.2
 
 ## Scope
 
@@ -13,6 +13,7 @@ This slice creates the Gradebook foundation:
 - Grade override action with immutable audit insert.
 - Student-safe GrowthFrameFilter.
 - Admin, instructor, and learner route scaffolds.
+- Admin, instructor, and learner read models wired through request-scoped database context.
 - Component scaffolds for grade display, grade entry, overrides, audit logs, consent, AI badges, and column visibility.
 
 ## Boundaries
@@ -41,3 +42,5 @@ Repo aliases currently redirect canonical instructor/learner routes to the local
 All gradebook tables enable and force RLS. `anon` grants are revoked. Authenticated grants are explicit. `academy_gradebook_override_audit` is append-only by trigger and does not grant update/delete to authenticated users.
 
 Pastoral sensitivity writes are recorded through `academy_private.academy_audit_pastoral_gradebook_write()`.
+
+Read routes use `withAcademyDatabaseContext` so Postgres sees `app.academy_tenant_id` and `app.academy_person_id` for RLS enforcement.

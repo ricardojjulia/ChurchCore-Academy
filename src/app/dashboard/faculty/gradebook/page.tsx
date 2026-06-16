@@ -1,28 +1,25 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ContextualSelectionHeader, GradebookTable } from "@/components/academy/gradebook";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { assertGradebookWriteAccess } from "@/lib/gradebook/policy";
-import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
-import type { InstructorGradeRow } from "@/types/gradebook";
+import { loadGradebookPageState } from "@/modules/gradebook/page-state";
+import { createGradebookPageDependencies } from "@/modules/gradebook/server-page-state";
 
 export const dynamic = "force-dynamic";
-
-const rows: InstructorGradeRow[] = [];
 
 export default async function FacultyGradebookPage({
   searchParams,
 }: {
   searchParams: Promise<{ student?: string; studentName?: string }>;
 }) {
-  try {
-    const actor = await resolveAcademyActorForServerComponent();
-    assertGradebookWriteAccess(actor);
-  } catch {
-    redirect("/login");
-  }
-
   const context = await searchParams;
+  const state = await loadGradebookPageState(
+    "instructor",
+    createGradebookPageDependencies({ learnerPersonId: context.student }),
+  );
+
+  if (state.kind === "denied") {
+    return <GradebookDenied badge={state.badge} message={state.message} />;
+  }
 
   return (
     <main className="min-h-screen bg-background px-6 py-8">
@@ -40,6 +37,20 @@ export default async function FacultyGradebookPage({
           </Link>
         </header>
 
+        <section className="grid gap-4 md:grid-cols-4">
+          {state.model.metrics.map((metric) => (
+            <Card key={metric.label}>
+              <CardHeader>
+                <CardDescription>{metric.label}</CardDescription>
+                <CardTitle>{metric.value}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{metric.detail}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+
         <Card>
           <CardHeader>
             <CardTitle>Course Grades</CardTitle>
@@ -53,10 +64,26 @@ export default async function FacultyGradebookPage({
               studentId={context.student}
               studentName={context.studentName}
             />
-            <GradebookTable rows={rows} visibilityTier="instructor" />
+            <GradebookTable rows={state.model.records} visibilityTier="instructor" />
           </CardContent>
         </Card>
       </div>
+    </main>
+  );
+}
+
+function GradebookDenied({ badge, message }: { badge: string; message: string }) {
+  return (
+    <main className="min-h-screen bg-background px-6 py-8">
+      <Card className="mx-auto max-w-xl">
+        <CardHeader>
+          <CardDescription>{badge}</CardDescription>
+          <CardTitle>Gradebook unavailable</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </CardContent>
+      </Card>
     </main>
   );
 }
