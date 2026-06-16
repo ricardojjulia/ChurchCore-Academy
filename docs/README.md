@@ -17,6 +17,7 @@ This directory contains the durable product, architecture, delivery, operations,
 - [Architecture Overview](architecture.md)
 - [Product Boundary](architecture/churchcore-academy-boundary.md)
 - [Architecture Decision Records](adr/README.md)
+- [Gradebook System](gradebook/README.md)
 - [LMS Provider Strategy](lms-dual-provider-strategy.md)
 - [ShepherdAI Academy](shepherd-ai-academy.md)
 
