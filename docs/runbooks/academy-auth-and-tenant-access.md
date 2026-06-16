@@ -20,6 +20,18 @@ Never expose a Supabase service-role key to browser code or use it for ordinary 
 4. Create at least one active, date-valid `academy_person_role_assignments` row.
 5. Confirm the account resolves to exactly one active tenant and one Academy person.
 
+## Local demo credentials
+
+After applying migrations and running the local seed, these demo accounts are available for `cca-main`:
+
+| Role | Email | Password | Expected route |
+| --- | --- | --- | --- |
+| Platform and institution admin | `admin@churchcore.academy` | `ChurchCore2026!` | `/` |
+| Teacher | `teacher@churchcore.academy` | `ChurchCore2026!` | `/dashboard/faculty/gradebook` |
+| Student | `student@churchcore.academy` | `ChurchCore2026!` | `/student` |
+
+The login flow always lands on `/`; use the dashboard navigation or direct route above to verify role-specific surfaces.
+
 ## Access failures
 
 - `401`: missing session, missing account link, no active role, or ambiguous active membership.
