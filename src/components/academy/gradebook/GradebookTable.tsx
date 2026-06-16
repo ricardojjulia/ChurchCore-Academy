@@ -11,7 +11,8 @@ import {
   getVisibleGradebookColumns,
   type GradebookColumn,
 } from "@/components/academy/gradebook/ColumnVisibilityConfig";
-import type { GradebookVisibilityTier, InstructorGradeRow } from "@/types/gradebook";
+import type { GradebookReviewRecord } from "@/modules/gradebook/types";
+import type { GradebookVisibilityTier } from "@/types/gradebook";
 
 function columnLabel(column: GradebookColumn) {
   return {
@@ -25,7 +26,7 @@ function columnLabel(column: GradebookColumn) {
   }[column];
 }
 
-function renderCell(row: InstructorGradeRow, column: GradebookColumn) {
+function renderCell(row: GradebookReviewRecord, column: GradebookColumn) {
   switch (column) {
     case "learner":
       return row.learnerDisplayName;
@@ -34,11 +35,11 @@ function renderCell(row: InstructorGradeRow, column: GradebookColumn) {
     case "status":
       return <Badge variant="outline">{row.status}</Badge>;
     case "submittedAt":
-      return row.submittedAt ? new Date(row.submittedAt).toLocaleDateString() : "Not submitted";
+      return row.status === "draft" ? "Not submitted" : "Submitted";
     case "grade":
-      return row.percentage === null ? "Pending" : `${Math.round(row.percentage)}%`;
+      return row.displayGrade;
     case "sensitivity":
-      return <Badge variant={row.sensitivityTier === "pastoral" ? "secondary" : "outline"}>{row.sensitivityTier}</Badge>;
+      return <Badge variant={row.sensitivityLabel === "Pastoral" ? "secondary" : "outline"}>{row.sensitivityLabel}</Badge>;
     case "behavioralSignal":
       return row.behavioralSignal ?? "None";
   }
@@ -48,7 +49,7 @@ export function GradebookTable({
   rows,
   visibilityTier,
 }: {
-  rows: InstructorGradeRow[];
+  rows: GradebookReviewRecord[];
   visibilityTier: GradebookVisibilityTier;
 }) {
   const columns = getVisibleGradebookColumns(visibilityTier);

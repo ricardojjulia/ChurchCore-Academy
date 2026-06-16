@@ -1,24 +1,22 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import {
   GradebookTable,
   OverrideAuditLog,
 } from "@/components/academy/gradebook";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { assertGradebookAdminAccess } from "@/lib/gradebook/policy";
-import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
-import type { InstructorGradeRow } from "@/types/gradebook";
+import { loadGradebookPageState } from "@/modules/gradebook/page-state";
+import { createGradebookPageDependencies } from "@/modules/gradebook/server-page-state";
 
 export const dynamic = "force-dynamic";
 
-const rows: InstructorGradeRow[] = [];
-
 export default async function AdminGradebookPage() {
-  try {
-    const actor = await resolveAcademyActorForServerComponent();
-    assertGradebookAdminAccess(actor);
-  } catch {
-    redirect("/login");
+  const state = await loadGradebookPageState(
+    "admin",
+    createGradebookPageDependencies(),
+  );
+
+  if (state.kind === "denied") {
+    return <GradebookDenied badge={state.badge} message={state.message} />;
   }
 
   return (
@@ -37,6 +35,20 @@ export default async function AdminGradebookPage() {
           </Link>
         </header>
 
+        <section className="grid gap-4 md:grid-cols-4">
+          {state.model.metrics.map((metric) => (
+            <Card key={metric.label}>
+              <CardHeader>
+                <CardDescription>{metric.label}</CardDescription>
+                <CardTitle>{metric.value}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{metric.detail}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+
         <Card>
           <CardHeader>
             <CardTitle>Institution Gradebook</CardTitle>
@@ -45,7 +57,7 @@ export default async function AdminGradebookPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <GradebookTable rows={rows} visibilityTier="admin" />
+            <GradebookTable rows={state.model.records} visibilityTier="admin" />
           </CardContent>
         </Card>
 
@@ -55,10 +67,26 @@ export default async function AdminGradebookPage() {
             <CardDescription>Append-only override evidence for review and accreditation.</CardDescription>
           </CardHeader>
           <CardContent>
-            <OverrideAuditLog entries={[]} />
+            <OverrideAuditLog entries={state.model.overrideAudit} />
           </CardContent>
         </Card>
       </div>
+    </main>
+  );
+}
+
+function GradebookDenied({ badge, message }: { badge: string; message: string }) {
+  return (
+    <main className="min-h-screen bg-background px-6 py-8">
+      <Card className="mx-auto max-w-xl">
+        <CardHeader>
+          <CardDescription>{badge}</CardDescription>
+          <CardTitle>Gradebook unavailable</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </CardContent>
+      </Card>
     </main>
   );
 }
