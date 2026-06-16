@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type React from "react";
-import { BookOpenCheck, ClipboardCheck, FileWarning, GraduationCap, ListChecks, Sparkles, TriangleAlert, UsersRound } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ClipboardCheck, FileWarning, GraduationCap, ListChecks, School, Sparkles, TriangleAlert, UserRoundCheck, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AcademyShell } from "@/components/academy-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,57 @@ import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evalu
 import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
+
+const quickActions = [
+  {
+    label: "Admissions",
+    href: "/admissions",
+    detail: "Review applications and decisions",
+    icon: ClipboardCheck,
+  },
+  {
+    label: "Students",
+    href: "/students",
+    detail: "Open student records and insights",
+    icon: UsersRound,
+  },
+  {
+    label: "Programs",
+    href: "/programs",
+    detail: "Review cohorts and readiness",
+    icon: GraduationCap,
+  },
+  {
+    label: "Faculty/Admin",
+    href: "/faculty",
+    detail: "Review staffing and setup",
+    icon: BookOpenCheck,
+  },
+  {
+    label: "Workflows",
+    href: "/workflows",
+    detail: "Human-reviewed ShepherdAI queue",
+    icon: ListChecks,
+  },
+  {
+    label: "Admin Gradebook",
+    href: "/dashboard/admin/gradebook",
+    detail: "Govern grades and override audit",
+    icon: School,
+  },
+  {
+    label: "Faculty Gradebook",
+    href: "/dashboard/faculty/gradebook",
+    detail: "Enter grades and request overrides",
+    icon: UserRoundCheck,
+  },
+  {
+    label: "Student PWA",
+    href: "/student",
+    detail: "Review student-facing records",
+    icon: Sparkles,
+  },
+];
 
 function isSeedDataUnavailableError(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes("is not seeded");
@@ -102,6 +153,42 @@ export default async function Home() {
             <DashboardMetric label="Programs" value={programsCount} icon={<GraduationCap />} detail="Tracked academic programs" bars={[1, 2, 2, 3, programsCount]} />
             <DashboardMetric label="Faculty records" value={facultyCount} icon={<BookOpenCheck />} detail="Load and advisor review" bars={[1, 2, 3, 3, facultyCount]} />
             <DashboardMetric label="Signal categories" value={5} icon={<Sparkles />} detail="Enrollment, records, progress, transcripts, faculty" bars={[3, 4, 4, 5, 5]} />
+          </section>
+
+          <section className="ops-content-grid">
+            <Card className="ops-panel">
+              <CardContent>
+                <div className="ops-card-header">
+                  <div className="ops-heading">
+                    <div className="ops-icon">
+                      <ListChecks />
+                    </div>
+                    <div>
+                      <h3>Working MVP Surfaces</h3>
+                      <p>Direct entry points into the Academy workflows that are wired to protected runtime data.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="ops-list">
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+
+                    return (
+                      <Link key={action.href} href={action.href} className="ops-list-item">
+                        <span className="ops-list-icon">
+                          <Icon />
+                        </span>
+                        <span>
+                          <strong>{action.label}</strong>
+                          <span>{action.detail}</span>
+                        </span>
+                        <ArrowRight />
+                      </Link>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           </section>
         </>
       ) : (

@@ -18,6 +18,7 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 - immutable audit evidence
 - admissions application through decision
 - accepted-application conversion into student, enrollment, and period registration
+- working MVP surface pass for student/program indexes and dashboard navigation to core staff/admin workflows
 - Gradebook Phase 1 schema, RLS, override audit, GrowthFrameFilter, route scaffolds, tenant-scoped read models, and faculty grade-entry queue
 - Student PWA shell and provider-neutral LMS launch
 - no-LMS provider and Moodle/Canvas contract foundations
