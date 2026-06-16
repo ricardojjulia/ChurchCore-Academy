@@ -2,7 +2,7 @@
 
 - Version: `0.1.0`
 - Stage: active pre-production development
-- Updated: 2026-06-14
+- Updated: 2026-06-16
 
 ## Current Assessment
 
@@ -18,6 +18,7 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 - immutable audit evidence
 - admissions application through decision
 - accepted-application conversion into student, enrollment, and period registration
+- Gradebook Phase 1 schema, RLS, override audit, GrowthFrameFilter, and route scaffolds
 - Student PWA shell and provider-neutral LMS launch
 - no-LMS provider and Moodle/Canvas contract foundations
 - deterministic ShepherdAI workflow suggestions
@@ -25,6 +26,7 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 
 ## Partially Implemented
 
+- Gradebook read-model wiring, bulk operations, and full faculty grading workflows
 - Student PWA persistence across courses, schedule, progress, documents, and messages
 - Moodle and Canvas execution beyond launch and contract/planning foundations
 - browser role-matrix acceptance across all protected pages
@@ -33,7 +35,7 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 ## Production MVP Blockers
 
 - course-section registration and enrollment confirmation
-- attendance and faculty grade entry
+- attendance and production faculty grade entry workflows
 - operational transcript issuance
 - billing and payments
 - institutional and regulated financial aid

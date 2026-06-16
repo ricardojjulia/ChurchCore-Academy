@@ -660,6 +660,13 @@ export default function HQPage() {
     window.setTimeout(() => setCopied((current) => (current === id ? null : current)), 1500);
   }
 
+  function clearArchitectContext() {
+    setMessages((prev) => ({ ...prev, architect: [] }));
+    if (activeAgent === "architect") {
+      setInput("");
+    }
+  }
+
   async function signOut() {
     await supabase?.auth.signOut();
     window.location.href = "/login";
@@ -814,8 +821,15 @@ export default function HQPage() {
             </aside>
             <article className="right-panel">
               <header data-agent={currentAgent.id} className="agent-header">
-                <h3>{currentAgent.emoji} {currentAgent.name}</h3>
-                <p>{currentAgent.role}</p>
+                <div>
+                  <h3>{currentAgent.emoji} {currentAgent.name}</h3>
+                  <p>{currentAgent.role}</p>
+                </div>
+                {currentAgent.id === "architect" ? (
+                  <button type="button" className="context-clear-button" onClick={clearArchitectContext}>
+                    Clear Architect Context
+                  </button>
+                ) : null}
               </header>
 
               <div className="quick-row">
@@ -1156,7 +1170,11 @@ export default function HQPage() {
           .agent-list-item{width:100%;text-align:left;padding:10px;border:1px solid rgba(148,163,184,.18);background:#0b0c11;border-radius:10px;color:#dce3ee;cursor:pointer;margin-bottom:8px}
           .agent-list-item.is-active{border-color:var(--agent-color);background:#151621}
           .agent-list-item small{color:#7d8290}
-          .agent-header{padding:14px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:linear-gradient(145deg,rgba(26,27,38,.95),rgba(13,14,20,.96))}
+          .agent-header{padding:14px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:linear-gradient(145deg,rgba(26,27,38,.95),rgba(13,14,20,.96));display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+          .agent-header h3{margin:0 0 4px}
+          .agent-header p{margin:0;color:#8b92a0}
+          .context-clear-button{border:1px solid rgba(129,140,248,.45);background:#151621;color:#c7d2fe;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
+          .context-clear-button:hover{border-color:#818cf8;color:#fff}
           .quick-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
           .quick-row button{border:1px solid rgba(148,163,184,.18);background:#161821;color:#dce3ee;border-radius:999px;padding:7px 11px;cursor:pointer;font-size:12px}
           .chat-thread{display:flex;flex-direction:column;gap:8px;min-height:320px;max-height:54vh;overflow:auto;padding-right:4px}
