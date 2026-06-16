@@ -158,6 +158,8 @@ test("projects ready, blocked, converted, and non-applicable conversion states",
   assert.match(model.applications[2].conversionMessage, /application term/);
   assert.equal(model.applications[3].conversionState, "converted");
   assert.equal(model.applications[3].studentNumber, "S-000001");
+  assert.equal(model.applications[3].studentProfileId, "profile-1");
+  assert.equal(model.applications[1].studentProfileId, undefined);
 });
 
 test("review-capable roles without conversion authority see a disabled state", () => {
