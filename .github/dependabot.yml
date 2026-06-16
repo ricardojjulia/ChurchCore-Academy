@@ -6,9 +6,6 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      mantine:
-        patterns:
-          - "@mantine/*"
       next:
         patterns:
           - "next"

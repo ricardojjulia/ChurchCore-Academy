@@ -29,7 +29,7 @@ export default async function FacultyPage() {
         <div className="stack">
           <section className="panel">
             <div className="section-heading">
-              <h2>Faculty assignment imbalance alerts</h2>
+              <h2 className="text-xl font-bold text-foreground">Faculty assignment imbalance alerts</h2>
             </div>
             <div className="workflow-list">
               {suggestions.map((suggestion) => (
@@ -43,9 +43,9 @@ export default async function FacultyPage() {
           <WorkflowRecordList workflows={facultyWorkflows} repository={evaluation.repository} />
           <section className="panel">
             <div className="section-heading">
-              <h2>Administrative boundary</h2>
+              <h2 className="text-xl font-bold text-foreground">Administrative boundary</h2>
             </div>
-            <p className="muted-text">
+            <p className="text-sm text-muted-foreground mt-2">
               These alerts are framed as administrative review items. They do not criticize faculty performance and do not infer intent or capability beyond Academy staffing and setup data.
             </p>
           </section>

@@ -1,34 +1,21 @@
 import Link from "next/link";
 import type React from "react";
-import { ArrowRight, BookOpenCheck, ClipboardCheck, FileWarning, GraduationCap, ListChecks, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { BookOpenCheck, ClipboardCheck, FileWarning, GraduationCap, ListChecks, Sparkles, TriangleAlert, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AcademyShell } from "@/components/academy-shell";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
 import { headers } from "next/headers";
 
-function formatCode(value: string) {
-  return value.replaceAll("_", " ");
-}
+export const dynamic = "force-dynamic";
 
-function urgencyVariant(urgency: string) {
-  if (urgency === "critical" || urgency === "high") return "destructive";
-  if (urgency === "medium") return "secondary";
-  return "outline";
+function isSeedDataUnavailableError(error: unknown) {
+  return error instanceof Error && error.message.toLowerCase().includes("is not seeded");
 }
-
 export default async function Home() {
-  const envStatus = {
-    url: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-    publishableKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
-    serviceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-  };
-
   const user = await getCurrentUser();
   const tenantId = user?.tenantId ?? "cca-main";
   const institution = await getInstitutionProfile(tenantId);
@@ -42,11 +29,28 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const evaluation = await runAcademicWorkflowEvaluationJob((await headers()).get("x-academy-tenant-id") ?? tenantId);
-  const widgetItems = evaluation.workflows.getDashboardWidget(5);
-  const highUrgencyCount = evaluation.suggestions.filter((item) => item.urgency === "high" || item.urgency === "critical").length;
-  const activeWorkflowCount = evaluation.repository.workflows.filter((workflow) => workflow.status !== "completed").length;
-  const missingDocumentationCount = evaluation.suggestions.filter((item) => item.workflowCode === "missing_documentation_review").length;
+  let evaluation: Awaited<ReturnType<typeof runAcademicWorkflowEvaluationJob>> | null = null;
+  let seedDataWarning: string | null = null;
+
+  try {
+    evaluation = await runAcademicWorkflowEvaluationJob((await headers()).get("x-academy-tenant-id") ?? tenantId);
+  } catch (error) {
+    if (!isSeedDataUnavailableError(error)) {
+      throw error;
+    }
+
+    seedDataWarning = "Academy dataset is not seeded for this tenant yet. Metrics remain hidden until seeding completes.";
+  }
+
+  const suggestions = evaluation?.suggestions ?? [];
+  const workflows = evaluation?.repository.workflows ?? [];
+  const studentsCount = evaluation?.dataset.students.length ?? 0;
+  const programsCount = evaluation?.dataset.programs.length ?? 0;
+  const facultyCount = evaluation?.dataset.faculty.length ?? 0;
+
+  const highUrgencyCount = suggestions.filter((item) => item.urgency === "high" || item.urgency === "critical").length;
+  const activeWorkflowCount = workflows.filter((workflow) => workflow.status !== "completed").length;
+  const missingDocumentationCount = suggestions.filter((item) => item.workflowCode === "missing_documentation_review").length;
 
   return (
     <AcademyShell
@@ -57,137 +61,71 @@ export default async function Home() {
       userEmail={user?.email}
       signOutAction={signOutAction}
     >
-      <section className="ops-stats-grid">
-        <DashboardMetric
-          label="Suggested workflows"
-          value={evaluation.suggestions.length}
-          icon={<Sparkles />}
-          detail="Academy-only signals"
-        />
-        <DashboardMetric
-          label="High urgency"
-          value={highUrgencyCount}
-          icon={<FileWarning />}
-          detail="May require timely review"
-        />
-        <DashboardMetric
-          label="Active workflows"
-          value={activeWorkflowCount}
-          icon={<ListChecks />}
-          detail="Promoted for human action"
-        />
-        <DashboardMetric
-          label="Documentation cases"
-          value={missingDocumentationCount}
-          icon={<ClipboardCheck />}
-          detail="Record completion review"
-        />
-      </section>
+      {evaluation ? (
+        <>
+          <section className="ops-stats-grid">
+            <DashboardMetric
+              label="ShepherdAI Recommendations"
+              value={suggestions.length}
+              icon={<Sparkles />}
+              detail="Open details"
+              bars={[3, 5, 4, 7, suggestions.length]}
+              href="/workflows"
+            />
+            <DashboardMetric
+              label="High urgency"
+              value={highUrgencyCount}
+              icon={<FileWarning />}
+              detail="May require timely review"
+              bars={[1, 2, 1, 3, highUrgencyCount]}
+              accent="danger"
+            />
+            <DashboardMetric
+              label="Active workflows"
+              value={activeWorkflowCount}
+              icon={<ListChecks />}
+              detail="Promoted for human action"
+              bars={[2, 4, 3, 5, activeWorkflowCount]}
+            />
+            <DashboardMetric
+              label="Documentation cases"
+              value={missingDocumentationCount}
+              icon={<ClipboardCheck />}
+              detail="Record completion review"
+              bars={[1, 1, 2, 2, missingDocumentationCount]}
+              accent="warn"
+            />
+          </section>
 
-      <Card className="ops-panel">
-        <CardHeader className="ops-card-header">
-          <div className="ops-heading">
-            <div className="ops-icon">
-              <ListChecks />
-            </div>
-            <div>
-              <CardTitle>Suggested Academic Workflows</CardTitle>
-              <CardDescription>
-                ShepherdAI Academy surfaces administrative recommendations for registrar, admissions, advisor, and academic admin review.
-              </CardDescription>
-            </div>
-          </div>
-          <Link href="/workflows" className="academy-action-link">
-            Open queue
-            <ArrowRight />
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {widgetItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No workflow suggestions are available yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Workflow</TableHead>
-                  <TableHead>Urgency</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Confidence</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {widgetItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="max-w-[42rem] whitespace-normal">
-                      <div className="font-medium">{item.title}</div>
-                      <div className="line-clamp-1 text-sm text-muted-foreground">{item.summary}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={urgencyVariant(item.urgency)} className="capitalize">
-                        {item.urgency}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {formatCode(item.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {item.confidenceScore ? `${item.confidenceScore}%` : "n/a"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <section className="ops-content-grid">
-        <Card className="ops-panel">
-          <CardHeader>
-            <CardTitle>Academic Operations</CardTitle>
-            <CardDescription>Core faith-based SIS and education-management workflow coverage.</CardDescription>
-          </CardHeader>
-          <CardContent className="ops-list">
-            <OperationItem icon={<UsersRound />} title="Enrollment follow-up" detail="Admissions steps, advisor assignment, and registration completion." />
-            <OperationItem icon={<ClipboardCheck />} title="Documentation review" detail="Required records, verification state, and registrar file completion." />
-            <OperationItem icon={<GraduationCap />} title="Graduation readiness" detail="Credits, requirements, administrative holds, and review candidates." />
-            <OperationItem icon={<BookOpenCheck />} title="Institution setup" detail="Academic years, terms, course types, grading, teachers, and LMS provider choice." />
-          </CardContent>
-        </Card>
-
-        <Card className="ops-panel">
-          <CardHeader>
-            <CardTitle>Platform Readiness</CardTitle>
-            <CardDescription>Local Supabase configuration for Academy development.</CardDescription>
-          </CardHeader>
-          <CardContent className="ops-list">
-            <ReadinessRow label="Supabase URL" ready={envStatus.url} />
-            <ReadinessRow label="Publishable key" ready={envStatus.publishableKey} />
-            <ReadinessRow label="Service role key" ready={envStatus.serviceRoleKey} />
-          </CardContent>
-        </Card>
-
-        <Card className="ops-panel">
-          <CardHeader>
-            <CardTitle>Boundary Guardrails</CardTitle>
-            <CardDescription>ShepherdAI Academy remains product-specific and human-reviewed.</CardDescription>
-          </CardHeader>
-          <CardContent className="ops-list">
-            <OperationItem icon={<ShieldCheck />} title="Academy-only data" detail="No Ops, Learning, Care, ministry, giving, counseling, or LMS engagement data." />
-            <OperationItem icon={<ShieldCheck />} title="Deterministic decisions" detail="Scoring, triggers, transcript review, and graduation checks are rule-based." />
-            <OperationItem icon={<ShieldCheck />} title="Human review" detail="Recommendations surface context and next steps; staff make official decisions." />
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="ops-stats-grid">
-        <DashboardMetric label="Students evaluated" value={evaluation.dataset.students.length} icon={<UsersRound />} detail="Tenant-scoped runtime dataset" />
-        <DashboardMetric label="Programs" value={evaluation.dataset.programs.length} icon={<GraduationCap />} detail="Tracked academic programs" />
-        <DashboardMetric label="Faculty records" value={evaluation.dataset.faculty.length} icon={<BookOpenCheck />} detail="Load and advisor review" />
-        <DashboardMetric label="Signal categories" value={5} icon={<Sparkles />} detail="Enrollment, records, progress, transcripts, faculty" />
-      </section>
+          <section className="ops-stats-grid">
+            <DashboardMetric label="Students evaluated" value={studentsCount} icon={<UsersRound />} detail="Tenant-scoped runtime dataset" bars={[2, 3, 3, 4, studentsCount]} />
+            <DashboardMetric label="Programs" value={programsCount} icon={<GraduationCap />} detail="Tracked academic programs" bars={[1, 2, 2, 3, programsCount]} />
+            <DashboardMetric label="Faculty records" value={facultyCount} icon={<BookOpenCheck />} detail="Load and advisor review" bars={[1, 2, 3, 3, facultyCount]} />
+            <DashboardMetric label="Signal categories" value={5} icon={<Sparkles />} detail="Enrollment, records, progress, transcripts, faculty" bars={[3, 4, 4, 5, 5]} />
+          </section>
+        </>
+      ) : (
+        <section className="ops-empty-state" aria-live="polite">
+          <Card className="ops-panel ops-empty-card">
+            <CardContent>
+              <div className="ops-empty-header">
+                <span className="ops-empty-icon" aria-hidden="true">
+                  <TriangleAlert />
+                </span>
+                <div>
+                  <p className="ops-empty-eyebrow">Tenant setup required</p>
+                  <h3>Dashboard data is not ready yet</h3>
+                </div>
+              </div>
+              <p className="ops-empty-copy">{seedDataWarning ?? "Academy runtime data is unavailable for this tenant."}</p>
+              <div className="ops-empty-actions">
+                <Link href="/platform/control" className="academy-action-link">Open Platform Control</Link>
+                <Link href="/settings/institution" className="academy-action-link">Review Institution Setup</Link>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
     </AcademyShell>
   );
 }
@@ -197,43 +135,52 @@ function DashboardMetric({
   value,
   icon,
   detail,
+  bars,
+  accent,
+  href,
 }: {
   label: string;
   value: string | number;
   icon: React.ReactNode;
   detail: string;
+  bars?: number[];
+  accent?: "danger" | "warn";
+  href?: string;
 }) {
-  return (
+  const max = bars ? Math.max(...bars, 1) : 1;
+  const content = (
     <Card className="ops-metric">
       <CardContent>
-        <div className="ops-metric-label">{label}</div>
-        <div className="ops-metric-value">{value}</div>
-        <div className="ops-metric-detail">
-          <span>{icon}</span>
-          {detail}
+        <div className="ops-metric-inner">
+          <div className="ops-metric-label">{label}</div>
+          <div className="ops-metric-value">{value}</div>
+          <div className="ops-metric-detail">
+            <span>{icon}</span>
+            {detail}
+          </div>
+          {bars && (
+            <div className="ops-metric-bars" data-accent={accent ?? "default"}>
+              {bars.map((bar, i) => (
+                <div
+                  key={i}
+                  className="ops-metric-bar"
+                  style={{ height: `${Math.round((bar / max) * 100)}%` }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
   );
-}
 
-function OperationItem({ icon, title, detail }: { icon: React.ReactNode; title: string; detail: string }) {
-  return (
-    <div className="ops-list-item">
-      <div className="ops-list-icon">{icon}</div>
-      <div>
-        <strong>{title}</strong>
-        <span>{detail}</span>
-      </div>
-    </div>
-  );
-}
+  if (!href) {
+    return content;
+  }
 
-function ReadinessRow({ label, ready }: { label: string; ready: boolean }) {
   return (
-    <div className="ops-readiness-row">
-      <span>{label}</span>
-      <Badge variant={ready ? "secondary" : "destructive"}>{ready ? "Configured" : "Missing"}</Badge>
-    </div>
+    <Link href={href} className="ops-metric-link" aria-label={`${label} - open details`}>
+      {content}
+    </Link>
   );
 }

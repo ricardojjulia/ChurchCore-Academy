@@ -16,9 +16,14 @@ export async function createClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-        });
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // Server Components can read request cookies but cannot always mutate response cookies.
+          // Route handlers and server actions still apply cookies correctly when available.
+        }
       },
     },
   });

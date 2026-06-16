@@ -1,9 +1,9 @@
 import { getDatabasePool } from "@/lib/database";
 import {
   AcademyIdentityRecord,
-  AcademyIdentityRepository,
+  PlatformSessionRepository,
 } from "@/modules/academy-auth/session-resolver";
-import { AcademyRole } from "@/modules/academy-auth/policy";
+import { AcademyRole, PlatformRole } from "@/modules/academy-auth/policy";
 
 interface IdentityRow {
   external_subject: string;
@@ -12,11 +12,15 @@ interface IdentityRow {
   roles: string[];
 }
 
+interface PlatformRoleRow {
+  role: string;
+}
+
 interface IdentityQuery {
   query(
     text: string,
     values: unknown[],
-  ): Promise<{ rows: IdentityRow[] }>;
+  ): Promise<{ rows: IdentityRow[] | PlatformRoleRow[] }>;
 }
 
 const academyRoles = new Set<AcademyRole>([
@@ -34,14 +38,25 @@ const academyRoles = new Set<AcademyRole>([
   "guardian",
 ]);
 
+const platformRoles = new Set<PlatformRole>([
+  "platform_staff",
+  "platform_admin",
+]);
+
 function parseRoles(values: string[]): AcademyRole[] {
   return values.filter((value): value is AcademyRole =>
     academyRoles.has(value as AcademyRole),
   );
 }
 
+function parsePlatformRoles(values: string[]) {
+  return values.filter((value): value is PlatformRole =>
+    platformRoles.has(value as PlatformRole),
+  );
+}
+
 export class PostgresAcademyIdentityRepository
-  implements AcademyIdentityRepository
+  implements PlatformSessionRepository
 {
   constructor(private readonly database: IdentityQuery = getDatabasePool()) {}
 
@@ -74,11 +89,60 @@ export class PostgresAcademyIdentityRepository
       [externalSubject, asOf],
     );
 
-    return result.rows.map((row) => ({
+    return (result.rows as IdentityRow[]).map((row) => ({
       externalSubject: row.external_subject,
       personId: row.person_id,
       tenantId: row.tenant_id,
       roles: parseRoles(row.roles ?? []),
     }));
+  }
+
+  async findPlatformRoles(
+    externalSubject: string,
+    asOf: string,
+  ): Promise<PlatformRole[]> {
+    try {
+      const result = await this.database.query(
+        `select distinct assignment.role
+         from academy_platform_role_assignments assignment
+         where assignment.external_subject = $1
+           and assignment.status = 'active'
+           and (assignment.starts_on is null or assignment.starts_on <= $2::timestamptz::date)
+           and (assignment.ends_on is null or assignment.ends_on >= $2::timestamptz::date)`,
+        [externalSubject, asOf],
+      );
+
+      return parsePlatformRoles(
+        (result.rows as PlatformRoleRow[]).map((row) => row.role),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("academy_platform_role_assignments")) {
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  async findPreferredTenantId(
+    externalSubject: string,
+  ): Promise<string | undefined> {
+    try {
+      const result = await this.database.query(
+        `select preference.active_tenant_id as tenant_id
+         from academy_platform_user_preferences preference
+         where preference.external_subject = $1`,
+        [externalSubject],
+      );
+
+      const row = (result.rows as Array<{ tenant_id?: string }>)[0];
+      return row?.tenant_id;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("academy_platform_user_preferences")) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 }

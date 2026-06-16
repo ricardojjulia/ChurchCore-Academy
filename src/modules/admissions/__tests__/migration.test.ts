@@ -22,8 +22,8 @@ test("admissions migration creates tenant-scoped applications and immutable even
     "utf8",
   );
 
-  assert.match(sql, /create table public\.academy_admission_applications/i);
-  assert.match(sql, /create table public\.academy_admission_application_events/i);
+  assert.match(sql, /create table.*public\.academy_admission_applications/i);
+  assert.match(sql, /create table.*public\.academy_admission_application_events/i);
   assert.match(sql, /references public\.academy_people/i);
   assert.match(sql, /references public\.academy_programs/i);
   assert.match(sql, /references public\.academy_academic_periods/i);

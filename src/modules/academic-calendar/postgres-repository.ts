@@ -171,25 +171,22 @@ export class AcademyCalendarRepository {
   constructor(private readonly pool: Queryable = getDatabasePool()) {}
 
   async fetchAcademicCalendarConfiguration(tenantId: string) {
-    const [institutionProfile, calendarProfile, academicYears, periods, enrollmentWindows, gradingWindows, transcriptPeriods, subdivisions] =
-      await Promise.all([
-        this.pool.query(
-          `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
-                  capabilities, lms_preference, created_at, updated_at
-           from academy_institution_profiles
-           where tenant_id = $1`,
-          [tenantId],
-        ),
-        this.pool.query("select * from academy_calendar_profiles where tenant_id = $1", [tenantId]),
-        this.pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]),
-        this.pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]),
-        this.pool.query("select * from academy_enrollment_windows where tenant_id = $1 order by opens_at asc", [tenantId]),
-        this.pool.query("select * from academy_grading_windows where tenant_id = $1 order by opens_at asc", [tenantId]),
-        this.pool.query("select * from academy_transcript_periods where tenant_id = $1 order by posting_opens_at asc", [tenantId]),
-        this.pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [
-          tenantId,
-        ]),
-      ]);
+    const institutionProfile = await this.pool.query(
+      `select tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
+              capabilities, lms_preference, created_at, updated_at
+       from academy_institution_profiles
+       where tenant_id = $1`,
+      [tenantId],
+    );
+    const calendarProfile = await this.pool.query("select * from academy_calendar_profiles where tenant_id = $1", [tenantId]);
+    const academicYears = await this.pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]);
+    const periods = await this.pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]);
+    const enrollmentWindows = await this.pool.query("select * from academy_enrollment_windows where tenant_id = $1 order by opens_at asc", [tenantId]);
+    const gradingWindows = await this.pool.query("select * from academy_grading_windows where tenant_id = $1 order by opens_at asc", [tenantId]);
+    const transcriptPeriods = await this.pool.query("select * from academy_transcript_periods where tenant_id = $1 order by posting_opens_at asc", [tenantId]);
+    const subdivisions = await this.pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [
+      tenantId,
+    ]);
 
     if (institutionProfile.rowCount === 0) {
       throw new Error(`Institution profile for tenant ${tenantId} was not found.`);

@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Drawer, Select, Switch, TextInput } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { notifyAcademy } from "@/lib/ui/notifications";
 import { DemoFeedbackAction, DemoFeedbackStoredRecord, demoFeedbackActions, demoFeedbackCategories } from "@/modules/demo-feedback/types";
 
 interface TriageProps {
@@ -88,8 +90,8 @@ export function DemoFeedbackTriage({ initialItems }: TriageProps) {
 
       setItems(sortItems(payload.feedback));
     } catch (error) {
-      notifications.show({
-        color: "red",
+      notifyAcademy({
+        tone: "error",
         title: "Triage refresh failed",
         message: error instanceof Error ? error.message : "Unable to load feedback triage data.",
       });
@@ -130,8 +132,8 @@ export function DemoFeedbackTriage({ initialItems }: TriageProps) {
       setItems((current) => sortItems(current.map((item) => (item.id === id ? payload.feedback! : item))));
     } catch (error) {
       setItems(previous);
-      notifications.show({
-        color: "red",
+      notifyAcademy({
+        tone: "error",
         title: "Update failed",
         message: error instanceof Error ? error.message : "Unable to apply triage update.",
       });
@@ -150,7 +152,7 @@ export function DemoFeedbackTriage({ initialItems }: TriageProps) {
             <Select
               label="View"
               value={status}
-              onChange={(value) => setStatus((value ?? "open") as StatusFilter)}
+              onChange={(value) => setStatus((value || "open") as StatusFilter)}
               data={[
                 { value: "open", label: "Open" },
                 { value: "done", label: "Done" },
@@ -160,12 +162,21 @@ export function DemoFeedbackTriage({ initialItems }: TriageProps) {
             <Select
               label="Category"
               value={category}
-              onChange={(value) => setCategory(value ?? "")}
+              onChange={(value) => setCategory(value)}
               data={categoryFilterOptions}
             />
-            <TextInput label="Email/role filter" value={identity} onChange={(event) => setIdentity(event.currentTarget.value)} />
-            <TextInput type="date" label="From" value={from} onChange={(event) => setFrom(event.currentTarget.value)} />
-            <TextInput type="date" label="To" value={to} onChange={(event) => setTo(event.currentTarget.value)} />
+            <label className="grid gap-2 text-sm font-medium">
+              <span>Email/role filter</span>
+              <Input value={identity} onChange={(event) => setIdentity(event.currentTarget.value)} />
+            </label>
+            <label className="grid gap-2 text-sm font-medium">
+              <span>From</span>
+              <Input type="date" value={from} onChange={(event) => setFrom(event.currentTarget.value)} />
+            </label>
+            <label className="grid gap-2 text-sm font-medium">
+              <span>To</span>
+              <Input type="date" value={to} onChange={(event) => setTo(event.currentTarget.value)} />
+            </label>
             <div className="demo-triage-filter-actions">
               <Button onClick={reloadFromServer} loading={loading}>Apply</Button>
             </div>
@@ -212,13 +223,11 @@ export function DemoFeedbackTriage({ initialItems }: TriageProps) {
         </CardContent>
       </Card>
 
-      <Drawer
-        opened={Boolean(selected)}
-        onClose={() => setSelectedId(null)}
-        title="Demo feedback detail"
-        position="right"
-        size="lg"
-      >
+      <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelectedId(null)}>
+        <SheetContent side="right" className="w-[min(92vw,42rem)] overflow-y-auto sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>Demo feedback detail</SheetTitle>
+          </SheetHeader>
         {selected ? (
           <div className="demo-triage-drawer">
             <div className="demo-triage-detail-grid">
@@ -254,11 +263,14 @@ export function DemoFeedbackTriage({ initialItems }: TriageProps) {
                 onChange={(value) => applyUpdate(selected.id, { action: (value || null) as DemoFeedbackAction | null })}
                 data={[{ value: "", label: "No action" }, ...actionOptions]}
               />
-              <Switch
-                label="Processed"
-                checked={selected.processed}
-                onChange={(event) => applyUpdate(selected.id, { processed: event.currentTarget.checked })}
-              />
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={selected.processed}
+                  onChange={(event) => applyUpdate(selected.id, { processed: event.currentTarget.checked })}
+                />
+                Processed
+              </label>
             </div>
 
             <details>
@@ -267,7 +279,8 @@ export function DemoFeedbackTriage({ initialItems }: TriageProps) {
             </details>
           </div>
         ) : null}
-      </Drawer>
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }

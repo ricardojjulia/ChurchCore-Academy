@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, LogOut, Settings, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, GraduationCap, LayoutDashboard, LibraryBig, ListChecks, LogOut, Server, Settings, Star, UserRound, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,8 @@ interface AcademyShellProps {
   eyebrow?: string;
   badge?: string;
   activeHref?: string;
+  controlHref?: string;
+  controlLabel?: string;
   userEmail?: string | null;
   signOutAction?: () => Promise<void>;
   children: React.ReactNode;
@@ -16,9 +18,9 @@ interface AcademyShellProps {
 
 const navItems = [
   { href: "/", label: "Dashboard", caption: "Academic operations", icon: LayoutDashboard },
-  { href: "/workflows", label: "Workflows", caption: "Review queue", icon: ListChecks },
-  { href: "/students/stu-maya-bennett", label: "Students", caption: "Records and insights", icon: UsersRound },
-  { href: "/programs/prog-biblical-studies", label: "Programs", caption: "Progress and readiness", icon: GraduationCap },
+  { href: "/workflows", label: "ShepherdAI Recommendations", caption: "Review queue", icon: ListChecks },
+  { href: "/students", label: "Students", caption: "Records and insights", icon: UsersRound },
+  { href: "/programs", label: "Programs", caption: "Progress and readiness", icon: GraduationCap },
   { href: "/faculty", label: "Faculty/Admin", caption: "Load and setup", icon: BookOpenCheck },
   { href: "/settings/institution", label: "Institution", caption: "Configuration review", icon: Settings },
   { href: "/settings/calendar", label: "Calendar", caption: "Years and periods", icon: CalendarDays },
@@ -26,9 +28,21 @@ const navItems = [
   { href: "/settings/grading", label: "Grading", caption: "Records and standing", icon: Star },
   { href: "/settings/people", label: "People", caption: "Roles and guardians", icon: UsersRound },
   { href: "/settings/demo-feedback", label: "Demo Feedback", caption: "Platform triage", icon: ListChecks },
+  { href: "/platform/control", label: "Platform Control", caption: "Tenant lifecycle", icon: Server },
 ];
 
-export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/", userEmail, signOutAction, children }: AcademyShellProps) {
+export function AcademyShell({
+  title,
+  subtitle,
+  eyebrow,
+  badge,
+  activeHref = "/",
+  controlHref = "/platform/control",
+  controlLabel = "Return to control",
+  userEmail,
+  signOutAction,
+  children,
+}: AcademyShellProps) {
   return (
     <div className="academy-app">
       <aside className="academy-sidebar">
@@ -36,16 +50,6 @@ export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/"
           <div>
             <h1>ChurchCore Academy</h1>
             <p>Faith-based SIS</p>
-          </div>
-        </div>
-
-        <div className="sidebar-product">
-          <div className="sidebar-product-icon">
-            <ShieldCheck />
-          </div>
-          <div>
-            <strong>ShepherdAI Academy</strong>
-            <span>Workflow recommendations</span>
           </div>
         </div>
 
@@ -80,15 +84,32 @@ export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/"
               <UserRound />
             </div>
             <div>
-              <strong>{userEmail ?? "Registrar Admin"}</strong>
+              <strong>{userEmail ?? "Signed-in user"}</strong>
               <span>Institution staff</span>
             </div>
           </div>
           {signOutAction ? (
-            <form action={signOutAction}>
-              <Button type="submit" variant="ghost" size="icon" aria-label="Log out">
-                <LogOut />
-              </Button>
+            <form action={signOutAction} style={{ width: "100%" }}>
+              <button
+                type="submit"
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  padding: "0.65rem 1rem",
+                  border: "1px solid rgba(94, 136, 187, 0.44)",
+                  borderRadius: "0.5rem",
+                  background: "rgba(34, 63, 96, 0.6)",
+                  color: "#9ca3af",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                <LogOut size={18} />
+                Log out
+              </button>
             </form>
           ) : null}
         </div>
@@ -110,10 +131,12 @@ export function AcademyShell({ title, subtitle, eyebrow, badge, activeHref = "/"
             </Badge>
             <span>{badge ?? "Tenant view · academy-admin"}</span>
           </div>
-          <Button variant="outline" size="lg">
-            <ArrowLeft />
-            Return to control
-          </Button>
+          <Link href={controlHref}>
+            <Button variant="outline" size="lg">
+              <ArrowLeft />
+              {controlLabel}
+            </Button>
+          </Link>
         </section>
 
         <section className="page-shell">{children}</section>

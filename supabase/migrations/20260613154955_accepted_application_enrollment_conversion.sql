@@ -17,13 +17,13 @@ create unique index if not exists academy_role_assignments_identity_unique_idx
   );
 
 alter table public.academy_admission_applications
-  add column converted_at timestamptz,
-  add column converted_by_person_id text,
-  add column student_profile_id text,
-  add column program_enrollment_id uuid,
-  add column period_registration_id uuid;
+  add column if not exists converted_at timestamptz,
+  add column if not exists converted_by_person_id text,
+  add column if not exists student_profile_id text,
+  add column if not exists program_enrollment_id uuid,
+  add column if not exists period_registration_id uuid;
 
-create table public.academy_program_enrollments (
+create table if not exists public.academy_program_enrollments (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete restrict,
   student_profile_id text not null,
@@ -48,10 +48,10 @@ create table public.academy_program_enrollments (
     references public.academy_admission_applications (tenant_id, id) on delete restrict
 );
 
-create index academy_program_enrollments_student_idx
+create index if not exists academy_program_enrollments_student_idx
   on public.academy_program_enrollments (tenant_id, student_profile_id, status);
 
-create table public.academy_period_registrations (
+create table if not exists public.academy_period_registrations (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete restrict,
   student_profile_id text not null,
@@ -79,10 +79,10 @@ create table public.academy_period_registrations (
     references public.academy_admission_applications (tenant_id, id) on delete restrict
 );
 
-create index academy_period_registrations_student_idx
+create index if not exists academy_period_registrations_student_idx
   on public.academy_period_registrations (tenant_id, student_profile_id, status);
 
-create table public.academy_enrollment_conversion_events (
+create table if not exists public.academy_enrollment_conversion_events (
   id uuid primary key default gen_random_uuid(),
   tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete restrict,
   application_id uuid not null,
@@ -108,43 +108,75 @@ create table public.academy_enrollment_conversion_events (
     references public.academy_period_registrations (tenant_id, id) on delete restrict
 );
 
-create table public.academy_student_number_sequences (
+create table if not exists public.academy_student_number_sequences (
   tenant_id text primary key references public.academy_institution_profiles(tenant_id) on delete restrict,
   next_value bigint not null default 1 check (next_value > 0),
   updated_at timestamptz not null default now()
 );
 
-alter table public.academy_admission_applications
-  add constraint academy_admission_converted_by_tenant_fk
-    foreign key (tenant_id, converted_by_person_id)
-    references public.academy_people (tenant_id, id) on delete restrict,
-  add constraint academy_admission_student_profile_tenant_fk
-    foreign key (tenant_id, student_profile_id)
-    references public.academy_student_profiles (tenant_id, id) on delete restrict,
-  add constraint academy_admission_program_enrollment_tenant_fk
-    foreign key (tenant_id, program_enrollment_id)
-    references public.academy_program_enrollments (tenant_id, id) on delete restrict,
-  add constraint academy_admission_period_registration_tenant_fk
-    foreign key (tenant_id, period_registration_id)
-    references public.academy_period_registrations (tenant_id, id) on delete restrict,
-  add constraint academy_admission_conversion_metadata_complete
-    check (
-      (
-        converted_at is null
-        and converted_by_person_id is null
-        and student_profile_id is null
-        and program_enrollment_id is null
-        and period_registration_id is null
-      )
-      or (
-        converted_at is not null
-        and converted_by_person_id is not null
-        and student_profile_id is not null
-        and program_enrollment_id is not null
-        and period_registration_id is not null
-        and status = 'accepted'
-      )
-    );
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'academy_admission_converted_by_tenant_fk'
+  ) then
+    alter table public.academy_admission_applications
+      add constraint academy_admission_converted_by_tenant_fk
+      foreign key (tenant_id, converted_by_person_id)
+      references public.academy_people (tenant_id, id) on delete restrict;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'academy_admission_student_profile_tenant_fk'
+  ) then
+    alter table public.academy_admission_applications
+      add constraint academy_admission_student_profile_tenant_fk
+      foreign key (tenant_id, student_profile_id)
+      references public.academy_student_profiles (tenant_id, id) on delete restrict;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'academy_admission_program_enrollment_tenant_fk'
+  ) then
+    alter table public.academy_admission_applications
+      add constraint academy_admission_program_enrollment_tenant_fk
+      foreign key (tenant_id, program_enrollment_id)
+      references public.academy_program_enrollments (tenant_id, id) on delete restrict;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'academy_admission_period_registration_tenant_fk'
+  ) then
+    alter table public.academy_admission_applications
+      add constraint academy_admission_period_registration_tenant_fk
+      foreign key (tenant_id, period_registration_id)
+      references public.academy_period_registrations (tenant_id, id) on delete restrict;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'academy_admission_conversion_metadata_complete'
+  ) then
+    alter table public.academy_admission_applications
+      add constraint academy_admission_conversion_metadata_complete
+      check (
+        (
+          converted_at is null
+          and converted_by_person_id is null
+          and student_profile_id is null
+          and program_enrollment_id is null
+          and period_registration_id is null
+        )
+        or (
+          converted_at is not null
+          and converted_by_person_id is not null
+          and student_profile_id is not null
+          and program_enrollment_id is not null
+          and period_registration_id is not null
+          and status = 'accepted'
+        )
+      );
+  end if;
+end
+$$;
 
 create or replace function public.academy_enforce_admission_application_transition()
 returns trigger
@@ -250,6 +282,9 @@ begin
 end;
 $$;
 
+drop trigger if exists academy_enrollment_conversion_events_immutable
+on public.academy_enrollment_conversion_events;
+
 create trigger academy_enrollment_conversion_events_immutable
 before update or delete on public.academy_enrollment_conversion_events
 for each row execute function public.academy_reject_enrollment_conversion_event_mutation();
@@ -273,6 +308,9 @@ begin
 end;
 $$;
 
+drop trigger if exists academy_admission_conversion_metadata_immutable
+on public.academy_admission_applications;
+
 create trigger academy_admission_conversion_metadata_immutable
 before update on public.academy_admission_applications
 for each row execute function public.academy_reject_conversion_metadata_rewrite();
@@ -285,6 +323,9 @@ alter table public.academy_enrollment_conversion_events enable row level securit
 alter table public.academy_enrollment_conversion_events force row level security;
 alter table public.academy_student_number_sequences enable row level security;
 alter table public.academy_student_number_sequences force row level security;
+
+drop policy if exists academy_program_enrollments_read
+on public.academy_program_enrollments;
 
 create policy academy_program_enrollments_read
 on public.academy_program_enrollments
@@ -300,6 +341,9 @@ using (
     and academy_private.academy_has_active_role(tenant_id, array['student'])
   )
 );
+
+drop policy if exists academy_program_enrollments_write
+on public.academy_program_enrollments;
 
 create policy academy_program_enrollments_write
 on public.academy_program_enrollments
@@ -318,6 +362,9 @@ with check (
   )
 );
 
+drop policy if exists academy_period_registrations_read
+on public.academy_period_registrations;
+
 create policy academy_period_registrations_read
 on public.academy_period_registrations
 for select
@@ -332,6 +379,9 @@ using (
     and academy_private.academy_has_active_role(tenant_id, array['student'])
   )
 );
+
+drop policy if exists academy_period_registrations_write
+on public.academy_period_registrations;
 
 create policy academy_period_registrations_write
 on public.academy_period_registrations
@@ -350,6 +400,9 @@ with check (
   )
 );
 
+drop policy if exists academy_enrollment_conversion_events_read
+on public.academy_enrollment_conversion_events;
+
 create policy academy_enrollment_conversion_events_read
 on public.academy_enrollment_conversion_events
 for select
@@ -360,6 +413,9 @@ using (
     array['institution_admin', 'registrar', 'admissions']
   )
 );
+
+drop policy if exists academy_enrollment_conversion_events_insert
+on public.academy_enrollment_conversion_events;
 
 create policy academy_enrollment_conversion_events_insert
 on public.academy_enrollment_conversion_events
@@ -372,6 +428,9 @@ with check (
     array['institution_admin', 'registrar', 'admissions']
   )
 );
+
+drop policy if exists academy_student_number_sequences_write
+on public.academy_student_number_sequences;
 
 create policy academy_student_number_sequences_write
 on public.academy_student_number_sequences
@@ -408,6 +467,9 @@ with check (
     array['institution_admin', 'registrar', 'academic_admin', 'admissions']
   )
 );
+
+drop policy if exists academy_audit_admissions_own_read
+on public.academy_audit_events;
 
 create policy academy_audit_admissions_own_read
 on public.academy_audit_events

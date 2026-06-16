@@ -28,7 +28,7 @@ export default async function WorkflowQueuePage() {
   return (
     <AcademyShell
       eyebrow="Academic Workflows"
-      title="Suggested Academic Workflows"
+      title="ShepherdAI Recommendations"
       subtitle="Review explainable ShepherdAI Academy recommendations and promoted workflows. All items remain human-reviewed academic-administrative suggestions."
       badge={badgeText}
       userEmail={user?.email}

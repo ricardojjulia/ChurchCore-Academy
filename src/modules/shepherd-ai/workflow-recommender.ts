@@ -27,7 +27,7 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
     case "enrollment_pending_beyond_threshold":
       return {
         workflowCode: "incomplete_enrollment_follow_up",
-        title: "Suggested Academic Workflow: incomplete enrollment follow-up",
+        title: "Possible Finding: incomplete enrollment follow-up",
         summary: `${context.entityLabel} may require admissions follow-up because enrollment steps appear incomplete or unresolved beyond the configured review window.`,
         suggestedActions: actions([
           "Assign admissions/admin follow-up",
@@ -42,7 +42,7 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
     case "required_document_missing":
       return {
         workflowCode: "missing_documentation_review",
-        title: "Suggested Academic Workflow: missing student documentation review",
+        title: "Possible Finding: missing student documentation review",
         summary: `${context.entityLabel} may require registrar or administrative review because required student documentation appears incomplete.`,
         suggestedActions: actions([
           "Notify registrar or administrator",
@@ -57,7 +57,7 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
     case "graduation_threshold_near":
       return {
         workflowCode: "graduation_eligibility_review",
-        title: "Suggested Academic Workflow: graduation eligibility review",
+        title: "Possible Finding: graduation eligibility review",
         summary: `${context.entityLabel} may be ready for registrar review because program completion indicators are approaching graduation thresholds.`,
         suggestedActions: actions([
           "Assign registrar review",
@@ -72,7 +72,7 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
     case "credit_progress_gap":
       return {
         workflowCode: "academic_standing_or_credit_progress_review",
-        title: "Suggested Academic Workflow: academic standing or credit progress review",
+        title: "Possible Finding: academic standing or credit progress review",
         summary: `${context.entityLabel} may benefit from advisor review because academic progress appears below the expected milestone or registration continuity is unresolved.`,
         suggestedActions: actions([
           "Assign advisor review",
@@ -87,7 +87,7 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
     case "transcript_inconsistency_possible":
       return {
         workflowCode: "transcript_or_records_inconsistency_review",
-        title: "Suggested Academic Workflow: transcript or records inconsistency review",
+        title: "Possible Finding: transcript or records inconsistency review",
         summary: `${context.entityLabel} may require registrar verification because transcript data and academic records appear inconsistent.`,
         suggestedActions: actions([
           "Assign registrar review",
@@ -103,7 +103,7 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
     case "faculty_course_assignment_imbalance":
       return {
         workflowCode: "faculty_or_course_assignment_imbalance_review",
-        title: "Suggested Academic Workflow: faculty or course assignment imbalance review",
+        title: "Possible Finding: faculty or course assignment imbalance review",
         summary: `${context.entityLabel} may require academic administration review because faculty load, roster capacity, or section setup appears out of balance.`,
         suggestedActions: actions([
           "Notify academic administrator",
@@ -118,7 +118,7 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
     case "calendar_setup_incomplete_or_inconsistent":
       return {
         workflowCode: "calendar_setup_review",
-        title: "Suggested Academic Workflow: calendar setup review",
+        title: "Possible Finding: calendar setup review",
         summary: `${context.entityLabel} calendar and academic configuration may require administrative review because one or more validation checks indicate incomplete or inconsistent setup.`,
         suggestedActions: actions([
           "Review calendar validation report",

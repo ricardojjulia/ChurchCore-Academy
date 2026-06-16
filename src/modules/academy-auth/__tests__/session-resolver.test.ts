@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   AcademyIdentityRepository,
+  PlatformSessionRepository,
+  resolvePlatformSession,
   resolveAcademyIdentity,
 } from "@/modules/academy-auth/session-resolver";
 import {
   resolveAcademyActorForServerComponent,
   resolveAcademyActorFromSession,
+  resolvePlatformSessionForServerComponent,
 } from "@/modules/academy-auth/request-context";
 
 function repository(
@@ -14,6 +17,23 @@ function repository(
 ): AcademyIdentityRepository {
   return {
     findActiveIdentities: async () => identities,
+  };
+}
+
+function platformRepository({
+  identities,
+  platformRoles = [],
+}: {
+  identities: Awaited<ReturnType<AcademyIdentityRepository["findActiveIdentities"]>>;
+  platformRoles?: string[];
+}): PlatformSessionRepository {
+  return {
+    findActiveIdentities: async () => identities,
+    findPlatformRoles: async () =>
+      platformRoles.filter(
+        (role): role is "platform_staff" | "platform_admin" =>
+          role === "platform_staff" || role === "platform_admin",
+      ),
   };
 }
 
@@ -109,6 +129,121 @@ test("rejects ambiguous active memberships across tenants", async () => {
       ),
     /multiple active Academy tenants/,
   );
+});
+
+test("resolves a platform admin session with multiple tenant memberships", async () => {
+  const resolved = await resolvePlatformSession(
+    platformRepository({
+      identities: [
+        {
+          externalSubject: "supabase-user-1",
+          personId: "person-1",
+          tenantId: "cca-main",
+          roles: ["institution_admin"],
+        },
+        {
+          externalSubject: "supabase-user-1",
+          personId: "person-2",
+          tenantId: "tenant-2",
+          roles: ["institution_admin"],
+        },
+      ],
+      platformRoles: ["platform_admin"],
+    }),
+    "supabase-user-1",
+    {
+      asOf: "2026-06-15T12:00:00.000Z",
+      demoTenantId: "cca-main",
+    },
+  );
+
+  assert.deepEqual(resolved.platformRoles, ["platform_admin"]);
+  assert.equal(resolved.activeTenant?.tenantId, "cca-main");
+  assert.deepEqual(
+    resolved.tenants.map((tenant) => tenant.tenantId),
+    ["cca-main", "tenant-2"],
+  );
+});
+
+test("prefers an explicit tenant selection for platform session resolution", async () => {
+  const resolved = await resolvePlatformSession(
+    platformRepository({
+      identities: [
+        {
+          externalSubject: "supabase-user-1",
+          personId: "person-1",
+          tenantId: "cca-main",
+          roles: ["institution_admin"],
+        },
+        {
+          externalSubject: "supabase-user-1",
+          personId: "person-2",
+          tenantId: "tenant-2",
+          roles: ["registrar"],
+        },
+      ],
+      platformRoles: ["platform_admin"],
+    }),
+    "supabase-user-1",
+    {
+      asOf: "2026-06-15T12:00:00.000Z",
+      demoTenantId: "cca-main",
+      preferredTenantId: "tenant-2",
+    },
+  );
+
+  assert.equal(resolved.activeTenant?.tenantId, "tenant-2");
+  assert.deepEqual(resolved.activeTenant?.roles, ["registrar"]);
+});
+
+test("uses saved preferred tenant when explicit selection is absent", async () => {
+  const resolved = await resolvePlatformSession(
+    {
+      ...platformRepository({
+        identities: [
+          {
+            externalSubject: "supabase-user-1",
+            personId: "person-1",
+            tenantId: "cca-main",
+            roles: ["institution_admin"],
+          },
+          {
+            externalSubject: "supabase-user-1",
+            personId: "person-2",
+            tenantId: "tenant-2",
+            roles: ["registrar"],
+          },
+        ],
+        platformRoles: ["platform_admin"],
+      }),
+      findPreferredTenantId: async () => "tenant-2",
+    },
+    "supabase-user-1",
+    {
+      asOf: "2026-06-15T12:00:00.000Z",
+      demoTenantId: "cca-main",
+    },
+  );
+
+  assert.equal(resolved.activeTenant?.tenantId, "tenant-2");
+});
+
+test("allows platform-admin sessions without tenant memberships", async () => {
+  const resolved = await resolvePlatformSession(
+    platformRepository({
+      identities: [],
+      platformRoles: ["platform_admin"],
+    }),
+    "supabase-user-1",
+    {
+      asOf: "2026-06-15T12:00:00.000Z",
+      demoTenantId: "cca-main",
+    },
+  );
+
+  assert.deepEqual(resolved.platformRoles, ["platform_admin"]);
+  assert.deepEqual(resolved.tenants, []);
+  assert.equal(resolved.activeTenant, undefined);
 });
 
 test("does not default a missing role to institution_admin", async () => {
@@ -218,4 +353,39 @@ test("server components require a verified session without local bootstrap", asy
       }),
     /Authentication required/,
   );
+});
+
+test("server components can resolve a platform session with demo tenant default", async () => {
+  const resolved = await resolvePlatformSessionForServerComponent({
+    sessionClient: {
+      auth: {
+        getUser: async () => ({
+          data: { user: { id: "supabase-user-1" } },
+          error: null,
+        }),
+      },
+    },
+    platformSessionRepository: platformRepository({
+      identities: [
+        {
+          externalSubject: "supabase-user-1",
+          personId: "person-1",
+          tenantId: "cca-main",
+          roles: ["institution_admin"],
+        },
+        {
+          externalSubject: "supabase-user-1",
+          personId: "person-2",
+          tenantId: "tenant-2",
+          roles: ["registrar"],
+        },
+      ],
+      platformRoles: ["platform_admin"],
+    }),
+    now: "2026-06-15T12:00:00.000Z",
+    demoTenantId: "cca-main",
+  });
+
+  assert.equal(resolved.activeTenant.tenantId, "cca-main");
+  assert.deepEqual(resolved.platformRoles, ["platform_admin"]);
 });

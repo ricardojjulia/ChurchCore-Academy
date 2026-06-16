@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import "@mantine/core/styles.css";
-import "@mantine/notifications/styles.css";
 import "./globals.css";
-import { Geist } from "next/font/google";
-import { AcademyMantineProvider } from "@/components/mantine-provider";
+import { Inter } from "next/font/google";
+import { AcademyAppProvider } from "@/components/academy-app-provider";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "ChurchCore Academy",
@@ -13,15 +11,17 @@ export const metadata: Metadata = {
     "Faith-based education management and SIS for schools, Bible institutes, seminaries, colleges, and universities.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geist.variable}>
+    <html lang="en" className={inter.variable}>
       <body>
-        <AcademyMantineProvider>{children}</AcademyMantineProvider>
+        <AcademyAppProvider>
+          {children}
+        </AcademyAppProvider>
       </body>
     </html>
   );

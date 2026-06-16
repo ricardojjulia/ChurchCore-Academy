@@ -42,71 +42,37 @@ export class AcademyDataRepository {
 
   async loadDataset(tenantId: string): Promise<AcademyDataset> {
     const pool = this.database;
-    const [
-      institutionProfiles,
-      calendarProfiles,
-      academicYears,
-      academicPeriods,
-      enrollmentWindows,
-      gradingWindows,
-      transcriptPeriods,
-      subdivisions,
-      courseCatalogProfiles,
-      catalogCourses,
-      catalogSections,
-      coursePrerequisites,
-      courseLmsMappings,
-      gradingProfiles,
-      evaluationScales,
-      evaluationScaleBands,
-      evaluationRuleSets,
-      officialRecordRules,
-      academicStandingRules,
-      people,
-      roleAssignments,
-      studentProfiles,
-      staffProfiles,
-      relationships,
-      accountLinks,
-      admins,
-      programs,
-      students,
-      faculty,
-      sections,
-      thresholds,
-    ] = await Promise.all([
-      pool.query("select * from academy_institution_profiles where tenant_id = $1 limit 1", [tenantId]),
-      pool.query("select * from academy_calendar_profiles where tenant_id = $1 limit 1", [tenantId]),
-      pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]),
-      pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]),
-      pool.query("select * from academy_enrollment_windows where tenant_id = $1 order by opens_at asc", [tenantId]),
-      pool.query("select * from academy_grading_windows where tenant_id = $1 order by opens_at asc", [tenantId]),
-      pool.query("select * from academy_transcript_periods where tenant_id = $1 order by posting_opens_at asc", [tenantId]),
-      pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [tenantId]),
-      pool.query("select * from academy_course_catalog_profiles where tenant_id = $1 limit 1", [tenantId]),
-      pool.query("select * from academy_courses where tenant_id = $1 order by code asc", [tenantId]),
-      pool.query("select * from academy_course_sections where tenant_id = $1 order by section_code asc", [tenantId]),
-      pool.query("select * from academy_course_prerequisites where tenant_id = $1 order by course_id asc", [tenantId]),
-      pool.query("select * from academy_course_lms_mappings where tenant_id = $1 order by mapping_status asc, provider asc", [tenantId]),
-      pool.query("select * from academy_grading_profiles where tenant_id = $1 limit 1", [tenantId]),
-      pool.query("select * from academy_evaluation_scales where tenant_id = $1 order by scale_type asc, name asc", [tenantId]),
-      pool.query("select * from academy_evaluation_scale_bands where tenant_id = $1 order by scale_id asc, sequence asc", [tenantId]),
-      pool.query("select * from academy_evaluation_rule_sets where tenant_id = $1 order by course_id asc, record_type asc", [tenantId]),
-      pool.query("select * from academy_official_record_rules where tenant_id = $1 order by record_type asc", [tenantId]),
-      pool.query("select * from academy_academic_standing_rules where tenant_id = $1 order by standing_type asc, name asc", [tenantId]),
-      pool.query("select * from academy_people where tenant_id = $1 order by display_name asc", [tenantId]),
-      pool.query("select * from academy_person_role_assignments where tenant_id = $1 order by person_id asc, role asc", [tenantId]),
-      pool.query("select * from academy_student_profiles where tenant_id = $1 order by student_number asc", [tenantId]),
-      pool.query("select * from academy_staff_profiles where tenant_id = $1 order by staff_number asc", [tenantId]),
-      pool.query("select * from academy_student_relationships where tenant_id = $1 order by student_person_id asc, relationship_type asc", [tenantId]),
-      pool.query("select * from academy_account_links where tenant_id = $1 order by provider asc, external_subject asc", [tenantId]),
-      pool.query("select * from academy_admin_users where tenant_id = $1 order by name asc", [tenantId]),
-      pool.query("select * from academy_programs where tenant_id = $1 order by name asc", [tenantId]),
-      pool.query("select * from academy_students where tenant_id = $1 order by full_name asc", [tenantId]),
-      pool.query("select * from academy_faculty where tenant_id = $1 order by name asc", [tenantId]),
-      pool.query("select * from academy_sections where tenant_id = $1 order by code asc", [tenantId]),
-      pool.query("select * from academy_thresholds where tenant_id = $1 limit 1", [tenantId]),
-    ]);
+    const institutionProfiles = await pool.query("select * from academy_institution_profiles where tenant_id = $1 limit 1", [tenantId]);
+    const calendarProfiles = await pool.query("select * from academy_calendar_profiles where tenant_id = $1 limit 1", [tenantId]);
+    const academicYears = await pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]);
+    const academicPeriods = await pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]);
+    const enrollmentWindows = await pool.query("select * from academy_enrollment_windows where tenant_id = $1 order by opens_at asc", [tenantId]);
+    const gradingWindows = await pool.query("select * from academy_grading_windows where tenant_id = $1 order by opens_at asc", [tenantId]);
+    const transcriptPeriods = await pool.query("select * from academy_transcript_periods where tenant_id = $1 order by posting_opens_at asc", [tenantId]);
+    const subdivisions = await pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [tenantId]);
+    const courseCatalogProfiles = await pool.query("select * from academy_course_catalog_profiles where tenant_id = $1 limit 1", [tenantId]);
+    const catalogCourses = await pool.query("select * from academy_courses where tenant_id = $1 order by code asc", [tenantId]);
+    const catalogSections = await pool.query("select * from academy_course_sections where tenant_id = $1 order by section_code asc", [tenantId]);
+    const coursePrerequisites = await pool.query("select * from academy_course_prerequisites where tenant_id = $1 order by course_id asc", [tenantId]);
+    const courseLmsMappings = await pool.query("select * from academy_course_lms_mappings where tenant_id = $1 order by mapping_status asc, provider asc", [tenantId]);
+    const gradingProfiles = await pool.query("select * from academy_grading_profiles where tenant_id = $1 limit 1", [tenantId]);
+    const evaluationScales = await pool.query("select * from academy_evaluation_scales where tenant_id = $1 order by scale_type asc, name asc", [tenantId]);
+    const evaluationScaleBands = await pool.query("select * from academy_evaluation_scale_bands where tenant_id = $1 order by scale_id asc, sequence asc", [tenantId]);
+    const evaluationRuleSets = await pool.query("select * from academy_evaluation_rule_sets where tenant_id = $1 order by course_id asc, record_type asc", [tenantId]);
+    const officialRecordRules = await pool.query("select * from academy_official_record_rules where tenant_id = $1 order by record_type asc", [tenantId]);
+    const academicStandingRules = await pool.query("select * from academy_academic_standing_rules where tenant_id = $1 order by standing_type asc, name asc", [tenantId]);
+    const people = await pool.query("select * from academy_people where tenant_id = $1 order by display_name asc", [tenantId]);
+    const roleAssignments = await pool.query("select * from academy_person_role_assignments where tenant_id = $1 order by person_id asc, role asc", [tenantId]);
+    const studentProfiles = await pool.query("select * from academy_student_profiles where tenant_id = $1 order by student_number asc", [tenantId]);
+    const staffProfiles = await pool.query("select * from academy_staff_profiles where tenant_id = $1 order by staff_number asc", [tenantId]);
+    const relationships = await pool.query("select * from academy_student_relationships where tenant_id = $1 order by student_person_id asc, relationship_type asc", [tenantId]);
+    const accountLinks = await pool.query("select * from academy_account_links where tenant_id = $1 order by provider asc, external_subject asc", [tenantId]);
+    const admins = await pool.query("select * from academy_admin_users where tenant_id = $1 order by name asc", [tenantId]);
+    const programs = await pool.query("select * from academy_programs where tenant_id = $1 order by name asc", [tenantId]);
+    const students = await pool.query("select * from academy_students where tenant_id = $1 order by full_name asc", [tenantId]);
+    const faculty = await pool.query("select * from academy_faculty where tenant_id = $1 order by name asc", [tenantId]);
+    const sections = await pool.query("select * from academy_sections where tenant_id = $1 order by code asc", [tenantId]);
+    const thresholds = await pool.query("select * from academy_thresholds where tenant_id = $1 limit 1", [tenantId]);
 
     if (thresholds.rowCount === 0) {
       throw new Error("Academy dataset is not seeded.");

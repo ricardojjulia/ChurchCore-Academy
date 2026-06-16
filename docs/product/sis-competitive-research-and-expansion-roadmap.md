@@ -362,7 +362,7 @@ From verified review data and community feedback patterns:
 
 3. **Custom reporting** — reviewers want to filter and export exactly the data they need. ChurchCore Academy should build a flexible report builder with institution-specific field access.
 
-4. **Modern UX** — reviewers consistently describe Populi as functional but plain. ChurchCore Academy's Mantine-based UI is a modern, accessible design system.
+4. **Modern UX** — reviewers consistently describe Populi as functional but plain. ChurchCore Academy's repository-owned Radix/Tailwind UI system is modern, accessible, and not coupled to a vendor component theme.
 
 5. **Better integration with external LMSs** — Populi's built-in LMS is serviceable but not best-in-class. ChurchCore Academy's provider-neutral LMS contract solves this at the architecture level.
 
