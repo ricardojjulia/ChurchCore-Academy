@@ -1,7 +1,5 @@
 import { NextRequest } from "next/server";
 
-export const runtime = "edge";
-
 function getUpstreamErrorMessage(data: unknown) {
   if (!data || typeof data !== "object") {
     return "AI request failed.";

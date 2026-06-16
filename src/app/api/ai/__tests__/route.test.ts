@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { POST } from "@/app/api/ai/route";
+
+test("AI route uses the default runtime to avoid Edge static-generation warnings", async () => {
+  const source = await readFile("src/app/api/ai/route.ts", "utf8");
+
+  assert.doesNotMatch(source, /runtime\s*=\s*["']edge["']/);
+});
 
 test("returns a neutral unavailable response when the Anthropic key is missing", async () => {
   const previous = process.env.ANTHROPIC_API_KEY;

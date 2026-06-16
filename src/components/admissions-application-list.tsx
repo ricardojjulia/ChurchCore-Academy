@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { AdmissionsConversionAction } from "@/components/admissions-conversion-action";
 import {
@@ -96,6 +97,14 @@ export function AdmissionsApplicationList({
                           <div className="mt-1 text-sm text-muted-foreground">
                             {application.studentNumber}
                           </div>
+                          {application.studentProfileId ? (
+                            <Link
+                              href={`/students/${application.studentProfileId}`}
+                              className="academy-action-link mt-2"
+                            >
+                              View student record
+                            </Link>
+                          ) : null}
                         </div>
                       ) : application.canConvert ? (
                         <AdmissionsConversionAction

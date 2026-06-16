@@ -27,6 +27,7 @@ export interface AdmissionReviewItem {
     | "converted";
   conversionMessage: string;
   canConvert: boolean;
+  studentProfileId?: string;
   studentNumber?: string;
 }
 
@@ -122,6 +123,9 @@ export function buildAdmissionReviewModel(
         canConvert:
           conversionState === "ready" &&
           options.canConvertApplications,
+        ...(conversionState === "converted"
+          ? { studentProfileId: application.studentProfileId }
+          : {}),
         studentNumber: application.studentNumber,
         ...(options.includeApplicantContact
           ? {
