@@ -2,7 +2,7 @@
 
 ADR: `docs/adr/0024-gradebook-system.md`
 
-Phase: 1, Sprint 1.2
+Phase: 1, Sprint 1.3
 
 ## Scope
 
@@ -14,6 +14,10 @@ This slice creates the Gradebook foundation:
 - Student-safe GrowthFrameFilter.
 - Admin, instructor, and learner route scaffolds.
 - Admin, instructor, and learner read models wired through request-scoped database context.
+- Faculty grade-entry queue for instructor-owned submissions.
+- Faculty override panel for posted records.
+- Server actions recheck instructor-owned sections before grade or override writes.
+- Local seed data for a visible Gradebook demo queue.
 - Component scaffolds for grade display, grade entry, overrides, audit logs, consent, AI badges, and column visibility.
 
 ## Boundaries

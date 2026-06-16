@@ -18,7 +18,7 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 - immutable audit evidence
 - admissions application through decision
 - accepted-application conversion into student, enrollment, and period registration
-- Gradebook Phase 1 schema, RLS, override audit, GrowthFrameFilter, route scaffolds, and tenant-scoped read models
+- Gradebook Phase 1 schema, RLS, override audit, GrowthFrameFilter, route scaffolds, tenant-scoped read models, and faculty grade-entry queue
 - Student PWA shell and provider-neutral LMS launch
 - no-LMS provider and Moodle/Canvas contract foundations
 - deterministic ShepherdAI workflow suggestions
@@ -26,7 +26,7 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 
 ## Partially Implemented
 
-- Gradebook bulk operations and full faculty grading workflows
+- Gradebook bulk operations and full faculty grading workflow polish
 - Student PWA persistence across courses, schedule, progress, documents, and messages
 - Moodle and Canvas execution beyond launch and contract/planning foundations
 - browser role-matrix acceptance across all protected pages

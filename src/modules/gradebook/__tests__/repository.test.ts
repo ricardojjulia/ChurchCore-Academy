@@ -75,7 +75,7 @@ test("admin gradebook read model loads tenant-scoped records and override audit"
 });
 
 test("instructor gradebook read model filters to owned sections and optional learner context", async () => {
-  const { database, queries } = createDatabase([[], []]);
+  const { database, queries } = createDatabase([[], [], []]);
   const repository = new GradebookPostgresRepository(database);
 
   await repository.fetchInstructorGradebook("tenant-1", "faculty-1", {
@@ -86,6 +86,37 @@ test("instructor gradebook read model filters to owned sections and optional lea
   assert.match(queries[0].sql, /section\.assistant_instructor_ids \? \$2/i);
   assert.match(queries[0].sql, /record\.learner_person_id = \$3/i);
   assert.deepEqual(queries[0].values, ["tenant-1", "faculty-1", "student-1"]);
+});
+
+test("instructor gradebook read model exposes grade entry targets for owned sections", async () => {
+  const { database, queries } = createDatabase([
+    [],
+    [],
+    [
+      {
+        submission_id: "submission-1",
+        assignment_id: "assignment-1",
+        assignment_title: "Romans Reflection",
+        course_title: "Romans",
+        section_code: "ROM-101-A",
+        learner_person_id: "student-1",
+        learner_display_name: "Jane Learner",
+        max_points: "100.00",
+        status: "submitted",
+        submitted_at: new Date("2026-06-15T12:00:00Z"),
+        sensitivity_tier: "standard",
+      },
+    ],
+  ]);
+  const repository = new GradebookPostgresRepository(database);
+
+  const model = await repository.fetchInstructorGradebook("tenant-1", "faculty-1");
+
+  assert.equal(model.gradingTargets?.[0].submissionId, "submission-1");
+  assert.equal(model.gradingTargets?.[0].maxPoints, 100);
+  assert.match(queries[2].sql, /from public\.academy_gradebook_submissions submission/i);
+  assert.match(queries[2].sql, /record\.id is null/i);
+  assert.match(queries[2].sql, /section\.primary_instructor_id = \$2/i);
 });
 
 test("learner gradebook read model filters to the authenticated learner only", async () => {

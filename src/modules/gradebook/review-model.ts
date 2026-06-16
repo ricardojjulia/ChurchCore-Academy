@@ -82,5 +82,6 @@ export function buildGradebookReviewModel(
     ],
     records: records.map((record) => mapRecord(record, visibilityTier)),
     overrideAudit: readModel.overrideAudit,
+    gradingTargets: readModel.gradingTargets ?? [],
   };
 }

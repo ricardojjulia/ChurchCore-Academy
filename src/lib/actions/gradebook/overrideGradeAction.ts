@@ -6,6 +6,7 @@ import type {
   GradebookActionDependencies,
   GradebookActionResult,
 } from "@/lib/actions/gradebook/types";
+import { assertCanOverrideGradeTarget } from "@/lib/actions/gradebook/authorization";
 import { assertGradebookOverrideAccess } from "@/lib/gradebook/policy";
 import { overrideGradeSchema, type OverrideGradeInput } from "@/lib/gradebook/schemas";
 
@@ -31,6 +32,10 @@ export async function overrideGradeAction(
     assertGradebookOverrideAccess(actor);
 
     const data = await dependencies.runInDatabaseContext(actor, async (client) => {
+      await assertCanOverrideGradeTarget(client, actor, {
+        gradeRecordId: parsed.gradeRecordId,
+      });
+
       const existing = await client.query<CurrentGradeRecord>(
         `
           select id, points_earned, letter_grade, is_passing
