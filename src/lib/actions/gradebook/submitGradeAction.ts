@@ -6,6 +6,7 @@ import type {
   GradebookActionDependencies,
   GradebookActionResult,
 } from "@/lib/actions/gradebook/types";
+import { assertCanSubmitGradeTarget } from "@/lib/actions/gradebook/authorization";
 import { assertGradebookWriteAccess } from "@/lib/gradebook/policy";
 import { submitGradeSchema, type SubmitGradeInput } from "@/lib/gradebook/schemas";
 
@@ -23,6 +24,12 @@ export async function submitGradeAction(
     assertGradebookWriteAccess(actor);
 
     const data = await dependencies.runInDatabaseContext(actor, async (client) => {
+      await assertCanSubmitGradeTarget(client, actor, {
+        submissionId: parsed.submissionId,
+        assignmentId: parsed.assignmentId,
+        learnerPersonId: parsed.learnerPersonId,
+      });
+
       const result = await client.query<{ id: string }>(
         `
           insert into public.academy_gradebook_records (

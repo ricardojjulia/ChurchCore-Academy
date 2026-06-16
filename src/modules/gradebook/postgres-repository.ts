@@ -1,6 +1,7 @@
 import { getDatabasePool } from "@/lib/database";
 import type {
   GradebookAuditRead,
+  GradebookGradingTarget,
   GradebookReadModel,
   GradebookRecordRead,
 } from "@/modules/gradebook/types";
@@ -76,6 +77,22 @@ function mapAuditRow(row: Record<string, unknown>): GradebookAuditRead {
   };
 }
 
+function mapGradingTargetRow(row: Record<string, unknown>): GradebookGradingTarget {
+  return {
+    submissionId: String(row.submission_id),
+    assignmentId: String(row.assignment_id),
+    assignmentTitle: String(row.assignment_title),
+    courseTitle: String(row.course_title),
+    sectionCode: String(row.section_code),
+    learnerPersonId: String(row.learner_person_id),
+    learnerDisplayName: String(row.learner_display_name),
+    maxPoints: Number(row.max_points),
+    status: String(row.status),
+    submittedAt: optionalIso(row.submitted_at),
+    sensitivityTier: row.sensitivity_tier as GradebookGradingTarget["sensitivityTier"],
+  };
+}
+
 export class GradebookPostgresRepository {
   constructor(private readonly database: GradebookDatabase = getDatabasePool()) {}
 
@@ -113,6 +130,11 @@ export class GradebookPostgresRepository {
         true,
       ),
       overrideAudit: await this.fetchOverrideAudit(tenantId, instructorPersonId),
+      gradingTargets: await this.fetchInstructorGradingTargets(
+        tenantId,
+        instructorPersonId,
+        filters,
+      ),
     };
   }
 
@@ -239,5 +261,63 @@ export class GradebookPostgresRepository {
     );
 
     return result.rows.map(mapAuditRow);
+  }
+
+  private async fetchInstructorGradingTargets(
+    tenantId: string,
+    instructorPersonId: string,
+    filters: { learnerPersonId?: string } = {},
+  ) {
+    const conditions = [
+      `submission.tenant_id = $1`,
+      `(section.primary_instructor_id = $2 or section.assistant_instructor_ids ? $2)`,
+      `record.id is null`,
+      `submission.status in ('submitted', 'resubmitted', 'returned')`,
+    ];
+    const values: unknown[] = [tenantId, instructorPersonId];
+
+    if (filters.learnerPersonId) {
+      values.push(filters.learnerPersonId);
+      conditions.push(`submission.learner_person_id = $${values.length}`);
+    }
+
+    const result = await this.database.query(
+      `
+        select
+          submission.id as submission_id,
+          assignment.id as assignment_id,
+          assignment.title as assignment_title,
+          course.title as course_title,
+          section.section_code,
+          submission.learner_person_id,
+          learner.display_name as learner_display_name,
+          assignment.max_points,
+          submission.status,
+          submission.submitted_at,
+          assignment.sensitivity_tier
+        from public.academy_gradebook_submissions submission
+        join public.academy_gradebook_assignments assignment
+          on assignment.tenant_id = submission.tenant_id
+         and assignment.id = submission.assignment_id
+        join public.academy_courses course
+          on course.tenant_id = assignment.tenant_id
+         and course.id = assignment.course_id
+        join public.academy_course_sections section
+          on section.tenant_id = assignment.tenant_id
+         and section.id = assignment.section_id
+        join public.academy_people learner
+          on learner.tenant_id = submission.tenant_id
+         and learner.id = submission.learner_person_id
+        left join public.academy_gradebook_records record
+          on record.tenant_id = submission.tenant_id
+         and record.submission_id = submission.id
+        where ${conditions.join(" and ")}
+        order by submission.submitted_at asc, learner.display_name asc
+        limit 25
+      `,
+      values,
+    );
+
+    return result.rows.map(mapGradingTargetRow);
   }
 }

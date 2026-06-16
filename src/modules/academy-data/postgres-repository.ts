@@ -1093,6 +1093,130 @@ export class AcademyDataRepository {
         );
       }
 
+      await pool.query(
+        `insert into public.academy_gradebook_assignments (
+           id, tenant_id, course_id, section_id, created_by_person_id, title, description,
+           assignment_type, max_points, weight, due_date, is_published, sensitivity_tier,
+           created_at, updated_at
+         ) values
+           (
+             '11111111-1111-4111-8111-111111111111',
+             'cca-main',
+             'course-reading-k5',
+             'section-reading-k5',
+             'person-sophia-marsh',
+             'Reading Fluency Reflection',
+             'Teacher-reviewed reading reflection for the demo grade entry queue.',
+             'reflection',
+             100,
+             1.0,
+             '2026-09-12T21:00:00.000Z',
+             true,
+             'standard',
+             '2026-06-16T00:00:00.000Z',
+             '2026-06-16T00:00:00.000Z'
+           ),
+           (
+             '22222222-2222-4222-8222-222222222222',
+             'cca-main',
+             'course-reading-k5',
+             'section-reading-k5',
+             'person-sophia-marsh',
+             'Pastoral Encouragement Journal',
+             'Pastoral-sensitive learner reflection used to verify growth-framed grade display.',
+             'reflection',
+             100,
+             1.0,
+             '2026-09-19T21:00:00.000Z',
+             true,
+             'pastoral',
+             '2026-06-16T00:00:00.000Z',
+             '2026-06-16T00:00:00.000Z'
+           )
+         on conflict (id) do update
+         set course_id = excluded.course_id,
+             section_id = excluded.section_id,
+             created_by_person_id = excluded.created_by_person_id,
+             title = excluded.title,
+             description = excluded.description,
+             assignment_type = excluded.assignment_type,
+             max_points = excluded.max_points,
+             weight = excluded.weight,
+             due_date = excluded.due_date,
+             is_published = excluded.is_published,
+             sensitivity_tier = excluded.sensitivity_tier,
+             updated_at = excluded.updated_at`,
+      );
+
+      await pool.query(
+        `insert into public.academy_gradebook_submissions (
+           id, tenant_id, assignment_id, learner_person_id, submitted_at, content, status, created_at, updated_at
+         ) values
+           (
+             '33333333-3333-4333-8333-333333333333',
+             'cca-main',
+             '11111111-1111-4111-8111-111111111111',
+             'person-lena-rivera',
+             '2026-09-10T18:00:00.000Z',
+             'Lena reads the assigned passage and reflects on one growth step.',
+             'submitted',
+             '2026-06-16T00:00:00.000Z',
+             '2026-06-16T00:00:00.000Z'
+           ),
+           (
+             '44444444-4444-4444-8444-444444444444',
+             'cca-main',
+             '22222222-2222-4222-8222-222222222222',
+             'person-lena-rivera',
+             '2026-09-17T18:00:00.000Z',
+             'Lena shares a pastoral encouragement reflection.',
+             'graded',
+             '2026-06-16T00:00:00.000Z',
+             '2026-06-16T00:00:00.000Z'
+           )
+         on conflict (id) do update
+         set assignment_id = excluded.assignment_id,
+             learner_person_id = excluded.learner_person_id,
+             submitted_at = excluded.submitted_at,
+             content = excluded.content,
+             status = excluded.status,
+             updated_at = excluded.updated_at`,
+      );
+
+      await pool.query(
+        `insert into public.academy_gradebook_records (
+           id, tenant_id, submission_id, assignment_id, learner_person_id, graded_by_person_id,
+           points_earned, max_points, letter_grade, is_passing, instructor_feedback,
+           sensitivity_tier, graded_at, created_at, updated_at
+         ) values (
+           '55555555-5555-4555-8555-555555555555',
+           'cca-main',
+           '44444444-4444-4444-8444-444444444444',
+           '22222222-2222-4222-8222-222222222222',
+           'person-lena-rivera',
+           'person-sophia-marsh',
+           88,
+           100,
+           'B+',
+           true,
+           'Lena is showing steady growth and should keep practicing reflective detail.',
+           'pastoral',
+           '2026-09-18T14:00:00.000Z',
+           '2026-06-16T00:00:00.000Z',
+           '2026-06-16T00:00:00.000Z'
+         )
+         on conflict (tenant_id, submission_id) do update
+         set graded_by_person_id = excluded.graded_by_person_id,
+             points_earned = excluded.points_earned,
+             max_points = excluded.max_points,
+             letter_grade = excluded.letter_grade,
+             is_passing = excluded.is_passing,
+             instructor_feedback = excluded.instructor_feedback,
+             sensitivity_tier = excluded.sensitivity_tier,
+             graded_at = excluded.graded_at,
+             updated_at = excluded.updated_at`,
+      );
+
       for (const admin of dataset.administrators) {
         await pool.query(
           `insert into academy_admin_users (id, tenant_id, name, title, role)

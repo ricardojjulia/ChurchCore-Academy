@@ -37,9 +37,24 @@ export interface GradebookAuditRead extends GradebookOverrideAuditEntry {
   overriddenByPersonId: string;
 }
 
+export interface GradebookGradingTarget {
+  submissionId: string;
+  assignmentId: string;
+  assignmentTitle: string;
+  courseTitle: string;
+  sectionCode: string;
+  learnerPersonId: string;
+  learnerDisplayName: string;
+  maxPoints: number;
+  status: string;
+  submittedAt: string | null;
+  sensitivityTier: SensitivityTier;
+}
+
 export interface GradebookReadModel {
   records: GradebookRecordRead[];
   overrideAudit: GradebookAuditRead[];
+  gradingTargets?: GradebookGradingTarget[];
 }
 
 export interface GradebookReviewMetric {
@@ -67,4 +82,5 @@ export interface GradebookReviewModel {
   metrics: GradebookReviewMetric[];
   records: GradebookReviewRecord[];
   overrideAudit: GradebookAuditRead[];
+  gradingTargets: GradebookGradingTarget[];
 }

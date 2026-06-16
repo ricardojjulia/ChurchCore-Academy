@@ -456,7 +456,7 @@ export const academyDataset: AcademyDataset = {
         capacity: 18,
         status: "scheduled",
         primaryInstructorRole: "teacher",
-        primaryInstructorId: "user-sophia",
+        primaryInstructorId: "person-sophia-marsh",
         assistantInstructorIds: [],
         createdAt: "2026-04-23T09:00:00.000Z",
         updatedAt: "2026-04-23T09:00:00.000Z",

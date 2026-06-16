@@ -43,7 +43,7 @@ test("submitGradeAction writes grade records through the authenticated tenant co
       tenantId: "tenant-1",
       roles: ["faculty"],
     },
-    [[{ id: "grade-record-1" }]],
+    [[{ can_write: true }], [{ id: "grade-record-1" }]],
   );
 
   const result = await submitGradeAction(
@@ -62,8 +62,9 @@ test("submitGradeAction writes grade records through the authenticated tenant co
   );
 
   assert.deepEqual(result, { ok: true, data: { gradeRecordId: "grade-record-1" } });
-  assert.match(queries[0].text, /insert into public\.academy_gradebook_records/i);
-  assert.deepEqual(queries[0].values?.slice(0, 5), [
+  assert.match(queries[0].text, /academy_course_sections/i);
+  assert.match(queries[1].text, /insert into public\.academy_gradebook_records/i);
+  assert.deepEqual(queries[1].values?.slice(0, 5), [
     "tenant-1",
     "00000000-0000-4000-8000-000000000001",
     "00000000-0000-4000-8000-000000000002",
@@ -71,6 +72,32 @@ test("submitGradeAction writes grade records through the authenticated tenant co
     "faculty-1",
   ]);
   assert.ok(revalidated.includes("/dashboard/student/grades"));
+});
+
+test("submitGradeAction rejects grades outside instructor-owned sections", async () => {
+  const { dependencies, queries } = createDependencies(
+    {
+      userId: "faculty-1",
+      tenantId: "tenant-1",
+      roles: ["faculty"],
+    },
+    [[]],
+  );
+
+  const result = await submitGradeAction(
+    {
+      submissionId: "00000000-0000-4000-8000-000000000001",
+      assignmentId: "00000000-0000-4000-8000-000000000002",
+      learnerPersonId: "student-1",
+      pointsEarned: 92,
+      maxPoints: 100,
+      sensitivityTier: "standard",
+    },
+    dependencies,
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(queries.length, 1);
 });
 
 test("submitGradeAction rejects student write attempts before database work", async () => {
@@ -103,7 +130,10 @@ test("overrideGradeAction updates the grade and appends audit evidence in one da
       tenantId: "tenant-1",
       roles: ["teacher"],
     },
-    [[{ id: "grade-record-1", points_earned: 80, letter_grade: "B", is_passing: true }]],
+    [
+      [{ can_write: true }],
+      [{ id: "grade-record-1", points_earned: 80, letter_grade: "B", is_passing: true }],
+    ],
   );
 
   const result = await overrideGradeAction(
@@ -122,8 +152,32 @@ test("overrideGradeAction updates the grade and appends audit evidence in one da
       auditWritten: true,
     },
   });
-  assert.match(queries[0].text, /for update/i);
-  assert.match(queries[1].text, /update public\.academy_gradebook_records/i);
-  assert.match(queries[2].text, /insert into public\.academy_gradebook_override_audit/i);
+  assert.match(queries[0].text, /academy_course_sections/i);
+  assert.match(queries[1].text, /for update/i);
+  assert.match(queries[2].text, /update public\.academy_gradebook_records/i);
+  assert.match(queries[3].text, /insert into public\.academy_gradebook_override_audit/i);
   assert.ok(revalidated.includes("/dashboard/admin/gradebook"));
+});
+
+test("overrideGradeAction rejects overrides outside instructor-owned sections", async () => {
+  const { dependencies, queries } = createDependencies(
+    {
+      userId: "faculty-1",
+      tenantId: "tenant-1",
+      roles: ["teacher"],
+    },
+    [[]],
+  );
+
+  const result = await overrideGradeAction(
+    {
+      gradeRecordId: "00000000-0000-4000-8000-000000000003",
+      pointsEarned: 87,
+      reason: "Correcting rubric calculation after faculty review.",
+    },
+    dependencies,
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(queries.length, 1);
 });
