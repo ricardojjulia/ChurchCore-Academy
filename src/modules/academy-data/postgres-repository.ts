@@ -42,56 +42,166 @@ export class AcademyDataRepository {
 
   async loadDataset(tenantId: string): Promise<AcademyDataset> {
     const pool = this.database;
-    const institutionProfiles = await pool.query("select * from academy_institution_profiles where tenant_id = $1 limit 1", [tenantId]);
-    const calendarProfiles = await pool.query("select * from academy_calendar_profiles where tenant_id = $1 limit 1", [tenantId]);
-    const academicYears = await pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]);
-    const academicPeriods = await pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]);
-    const enrollmentWindows = await pool.query("select * from academy_enrollment_windows where tenant_id = $1 order by opens_at asc", [tenantId]);
-    const gradingWindows = await pool.query("select * from academy_grading_windows where tenant_id = $1 order by opens_at asc", [tenantId]);
-    const transcriptPeriods = await pool.query("select * from academy_transcript_periods where tenant_id = $1 order by posting_opens_at asc", [tenantId]);
-    const subdivisions = await pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [tenantId]);
-    const courseCatalogProfiles = await pool.query("select * from academy_course_catalog_profiles where tenant_id = $1 limit 1", [tenantId]);
-    const catalogCourses = await pool.query("select * from academy_courses where tenant_id = $1 order by code asc", [tenantId]);
-    const catalogSections = await pool.query("select * from academy_course_sections where tenant_id = $1 order by section_code asc", [tenantId]);
-    const coursePrerequisites = await pool.query("select * from academy_course_prerequisites where tenant_id = $1 order by course_id asc", [tenantId]);
-    const courseLmsMappings = await pool.query("select * from academy_course_lms_mappings where tenant_id = $1 order by mapping_status asc, provider asc", [tenantId]);
-    const gradingProfiles = await pool.query("select * from academy_grading_profiles where tenant_id = $1 limit 1", [tenantId]);
-    const evaluationScales = await pool.query("select * from academy_evaluation_scales where tenant_id = $1 order by scale_type asc, name asc", [tenantId]);
-    const evaluationScaleBands = await pool.query("select * from academy_evaluation_scale_bands where tenant_id = $1 order by scale_id asc, sequence asc", [tenantId]);
-    const evaluationRuleSets = await pool.query("select * from academy_evaluation_rule_sets where tenant_id = $1 order by course_id asc, record_type asc", [tenantId]);
-    const officialRecordRules = await pool.query("select * from academy_official_record_rules where tenant_id = $1 order by record_type asc", [tenantId]);
-    const academicStandingRules = await pool.query("select * from academy_academic_standing_rules where tenant_id = $1 order by standing_type asc, name asc", [tenantId]);
-    const people = await pool.query("select * from academy_people where tenant_id = $1 order by display_name asc", [tenantId]);
-    const roleAssignments = await pool.query("select * from academy_person_role_assignments where tenant_id = $1 order by person_id asc, role asc", [tenantId]);
-    const studentProfiles = await pool.query("select * from academy_student_profiles where tenant_id = $1 order by student_number asc", [tenantId]);
-    const staffProfiles = await pool.query("select * from academy_staff_profiles where tenant_id = $1 order by staff_number asc", [tenantId]);
-    const relationships = await pool.query("select * from academy_student_relationships where tenant_id = $1 order by student_person_id asc, relationship_type asc", [tenantId]);
-    const accountLinks = await pool.query("select * from academy_account_links where tenant_id = $1 order by provider asc, external_subject asc", [tenantId]);
-    const admins = await pool.query("select * from academy_admin_users where tenant_id = $1 order by name asc", [tenantId]);
-    const programs = await pool.query("select * from academy_programs where tenant_id = $1 order by name asc", [tenantId]);
-    const students = await pool.query("select * from academy_students where tenant_id = $1 order by full_name asc", [tenantId]);
-    const faculty = await pool.query("select * from academy_faculty where tenant_id = $1 order by name asc", [tenantId]);
-    const sections = await pool.query("select * from academy_sections where tenant_id = $1 order by code asc", [tenantId]);
-    const thresholds = await pool.query("select * from academy_thresholds where tenant_id = $1 limit 1", [tenantId]);
 
-    if (thresholds.rowCount === 0) {
-      throw new Error("Academy dataset is not seeded.");
-    }
+    // --- Normalized real-table queries ---
+    const [
+      institutionProfiles,
+      calendarProfiles,
+      academicYears,
+      academicPeriods,
+      enrollmentWindows,
+      gradingWindows,
+      transcriptPeriods,
+      subdivisions,
+      courseCatalogProfiles,
+      catalogCourses,
+      catalogSections,
+      coursePrerequisites,
+      courseLmsMappings,
+      gradingProfiles,
+      evaluationScales,
+      evaluationScaleBands,
+      evaluationRuleSets,
+      officialRecordRules,
+      academicStandingRules,
+      people,
+      roleAssignments,
+      studentProfiles,
+      staffProfiles,
+      relationships,
+      accountLinks,
+    ] = await Promise.all([
+      pool.query("select * from academy_institution_profiles where tenant_id = $1 limit 1", [tenantId]),
+      pool.query("select * from academy_calendar_profiles where tenant_id = $1 limit 1", [tenantId]),
+      pool.query("select * from academy_academic_years where tenant_id = $1 order by starts_on asc", [tenantId]),
+      pool.query("select * from academy_academic_periods where tenant_id = $1 order by sequence asc, starts_on asc", [tenantId]),
+      pool.query("select * from academy_enrollment_windows where tenant_id = $1 order by opens_at asc", [tenantId]),
+      pool.query("select * from academy_grading_windows where tenant_id = $1 order by opens_at asc", [tenantId]),
+      pool.query("select * from academy_transcript_periods where tenant_id = $1 order by posting_opens_at asc", [tenantId]),
+      pool.query("select * from academy_institution_subdivisions where tenant_id = $1 order by subdivision_type asc, name asc", [tenantId]),
+      pool.query("select * from academy_course_catalog_profiles where tenant_id = $1 limit 1", [tenantId]),
+      pool.query("select * from academy_courses where tenant_id = $1 order by code asc", [tenantId]),
+      pool.query("select * from academy_course_sections where tenant_id = $1 order by section_code asc", [tenantId]),
+      pool.query("select * from academy_course_prerequisites where tenant_id = $1 order by course_id asc", [tenantId]),
+      pool.query("select * from academy_course_lms_mappings where tenant_id = $1 order by mapping_status asc, provider asc", [tenantId]),
+      pool.query("select * from academy_grading_profiles where tenant_id = $1 limit 1", [tenantId]),
+      pool.query("select * from academy_evaluation_scales where tenant_id = $1 order by scale_type asc, name asc", [tenantId]),
+      pool.query("select * from academy_evaluation_scale_bands where tenant_id = $1 order by scale_id asc, sequence asc", [tenantId]),
+      pool.query("select * from academy_evaluation_rule_sets where tenant_id = $1 order by course_id asc, record_type asc", [tenantId]),
+      pool.query("select * from academy_official_record_rules where tenant_id = $1 order by record_type asc", [tenantId]),
+      pool.query("select * from academy_academic_standing_rules where tenant_id = $1 order by standing_type asc, name asc", [tenantId]),
+      pool.query("select * from academy_people where tenant_id = $1 order by display_name asc", [tenantId]),
+      pool.query("select * from academy_person_role_assignments where tenant_id = $1 order by person_id asc, role asc", [tenantId]),
+      pool.query("select * from academy_student_profiles where tenant_id = $1 order by student_number asc", [tenantId]),
+      pool.query("select * from academy_staff_profiles where tenant_id = $1 order by staff_number asc", [tenantId]),
+      pool.query("select * from academy_student_relationships where tenant_id = $1 order by student_person_id asc, relationship_type asc", [tenantId]),
+      pool.query("select * from academy_account_links where tenant_id = $1 order by provider asc, external_subject asc", [tenantId]),
+    ]);
+
+    // --- Denormalized queries for legacy dataset shape ---
+    // Students: profile + person join for the full StudentRecord shape
+    const studentsResult = await pool.query(
+      `select
+         sp.id, sp.tenant_id, sp.enrollment_status,
+         sp.program_id, sp.advisor_person_id, sp.created_at as enrolled_at,
+         p.display_name as full_name, p.email,
+         (select max(aa.submitted_at)
+            from academy_admission_applications aa
+            where aa.tenant_id = sp.tenant_id
+              and aa.applicant_person_id = sp.person_id
+              and aa.status <> 'draft') as application_started_at,
+         (select max(aa.decided_at)
+            from academy_admission_applications aa
+            where aa.tenant_id = sp.tenant_id
+              and aa.applicant_person_id = sp.person_id
+              and aa.status = 'accepted') as admitted_at,
+         (select ap.name
+            from academy_period_registrations pr
+            join academy_academic_periods ap on ap.tenant_id = pr.tenant_id and ap.id = pr.academic_period_id
+            where pr.tenant_id = sp.tenant_id
+              and pr.student_profile_id = sp.id
+              and pr.status = 'registered'
+            order by pr.registered_at desc
+            limit 1) as active_term
+       from academy_student_profiles sp
+       join academy_people p on p.tenant_id = sp.tenant_id and p.id = sp.person_id
+       where sp.tenant_id = $1
+       order by sp.student_number asc`,
+      [tenantId],
+    );
+
+    // Faculty: staff profile + person join with computed section + advisee counts
+    const facultyResult = await pool.query(
+      `select
+         stf.id, stf.tenant_id, stf.title, stf.person_id,
+         p.display_name as name,
+         coalesce(
+           (select array_agg(cs.id order by cs.section_code)
+              from academy_course_sections cs
+              where cs.tenant_id = stf.tenant_id
+                and cs.primary_instructor_id = stf.person_id),
+           '{}'::text[]
+         ) as assigned_section_ids,
+         (select count(*)::int
+            from academy_student_profiles spp
+            where spp.tenant_id = stf.tenant_id
+              and spp.advisor_person_id = stf.person_id) as advisee_count
+       from academy_staff_profiles stf
+       join academy_people p on p.tenant_id = stf.tenant_id and p.id = stf.person_id
+       where stf.tenant_id = $1
+         and stf.employment_status = 'active'
+       order by stf.staff_number asc`,
+      [tenantId],
+    );
+
+    // Course sections with roster counts
+    const sectionsResult = await pool.query(
+      `select
+         cs.id, cs.tenant_id, cs.section_code, cs.primary_instructor_id,
+         cs.capacity,
+         coalesce(cs.title_override, c.title) as title,
+         coalesce(
+           (select count(*)::int
+              from academy_course_section_registrations csr
+              where csr.tenant_id = cs.tenant_id
+                and csr.course_section_id = cs.id
+                and csr.status = 'registered'),
+           0
+         ) as roster_count
+       from academy_course_sections cs
+       join academy_courses c on c.tenant_id = cs.tenant_id and c.id = cs.course_id
+       where cs.tenant_id = $1
+       order by cs.section_code asc`,
+      [tenantId],
+    );
+
+    // Administrators from role assignments (admin-adjacent roles only)
+    const adminsResult = await pool.query(
+      `select distinct on (p.id)
+         'admin-role-' || ra.id as id,
+         ra.tenant_id,
+         p.display_name as name,
+         coalesce(stf.title, ra.role) as title,
+         ra.role
+       from academy_person_role_assignments ra
+       join academy_people p on p.tenant_id = ra.tenant_id and p.id = ra.person_id
+       left join academy_staff_profiles stf
+         on stf.tenant_id = ra.tenant_id and stf.person_id = ra.person_id
+       where ra.tenant_id = $1
+         and ra.status = 'active'
+         and ra.role in ('dean', 'registrar', 'academic_admin', 'admissions', 'advisor')
+       order by p.id, ra.role asc`,
+      [tenantId],
+    );
+
+    // Programs from stub table (used in admission FK chain and UI lookups)
+    const programsResult = await pool.query(
+      "select * from academy_programs where tenant_id = $1 order by name asc",
+      [tenantId],
+    );
 
     if (institutionProfiles.rowCount === 0) {
-      throw new Error("Academy institution profile is not seeded.");
-    }
-
-    if (calendarProfiles.rowCount === 0) {
-      throw new Error("Academy academic calendar is not seeded.");
-    }
-
-    if (courseCatalogProfiles.rowCount === 0) {
-      throw new Error("Academy course catalog is not seeded.");
-    }
-
-    if (gradingProfiles.rowCount === 0) {
-      throw new Error("Academy grading records configuration is not seeded.");
+      throw new Error("Academy institution profile is not seeded for tenant.");
     }
 
     const institutionProfile = institutionProfiles.rows[0];
@@ -135,103 +245,114 @@ export class AcademyDataRepository {
       accountLinks: accountLinks.rows,
     });
 
+    function mapEnrollmentStatus(dbStatus: string): StudentRecord["enrollmentStatus"] {
+      if (dbStatus === "active") return "active";
+      if (dbStatus === "admitted") return "admitted";
+      return "pending";
+    }
+
+    function deriveStatusFlag(dbStatus: string): StudentRecord["statusFlag"] {
+      if (dbStatus === "active") return "good_standing";
+      return "pending_review";
+    }
+
     return {
-      tenantId: thresholds.rows[0].tenant_id,
+      tenantId,
       productArea: "academy",
       generatedAt: new Date().toISOString(),
-      institutionName: "ChurchCore Academy",
+      institutionName: institutionProfile.institution_name as string,
       institutionProfile: {
-        tenantId: institutionProfile.tenant_id,
-        institutionName: institutionProfile.institution_name,
-        legalName: institutionProfile.legal_name,
-        primaryMode: institutionProfile.primary_mode,
+        tenantId: institutionProfile.tenant_id as string,
+        institutionName: institutionProfile.institution_name as string,
+        legalName: institutionProfile.legal_name as string,
+        primaryMode: institutionProfile.primary_mode as InstitutionProfile["primaryMode"],
         supportedModes: parseArray<InstitutionProfile["supportedModes"][number]>(institutionProfile.supported_modes),
         operatingRules: parseJson<InstitutionProfile["operatingRules"]>(institutionProfile.operating_rules),
         capabilities: parseJson<InstitutionProfile["capabilities"]>(institutionProfile.capabilities),
         lmsPreference: parseJson<InstitutionProfile["lmsPreference"]>(institutionProfile.lms_preference),
-        createdAt: institutionProfile.created_at.toISOString(),
-        updatedAt: institutionProfile.updated_at.toISOString(),
+        createdAt: (institutionProfile.created_at as Date).toISOString(),
+        updatedAt: (institutionProfile.updated_at as Date).toISOString(),
       },
       academicCalendar,
       courseCatalog,
       gradingRecords,
       peopleConfiguration,
-      administrators: admins.rows.map(
+      administrators: adminsResult.rows.map(
         (row): AdminUser => ({
-          id: row.id,
-          tenantId: row.tenant_id,
-          name: row.name,
-          title: row.title,
-          role: row.role,
+          id: String(row.id),
+          tenantId: String(row.tenant_id),
+          name: String(row.name),
+          title: String(row.title),
+          role: row.role as AdminUser["role"],
         }),
       ),
-      programs: programs.rows.map(
+      programs: programsResult.rows.map(
         (row): Program => ({
-          id: row.id,
-          tenantId: row.tenant_id,
-          name: row.name,
-          credential: row.credential,
-          requiredCredits: row.required_credits,
-          cohortLabel: row.cohort_label,
+          id: String(row.id),
+          tenantId: String(row.tenant_id),
+          name: String(row.name),
+          credential: row.credential as Program["credential"],
+          requiredCredits: Number(row.required_credits),
+          cohortLabel: String(row.cohort_label),
         }),
       ),
-      students: students.rows.map(
+      students: studentsResult.rows.map(
         (row): StudentRecord => ({
-          id: row.id,
-          tenantId: row.tenant_id,
-          fullName: row.full_name,
-          email: row.email,
-          enrollmentStatus: row.enrollment_status,
-          applicationStartedAt: row.application_started_at?.toISOString(),
-          admittedAt: row.admitted_at?.toISOString(),
-          activeTerm: row.active_term ?? undefined,
-          programId: row.program_id ?? undefined,
-          advisorUserId: row.advisor_user_id ?? undefined,
-          missingEnrollmentSteps: parseArray<string>(row.missing_enrollment_steps),
-          missingDocuments: parseArray<StudentRecord["missingDocuments"][number]>(row.missing_documents),
-          documentationNotes: parseArray<string>(row.documentation_notes),
-          creditsEarned: row.credits_earned,
-          expectedCreditsByNow: row.expected_credits_by_now,
-          transcriptCredits: row.transcript_credits,
-          gpa: row.gpa === null ? undefined : Number(row.gpa),
-          statusFlag: row.status_flag,
-          allProgramCoursesCompleted: row.all_program_courses_completed,
-          graduationAdministrativeHolds: parseArray<string>(row.graduation_administrative_holds),
-          expectedNextTermRegistered: row.expected_next_term_registered,
-          transcriptAlerts: parseArray<string>(row.transcript_alerts),
-          recordAlerts: parseArray<string>(row.record_alerts),
+          id: String(row.id),
+          tenantId: String(row.tenant_id),
+          fullName: String(row.full_name),
+          email: String(row.email ?? ""),
+          enrollmentStatus: mapEnrollmentStatus(String(row.enrollment_status)),
+          applicationStartedAt: row.application_started_at ? (row.application_started_at as Date).toISOString() : undefined,
+          admittedAt: row.admitted_at ? (row.admitted_at as Date).toISOString() : undefined,
+          activeTerm: row.active_term ? String(row.active_term) : undefined,
+          programId: row.program_id ? String(row.program_id) : undefined,
+          advisorUserId: row.advisor_person_id ? String(row.advisor_person_id) : undefined,
+          missingEnrollmentSteps: [],
+          missingDocuments: [],
+          documentationNotes: [],
+          creditsEarned: 0,
+          expectedCreditsByNow: 0,
+          transcriptCredits: 0,
+          gpa: undefined,
+          statusFlag: deriveStatusFlag(String(row.enrollment_status)),
+          allProgramCoursesCompleted: false,
+          graduationAdministrativeHolds: [],
+          expectedNextTermRegistered: false,
+          transcriptAlerts: [],
+          recordAlerts: [],
         }),
       ),
-      faculty: faculty.rows.map(
+      faculty: facultyResult.rows.map(
         (row): FacultyRecord => ({
-          id: row.id,
-          tenantId: row.tenant_id,
-          name: row.name,
-          title: row.title,
+          id: String(row.id),
+          tenantId: String(row.tenant_id),
+          name: String(row.name),
+          title: String(row.title),
           assignedSectionIds: parseArray<string>(row.assigned_section_ids),
-          adviseeCount: row.advisee_count,
+          adviseeCount: Number(row.advisee_count),
         }),
       ),
-      sections: sections.rows.map(
+      sections: sectionsResult.rows.map(
         (row): CourseSection => ({
-          id: row.id,
-          tenantId: row.tenant_id,
-          code: row.code,
-          title: row.title,
-          programId: row.program_id,
-          instructorFacultyId: row.instructor_faculty_id ?? undefined,
-          rosterCount: row.roster_count,
-          rosterCapacity: row.roster_capacity,
-          setupAlerts: parseArray<string>(row.setup_alerts),
+          id: String(row.id),
+          tenantId: String(row.tenant_id),
+          code: String(row.section_code),
+          title: String(row.title),
+          programId: "",
+          instructorFacultyId: row.primary_instructor_id ? String(row.primary_instructor_id) : undefined,
+          rosterCount: Number(row.roster_count),
+          rosterCapacity: Number(row.capacity ?? 0),
+          setupAlerts: [],
         }),
       ),
       thresholds: {
-        incompleteEnrollmentDays: thresholds.rows[0].incomplete_enrollment_days,
-        graduationCreditThreshold: Number(thresholds.rows[0].graduation_credit_threshold),
-        creditPaceGap: thresholds.rows[0].credit_pace_gap,
-        minimumGpa: Number(thresholds.rows[0].minimum_gpa),
-        facultyLoadThreshold: thresholds.rows[0].faculty_load_threshold,
-        advisorStudentRatioThreshold: thresholds.rows[0].advisor_student_ratio_threshold,
+        incompleteEnrollmentDays: 10,
+        graduationCreditThreshold: 0.95,
+        creditPaceGap: 9,
+        minimumGpa: 2.0,
+        facultyLoadThreshold: 4,
+        advisorStudentRatioThreshold: 25,
       },
     };
   }

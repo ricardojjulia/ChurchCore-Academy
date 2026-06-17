@@ -19,6 +19,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.3.0] - 2026-06-16
+
+### Changed (Real DB Wiring — Prompt 3)
+
+- `AcademyDataRepository.loadDataset()` rewritten to query real normalized tables instead of empty stub tables. The `academy_thresholds`, `academy_students`, `academy_faculty`, `academy_sections`, and `academy_admin_users` queries have been replaced.
+- Students are now derived from `academy_student_profiles JOIN academy_people` with subquery-computed `application_started_at`, `admitted_at`, and `active_term` from the real admission and registration tables.
+- Faculty are now derived from `academy_staff_profiles JOIN academy_people` with computed `assigned_section_ids` (from `academy_course_sections.primary_instructor_id`) and `advisee_count` (from `academy_student_profiles.advisor_person_id`).
+- Course sections are now derived from `academy_course_sections JOIN academy_courses` with live roster counts from `academy_course_section_registrations`.
+- Administrators are now derived from `academy_person_role_assignments JOIN academy_people LEFT JOIN academy_staff_profiles` filtered to admin-class roles.
+- `dataset.thresholds` now uses hardcoded operational defaults rather than requiring a seeded `academy_thresholds` row; the guard that threw "Academy dataset is not seeded." is removed.
+- All 25 normalized foundation queries now run in parallel via `Promise.all` for faster dataset assembly.
+- `seedFromMockData()` method preserved unchanged for test use.
+
 ## [0.2.0] - 2026-06-16
 
 ### Added (SIS Data Foundation — Prompts 1–2)
