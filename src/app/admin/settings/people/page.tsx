@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, IdCard, Link2, ShieldCheck, UserRoundCheck
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StaffInviteForm } from "@/components/staff-invite-form";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { loadPeopleReviewModel } from "@/modules/people/review-loader";
 import {
@@ -153,6 +154,8 @@ export default async function PeopleSettingsPage() {
 
         <ValidationPanel model={model} />
       </section>
+
+      <StaffInviteForm />
     </AdminShell>
   );
 }
