@@ -265,20 +265,23 @@
   font-size: 0.78rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
   white-space: nowrap;
   overflow: hidden;
-  opacity: 0;
-  transition: opacity var(--sidebar-transition), background 150ms ease, color 150ms ease;
-}
-
-.admin-sidebar.is-open .admin-signout {
-  opacity: 1;
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .admin-signout:hover {
   background: var(--surface-sidebar-hover);
   color: var(--text-sidebar-active);
+}
+
+.admin-signout-label {
+  opacity: 0;
+  transition: opacity var(--sidebar-transition);
+}
+
+.admin-sidebar.is-open .admin-signout-label {
+  opacity: 1;
 }
 
 /* Main content area */

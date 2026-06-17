@@ -7,7 +7,6 @@ import {
   Activity,
   BookOpen,
   ChevronRight,
-  CreditCard,
   FolderOpen,
   GraduationCap,
   LogOut,
@@ -26,7 +25,6 @@ export type AdminSection =
   | "records"
   | "academics"
   | "dailyops"
-  | "finance"
   | "system";
 
 interface NavItem {
@@ -83,16 +81,6 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    id: "finance",
-    label: "Finance",
-    Icon: CreditCard,
-    items: [
-      { label: "Tuition & Fees", href: "/admin/finance/tuition" },
-      { label: "Billing", href: "/admin/finance/billing" },
-      { label: "Aid", href: "/admin/finance/aid" },
-    ],
-  },
-  {
     id: "system",
     label: "System",
     Icon: Settings2,
@@ -100,7 +88,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Institution", href: "/admin/settings/institution" },
       { label: "Calendar", href: "/admin/settings/calendar" },
       { label: "People & Roles", href: "/admin/settings/people" },
-      { label: "Integrations", href: "/admin/settings/integrations" },
     ],
   },
 ];
@@ -226,6 +213,7 @@ function AdminShellInner({
                               : item.href
                           }
                           className={`admin-nav-item ${itemActive ? "is-active" : ""}`}
+                          title={item.label}
                         >
                           {item.label}
                           {studentName && (
@@ -253,9 +241,9 @@ function AdminShellInner({
           </div>
           {signOutAction && (
             <form action={signOutAction}>
-              <button type="submit" className="admin-signout">
+              <button type="submit" className="admin-signout" title="Sign out">
                 <LogOut size={15} strokeWidth={2} />
-                Sign out
+                <span className="admin-signout-label">Sign out</span>
               </button>
             </form>
           )}

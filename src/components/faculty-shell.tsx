@@ -4,16 +4,10 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen,
   CalendarDays,
   ChevronRight,
-  ClipboardList,
   GraduationCap,
   LogOut,
-  MessageSquare,
-  School,
-  Sparkles,
-  Users,
 } from "lucide-react";
 
 interface NavItem {
@@ -34,59 +28,7 @@ const FACULTY_NAV: NavSection[] = [
     label: "Today",
     Icon: CalendarDays,
     items: [
-      { label: "My Schedule", href: "/faculty/schedule" },
       { label: "Attendance", href: "/faculty/attendance" },
-    ],
-  },
-  {
-    id: "sections",
-    label: "Sections",
-    Icon: School,
-    items: [
-      { label: "Active Sections", href: "/faculty/sections" },
-      { label: "Roster", href: "/faculty/roster" },
-    ],
-  },
-  {
-    id: "grading",
-    label: "Grading",
-    Icon: BookOpen,
-    items: [
-      { label: "Grade Entry", href: "/faculty/gradebook" },
-      { label: "Grade History", href: "/faculty/gradebook/history" },
-    ],
-  },
-  {
-    id: "students",
-    label: "My Students",
-    Icon: Users,
-    items: [
-      { label: "Student List", href: "/faculty/students" },
-      { label: "Progress Notes", href: "/faculty/notes" },
-    ],
-  },
-  {
-    id: "shepherd",
-    label: "ShepherdAI",
-    Icon: Sparkles,
-    items: [
-      { label: "Flagged Students", href: "/faculty/shepherd" },
-      { label: "Recommendations", href: "/faculty/shepherd/recommendations" },
-    ],
-  },
-  {
-    id: "messages",
-    label: "Messages",
-    Icon: MessageSquare,
-    items: [{ label: "Inbox", href: "/faculty/messages" }],
-  },
-  {
-    id: "academics",
-    label: "Academics",
-    Icon: ClipboardList,
-    items: [
-      { label: "Syllabi", href: "/faculty/syllabi" },
-      { label: "Assignments", href: "/faculty/assignments" },
     ],
   },
 ];
@@ -197,9 +139,9 @@ export function FacultyShell({
           </div>
           {signOutAction && (
             <form action={signOutAction}>
-              <button type="submit" className="admin-signout">
+              <button type="submit" className="admin-signout" title="Sign out">
                 <LogOut size={15} strokeWidth={2} />
-                Sign out
+                <span className="admin-signout-label">Sign out</span>
               </button>
             </form>
           )}
