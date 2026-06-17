@@ -4,7 +4,6 @@ import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evalu
 import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getInstitutionProfile } from "@/lib/institution";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +14,6 @@ export default async function WorkflowQueuePage() {
   const items = evaluation.workflows.getWorkflowQueue({ status: "all" });
 
   const user = await getCurrentUser();
-  const institution = await getInstitutionProfile(tenantId);
-  const badgeText = `${institution?.institutionName ?? "Academy"} · ${user?.role ?? "admin"}`;
-
   async function signOutAction() {
     "use server";
     const supabase = await createSupabaseServerClient();

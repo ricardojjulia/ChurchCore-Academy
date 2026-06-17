@@ -366,7 +366,7 @@ function AdminShellInner({
   );
 }
 
-export interface AdminShellProps extends AdminShellInnerProps {}
+export type AdminShellProps = AdminShellInnerProps;
 
 export function AdminShell(props: AdminShellProps) {
   return (
