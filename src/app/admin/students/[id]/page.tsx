@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
+  BookOpen,
   BookOpenCheck,
   ClipboardList,
   GraduationCap,
@@ -17,9 +18,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WithdrawRegistrationButton } from "@/components/withdraw-registration-button";
 import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
+
+interface RegistrationRow {
+  id: string;
+  course_section_id: string;
+  status: string;
+  registered_at: string;
+}
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -64,6 +74,19 @@ export default async function StudentPage({
     ...student.transcriptAlerts.map((value) => ({ category: "Transcript", value })),
     ...student.recordAlerts.map((value) => ({ category: "Record", value })),
   ];
+
+  const registrations = await withAcademyDatabaseContext(actor, async (client) => {
+    const result = await client.query(
+      `select id, course_section_id, status, registered_at
+         from academy_course_section_registrations
+        where tenant_id = $1 and student_person_id = $2
+        order by registered_at desc`,
+      [actor.tenantId, id],
+    ) as { rows: RegistrationRow[] };
+    return result.rows;
+  });
+
+  const sectionById = new Map(dataset.sections.map((s) => [s.id, s]));
 
   return (
     <AdminShell
@@ -110,6 +133,7 @@ export default async function StudentPage({
         <TabsList className="student-tabs-list">
           <TabsTrigger value="insights">ShepherdAI Insights</TabsTrigger>
           <TabsTrigger value="record">Academic Record</TabsTrigger>
+          <TabsTrigger value="sections">Sections</TabsTrigger>
           <TabsTrigger value="signals">Administrative Signals</TabsTrigger>
           <TabsTrigger value="workflows">Workflows</TabsTrigger>
         </TabsList>
@@ -188,6 +212,77 @@ export default async function StudentPage({
               </CardContent>
             </Card>
           </section>
+        </TabsContent>
+
+        <TabsContent value="sections">
+          <Card className="ops-panel">
+            <CardHeader>
+              <div className="ops-heading">
+                <div className="ops-icon"><BookOpen /></div>
+                <div>
+                  <CardTitle>Section Registrations</CardTitle>
+                  <CardDescription>
+                    All course section registrations for this student. Use Withdraw to drop a section.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {registrations.length === 0 ? (
+                <div className="student-empty-state">
+                  <BookOpen />
+                  <span>No section registrations on record for this student.</span>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Section</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Registered</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {registrations.map((reg) => {
+                      const section = sectionById.get(reg.course_section_id);
+                      return (
+                        <TableRow key={reg.id}>
+                          <TableCell className="font-mono font-medium">
+                            {section?.code ?? reg.course_section_id.slice(0, 8)}
+                          </TableCell>
+                          <TableCell className="whitespace-normal">
+                            {section?.title ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                reg.status === "registered" ? "secondary"
+                                  : reg.status === "withdrawn" ? "destructive"
+                                  : "outline"
+                              }
+                            >
+                              {reg.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(reg.registered_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <WithdrawRegistrationButton
+                              registrationId={reg.id}
+                              currentStatus={reg.status}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="signals">
