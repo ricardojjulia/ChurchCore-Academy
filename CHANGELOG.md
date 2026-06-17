@@ -19,6 +19,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.7.0] - 2026-06-17
+
+### Added (Tenant Identity Fix — v0.7.0)
+
+- `supabase/migrations/20260617010000_link_developer_to_cca_main.sql` — links the developer account (`ricardojjulia@gmail.com`) to `person-regina-holt` in `cca-main` as `institution_admin` and `platform_admin`, and sets `cca-main` as the preferred active tenant. Fixes the root cause of the dashboard showing "UI Button 119445" and zero Students/Programs/Faculty counts.
+- `supabase/migrations/20260616225000_fix_academic_programs_subdivision_id_type.sql` — corrects `academy_academic_programs.subdivision_id` from `uuid` to `text` to match `academy_institution_subdivisions.id` (text PK). Unblocks the enrollment seed.
+- `supabase/migrations/20260616226000_fix_academic_programs_creator_id_type.sql` — corrects `academy_academic_programs.created_by_person_id` from `uuid` to `text` to match `academy_people.id` (text PK). Unblocks the enrollment seed.
+- `supabase/migrations/20260616230000_seed_demo_enrollment_data.sql` — now applies successfully: seeds 4 normalized programs, runs full admission state machine (draft → submitted → under_review → accepted) for Naomi Price, Daniel Hart, Leah Brooks, and Ezra Coleman, and creates program enrollments, period registrations, course section registrations, and sample gradebook submissions.
+
+### Changed (Migration Runner — v0.7.0)
+
+- `scripts/db-migrate-local.ts` — added idempotent migration tracking via `public.schema_migrations` table. The runner now skips migrations that were previously applied, preventing `CREATE POLICY` failures on re-runs. Also bootstraps the tracking table from DB object markers when run against an already-migrated database that predates the tracker.
+
 ## [0.6.0] - 2026-06-17
 
 ### Added (Dashboard Navigation — v0.6.0)
@@ -83,7 +96,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [0.1.0] - 2026-06-14
 
-### Added
+### Added (Foundation — v0.1.0)
 
 - Multi-tenant institution configuration, academic calendar, course catalog, people, guardian, faculty, grading, and transcript-rule foundations.
 - Verified Supabase session identity, persisted Academy account links and roles, request-scoped PostgreSQL context, forced RLS, and immutable audit events.

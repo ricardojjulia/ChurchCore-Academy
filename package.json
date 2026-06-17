@@ -1,6 +1,6 @@
 {
   "name": "churchcore-academy",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Multi-tenant education management and student information platform for faith-based institutions.",
   "private": true,
   "license": "MIT",

@@ -46,6 +46,7 @@ ChurchCore Academy is designed around that variability:
 | Attendance screens | Updated in 0.4.0 | Real section IDs and student names replace hardcoded demo data in admin and faculty attendance |
 | Graduation audit screen | New in 0.5.0 | `/admin/graduation` — credit readiness, holds, and registrar review triage with threshold from dataset |
 | ShepherdAI workflow signals | Fixed in 0.5.0 | Workflows page now derives tenant ID from verified session instead of an unsecured request header |
+| Tenant identity wiring | Fixed in 0.7.0 | Developer account linked to `cca-main`; enrollment seed applied; migration runner tracks applied migrations |
 | Grading and transcript rules | Foundation + seed data | Evaluation scales, gradebook scales, sample submissions and records seeded |
 | Authentication and tenant isolation | Implemented, exit gate open | Verified Supabase sessions, request-scoped database context, forced RLS |
 | Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion; demo chains seeded |
