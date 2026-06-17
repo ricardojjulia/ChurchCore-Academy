@@ -19,6 +19,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.6.0] - 2026-06-17
+
+### Added (Dashboard Navigation — v0.6.0)
+
+- Admin dashboard "Start Here" quick actions now include **Course Catalog** (`/admin/courses`) and **Graduation** (`/admin/graduation`), making all new screens reachable from the dashboard without needing to expand sidebar sections.
+- Quick actions panel is now shown even when dataset is not seeded (empty-state path), so the nav remains usable before migrations run.
+
+### Security (v0.6.0)
+
+- Admin dashboard (`/admin`) now uses `loadProtectedAcademyDataset()` to derive tenant ID and pre-load the dataset instead of reading the `x-academy-tenant-id` request header. Consistent with the Prompt 15 fix on the workflows page.
+
 ## [0.5.0] - 2026-06-17
 
 ### Added (Graduation + ShepherdAI — Prompts 14–15)

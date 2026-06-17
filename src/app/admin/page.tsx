@@ -3,6 +3,7 @@ import type React from "react";
 import {
   ArrowRight,
   BookOpenCheck,
+  BookOpen,
   ClipboardCheck,
   FileWarning,
   GraduationCap,
@@ -19,7 +20,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { headers } from "next/headers";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 
 export const dynamic = "force-dynamic";
 
@@ -27,23 +28,16 @@ const quickActions = [
   { label: "Review Applications", detail: "Admissions queue", href: "/admin/admissions", Icon: ClipboardCheck },
   { label: "Student Records", detail: "Index, profiles, history", href: "/admin/students", Icon: UsersRound },
   { label: "Programs", detail: "Cohorts and readiness", href: "/admin/programs", Icon: GraduationCap },
+  { label: "Course Catalog", detail: "Courses and sections", href: "/admin/courses", Icon: BookOpen },
+  { label: "Graduation", detail: "Credit readiness and holds", href: "/admin/graduation", Icon: GraduationCap },
   { label: "ShepherdAI Queue", detail: "Human-reviewed signals", href: "/admin/workflows", Icon: Sparkles },
   { label: "Gradebook", detail: "Grades and override audit", href: "/admin/gradebook", Icon: School },
   { label: "Faculty", detail: "Staffing and section setup", href: "/admin/faculty", Icon: BookOpenCheck },
   { label: "Student PWA", detail: "Student-facing records", href: "/student", Icon: ArrowRight },
 ];
 
-function isSeedDataUnavailableError(error: unknown) {
-  return (
-    error instanceof Error &&
-    error.message.toLowerCase().includes("is not seeded")
-  );
-}
-
 export default async function AdminDashboard() {
   const user = await getCurrentUser();
-  const tenantId = user?.tenantId ?? "cca-main";
-  const institution = await getInstitutionProfile(tenantId);
 
   async function signOutAction() {
     "use server";
@@ -56,15 +50,23 @@ export default async function AdminDashboard() {
     ReturnType<typeof runAcademicWorkflowEvaluationJob>
   > | null = null;
   let seedDataWarning: string | null = null;
+  let institutionName: string | undefined;
 
   try {
-    evaluation = await runAcademicWorkflowEvaluationJob(
-      (await headers()).get("x-academy-tenant-id") ?? tenantId,
-    );
+    const { actor, dataset } = await loadProtectedAcademyDataset();
+    institutionName = dataset.institutionName;
+    evaluation = await runAcademicWorkflowEvaluationJob(actor.tenantId, dataset, null);
   } catch (error) {
-    if (!isSeedDataUnavailableError(error)) throw error;
+    const isUnseedError =
+      error instanceof Error &&
+      (error.message.toLowerCase().includes("is not seeded") ||
+        error.message.toLowerCase().includes("institution profile is not seeded"));
+    if (!isUnseedError) throw error;
     seedDataWarning =
       "Academy dataset is not seeded for this tenant yet. Metrics remain hidden until seeding completes.";
+    const tenantId = user?.tenantId ?? "cca-main";
+    const institution = await getInstitutionProfile(tenantId).catch(() => null);
+    institutionName = institution?.institutionName ?? undefined;
   }
 
   const suggestions = evaluation?.suggestions ?? [];
@@ -90,7 +92,7 @@ export default async function AdminDashboard() {
 
   return (
     <AdminShell
-      eyebrow={institution?.institutionName ?? "ChurchCore Academy"}
+      eyebrow={institutionName ?? "ChurchCore Academy"}
       title="Academic Dashboard"
       subtitle="Faith-based education management — students, records, grading, faculty workflows, and institutional operations."
       userEmail={user?.email}
@@ -261,6 +263,33 @@ export default async function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Show quick actions even when data isn't ready so the nav is usable */}
+          <div className="admin-panel">
+            <div className="admin-panel-heading">
+              <h2>Navigation</h2>
+            </div>
+            <div className="admin-quick-actions">
+              {quickActions.map((action) => {
+                const { Icon } = action;
+                return (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className="admin-quick-action"
+                  >
+                    <span className="admin-quick-action-icon">
+                      <Icon />
+                    </span>
+                    <span>
+                      {action.label}
+                      <span>{action.detail}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </section>
       )}
     </AdminShell>
