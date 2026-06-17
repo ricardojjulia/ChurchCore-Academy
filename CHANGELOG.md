@@ -19,6 +19,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.4.0] - 2026-06-16
+
+### Added (Screen Wiring — Prompts 4–10)
+
+- `src/app/admin/courses/page.tsx` — new `/admin/courses` screen (nav link existed, page was missing). Shows course catalog metrics, course table with type/level/duration/subdivision/status, and section table with period name resolution, instructor name lookup from `dataset.peopleConfiguration.people`, and live roster counts.
+- `src/app/faculty/attendance/faculty-attendance-form.tsx` — extracted client form component for faculty attendance entry; accepts server-provided sections and students instead of hardcoded demo data.
+
+### Updated (Screen Wiring — Prompts 4–10)
+
+- `src/modules/academy-data/postgres-repository.ts` — `adminsResult` query now uses `p.id` (person ID) as `admin.id` so that `student.advisorUserId` (which is `advisor_person_id`) resolves correctly in the student detail page advisor lookup.
+- `src/app/admin/attendance/page.tsx` — replaced hardcoded `demo-section-1` API link with a real list of sections from `dataset.sections`, each linking to the attendance API with its real section ID.
+- `src/app/faculty/attendance/page.tsx` — converted from a pure client component with hardcoded demo data to a server component that loads real sections and students from `loadProtectedAcademyDataset()`, then delegates rendering to `FacultyAttendanceForm`.
+- All admin screens (`/admin/students`, `/admin/students/[id]`, `/admin/programs`, `/admin/programs/[id]`, `/admin/settings/courses`, `/admin/sections`, `/faculty`, `/dashboard/admin/gradebook`) are fully unblocked by the Prompt 3 repository rewrite — no additional page changes were required for Prompts 5–9.
+
 ## [0.3.0] - 2026-06-16
 
 ### Changed (Real DB Wiring — Prompt 3)

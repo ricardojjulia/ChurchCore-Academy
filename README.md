@@ -42,6 +42,8 @@ ChurchCore Academy is designed around that variability:
 | People, roles, guardians, and faculty | Foundation + seed data | 12 people with profiles, roles, and student relationships seeded |
 | Academic programs (normalized) | New in 0.2.0 | `academy_academic_programs` — UUID-PK, multi-mode, full CRUD API |
 | Academy dataset wiring | New in 0.3.0 | `AcademyDataRepository` queries real normalized tables; all admin and faculty screens unblocked |
+| Course catalog admin screen | New in 0.4.0 | `/admin/courses` — courses table + sections table with period name resolution and instructor lookup |
+| Attendance screens | Updated in 0.4.0 | Real section IDs and student names replace hardcoded demo data in admin and faculty attendance |
 | Grading and transcript rules | Foundation + seed data | Evaluation scales, gradebook scales, sample submissions and records seeded |
 | Authentication and tenant isolation | Implemented, exit gate open | Verified Supabase sessions, request-scoped database context, forced RLS |
 | Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion; demo chains seeded |

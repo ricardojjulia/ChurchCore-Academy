@@ -175,10 +175,11 @@ export class AcademyDataRepository {
       [tenantId],
     );
 
-    // Administrators from role assignments (admin-adjacent roles only)
+    // Administrators from role assignments (admin-adjacent roles only).
+    // id = person_id so that student.advisorUserId (advisor_person_id) resolves correctly.
     const adminsResult = await pool.query(
       `select distinct on (p.id)
-         'admin-role-' || ra.id as id,
+         p.id,
          ra.tenant_id,
          p.display_name as name,
          coalesce(stf.title, ra.role) as title,
