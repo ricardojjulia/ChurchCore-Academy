@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin-shell";
 import { WorkflowQueueBoard } from "@/components/academy-workflow-queue";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { headers } from "next/headers";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -9,17 +9,18 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function WorkflowQueuePage() {
-  const tenantId = (await headers()).get("x-academy-tenant-id") ?? "cca-main";
-  const evaluation = await runAcademicWorkflowEvaluationJob(tenantId);
-  const items = evaluation.workflows.getWorkflowQueue({ status: "all" });
-
   const user = await getCurrentUser();
+
   async function signOutAction() {
     "use server";
     const supabase = await createSupabaseServerClient();
     await supabase.auth.signOut();
     redirect("/login");
   }
+
+  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const evaluation = await runAcademicWorkflowEvaluationJob(actor.tenantId, dataset, null);
+  const items = evaluation.workflows.getWorkflowQueue({ status: "all" });
 
   return (
     <AdminShell
@@ -29,7 +30,7 @@ export default async function WorkflowQueuePage() {
       userEmail={user?.email}
       signOutAction={signOutAction}
     >
-      <WorkflowQueueBoard initialItems={items} administrators={evaluation.dataset.administrators} />
+      <WorkflowQueueBoard initialItems={items} administrators={dataset.administrators} />
     </AdminShell>
   );
 }

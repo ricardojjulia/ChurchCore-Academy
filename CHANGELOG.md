@@ -19,6 +19,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.5.0] - 2026-06-17
+
+### Added (Graduation + ShepherdAI — Prompts 14–15)
+
+- `src/app/admin/graduation/page.tsx` — new `/admin/graduation` screen (nav link existed, page was missing). Shows graduation audit with four metric cards (active students, review-ready count, hold count, credit threshold), three candidate tables (ready for registrar review / holds pending / in progress), and per-student credit progress, GPA, holds, and links to student profiles.
+- `src/app/admin/graduation/page.tsx` uses `dataset.thresholds.graduationCreditThreshold` to compute per-student readiness without any hardcoded values.
+
+### Security (Prompts 14–15)
+
+- `src/app/admin/workflows/page.tsx` — replaced insecure header-derived `x-academy-tenant-id` tenant resolution with `loadProtectedAcademyDataset()`. ShepherdAI evaluation now runs against the verified actor's tenant ID and the pre-loaded real dataset. Removes the `headers()` import.
+
 ## [0.4.0] - 2026-06-16
 
 ### Added (Screen Wiring — Prompts 4–10)
