@@ -20,7 +20,6 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
 import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +35,19 @@ const quickActions = [
   { label: "Student PWA", detail: "Student-facing records", href: "/student", Icon: ArrowRight },
 ];
 
+function isSeedDataUnavailableError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.message.toLowerCase().includes("is not seeded") ||
+      error.message.toLowerCase().includes("institution profile is not seeded"))
+  );
+}
+
 export default async function AdminDashboard() {
   const user = await getCurrentUser();
+  // tenantId derives from the verified Supabase session only — never from caller-supplied headers.
+  const tenantId = user?.tenantId ?? "cca-main";
+  const institution = await getInstitutionProfile(tenantId);
 
   async function signOutAction() {
     "use server";
@@ -50,23 +60,13 @@ export default async function AdminDashboard() {
     ReturnType<typeof runAcademicWorkflowEvaluationJob>
   > | null = null;
   let seedDataWarning: string | null = null;
-  let institutionName: string | undefined;
 
   try {
-    const { actor, dataset } = await loadProtectedAcademyDataset();
-    institutionName = dataset.institutionName;
-    evaluation = await runAcademicWorkflowEvaluationJob(actor.tenantId, dataset, null);
+    evaluation = await runAcademicWorkflowEvaluationJob(tenantId);
   } catch (error) {
-    const isUnseedError =
-      error instanceof Error &&
-      (error.message.toLowerCase().includes("is not seeded") ||
-        error.message.toLowerCase().includes("institution profile is not seeded"));
-    if (!isUnseedError) throw error;
+    if (!isSeedDataUnavailableError(error)) throw error;
     seedDataWarning =
       "Academy dataset is not seeded for this tenant yet. Metrics remain hidden until seeding completes.";
-    const tenantId = user?.tenantId ?? "cca-main";
-    const institution = await getInstitutionProfile(tenantId).catch(() => null);
-    institutionName = institution?.institutionName ?? undefined;
   }
 
   const suggestions = evaluation?.suggestions ?? [];
@@ -92,7 +92,7 @@ export default async function AdminDashboard() {
 
   return (
     <AdminShell
-      eyebrow={institutionName ?? "ChurchCore Academy"}
+      eyebrow={institution?.institutionName ?? "ChurchCore Academy"}
       title="Academic Dashboard"
       subtitle="Faith-based education management — students, records, grading, faculty workflows, and institutional operations."
       userEmail={user?.email}
@@ -173,7 +173,6 @@ export default async function AdminDashboard() {
 
           {/* Middle: quick-actions + signals */}
           <div className="admin-dashboard-grid">
-            {/* Quick actions */}
             <div className="admin-panel">
               <div className="admin-panel-heading">
                 <h2>Start Here</h2>
@@ -200,7 +199,6 @@ export default async function AdminDashboard() {
               </div>
             </div>
 
-            {/* Top signals */}
             <div className="admin-panel">
               <div className="admin-panel-heading">
                 <h2>ShepherdAI Signals</h2>
@@ -264,10 +262,9 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Show quick actions even when data isn't ready so the nav is usable */}
           <div className="admin-panel">
             <div className="admin-panel-heading">
-              <h2>Navigation</h2>
+              <h2>Start Here</h2>
             </div>
             <div className="admin-quick-actions">
               {quickActions.map((action) => {
