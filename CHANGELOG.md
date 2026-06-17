@@ -19,6 +19,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.7.1] - 2026-06-17
+
+### Changed (Single-tenant cleanup — v0.7.1)
+
+- `supabase/migrations/20260617030000_remove_dead_tenant.sql` — removes the auto-created `cca-ui-btn-119445` tenant ("UI Button 119445") that was generated when the platform control panel was first opened in local development. Deletes its institution profile, account link, person, role assignments, subdivision, and calendar profile. Resets platform user preferences to `cca-main`. The local database now has exactly one tenant.
+
 ## [0.7.0] - 2026-06-17
 
 ### Added (Tenant Identity Fix — v0.7.0)
