@@ -19,6 +19,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.2.0] - 2026-06-16
+
+### Added (SIS Data Foundation — Prompts 1–2)
+
+- `academy_academic_programs` — normalized UUID-PK programs table replacing the stub `academy_programs` for future enrollment flows. Supports all six institution modes (bible_school, childrens_school, seminary, college, university, mixed) and eight credential types. RLS enforced with `enable` + `force`.
+- `PostgresAcademicProgramRepository` with `list`, `findById`, `findByCode`, `create`, and `update`. All tenant-scoped.
+- `validateCreateProgramInput` — normalizes `programCode` to uppercase, rejects invalid modes and credential types.
+- `GET /api/academy/programs` and `POST /api/academy/programs` — list and create programs via verified Academy actor.
+- `GET /api/academy/programs/[id]` and `PATCH /api/academy/programs/[id]` — read and update individual programs.
+- 8 unit tests covering success path, validation, and cross-tenant rejection.
+- `20260616085000_seed_demo_institution_foundation.sql` — populates all real normalized tables: institution profile, calendar, subdivisions (7), academic years (4), academic periods (5 across Bible School, Children's, and College calendars), course catalog profile, grading profile, 7 courses, 12 people (students, faculty, staff, guardian), person role assignments, 6 student profiles (including pending and admitted states), 5 staff profiles, student relationships, 6 course sections, old and new evaluation scales with letter-grade bands, gradebook scales + entries, and gradebook assignments. IDs match `mock-data.ts` for smooth Prompt-3 DB query migration.
+- `20260616230000_seed_demo_enrollment_data.sql` — seeds 4 normalized programs in `academy_academic_programs`, runs the full admission state machine (draft → submitted → under_review → accepted) for Naomi Price, Daniel Hart, Leah Brooks, and Ezra Coleman, creates program enrollments, period registrations, and course section registrations for active students, and inserts sample gradebook submissions and graded records.
+
 ## [0.1.0] - 2026-06-14
 
 ### Added
