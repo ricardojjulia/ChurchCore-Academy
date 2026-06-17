@@ -4,10 +4,13 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BookOpen,
   CalendarDays,
   ChevronRight,
+  ClipboardCheck,
   GraduationCap,
   LogOut,
+  Users,
 } from "lucide-react";
 
 interface NavItem {
@@ -28,7 +31,33 @@ const FACULTY_NAV: NavSection[] = [
     label: "Today",
     Icon: CalendarDays,
     items: [
+      { label: "Schedule", href: "/faculty/schedule" },
       { label: "Attendance", href: "/faculty/attendance" },
+    ],
+  },
+  {
+    id: "teaching",
+    label: "Teaching",
+    Icon: BookOpen,
+    items: [
+      { label: "My Sections", href: "/faculty/sections" },
+      { label: "Roster", href: "/faculty/roster" },
+    ],
+  },
+  {
+    id: "grading",
+    label: "Grading",
+    Icon: ClipboardCheck,
+    items: [
+      { label: "Gradebook", href: "/faculty/gradebook" },
+    ],
+  },
+  {
+    id: "students",
+    label: "Students",
+    Icon: Users,
+    items: [
+      { label: "All Students", href: "/students" },
     ],
   },
 ];
@@ -93,7 +122,7 @@ export function FacultyShell({
                     setExpanded(isExpanded ? null : section.id)
                   }
                   title={section.label}
-                  aria-expanded={isExpanded ? "true" : "false"}
+                  aria-expanded={isExpanded}
                 >
                   <span className="admin-nav-icon">
                     <Icon size={18} strokeWidth={1.8} />
