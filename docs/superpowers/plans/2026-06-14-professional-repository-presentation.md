@@ -32,7 +32,7 @@
 - Create: `CODE_OF_CONDUCT.md`
 - Modify: `CHANGELOG.md`
 
-- [x] Add the MIT license for ChurchCore Academy contributors.
+- [x] Add the project license for ChurchCore Academy contributors.
 - [x] Define contribution, security reporting, support, and conduct procedures.
 - [x] Convert the changelog to a structured project history.
 

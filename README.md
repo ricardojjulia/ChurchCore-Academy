@@ -9,7 +9,7 @@
 
   [![Status](https://img.shields.io/badge/status-active%20development-D97706)](#project-status)
   [![CI](https://github.com/ricardojjulia/ChurchCore-Academy/actions/workflows/ci.yml/badge.svg)](https://github.com/ricardojjulia/ChurchCore-Academy/actions/workflows/ci.yml)
-  [![License: MIT](https://img.shields.io/badge/license-MIT-2563EB.svg)](LICENSE)
+  [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-2563EB.svg)](LICENSE)
   [![Next.js](https://img.shields.io/badge/Next.js-16-111827)](https://nextjs.org/)
   [![React](https://img.shields.io/badge/React-19-149ECA)](https://react.dev/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6)](https://www.typescriptlang.org/)
@@ -198,4 +198,4 @@ Review [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the [
 
 ## License
 
-ChurchCore Academy is available under the [MIT License](LICENSE).
+ChurchCore Academy is open source under the [GNU Affero General Public License v3.0](LICENSE).
