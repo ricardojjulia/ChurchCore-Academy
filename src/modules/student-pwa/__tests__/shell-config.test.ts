@@ -7,12 +7,13 @@ test("student PWA exposes the complete first-sprint route family", () => {
     studentPwaDestinations.map(({ href, label }) => ({ href, label })),
     [
       { href: "/student", label: "Home" },
-      { href: "/student/courses", label: "Courses" },
+      { href: "/student/courses", label: "My Courses" },
       { href: "/student/schedule", label: "Schedule" },
       { href: "/student/progress", label: "Progress" },
       { href: "/student/documents", label: "Documents" },
       { href: "/student/messages", label: "Messages" },
       { href: "/student/lms", label: "Learning" },
+      { href: "/student/attendance", label: "Attendance" },
       { href: "/student/privacy", label: "Privacy" },
     ],
   );
@@ -21,7 +22,7 @@ test("student PWA exposes the complete first-sprint route family", () => {
 test("student PWA LMS destination stays provider-neutral before Phase 7", () => {
   const lmsDestination = studentPwaDestinations.find(({ href }) => href === "/student/lms");
 
-  assert.equal(lmsDestination?.description, "Course launch becomes available after your institution completes learning-system setup.");
+  assert.equal(lmsDestination?.description, "Launch your course learning environment here once your institution connects a learning platform.");
   assert.doesNotMatch(lmsDestination?.description ?? "", /Moodle|Canvas|token|secret/i);
 });
 

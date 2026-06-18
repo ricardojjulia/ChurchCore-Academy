@@ -19,9 +19,90 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
+## [0.7.1] - 2026-06-17
+
+### Changed (Single-tenant cleanup — v0.7.1)
+
+- `supabase/migrations/20260617030000_remove_dead_tenant.sql` — removes the auto-created `cca-ui-btn-119445` tenant ("UI Button 119445") that was generated when the platform control panel was first opened in local development. Deletes its institution profile, account link, person, role assignments, subdivision, and calendar profile. Resets platform user preferences to `cca-main`. The local database now has exactly one tenant.
+
+## [0.7.0] - 2026-06-17
+
+### Added (Tenant Identity Fix — v0.7.0)
+
+- `supabase/migrations/20260617010000_link_developer_to_cca_main.sql` — links the developer account (`ricardojjulia@gmail.com`) to `person-regina-holt` in `cca-main` as `institution_admin` and `platform_admin`, and sets `cca-main` as the preferred active tenant. Fixes the root cause of the dashboard showing "UI Button 119445" and zero Students/Programs/Faculty counts.
+- `supabase/migrations/20260616225000_fix_academic_programs_subdivision_id_type.sql` — corrects `academy_academic_programs.subdivision_id` from `uuid` to `text` to match `academy_institution_subdivisions.id` (text PK). Unblocks the enrollment seed.
+- `supabase/migrations/20260616226000_fix_academic_programs_creator_id_type.sql` — corrects `academy_academic_programs.created_by_person_id` from `uuid` to `text` to match `academy_people.id` (text PK). Unblocks the enrollment seed.
+- `supabase/migrations/20260616230000_seed_demo_enrollment_data.sql` — now applies successfully: seeds 4 normalized programs, runs full admission state machine (draft → submitted → under_review → accepted) for Naomi Price, Daniel Hart, Leah Brooks, and Ezra Coleman, and creates program enrollments, period registrations, course section registrations, and sample gradebook submissions.
+
+### Changed (Migration Runner — v0.7.0)
+
+- `scripts/db-migrate-local.ts` — added idempotent migration tracking via `public.schema_migrations` table. The runner now skips migrations that were previously applied, preventing `CREATE POLICY` failures on re-runs. Also bootstraps the tracking table from DB object markers when run against an already-migrated database that predates the tracker.
+
+## [0.6.0] - 2026-06-17
+
+### Added (Dashboard Navigation — v0.6.0)
+
+- Admin dashboard "Start Here" quick actions now include **Course Catalog** (`/admin/courses`) and **Graduation** (`/admin/graduation`), making all new screens reachable from the dashboard without needing to expand sidebar sections.
+- Quick actions panel is now shown even when dataset is not seeded (empty-state path), so the nav remains usable before migrations run.
+
+### Security (v0.6.0)
+
+- Admin dashboard (`/admin`) now uses `loadProtectedAcademyDataset()` to derive tenant ID and pre-load the dataset instead of reading the `x-academy-tenant-id` request header. Consistent with the Prompt 15 fix on the workflows page.
+
+## [0.5.0] - 2026-06-17
+
+### Added (Graduation + ShepherdAI — Prompts 14–15)
+
+- `src/app/admin/graduation/page.tsx` — new `/admin/graduation` screen (nav link existed, page was missing). Shows graduation audit with four metric cards (active students, review-ready count, hold count, credit threshold), three candidate tables (ready for registrar review / holds pending / in progress), and per-student credit progress, GPA, holds, and links to student profiles.
+- `src/app/admin/graduation/page.tsx` uses `dataset.thresholds.graduationCreditThreshold` to compute per-student readiness without any hardcoded values.
+
+### Security (Prompts 14–15)
+
+- `src/app/admin/workflows/page.tsx` — replaced insecure header-derived `x-academy-tenant-id` tenant resolution with `loadProtectedAcademyDataset()`. ShepherdAI evaluation now runs against the verified actor's tenant ID and the pre-loaded real dataset. Removes the `headers()` import.
+
+## [0.4.0] - 2026-06-16
+
+### Added (Screen Wiring — Prompts 4–10)
+
+- `src/app/admin/courses/page.tsx` — new `/admin/courses` screen (nav link existed, page was missing). Shows course catalog metrics, course table with type/level/duration/subdivision/status, and section table with period name resolution, instructor name lookup from `dataset.peopleConfiguration.people`, and live roster counts.
+- `src/app/faculty/attendance/faculty-attendance-form.tsx` — extracted client form component for faculty attendance entry; accepts server-provided sections and students instead of hardcoded demo data.
+
+### Updated (Screen Wiring — Prompts 4–10)
+
+- `src/modules/academy-data/postgres-repository.ts` — `adminsResult` query now uses `p.id` (person ID) as `admin.id` so that `student.advisorUserId` (which is `advisor_person_id`) resolves correctly in the student detail page advisor lookup.
+- `src/app/admin/attendance/page.tsx` — replaced hardcoded `demo-section-1` API link with a real list of sections from `dataset.sections`, each linking to the attendance API with its real section ID.
+- `src/app/faculty/attendance/page.tsx` — converted from a pure client component with hardcoded demo data to a server component that loads real sections and students from `loadProtectedAcademyDataset()`, then delegates rendering to `FacultyAttendanceForm`.
+- All admin screens (`/admin/students`, `/admin/students/[id]`, `/admin/programs`, `/admin/programs/[id]`, `/admin/settings/courses`, `/admin/sections`, `/faculty`, `/dashboard/admin/gradebook`) are fully unblocked by the Prompt 3 repository rewrite — no additional page changes were required for Prompts 5–9.
+
+## [0.3.0] - 2026-06-16
+
+### Changed (Real DB Wiring — Prompt 3)
+
+- `AcademyDataRepository.loadDataset()` rewritten to query real normalized tables instead of empty stub tables. The `academy_thresholds`, `academy_students`, `academy_faculty`, `academy_sections`, and `academy_admin_users` queries have been replaced.
+- Students are now derived from `academy_student_profiles JOIN academy_people` with subquery-computed `application_started_at`, `admitted_at`, and `active_term` from the real admission and registration tables.
+- Faculty are now derived from `academy_staff_profiles JOIN academy_people` with computed `assigned_section_ids` (from `academy_course_sections.primary_instructor_id`) and `advisee_count` (from `academy_student_profiles.advisor_person_id`).
+- Course sections are now derived from `academy_course_sections JOIN academy_courses` with live roster counts from `academy_course_section_registrations`.
+- Administrators are now derived from `academy_person_role_assignments JOIN academy_people LEFT JOIN academy_staff_profiles` filtered to admin-class roles.
+- `dataset.thresholds` now uses hardcoded operational defaults rather than requiring a seeded `academy_thresholds` row; the guard that threw "Academy dataset is not seeded." is removed.
+- All 25 normalized foundation queries now run in parallel via `Promise.all` for faster dataset assembly.
+- `seedFromMockData()` method preserved unchanged for test use.
+
+## [0.2.0] - 2026-06-16
+
+### Added (SIS Data Foundation — Prompts 1–2)
+
+- `academy_academic_programs` — normalized UUID-PK programs table replacing the stub `academy_programs` for future enrollment flows. Supports all six institution modes (bible_school, childrens_school, seminary, college, university, mixed) and eight credential types. RLS enforced with `enable` + `force`.
+- `PostgresAcademicProgramRepository` with `list`, `findById`, `findByCode`, `create`, and `update`. All tenant-scoped.
+- `validateCreateProgramInput` — normalizes `programCode` to uppercase, rejects invalid modes and credential types.
+- `GET /api/academy/programs` and `POST /api/academy/programs` — list and create programs via verified Academy actor.
+- `GET /api/academy/programs/[id]` and `PATCH /api/academy/programs/[id]` — read and update individual programs.
+- 8 unit tests covering success path, validation, and cross-tenant rejection.
+- `20260616085000_seed_demo_institution_foundation.sql` — populates all real normalized tables: institution profile, calendar, subdivisions (7), academic years (4), academic periods (5 across Bible School, Children's, and College calendars), course catalog profile, grading profile, 7 courses, 12 people (students, faculty, staff, guardian), person role assignments, 6 student profiles (including pending and admitted states), 5 staff profiles, student relationships, 6 course sections, old and new evaluation scales with letter-grade bands, gradebook scales + entries, and gradebook assignments. IDs match `mock-data.ts` for smooth Prompt-3 DB query migration.
+- `20260616230000_seed_demo_enrollment_data.sql` — seeds 4 normalized programs in `academy_academic_programs`, runs the full admission state machine (draft → submitted → under_review → accepted) for Naomi Price, Daniel Hart, Leah Brooks, and Ezra Coleman, creates program enrollments, period registrations, and course section registrations for active students, and inserts sample gradebook submissions and graded records.
+
 ## [0.1.0] - 2026-06-14
 
-### Added
+### Added (Foundation — v0.1.0)
 
 - Multi-tenant institution configuration, academic calendar, course catalog, people, guardian, faculty, grading, and transcript-rule foundations.
 - Verified Supabase session identity, persisted Academy account links and roles, request-scoped PostgreSQL context, forced RLS, and immutable audit events.

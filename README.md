@@ -36,13 +36,21 @@ ChurchCore Academy is designed around that variability:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Institution configuration | Foundation complete | Configurable institution modes and operating rules |
-| Academic calendars and subdivisions | Foundation complete | Years, periods, windows, campuses, schools, and departments |
-| Course catalog and sections | Foundation complete | Provider-neutral LMS mapping contracts included |
-| People, roles, guardians, and faculty | Foundation complete | Tenant and relationship-scoped access models |
-| Grading and transcript rules | Foundation complete | Domain rules exist; operational grade entry and issuance remain planned |
+| Institution configuration | Foundation + seed data | Configurable institution modes and operating rules; demo institution seeded |
+| Academic calendars and subdivisions | Foundation + seed data | Bible School, Children's School, College calendars seeded with real periods |
+| Course catalog and sections | Foundation + seed data | 7 courses and 6 sections across all institution modes seeded |
+| People, roles, guardians, and faculty | Foundation + seed data | 12 people with profiles, roles, and student relationships seeded |
+| Academic programs (normalized) | New in 0.2.0 | `academy_academic_programs` — UUID-PK, multi-mode, full CRUD API |
+| Academy dataset wiring | New in 0.3.0 | `AcademyDataRepository` queries real normalized tables; all admin and faculty screens unblocked |
+| Course catalog admin screen | New in 0.4.0 | `/admin/courses` — courses table + sections table with period name resolution and instructor lookup |
+| Attendance screens | Updated in 0.4.0 | Real section IDs and student names replace hardcoded demo data in admin and faculty attendance |
+| Graduation audit screen | New in 0.5.0 | `/admin/graduation` — credit readiness, holds, and registrar review triage with threshold from dataset |
+| ShepherdAI workflow signals | Fixed in 0.5.0 | Workflows page now derives tenant ID from verified session instead of an unsecured request header |
+| Tenant identity wiring | Fixed in 0.7.0 | Developer account linked to `cca-main`; enrollment seed applied; migration runner tracks applied migrations |
+| Grading and transcript rules | Foundation + seed data | Evaluation scales, gradebook scales, sample submissions and records seeded |
 | Authentication and tenant isolation | Implemented, exit gate open | Verified Supabase sessions, request-scoped database context, forced RLS |
-| Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion |
+| Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion; demo chains seeded |
+| Student enrollment | Foundation + seed data | Full program enrollment, period registration, and section registration chains seeded |
 | Student PWA | Working shell and read surfaces | Persistence is incomplete for several student workflows |
 | LMS integrations | Contract and adapter foundations | Moodle/Canvas execution workers remain incomplete |
 | ShepherdAI Academy | Deterministic foundation | Human-reviewed academic workflow recommendations only |

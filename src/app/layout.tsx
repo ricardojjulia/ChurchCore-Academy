@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import "../styles/tokens.css";
 import "./globals.css";
+import "../styles/shared.css";
+import "../styles/admin.css";
+import "../styles/student-pwa.css";
 import { Inter } from "next/font/google";
 import { AcademyAppProvider } from "@/components/academy-app-provider";
 

@@ -52,6 +52,10 @@ export function buildStudentPwaSourceFromDataset(
     (student) => student.tenantId === dataset.tenantId && student.enrollmentStatus === "active",
   );
 
+  const periodById = new Map(
+    (dataset.academicCalendar?.periods ?? []).map((p) => [p.id, p]),
+  );
+
   const progress = [
     {
       id: "pwa-progress-standing",
@@ -67,10 +71,36 @@ export function buildStudentPwaSourceFromDataset(
       tenantId: dataset.tenantId,
       studentPersonId: targetStudentPersonId,
       category: "progress" as const,
-      label: "Enrollment",
-      value: formatStatus(learnerProfile?.enrollmentStatus ?? "active"),
+      label: "Enrollment status",
+      value: formatStatus(learnerProfile?.enrollmentStatus ?? activeStudent?.enrollmentStatus ?? "active"),
       releaseStatus,
     },
+    ...(activeStudent != null
+      ? [
+          {
+            id: "pwa-progress-credits",
+            tenantId: dataset.tenantId,
+            studentPersonId: targetStudentPersonId,
+            category: "progress" as const,
+            label: "Credits earned",
+            value: `${activeStudent.creditsEarned} credit${activeStudent.creditsEarned !== 1 ? "s" : ""}`,
+            releaseStatus,
+          },
+          ...(activeStudent.gpa != null
+            ? [
+                {
+                  id: "pwa-progress-gpa",
+                  tenantId: dataset.tenantId,
+                  studentPersonId: targetStudentPersonId,
+                  category: "grades" as const,
+                  label: "Cumulative GPA",
+                  value: activeStudent.gpa.toFixed(2),
+                  releaseStatus,
+                },
+              ]
+            : []),
+        ]
+      : []),
   ];
 
   return {
@@ -85,15 +115,21 @@ export function buildStudentPwaSourceFromDataset(
       title: section.titleOverride ?? course.title,
       releaseStatus,
     })),
-    schedule: currentCourses.map(({ section, course }, index) => ({
-      id: `pwa-schedule-${section.id}`,
-      tenantId: dataset.tenantId,
-      studentPersonId: targetStudentPersonId,
-      title: section.titleOverride ?? course.title,
-      startsAt: scheduleDateForIndex(index),
-      location: section.deliveryMode === "online" ? "Online" : section.schedulePattern ?? "Campus",
-      releaseStatus,
-    })),
+    schedule: currentCourses.map(({ section, course }) => {
+      const period = periodById.get(section.academicPeriodId);
+      const startsAt = period?.startsOn
+        ? `${period.startsOn}T00:00:00.000Z`
+        : dataset.generatedAt;
+      return {
+        id: `pwa-schedule-${section.id}`,
+        tenantId: dataset.tenantId,
+        studentPersonId: targetStudentPersonId,
+        title: section.titleOverride ?? course.title,
+        startsAt,
+        location: section.deliveryMode === "online" ? "Online" : section.schedulePattern ?? "Campus",
+        releaseStatus,
+      };
+    }),
     progress,
     documents: [
       {
@@ -141,11 +177,6 @@ export async function loadStudentPwaPageModel(
     actor.userId,
     dependencies.now ?? new Date().toISOString().slice(0, 10),
   );
-}
-
-function scheduleDateForIndex(index: number) {
-  const day = 16 + index;
-  return `2026-09-${String(day).padStart(2, "0")}T14:00:00.000Z`;
 }
 
 function formatStatus(value: string) {

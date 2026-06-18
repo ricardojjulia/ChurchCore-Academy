@@ -5,7 +5,7 @@ export type StudentPwaDestination = {
   label: string;
   title: string;
   description: string;
-  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy";
+  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance";
 };
 
 export const studentPwaDestinations: StudentPwaDestination[] = [
@@ -18,51 +18,58 @@ export const studentPwaDestinations: StudentPwaDestination[] = [
   },
   {
     href: "/student/courses",
-    label: "Courses",
-    title: "Courses",
-    description: "Current courses and sections will appear after student-scoped course records are connected.",
+    label: "My Courses",
+    title: "My Courses",
+    description: "Your active courses and enrolled sections appear here once records are released.",
     icon: "courses",
   },
   {
     href: "/student/schedule",
     label: "Schedule",
-    title: "Schedule",
-    description: "Upcoming meetings and important academic dates will appear after your schedule is released.",
+    title: "My Schedule",
+    description: "Upcoming class times, meetings, and important dates will appear once your schedule is released.",
     icon: "schedule",
   },
   {
     href: "/student/progress",
     label: "Progress",
-    title: "Academic progress",
-    description: "Released progress, completion, standing, and readiness summaries will appear here.",
+    title: "My Progress",
+    description: "Your credits earned, GPA standing, and program completion appear here once records are released.",
     icon: "progress",
   },
   {
     href: "/student/documents",
     label: "Documents",
-    title: "Documents",
-    description: "Academy-owned documents and requests will appear when student document records are connected.",
+    title: "My Documents",
+    description: "Transcripts, letters, forms, and Academy documents will appear here once connected.",
     icon: "documents",
   },
   {
     href: "/student/messages",
     label: "Messages",
     title: "Messages",
-    description: "Administrative messages and Academy action reminders will appear here.",
+    description: "Notices from your institution and action items from your academic advisor appear here.",
     icon: "messages",
   },
   {
     href: "/student/lms",
     label: "Learning",
-    title: "Course learning",
-    description: "Course launch becomes available after your institution completes learning-system setup.",
+    title: "Course Learning",
+    description: "Launch your course learning environment here once your institution connects a learning platform.",
     icon: "learning",
+  },
+  {
+    href: "/student/attendance",
+    label: "Attendance",
+    title: "My Attendance",
+    description: "Your attendance records by section and session date appear here once submitted by faculty.",
+    icon: "attendance",
   },
   {
     href: "/student/privacy",
     label: "Privacy",
-    title: "Privacy controls",
-    description: "Review and manage consent for learner intelligence features.",
+    title: "My Privacy",
+    description: "Review and update your consent for learning intelligence features.",
     icon: "privacy",
   },
 ];

@@ -1,0 +1,57 @@
+/* ChurchCore Academy — Design Tokens
+ * Central source of truth for brand colors, spacing, shadows, and layout.
+ * Import this file before any component CSS.
+ */
+:root {
+  /* Brand */
+  --brand-primary: #1B4F8A;
+  --brand-accent: #3B7DD8;
+  --brand-warm: #7C5C3E;
+
+  /* Surfaces */
+  --surface-base: #FAFBFD;
+  --surface-card: #FFFFFF;
+  --surface-sidebar: #0F2744;
+  --surface-sidebar-active: #1A3D6B;
+  --surface-sidebar-hover: #162F5A;
+  --surface-topbar: #0D2340;
+
+  /* Text */
+  --text-primary: #1A2433;
+  --text-muted: #64748B;
+  --text-inverse: #F0F6FF;
+  --text-sidebar: #B8CEED;
+  --text-sidebar-active: #F0F7FF;
+
+  /* Borders */
+  --border-subtle: #E2E8F0;
+  --border-card: rgba(30, 60, 100, 0.12);
+  --border-sidebar: rgba(100, 150, 210, 0.2);
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px -8px rgba(10, 30, 60, 0.14);
+  --shadow-panel: 0 8px 40px -16px rgba(10, 30, 60, 0.18);
+  --shadow-popover: 0 16px 48px -12px rgba(10, 30, 60, 0.24);
+
+  /* Radii */
+  --radius-card: 1.25rem;
+  --radius-chip: 999px;
+  --radius-input: 0.6rem;
+  --radius-button: 0.6rem;
+  --radius-panel: 1.5rem;
+
+  /* Sidebar layout */
+  --sidebar-width-collapsed: 4rem;
+  --sidebar-width-expanded: 15.5rem;
+  --sidebar-transition: 200ms ease;
+
+  /* Status colors */
+  --status-success: #16a34a;
+  --status-success-bg: #f0fdf4;
+  --status-warning: #d97706;
+  --status-warning-bg: #fffbeb;
+  --status-danger: #dc2626;
+  --status-danger-bg: #fef2f2;
+  --status-info: #2563eb;
+  --status-info-bg: #eff6ff;
+}

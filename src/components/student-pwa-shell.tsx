@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  ClipboardCheck,
   FileText,
   GraduationCap,
   Home,
@@ -21,6 +22,7 @@ const iconByName = {
   documents: FileText,
   messages: MessageSquare,
   learning: LibraryBig,
+  attendance: ClipboardCheck,
   privacy: ShieldCheck,
 };
 

@@ -1,0 +1,142 @@
+/* ChurchCore Academy — Shared Utility Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--foreground);
+  background:
+    linear-gradient(140deg, rgba(244, 248, 252, 0.95) 0%, rgba(228, 235, 244, 0.96) 48%, rgba(213, 224, 236, 0.95) 100%),
+    radial-gradient(circle at 15% 12%, rgba(255, 255, 255, 0.8) 0%, transparent 46%),
+    radial-gradient(circle at 88% 88%, rgba(255, 255, 255, 0.45) 0%, transparent 42%);
+  background-attachment: fixed;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.grid {
+  display: grid;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-3 {
+  gap: 0.75rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.mb-md {
+  margin-bottom: 1rem;
+}
+
+.p-8 {
+  padding: 2rem;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.font-medium {
+  font-weight: 600;
+}
+
+.leading-snug {
+  line-height: 1.35;
+}
+
+.text-muted-foreground {
+  color: var(--muted-foreground);
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.whitespace-normal {
+  white-space: normal;
+}
+
+.rounded-lg {
+  border-radius: 0.75rem;
+}
+
+.border {
+  border: 1px solid var(--border);
+}
+
+.border-dashed {
+  border-style: dashed;
+}
+
+.max-w-\[34rem\] {
+  max-width: 34rem;
+}
+
+.max-w-\[42rem\] {
+  max-width: 42rem;
+}
+
+.line-clamp-1,
+.line-clamp-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.line-clamp-1 {
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+
