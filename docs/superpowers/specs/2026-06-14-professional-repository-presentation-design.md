@@ -11,7 +11,7 @@ Present ChurchCore Academy as a credible open-source engineering project while a
 3. Technology and project status move into focused durable documents.
 4. Standard open-source governance files define contribution, security, support, conduct, and licensing expectations.
 5. GitHub issue forms and a pull request template guide future work through the repository software factory.
-6. `package.json`, GitHub metadata, README language, and the MIT license use consistent project identity.
+6. `package.json`, GitHub metadata, README language, and the project license use consistent project identity.
 7. `.env.example` documents variable names and safe local defaults without containing credentials.
 
 ## Artifacts

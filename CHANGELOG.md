@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - Professional repository documentation and community health files.
-- MIT license and explicit package metadata.
+- AGPL-3.0 open-source license and explicit package metadata.
 - Technology, project-status, contribution, security, support, and conduct documentation.
 - GitHub issue forms and pull request template.
 - GitHub Actions quality gate and Dependabot configuration.
