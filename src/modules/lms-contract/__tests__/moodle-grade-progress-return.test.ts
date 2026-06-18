@@ -120,6 +120,7 @@ test("active Moodle grade return creates reviewed imports without official posti
   assert.equal(plan.result.capability, "grade_return");
   assert.equal(plan.result.operationId, "idem-grade-return-1");
   assert.equal(plan.result.safeMessage, "Moodle grade return import is ready for Academy review.");
+  assert.ok(plan.reviewedImport, "reviewedImport should be defined");
   assert.deepEqual(
     plan.reviewedImport.results.map((result) => result.reviewStatus),
     ["pending_review", "pending_review"],
@@ -171,6 +172,7 @@ test("active Moodle progress return creates reviewed imports without Student PWA
   assert.equal(plan.result.status, "needs_review");
   assert.equal(plan.result.capability, "progress_return");
   assert.equal(plan.result.safeMessage, "Moodle progress return import is ready for Academy review.");
+  assert.ok(plan.reviewedImport, "reviewedImport should be defined");
   assert.deepEqual(
     plan.reviewedImport.results.map((result) => result.reviewStatus),
     ["pending_review", "pending_review"],

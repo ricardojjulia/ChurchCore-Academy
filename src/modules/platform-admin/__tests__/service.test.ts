@@ -15,6 +15,7 @@ test("platform admin service persists active tenant selection", async () => {
     provisionTenant: async () => {
       throw new Error("not used");
     },
+    deleteTenant: async () => { throw new Error("not used"); },
   };
 
   const service = new PlatformAdminService(repository);
@@ -35,6 +36,7 @@ test("tenant creation requires platform_admin role", async () => {
     provisionTenant: async () => {
       throw new Error("not used");
     },
+    deleteTenant: async () => { throw new Error("not used"); },
   };
 
   const service = new PlatformAdminService(repository);
@@ -70,6 +72,7 @@ test("tenant creation normalizes payload before provisioning", async () => {
         initialAdminPersonId: "person-1",
       };
     },
+    deleteTenant: async () => { throw new Error("not used"); },
   };
 
   const service = new PlatformAdminService(repository);

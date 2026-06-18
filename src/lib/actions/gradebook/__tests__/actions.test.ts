@@ -6,17 +6,18 @@ import { submitGradeAction } from "@/lib/actions/gradebook/submitGradeAction";
 import type {
   GradebookActionDependencies,
   GradebookQueryClient,
+  GradebookQueryResult,
 } from "@/lib/actions/gradebook/types";
 
 function createDependencies(actor: AcademyActor, rowsByQuery: unknown[][] = []) {
   const queries: Array<{ text: string; values?: unknown[] }> = [];
   let index = 0;
   const client: GradebookQueryClient = {
-    async query(text, values) {
+    async query<T = Record<string, unknown>>(text: string, values?: unknown[]): Promise<GradebookQueryResult<T>> {
       queries.push({ text, values });
       return {
         rowCount: 1,
-        rows: (rowsByQuery[index++] ?? []) as Record<string, unknown>[],
+        rows: (rowsByQuery[index++] ?? []) as unknown as T[],
       };
     },
   };

@@ -33,12 +33,12 @@ test("triage filters open and done records", () => {
 });
 
 test("triage filters by category, identity, and date", () => {
-  const items = [
+  const items: typeof base[] = [
     base,
     {
       ...base,
       id: "b",
-      category: "ERROR",
+      category: "ERROR" as const,
       userEmail: "anon@example.com",
       userRole: "observer",
       createdAt: "2026-04-11T00:00:00.000Z",
