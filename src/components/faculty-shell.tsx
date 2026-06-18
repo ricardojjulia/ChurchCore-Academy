@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   LogOut,
+  Sparkles,
   Users,
 } from "lucide-react";
 
@@ -58,6 +59,14 @@ const FACULTY_NAV: NavSection[] = [
     Icon: Users,
     items: [
       { label: "All Students", href: "/students" },
+    ],
+  },
+  {
+    id: "signals",
+    label: "ShepherdAI",
+    Icon: Sparkles,
+    items: [
+      { label: "Faculty Signals", href: "/faculty/shepherd" },
     ],
   },
 ];
@@ -146,6 +155,7 @@ export function FacultyShell({
                           key={item.href}
                           href={item.href}
                           className={`admin-nav-item ${itemActive ? "is-active" : ""}`}
+                          title={item.label}
                         >
                           {item.label}
                         </Link>

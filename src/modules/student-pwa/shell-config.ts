@@ -5,7 +5,7 @@ export type StudentPwaDestination = {
   label: string;
   title: string;
   description: string;
-  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy";
+  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance";
 };
 
 export const studentPwaDestinations: StudentPwaDestination[] = [
@@ -57,6 +57,13 @@ export const studentPwaDestinations: StudentPwaDestination[] = [
     title: "Course Learning",
     description: "Launch your course learning environment here once your institution connects a learning platform.",
     icon: "learning",
+  },
+  {
+    href: "/student/attendance",
+    label: "Attendance",
+    title: "My Attendance",
+    description: "Your attendance records by section and session date appear here once submitted by faculty.",
+    icon: "attendance",
   },
   {
     href: "/student/privacy",

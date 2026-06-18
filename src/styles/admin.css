@@ -2705,6 +2705,11 @@
   color: #991b1b;
 }
 
+.ops-page-action-link {
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
 @media (max-width: 640px) {
   .ops-form-row {
     grid-template-columns: 1fr;

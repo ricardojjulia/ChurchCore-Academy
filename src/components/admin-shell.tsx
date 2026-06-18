@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import {
   Activity,
+  BarChart3,
   BookOpen,
   ChevronRight,
   FolderOpen,
@@ -25,6 +26,7 @@ export type AdminSection =
   | "records"
   | "academics"
   | "dailyops"
+  | "reports"
   | "system";
 
 interface NavItem {
@@ -77,7 +79,17 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Attendance", href: "/admin/attendance" },
       { label: "Gradebook", href: "/admin/gradebook" },
+      { label: "Faculty", href: "/admin/faculty" },
+      { label: "Staff Directory", href: "/admin/staff" },
       { label: "ShepherdAI Queue", href: "/admin/workflows" },
+    ],
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    Icon: BarChart3,
+    items: [
+      { label: "Reporting", href: "/admin/reporting" },
     ],
   },
   {
@@ -286,13 +298,13 @@ function AdminShellInner({
               </div>
 
               {searchOpen && filtered.length > 0 && (
-                <div className="admin-search-dropdown" role="listbox">
+                <div className="admin-search-dropdown" role="listbox" aria-label="Student search results">
                   {filtered.map((entry) => (
                     <button
                       key={entry.id}
                       type="button"
                       role="option"
-                      aria-selected={studentId === entry.id ? "true" : "false"}
+                      aria-selected={studentId === entry.id}
                       className={`admin-search-result ${studentId === entry.id ? "is-active" : ""}`}
                       onClick={() => {
                         setStudent(entry.id, entry.name, entry.program, entry.status);

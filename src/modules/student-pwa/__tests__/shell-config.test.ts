@@ -13,6 +13,7 @@ test("student PWA exposes the complete first-sprint route family", () => {
       { href: "/student/documents", label: "Documents" },
       { href: "/student/messages", label: "Messages" },
       { href: "/student/lms", label: "Learning" },
+      { href: "/student/attendance", label: "Attendance" },
       { href: "/student/privacy", label: "Privacy" },
     ],
   );

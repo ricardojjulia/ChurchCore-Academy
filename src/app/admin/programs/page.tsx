@@ -24,6 +24,10 @@ export default async function ProgramsPage() {
       title="Program Index"
       subtitle="Program, cohort, credit requirement, and student-progress entry points for registrar and academic review."
     >
+      <p className="ops-page-action-link">
+        <Link href="/admin/programs/new" className="underline">Create new program →</Link>
+      </p>
+
       <section className="ops-stats-grid">
         <ProgramIndexMetric label="Programs" value={dataset.programs.length} detail="Tracked academic programs" icon={<GraduationCap />} />
         <ProgramIndexMetric label="Assigned students" value={assignedStudents.length} detail="Students with program ownership" icon={<UsersRound />} />

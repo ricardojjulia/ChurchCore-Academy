@@ -1,10 +1,14 @@
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, IdCard, Link2, ShieldCheck, UserRoundCheck, UsersRound } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StaffInviteForm } from "@/components/staff-invite-form";
+import { RoleAssignmentForm } from "@/components/role-assignment-form";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { loadPeopleReviewModel } from "@/modules/people/review-loader";
+import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import {
   AccountLinkReviewItem,
   PeopleCoverageReviewItem,
@@ -18,10 +22,26 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const tenantId = "cca-main";
+interface PersonRow {
+  id: string;
+  display_name: string;
+  email: string;
+}
 
 export default async function PeopleSettingsPage() {
-  const model = await loadPeopleReviewModel(new AcademyPeopleRepository(), tenantId);
+  const { actor } = await loadProtectedAcademyDataset();
+  const [model, people] = await Promise.all([
+    loadPeopleReviewModel(new AcademyPeopleRepository(), actor.tenantId),
+    withAcademyDatabaseContext(actor, async (client) => {
+      const result = await client.query(
+        `select id, display_name, email from academy_people
+          where tenant_id = $1 and person_status = 'active'
+          order by display_name`,
+        [actor.tenantId],
+      ) as { rows: PersonRow[] };
+      return result.rows;
+    }),
+  ]);
 
   return (
     <AdminShell
@@ -30,6 +50,10 @@ export default async function PeopleSettingsPage() {
       title="People and role review"
       subtitle="Read-only review for students, guardians, faculty, staff, role coverage, account links, and privacy validation."
     >
+      <p className="ops-page-action-link">
+        <Link href="/admin/staff" className="underline">View staff directory →</Link>
+      </p>
+
       <section className="ops-stats-grid">
         {model.metrics.map((metric) => (
           <PeopleMetric key={metric.label} metric={metric} />
@@ -156,6 +180,27 @@ export default async function PeopleSettingsPage() {
       </section>
 
       <StaffInviteForm />
+
+      <Card className="ops-panel">
+        <CardHeader className="ops-card-header">
+          <div className="ops-heading">
+            <div className="ops-icon"><UserRoundCheck /></div>
+            <div>
+              <CardTitle>Assign Role</CardTitle>
+              <CardDescription>Add a role assignment to an existing person in this institution.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <RoleAssignmentForm
+            people={people.map((p) => ({
+              id: p.id,
+              displayName: p.display_name,
+              email: p.email,
+            }))}
+          />
+        </CardContent>
+      </Card>
     </AdminShell>
   );
 }
