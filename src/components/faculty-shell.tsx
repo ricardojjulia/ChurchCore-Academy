@@ -10,8 +10,9 @@ import {
   ClipboardCheck,
   GraduationCap,
   LogOut,
+  Menu,
   Sparkles,
-  Users,
+  X,
 } from "lucide-react";
 
 interface NavItem {
@@ -54,14 +55,6 @@ const FACULTY_NAV: NavSection[] = [
     ],
   },
   {
-    id: "students",
-    label: "Students",
-    Icon: Users,
-    items: [
-      { label: "All Students", href: "/students" },
-    ],
-  },
-  {
     id: "signals",
     label: "ShepherdAI",
     Icon: Sparkles,
@@ -99,12 +92,13 @@ export function FacultyShell({
   const [expanded, setExpanded] = useState<string | null>(
     sectionForPath(pathname) ?? "today",
   );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const userInitials = userEmail ? userEmail.slice(0, 2).toUpperCase() : "FC";
 
   return (
-    <div className="admin-app">
-      <aside className={`admin-sidebar ${expanded ? "is-open" : ""}`}>
+    <div className={`admin-app ${sidebarOpen ? "sidebar-mobile-open" : ""}`}>
+      <aside id="faculty-sidebar-nav" className={`admin-sidebar ${expanded ? "is-open" : ""}`}>
         <Link href="/faculty" className="admin-brand">
           <span className="admin-brand-mark">
             <GraduationCap size={18} strokeWidth={2.5} />
@@ -156,6 +150,8 @@ export function FacultyShell({
                           href={item.href}
                           className={`admin-nav-item ${itemActive ? "is-active" : ""}`}
                           title={item.label}
+                          aria-current={itemActive ? "page" : undefined}
+                          onClick={() => setSidebarOpen(false)}
                         >
                           {item.label}
                         </Link>
@@ -189,6 +185,16 @@ export function FacultyShell({
 
       <div className="admin-main">
         <header className="admin-topbar">
+          <button
+            type="button"
+            className="admin-mobile-menu-toggle"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={sidebarOpen}
+            aria-controls="faculty-sidebar-nav"
+          >
+            {sidebarOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
+          </button>
           <div className="admin-topbar-left">
             <p className="admin-eyebrow">{eyebrow ?? "Faculty"}</p>
             <h1 className="admin-title">{title}</h1>

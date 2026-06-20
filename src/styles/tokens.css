@@ -45,6 +45,18 @@
   --sidebar-width-expanded: 15.5rem;
   --sidebar-transition: 200ms ease;
 
+  /* Legacy alias tokens (referenced by admin.css legacy block and student-pwa.css) */
+  --primary: #2563eb;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --background: #ffffff;
+  --foreground: #1a2433;
+  --muted-foreground: #6b7280;
+  --panel-border: #e2e8f0;
+  --surface-gradient: linear-gradient(146deg, rgba(241, 248, 255, 0.96), rgba(218, 232, 250, 0.94));
+  --surface-soft-gradient: linear-gradient(180deg, rgba(250, 253, 255, 0.94), rgba(230, 242, 255, 0.9));
+
   /* Status colors */
   --status-success: #16a34a;
   --status-success-bg: #f0fdf4;

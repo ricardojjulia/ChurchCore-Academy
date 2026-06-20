@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   BookOpen,
@@ -27,12 +30,10 @@ const iconByName = {
 };
 
 export function StudentPwaShell({
-  activeHref,
   title,
   description,
   children,
 }: {
-  activeHref: string;
   title: string;
   description: string;
   children: React.ReactNode;
@@ -58,7 +59,7 @@ export function StudentPwaShell({
       <div className="student-pwa-frame">
         <aside className="student-pwa-sidebar">
           <p className="student-pwa-nav-label">My Academy</p>
-          <StudentPwaNavigation activeHref={activeHref} />
+          <StudentPwaNavigation />
           <div className="student-pwa-sidebar-note">
             <CheckCircle2 />
             <div>
@@ -86,7 +87,7 @@ export function StudentPwaShell({
 
       <nav className="student-pwa-bottom-nav" aria-label="Student mobile navigation">
         {studentPwaDestinations.map((destination) => (
-          <StudentPwaNavLink key={destination.href} destination={destination} activeHref={activeHref} compact />
+          <StudentPwaNavLink key={destination.href} destination={destination} compact />
         ))}
       </nav>
     </div>
@@ -122,11 +123,11 @@ export function StudentPwaPlaceholder({
   );
 }
 
-function StudentPwaNavigation({ activeHref }: { activeHref: string }) {
+function StudentPwaNavigation() {
   return (
     <nav className="student-pwa-nav" aria-label="Student">
       {studentPwaDestinations.map((destination) => (
-        <StudentPwaNavLink key={destination.href} destination={destination} activeHref={activeHref} />
+        <StudentPwaNavLink key={destination.href} destination={destination} />
       ))}
     </nav>
   );
@@ -134,15 +135,15 @@ function StudentPwaNavigation({ activeHref }: { activeHref: string }) {
 
 function StudentPwaNavLink({
   destination,
-  activeHref,
   compact = false,
 }: {
   destination: StudentPwaDestination;
-  activeHref: string;
   compact?: boolean;
 }) {
+  const pathname = usePathname();
   const Icon = iconByName[destination.icon];
-  const isActive = destination.href === activeHref;
+  const isActive =
+    pathname === destination.href || pathname.startsWith(destination.href + "/");
 
   return (
     <Link

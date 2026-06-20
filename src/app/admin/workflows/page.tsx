@@ -1,10 +1,14 @@
 import { AdminShell } from "@/components/admin-shell";
 import { WorkflowQueueBoard } from "@/components/academy-workflow-queue";
-import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { ReEvaluateButton } from "@/components/re-evaluate-button";
 import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
+import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +23,20 @@ export default async function WorkflowQueuePage() {
   }
 
   const { actor, dataset } = await loadProtectedAcademyDataset();
-  const evaluation = await runAcademicWorkflowEvaluationJob(actor.tenantId, dataset, null);
-  const items = evaluation.workflows.getWorkflowQueue({ status: "all" });
+
+  const { suggestions, workflows } = await withAcademyDatabaseContext(actor, async (client) => {
+    const repo = new ShepherdAiPostgresRepository(
+      asAcademyDatabase<ShepherdAiDatabase>(client),
+    );
+    const [s, w] = await Promise.all([
+      repo.fetchSuggestions(actor.tenantId),
+      repo.fetchWorkflows(actor.tenantId),
+    ]);
+    return { suggestions: s, workflows: w };
+  });
+
+  const memRepo = new InMemoryAcademicWorkflowRepository(suggestions, workflows);
+  const items = memRepo.getQueue({ status: "all" });
 
   return (
     <AdminShell
@@ -30,6 +46,9 @@ export default async function WorkflowQueuePage() {
       userEmail={user?.email}
       signOutAction={signOutAction}
     >
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+        <ReEvaluateButton endpoint="/api/academy/shepherd-ai/evaluate" label="Re-evaluate signals" />
+      </div>
       <WorkflowQueueBoard initialItems={items} administrators={dataset.administrators} />
     </AdminShell>
   );

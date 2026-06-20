@@ -53,7 +53,7 @@ export default async function StudentAttendancePage() {
 
   return (
     <StudentPwaShell
-      activeHref="/student/attendance"
+     
       title="My Attendance"
       description="Your attendance records by section and session date as submitted by faculty."
     >

@@ -8,7 +8,7 @@ export default async function StudentProgressPage() {
   const model = await loadStudentPwaPageModel();
 
   return (
-    <StudentPwaShell activeHref="/student/progress" title="Academic progress" description="Review released progress and completion summaries.">
+    <StudentPwaShell title="Academic progress" description="Review released progress and completion summaries.">
       <StudentProgressView model={model} />
     </StudentPwaShell>
   );

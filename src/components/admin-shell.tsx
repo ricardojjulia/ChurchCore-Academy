@@ -11,6 +11,7 @@ import {
   FolderOpen,
   GraduationCap,
   LogOut,
+  Menu,
   Search,
   Settings2,
   Users,
@@ -144,8 +145,10 @@ function AdminShellInner({
   const [expanded, setExpanded] = useState<AdminSection | null>(
     activeSectionProp ?? derivedSection,
   );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [activeResultIndex, setActiveResultIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const { studentId, studentName, programName, enrollmentStatus, setStudent, clearStudent } =
@@ -168,9 +171,9 @@ function AdminShellInner({
   }
 
   return (
-    <div className="admin-app">
+    <div className={`admin-app ${sidebarOpen ? "sidebar-mobile-open" : ""}`}>
       {/* Sidebar */}
-      <aside className={`admin-sidebar ${expanded ? "is-open" : ""}`}>
+      <aside id="admin-sidebar-nav" className={`admin-sidebar ${expanded ? "is-open" : ""}`}>
         <Link href="/admin" className="admin-brand">
           <span className="admin-brand-mark">
             <GraduationCap size={18} strokeWidth={2.5} />
@@ -226,6 +229,8 @@ function AdminShellInner({
                           }
                           className={`admin-nav-item ${itemActive ? "is-active" : ""}`}
                           title={item.label}
+                          aria-current={itemActive ? "page" : undefined}
+                          onClick={() => setSidebarOpen(false)}
                         >
                           {item.label}
                           {studentName && (
@@ -265,6 +270,16 @@ function AdminShellInner({
       {/* Main */}
       <div className="admin-main">
         <header className="admin-topbar">
+          <button
+            type="button"
+            className="admin-mobile-menu-toggle"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={sidebarOpen}
+            aria-controls="admin-sidebar-nav"
+          >
+            {sidebarOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
+          </button>
           <div className="admin-topbar-left">
             <p className="admin-eyebrow">{eyebrow ?? "Admin"}</p>
             <h1 className="admin-title">
@@ -282,34 +297,86 @@ function AdminShellInner({
                 <Search size={14} strokeWidth={2} />
                 <input
                   ref={searchRef}
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-autocomplete="list"
+                  aria-expanded={searchOpen && filtered.length > 0}
+                  aria-controls="admin-search-listbox"
+                  aria-activedescendant={
+                    activeResultIndex >= 0
+                      ? `search-result-${filtered[activeResultIndex]?.id}`
+                      : undefined
+                  }
                   value={searchQuery}
                   placeholder="Search students, courses…"
-                  aria-label="Search"
+                  aria-label="Search students"
                   title="Search students, courses, or people"
                   autoComplete="off"
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setSearchOpen(true);
+                    setActiveResultIndex(-1);
                   }}
                   onFocus={() => setSearchOpen(true)}
-                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                  onBlur={() => setTimeout(() => {
+                    setSearchOpen(false);
+                    setActiveResultIndex(-1);
+                  }, 150)}
+                  onKeyDown={(e) => {
+                    if (!searchOpen || filtered.length === 0) return;
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveResultIndex((i) => Math.min(i + 1, filtered.length - 1));
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveResultIndex((i) => Math.max(i - 1, 0));
+                    } else if (e.key === "Enter" && activeResultIndex >= 0) {
+                      e.preventDefault();
+                      const entry = filtered[activeResultIndex];
+                      if (entry) {
+                        setStudent(entry.id, entry.name, entry.program, entry.status);
+                        setSearchQuery("");
+                        setSearchOpen(false);
+                        setActiveResultIndex(-1);
+                      }
+                    } else if (e.key === "Escape") {
+                      setSearchOpen(false);
+                      setActiveResultIndex(-1);
+                    }
+                  }}
                 />
                 <kbd>⌘K</kbd>
               </div>
 
               {searchOpen && filtered.length > 0 && (
-                <div className="admin-search-dropdown" role="listbox" aria-label="Student search results">
-                  {filtered.map((entry) => (
-                    <button
+                <div
+                  id="admin-search-listbox"
+                  className="admin-search-dropdown"
+                  role="listbox"
+                  aria-label="Student search results"
+                >
+                  {filtered.map((entry, index) => (
+                    <div
                       key={entry.id}
-                      type="button"
+                      id={`search-result-${entry.id}`}
                       role="option"
-                      aria-selected={studentId === entry.id}
-                      className={`admin-search-result ${studentId === entry.id ? "is-active" : ""}`}
+                      tabIndex={-1}
+                      aria-selected={activeResultIndex === index}
+                      className={`admin-search-result ${studentId === entry.id ? "is-active" : ""} ${activeResultIndex === index ? "is-focused" : ""}`}
                       onClick={() => {
                         setStudent(entry.id, entry.name, entry.program, entry.status);
                         setSearchQuery("");
                         setSearchOpen(false);
+                        setActiveResultIndex(-1);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setStudent(entry.id, entry.name, entry.program, entry.status);
+                          setSearchQuery("");
+                          setSearchOpen(false);
+                          setActiveResultIndex(-1);
+                        }
                       }}
                     >
                       <span className="admin-search-result-avatar">
@@ -322,7 +389,7 @@ function AdminShellInner({
                       <span className="admin-search-result-status">
                         {statusLabel(entry.status)}
                       </span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
