@@ -6,8 +6,9 @@ import { BarChart3, BookOpen, GraduationCap, TriangleAlert, Users } from "lucide
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchStudentRecords, fetchSectionList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
 
@@ -27,37 +28,41 @@ export default async function ReportingPage() {
     redirect("/login");
   }
 
-  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
-  const gradeSummaries = await withAcademyDatabaseContext(actor, async (client) => {
-    const result = await client.query(
-      `select
-         course_section_id::text,
-         count(distinct student_person_id)             as student_count,
-         round(avg(final_percentage_score)::numeric, 1) as avg_percentage
-       from academy_gradebook_course_summaries
-       where tenant_id = $1
-       group by course_section_id`,
-      [actor.tenantId],
-    ) as { rows: GradeSummaryRow[] };
-    return result.rows;
+  const { students, sections, gradeSummaries } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [allStudents, allSections, summaryResult] = await Promise.all([
+      fetchStudentRecords(actor.tenantId, client),
+      fetchSectionList(actor.tenantId, client),
+      client.query(
+        `select
+           course_section_id::text,
+           count(distinct student_person_id)             as student_count,
+           round(avg(final_percentage_score)::numeric, 1) as avg_percentage
+         from academy_gradebook_course_summaries
+         where tenant_id = $1
+         group by course_section_id`,
+        [actor.tenantId],
+      ) as Promise<{ rows: GradeSummaryRow[] }>,
+    ]);
+    return { students: allStudents, sections: allSections, gradeSummaries: summaryResult.rows };
   });
 
-  const sectionById = new Map(dataset.sections.map((s) => [s.id, s]));
+  const sectionById = new Map(sections.map((s) => [s.id, s]));
 
   // Enrollment by status
-  const enrollmentByStatus = dataset.students.reduce<Record<string, number>>((acc, s) => {
+  const enrollmentByStatus = students.reduce<Record<string, number>>((acc, s) => {
     acc[s.enrollmentStatus] = (acc[s.enrollmentStatus] ?? 0) + 1;
     return acc;
   }, {});
 
   // At-risk students: probation or pending_review status flags
-  const atRisk = dataset.students.filter(
+  const atRisk = students.filter(
     (s) => s.statusFlag === "probation" || s.statusFlag === "pending_review",
   );
 
   // Section fill rates
-  const sectionFill = dataset.sections.map((s) => ({
+  const sectionFill = sections.map((s) => ({
     id: s.id,
     code: s.code,
     title: s.title,
@@ -81,7 +86,7 @@ export default async function ReportingPage() {
         <div className="ops-metric">
           <CardContent>
             <div className="ops-metric-label">Total students</div>
-            <div className="ops-metric-value">{dataset.students.length}</div>
+            <div className="ops-metric-value">{students.length}</div>
             <div className="ops-metric-detail"><Users size={13} /> All statuses</div>
           </CardContent>
         </div>
@@ -95,7 +100,7 @@ export default async function ReportingPage() {
         <div className="ops-metric">
           <CardContent>
             <div className="ops-metric-label">Sections</div>
-            <div className="ops-metric-value">{dataset.sections.length}</div>
+            <div className="ops-metric-value">{sections.length}</div>
             <div className="ops-metric-detail"><BookOpen size={13} /> Active</div>
           </CardContent>
         </div>

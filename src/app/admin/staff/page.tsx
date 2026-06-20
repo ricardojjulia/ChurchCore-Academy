@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeactivateStaffButton } from "@/components/deactivate-staff-button";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ interface StaffRow {
 }
 
 export default async function StaffDirectoryPage() {
-  const { actor } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
   const staff = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(

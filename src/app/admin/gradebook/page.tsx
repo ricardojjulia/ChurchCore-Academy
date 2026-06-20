@@ -4,10 +4,10 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { getDatabasePool } from "@/lib/database";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
-import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
+import { requireActor } from "@/lib/require-actor";
+import { fetchSectionList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
 
@@ -29,17 +29,21 @@ async function loadGradedCounts(tenantId: string): Promise<Map<string, number>> 
 }
 
 export default async function AdminGradebookPage() {
-  const actor = await resolveAcademyActorForServerComponent();
-  const { dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
-  const gradedCounts = await withAcademyDatabaseContext(actor, () =>
+  const [sections, people, gradedCounts] = await Promise.all([
+    withAcademyDatabaseContext(actor, (client) => fetchSectionList(actor.tenantId, client)),
+    withAcademyDatabaseContext(actor, async (client) => {
+      const result = await client.query(
+        `select id::text, display_name as "displayName" from academy_people where tenant_id = $1`,
+        [actor.tenantId],
+      ) as { rows: { id: string; displayName: string }[] };
+      return result.rows;
+    }),
     loadGradedCounts(actor.tenantId),
-  );
+  ]);
 
-  const people = dataset.peopleConfiguration?.people ?? [];
   const personById = new Map(people.map((p) => [p.id, p]));
-
-  const sections = dataset.sections;
   const totalSections = sections.length;
   const sectionsWithGrades = sections.filter(
     (s) => (gradedCounts.get(s.id) ?? 0) > 0,

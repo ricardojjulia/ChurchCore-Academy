@@ -3,7 +3,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { FacultyShell } from "@/components/faculty-shell";
 import { ReEvaluateButton } from "@/components/re-evaluate-button";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
@@ -80,23 +80,22 @@ export default async function FacultyShepherdPage() {
     redirect("/login");
   }
 
-  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
-  const ownedSectionIds = new Set(
-    dataset.sections
-      .filter((s) => s.instructorFacultyId === actor.userId)
-      .map((s) => s.id),
-  );
+  const ownedSectionIds = await withAcademyDatabaseContext(actor, async (client) => {
+    const result = await client.query(
+      "select id from academy_course_sections where tenant_id = $1 and primary_instructor_id = $2",
+      [actor.tenantId, actor.userId],
+    ) as { rows: { id: string }[] };
+    return new Set(result.rows.map((r) => r.id));
+  });
 
   let suggestions: ShepherdAiSuggestion[] = [];
 
   try {
-    const all = await withAcademyDatabaseContext(actor, async (client) => {
-      const repo = new ShepherdAiPostgresRepository(
-        asAcademyDatabase<ShepherdAiDatabase>(client),
-      );
-      return repo.fetchSuggestions(actor.tenantId);
-    });
+    const all = await withAcademyDatabaseContext(actor, (client) =>
+      new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client)).fetchSuggestions(actor.tenantId),
+    );
 
     suggestions = all.filter(
       (s) =>

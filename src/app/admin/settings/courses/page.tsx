@@ -2,7 +2,9 @@ import { AlertTriangle, BookOpenCheck, CheckCircle2, Clock3, Layers3, Link2, Sha
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import {
   CourseCatalogReviewModel,
   CourseCoverageReviewItem,
@@ -14,9 +16,14 @@ import {
   buildCourseCatalogReviewModel,
 } from "@/modules/course-catalog/review-view";
 
+type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
+
 export default async function CourseSettingsPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const model = buildCourseCatalogReviewModel(dataset.courseCatalog);
+  const actor = await requireActor();
+  const courseCatalog = await withAcademyDatabaseContext(actor, async (client) =>
+    new AcademyCourseCatalogRepository(asAcademyDatabase<RepoPool>(client)).fetchCourseCatalogConfiguration(actor.tenantId),
+  );
+  const model = buildCourseCatalogReviewModel(courseCatalog);
 
   return (
     <AdminShell

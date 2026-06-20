@@ -2,7 +2,9 @@ import { AdminShell } from "@/components/admin-shell";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchSectionList } from "@/lib/academy-read-models";
 import Link from "next/link";
 import { BookOpen, Users } from "lucide-react";
 
@@ -18,8 +20,10 @@ export default async function SectionsRosterPage() {
     redirect("/login");
   }
 
-  const { dataset } = await loadProtectedAcademyDataset();
-  const sections = dataset.sections;
+  const actor = await requireActor();
+  const sections = await withAcademyDatabaseContext(actor, (client) =>
+    fetchSectionList(actor.tenantId, client),
+  );
 
   return (
     <AdminShell

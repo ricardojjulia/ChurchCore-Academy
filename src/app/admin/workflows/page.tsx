@@ -1,7 +1,8 @@
 import { AdminShell } from "@/components/admin-shell";
 import { WorkflowQueueBoard } from "@/components/academy-workflow-queue";
 import { ReEvaluateButton } from "@/components/re-evaluate-button";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { fetchAdministrators } from "@/lib/academy-read-models";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -22,17 +23,18 @@ export default async function WorkflowQueuePage() {
     redirect("/login");
   }
 
-  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
-  const { suggestions, workflows } = await withAcademyDatabaseContext(actor, async (client) => {
+  const { suggestions, workflows, administrators } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new ShepherdAiPostgresRepository(
       asAcademyDatabase<ShepherdAiDatabase>(client),
     );
-    const [s, w] = await Promise.all([
+    const [s, w, admins] = await Promise.all([
       repo.fetchSuggestions(actor.tenantId),
       repo.fetchWorkflows(actor.tenantId),
+      fetchAdministrators(actor.tenantId, client),
     ]);
-    return { suggestions: s, workflows: w };
+    return { suggestions: s, workflows: w, administrators: admins };
   });
 
   const memRepo = new InMemoryAcademicWorkflowRepository(suggestions, workflows);
@@ -49,7 +51,7 @@ export default async function WorkflowQueuePage() {
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
         <ReEvaluateButton endpoint="/api/academy/shepherd-ai/evaluate" label="Re-evaluate signals" />
       </div>
-      <WorkflowQueueBoard initialItems={items} administrators={dataset.administrators} />
+      <WorkflowQueueBoard initialItems={items} administrators={administrators} />
     </AdminShell>
   );
 }

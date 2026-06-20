@@ -5,7 +5,7 @@ import { FacultyShell } from "@/components/faculty-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import {
   GradebookPostgresRepository,
@@ -25,7 +25,7 @@ export default async function FacultyGradebookPage() {
     redirect("/login");
   }
 
-  const { actor } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
   const gradebook = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new GradebookPostgresRepository(

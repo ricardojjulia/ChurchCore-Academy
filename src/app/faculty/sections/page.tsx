@@ -4,7 +4,7 @@ import { FacultyShell } from "@/components/faculty-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ function statusVariant(status: string): "secondary" | "outline" | "destructive" 
 }
 
 export default async function FacultySectionsPage() {
-  const { actor } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
   const sections = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(

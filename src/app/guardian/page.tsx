@@ -6,7 +6,8 @@ import { Shield, Users } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { fetchStudentRecords } from "@/lib/academy-read-models";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 
 export const dynamic = "force-dynamic";
@@ -29,28 +30,31 @@ export default async function GuardianDashboardPage() {
     redirect("/login");
   }
 
-  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
-  const linkedStudents = await withAcademyDatabaseContext(actor, async (client) => {
-    const result = await client.query(
-      `select
-         sr.student_person_id,
-         p.display_name,
-         p.email,
-         sr.relationship_type,
-         sr.authority
-       from academy_student_relationships sr
-       join academy_people p on p.id = sr.student_person_id and p.tenant_id = sr.tenant_id
-       where sr.tenant_id = $1
-         and sr.related_person_id = $2
-         and sr.status = 'active'
-       order by p.display_name`,
-      [actor.tenantId, actor.userId],
-    ) as { rows: LinkedStudent[] };
-    return result.rows;
-  });
+  const [students, linkedStudents] = await Promise.all([
+    withAcademyDatabaseContext(actor, (client) => fetchStudentRecords(actor.tenantId, client)),
+    withAcademyDatabaseContext(actor, async (client) => {
+      const result = await client.query(
+        `select
+           sr.student_person_id,
+           p.display_name,
+           p.email,
+           sr.relationship_type,
+           sr.authority
+         from academy_student_relationships sr
+         join academy_people p on p.id = sr.student_person_id and p.tenant_id = sr.tenant_id
+         where sr.tenant_id = $1
+           and sr.related_person_id = $2
+           and sr.status = 'active'
+         order by p.display_name`,
+        [actor.tenantId, actor.userId],
+      ) as { rows: LinkedStudent[] };
+      return result.rows;
+    }),
+  ]);
 
-  const studentById = new Map(dataset.students.map((s) => [s.id, s]));
+  const studentById = new Map(students.map((s) => [s.id, s]));
 
   return (
     <AdminShell

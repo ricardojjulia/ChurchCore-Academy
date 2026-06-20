@@ -2,7 +2,9 @@ import { AdminShell } from "@/components/admin-shell";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchStudentRecords } from "@/lib/academy-read-models";
 import { TranscriptIssuanceForm } from "@/components/admin/transcript-issuance-form";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +19,11 @@ export default async function TranscriptsPage() {
     redirect("/login");
   }
 
-  const { dataset } = await loadProtectedAcademyDataset();
-  const students = dataset.students.map((s) => ({
+  const actor = await requireActor();
+  const allStudents = await withAcademyDatabaseContext(actor, (client) =>
+    fetchStudentRecords(actor.tenantId, client),
+  );
+  const students = allStudents.map((s) => ({
     id: s.id,
     fullName: s.fullName,
     enrollmentStatus: s.enrollmentStatus,

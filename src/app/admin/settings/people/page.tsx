@@ -7,7 +7,7 @@ import { StaffInviteForm } from "@/components/staff-invite-form";
 import { RoleAssignmentForm } from "@/components/role-assignment-form";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { loadPeopleReviewModel } from "@/modules/people/review-loader";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import {
   AccountLinkReviewItem,
@@ -29,7 +29,7 @@ interface PersonRow {
 }
 
 export default async function PeopleSettingsPage() {
-  const { actor } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
   const [model, people] = await Promise.all([
     loadPeopleReviewModel(new AcademyPeopleRepository(), actor.tenantId),
     withAcademyDatabaseContext(actor, async (client) => {

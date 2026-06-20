@@ -5,7 +5,7 @@ import { FacultyShell } from "@/components/faculty-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ interface Props {
 
 export default async function FacultyRosterPage({ searchParams }: Props) {
   const { section: sectionId } = await searchParams;
-  const { actor } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
   // No section selected — show prompt
   if (!sectionId) {

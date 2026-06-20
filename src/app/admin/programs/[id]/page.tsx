@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { StatCard, SuggestionDetail } from "@/components/academy-ui";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
-import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { fetchProgramList, fetchStudentRecords, fetchSectionList } from "@/lib/academy-read-models";
+import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 
 export default async function ProgramPage({
   params,
@@ -10,22 +13,33 @@ export default async function ProgramPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { actor, dataset } = await loadProtectedAcademyDataset();
-  const program = dataset.programs.find((item) => item.id === id);
+  const actor = await requireActor();
 
-  if (!program) {
-    notFound();
-  }
+  const { programs, students, sections, suggestions } = await withAcademyDatabaseContext(actor, async (client) => {
+    const shepherdRepo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));
+    const [allPrograms, allStudents, allSections, allSuggestions] = await Promise.all([
+      fetchProgramList(actor.tenantId, client),
+      fetchStudentRecords(actor.tenantId, client),
+      fetchSectionList(actor.tenantId, client),
+      shepherdRepo.fetchSuggestions(actor.tenantId),
+    ]);
+    return { programs: allPrograms, students: allStudents, sections: allSections, suggestions: allSuggestions };
+  });
 
-  const evaluation = await runAcademicWorkflowEvaluationJob(
-    actor.tenantId,
-    dataset,
-    null,
+  const program = programs.find((item) => item.id === id);
+  if (!program) notFound();
+
+  const studentIds = new Set(students.filter((s) => s.programId === id).map((s) => s.id));
+  const sectionIds = new Set(sections.filter((s) => s.programId === id).map((s) => s.id));
+  const programSuggestions = suggestions.filter(
+    (s) =>
+      (s.entityType === "student" && studentIds.has(s.entityId)) ||
+      (s.entityType === "course_section" && sectionIds.has(s.entityId)),
   );
-  const suggestions = evaluation.workflows.getProgramSuggestions(id);
-  const graduationReady = suggestions.filter((item) => item.workflowCode === "graduation_eligibility_review");
-  const progressReviews = suggestions.filter((item) => item.workflowCode === "academic_standing_or_credit_progress_review");
-  const requirementItems = suggestions.filter(
+
+  const graduationReady = programSuggestions.filter((item) => item.workflowCode === "graduation_eligibility_review");
+  const progressReviews = programSuggestions.filter((item) => item.workflowCode === "academic_standing_or_credit_progress_review");
+  const requirementItems = programSuggestions.filter(
     (item) =>
       item.workflowCode === "missing_documentation_review" ||
       item.workflowCode === "transcript_or_records_inconsistency_review",
