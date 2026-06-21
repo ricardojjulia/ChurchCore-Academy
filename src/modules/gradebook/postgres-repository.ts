@@ -56,6 +56,16 @@ function mapRecordRow(row: Record<string, unknown>): GradebookRecordRead {
     sensitivityTier: row.sensitivity_tier as SensitivityTier,
     gradedAt: iso(row.graded_at),
     isOverridden: Boolean(row.is_overridden),
+    postingStatus:
+      row.posting_status === undefined
+        ? undefined
+        : row.posting_status as GradebookRecordRead["postingStatus"],
+    postedAt:
+      row.posted_at === undefined ? undefined : optionalIso(row.posted_at),
+    releasedToStudentAt:
+      row.released_to_student_at === undefined
+        ? undefined
+        : optionalIso(row.released_to_student_at),
     status: row.status as SubmissionStatus,
     submittedAt: optionalIso(row.submitted_at),
     ...(row.behavioral_signal === undefined
@@ -144,7 +154,10 @@ export class GradebookPostgresRepository {
   ): Promise<GradebookReadModel> {
     return {
       records: await this.fetchRecords(
-        `where record.tenant_id = $1 and record.learner_person_id = $2`,
+        `where record.tenant_id = $1
+           and record.learner_person_id = $2
+           and record.posting_status = 'posted'
+           and record.released_to_student_at is not null`,
         [tenantId, learnerPersonId],
         false,
       ),
@@ -187,6 +200,9 @@ export class GradebookPostgresRepository {
           record.sensitivity_tier,
           record.graded_at,
           record.is_overridden,
+          record.posting_status,
+          record.posted_at,
+          record.released_to_student_at,
           submission.status,
           submission.submitted_at
           ${behavioralSignalSelect}

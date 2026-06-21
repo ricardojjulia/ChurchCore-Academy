@@ -22,10 +22,29 @@ export interface RecordAttendanceInput {
   note?: string;
 }
 
+export interface AttendanceRequestInput {
+  courseSectionId: string;
+  studentPersonId: string;
+  sessionDate: string;
+  status: AttendanceStatus;
+  note?: string;
+}
+
 export interface AttendanceRepository {
   upsert(input: RecordAttendanceInput): Promise<AttendanceRecord>;
   listBySection(tenantId: string, courseSectionId: string, sessionDate?: string): Promise<AttendanceRecord[]>;
   listByStudent(tenantId: string, studentPersonId: string): Promise<AttendanceRecord[]>;
+  canRecordSectionAttendance(input: {
+    tenantId: string;
+    courseSectionId: string;
+    actorPersonId: string;
+    hasAdminAccess: boolean;
+  }): Promise<boolean>;
+  isStudentActivelyRegistered(input: {
+    tenantId: string;
+    courseSectionId: string;
+    studentPersonId: string;
+  }): Promise<boolean>;
 }
 
 export const ATTENDANCE_STATUSES: AttendanceStatus[] = ["present", "absent", "late", "excused"];

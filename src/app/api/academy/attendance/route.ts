@@ -5,28 +5,44 @@ import {
   PostgresAttendanceRepository,
   type AttendanceDatabase,
 } from "@/modules/attendance/postgres-repository";
-import { validateAttendanceInput } from "@/modules/attendance/types";
+import { AttendanceService } from "@/modules/attendance/service";
+import type { AttendanceStatus } from "@/modules/attendance/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+
+const attendanceReadStaffRoles = new Set([
+  "institution_admin",
+  "dean",
+  "registrar",
+  "academic_admin",
+  "faculty",
+  "teacher",
+  "professor",
+]);
+
+function canReadAttendanceStaff(actorRoles: string[]) {
+  return actorRoles.some((role) => attendanceReadStaffRoles.has(role));
+}
 
 export async function POST(request: Request) {
   return handleApi(async () => {
     const body = await request.json() as Record<string, unknown>;
 
     const { actor } = await resolveAcademyActorFromSession(request);
-    const input = validateAttendanceInput({
-      tenantId: actor.tenantId,
-      courseSectionId: typeof body.courseSectionId === "string" ? body.courseSectionId : undefined,
-      studentPersonId: typeof body.studentPersonId === "string" ? body.studentPersonId : undefined,
-      sessionDate: typeof body.sessionDate === "string" ? body.sessionDate : undefined,
-      status: typeof body.status === "string" ? body.status as never : undefined,
-      recordedByPersonId: actor.userId,
-      note: typeof body.note === "string" ? body.note : undefined,
-    });
 
     return withAcademyDatabaseContext(actor, async (client) => {
       const repository = new PostgresAttendanceRepository(
         asAcademyDatabase<AttendanceDatabase>(client),
       );
-      return repository.upsert(input);
+      const service = new AttendanceService(repository);
+      return service.recordAttendance(actor, {
+        courseSectionId:
+          typeof body.courseSectionId === "string" ? body.courseSectionId : "",
+        studentPersonId:
+          typeof body.studentPersonId === "string" ? body.studentPersonId : "",
+        sessionDate: typeof body.sessionDate === "string" ? body.sessionDate : "",
+        status: body.status as AttendanceStatus,
+        note: typeof body.note === "string" ? body.note : undefined,
+      });
     });
   });
 }
@@ -45,10 +61,20 @@ export async function GET(request: Request) {
       );
 
       if (studentId) {
+        if (!canReadAttendanceStaff(actor.roles) && studentId !== actor.userId) {
+          throw new AcademyAuthorizationError(
+            "Students can read only their own attendance records.",
+          );
+        }
         return repository.listByStudent(actor.tenantId, studentId);
       }
 
       if (sectionId) {
+        if (!canReadAttendanceStaff(actor.roles)) {
+          throw new AcademyAuthorizationError(
+            "Forbidden attendance section read access.",
+          );
+        }
         return repository.listBySection(actor.tenantId, sectionId, sessionDate);
       }
 

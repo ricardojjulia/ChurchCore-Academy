@@ -1,13 +1,13 @@
--- Extended demo seed: guardian person for Naomi Price,
--- attendance records, and a sample transcript issuance.
--- Type mismatch resolved in 20260620010000 and 20260620020000 (ADR-0032).
+-- Extended demo seed: guardian person for Naomi Price.
+-- Attendance and transcript issuance seed rows moved to
+-- 20260620030000 after ADR-0032 text-column fixes.
 
 -- ==========================================================
 -- 1. GUARDIAN PERSON — Richard Price (guardian of Naomi Price)
 -- ==========================================================
 insert into public.academy_people (
-  id, tenant_id, full_name, first_name, last_name,
-  preferred_name, email, phone, date_of_birth, status,
+  id, tenant_id, display_name, given_name, family_name,
+  preferred_name, email, phone, date_of_birth, person_status,
   created_at, updated_at
 )
 values (
@@ -51,58 +51,3 @@ values (
   '2026-06-18 09:00:00+00', '2026-06-18 09:00:00+00'
 )
 on conflict (id) do nothing;
-
--- ==========================================================
--- 4. ATTENDANCE RECORDS — Fall 2026 sample sessions
---    Requires 20260620010000 (uuid→text column fix)
--- ==========================================================
-
--- sec-nt401 (NT Studies) — Naomi Price
-insert into public.academy_attendance_records (
-  tenant_id, course_section_id, student_person_id,
-  session_date, status, recorded_by_person_id
-)
-values
-  ('cca-main', 'sec-nt401', 'person-naomi-price', '2026-09-03', 'present', 'person-miriam-stone'),
-  ('cca-main', 'sec-nt401', 'person-naomi-price', '2026-09-10', 'present', 'person-miriam-stone'),
-  ('cca-main', 'sec-nt401', 'person-naomi-price', '2026-09-17', 'absent',  'person-miriam-stone')
-on conflict (tenant_id, course_section_id, student_person_id, session_date) do nothing;
-
--- sec-nt401 — Daniel Hart
-insert into public.academy_attendance_records (
-  tenant_id, course_section_id, student_person_id,
-  session_date, status, recorded_by_person_id
-)
-values
-  ('cca-main', 'sec-nt401', 'person-daniel-hart', '2026-09-03', 'absent',  'person-miriam-stone'),
-  ('cca-main', 'sec-nt401', 'person-daniel-hart', '2026-09-10', 'present', 'person-miriam-stone'),
-  ('cca-main', 'sec-nt401', 'person-daniel-hart', '2026-09-17', 'late',    'person-miriam-stone')
-on conflict (tenant_id, course_section_id, student_person_id, session_date) do nothing;
-
--- sec-cap490 (Capstone) — Naomi Price
-insert into public.academy_attendance_records (
-  tenant_id, course_section_id, student_person_id,
-  session_date, status, recorded_by_person_id
-)
-values
-  ('cca-main', 'sec-cap490', 'person-naomi-price', '2026-09-04', 'present', 'person-miriam-stone'),
-  ('cca-main', 'sec-cap490', 'person-naomi-price', '2026-09-11', 'late',    'person-miriam-stone')
-on conflict (tenant_id, course_section_id, student_person_id, session_date) do nothing;
-
--- ==========================================================
--- 5. TRANSCRIPT ISSUANCE — Naomi Price (issued by registrar)
---    Requires 20260620020000 (uuid→text column fix)
--- ==========================================================
-insert into public.academy_transcript_issuances (
-  tenant_id, student_person_id, status, delivery_method,
-  recipient_name, recipient_email, note,
-  issued_by_person_id, idempotency_key
-)
-values (
-  'cca-main', 'person-naomi-price', 'issued', 'digital_download',
-  'Naomi Price', 'naomi.price@churchcoreacademy.edu',
-  'Unofficial transcript — Fall 2026 academic review.',
-  'person-regina-holt',
-  'seed-transcript-naomi-price-fa26'
-)
-on conflict (tenant_id, idempotency_key) do nothing;

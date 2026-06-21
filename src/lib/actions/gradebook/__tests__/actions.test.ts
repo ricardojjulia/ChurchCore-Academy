@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import { overrideGradeAction } from "@/lib/actions/gradebook/overrideGradeAction";
+import { postGradeAction } from "@/lib/actions/gradebook/postGradeAction";
 import { submitGradeAction } from "@/lib/actions/gradebook/submitGradeAction";
 import type {
   GradebookActionDependencies,
@@ -181,4 +182,65 @@ test("overrideGradeAction rejects overrides outside instructor-owned sections", 
 
   assert.equal(result.ok, false);
   assert.equal(queries.length, 1);
+});
+
+test("postGradeAction lets registrars post a graded record and appends audit evidence", async () => {
+  const { dependencies, queries, revalidated } = createDependencies(
+    {
+      userId: "registrar-1",
+      tenantId: "tenant-1",
+      roles: ["registrar"],
+    },
+    [
+      [
+        {
+          id: "00000000-0000-4000-8000-000000000004",
+          posting_status: "draft",
+        },
+      ],
+    ],
+  );
+
+  const result = await postGradeAction(
+    {
+      gradeRecordId: "00000000-0000-4000-8000-000000000004",
+      releaseToStudent: true,
+      reason: "Registrar review completed for official course posting.",
+    },
+    dependencies,
+  );
+
+  assert.deepEqual(result, {
+    ok: true,
+    data: {
+      gradeRecordId: "00000000-0000-4000-8000-000000000004",
+      postingStatus: "posted",
+      auditWritten: true,
+    },
+  });
+  assert.match(queries[0].text, /for update/i);
+  assert.match(queries[1].text, /update public\.academy_gradebook_records/i);
+  assert.match(queries[1].text, /posting_status = 'posted'/i);
+  assert.match(queries[2].text, /insert into public\.academy_gradebook_posting_events/i);
+  assert.ok(revalidated.includes("/dashboard/student/grades"));
+});
+
+test("postGradeAction rejects faculty posting attempts before database work", async () => {
+  const { dependencies, queries } = createDependencies({
+    userId: "faculty-1",
+    tenantId: "tenant-1",
+    roles: ["faculty"],
+  });
+
+  const result = await postGradeAction(
+    {
+      gradeRecordId: "00000000-0000-4000-8000-000000000004",
+      releaseToStudent: true,
+      reason: "Registrar review completed for official course posting.",
+    },
+    dependencies,
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(queries.length, 0);
 });
