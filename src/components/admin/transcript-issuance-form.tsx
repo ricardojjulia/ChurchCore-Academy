@@ -39,13 +39,19 @@ export function TranscriptIssuanceForm({ students }: { students: TranscriptStude
 
     startTransition(async () => {
       try {
+        const idempotencyKey = crypto.randomUUID();
         const res = await fetch("/api/academy/transcripts", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotencyKey,
+          },
           body: JSON.stringify({
+            action: "issue",
             studentPersonId: studentId,
             deliveryMethod,
             recipientEmail: deliveryMethod === "email" ? recipientEmail : undefined,
+            idempotencyKey,
           }),
         });
         const data = await res.json() as Record<string, unknown>;

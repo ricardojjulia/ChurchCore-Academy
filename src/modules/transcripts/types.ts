@@ -1,7 +1,7 @@
-export type TranscriptStatus = "draft" | "issued" | "revoked";
+export type TranscriptStatus = "requested" | "held" | "issued" | "released" | "revoked";
 export type TranscriptDeliveryMethod = "digital_download" | "email" | "print";
 
-export interface TranscriptIssuanceRequest {
+export interface TranscriptRequestInput {
   tenantId: string;
   studentPersonId: string;
   requestedByPersonId: string;
@@ -11,6 +11,8 @@ export interface TranscriptIssuanceRequest {
   note?: string;
   idempotencyKey: string;
 }
+
+export type TranscriptIssuanceRequest = TranscriptRequestInput;
 
 export interface TranscriptRecord {
   id: string;
@@ -23,14 +25,26 @@ export interface TranscriptRecord {
   note?: string;
   issuedAt: string;
   issuedByPersonId: string;
+  requestedByPersonId?: string;
+  requestedAt?: string;
+  holdReason?: string;
+  heldAt?: string;
+  releasedAt?: string;
+  releasedByPersonId?: string;
   revokedAt?: string;
+  revokedByPersonId?: string;
   idempotencyKey: string;
 }
 
 export interface TranscriptRepository {
+  createRequest(input: TranscriptRequestInput): Promise<TranscriptRecord>;
   issue(input: TranscriptIssuanceRequest): Promise<TranscriptRecord>;
   findByStudent(tenantId: string, studentPersonId: string): Promise<TranscriptRecord[]>;
-  revoke(tenantId: string, transcriptId: string, revokedByPersonId: string): Promise<TranscriptRecord>;
+  hold(tenantId: string, transcriptId: string, heldByPersonId: string, reason: string): Promise<TranscriptRecord>;
+  release(tenantId: string, transcriptId: string, releasedByPersonId: string, reason: string): Promise<TranscriptRecord>;
+  revoke(tenantId: string, transcriptId: string, revokedByPersonId: string, reason: string): Promise<TranscriptRecord>;
+  hasPostedTranscriptRecords(tenantId: string, studentPersonId: string): Promise<boolean>;
+  hasActiveTranscriptHold(tenantId: string, studentPersonId: string): Promise<boolean>;
 }
 
 export const DELIVERY_METHODS: TranscriptDeliveryMethod[] = [
