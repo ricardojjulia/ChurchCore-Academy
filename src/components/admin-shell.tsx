@@ -84,6 +84,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Gradebook", href: "/admin/gradebook" },
       { label: "Faculty", href: "/admin/faculty" },
       { label: "Staff Directory", href: "/admin/staff" },
+      { label: "Communications", href: "/admin/communications" },
       { label: "ShepherdAI Queue", href: "/admin/workflows" },
     ],
   },
