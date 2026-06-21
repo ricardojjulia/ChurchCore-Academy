@@ -900,6 +900,66 @@
   margin-top: 0.75rem;
 }
 
+.sections-registration-review {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.sections-registration-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card-muted);
+}
+
+.sections-registration-student {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sections-registration-student:hover {
+  color: var(--brand-accent);
+}
+
+.sections-registration-meta {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.sections-registration-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.sections-registration-status.is-registered {
+  border-color: color-mix(in srgb, var(--status-success) 34%, transparent);
+  color: var(--status-success);
+}
+
+.sections-registration-status.is-waitlisted,
+.sections-registration-status.is-pending_confirmation {
+  border-color: color-mix(in srgb, var(--status-warning) 34%, transparent);
+  color: var(--status-warning);
+}
+
 .transcript-student-number {
   font-size: 0.75rem;
   min-width: 6rem;
@@ -3125,4 +3185,3 @@
     margin: 1.5cm;
   }
 }
-

@@ -1,6 +1,7 @@
 import { getDatabasePool } from "@/lib/database";
 import {
   ConvertedAdmissionRecord,
+  CourseSectionRegistrationEligibility,
   CourseRegistrationRepository,
   CourseRegistrationRequest,
   CourseRegistrationResult,
@@ -31,6 +32,44 @@ function mapResult(row: Record<string, unknown>): CourseRegistrationResult {
     registeredAt: asIso(row.registered_at),
     confirmedAt: asIso(row.confirmed_at),
     idempotencyKey: String(row.idempotency_key),
+  };
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => String(item));
+}
+
+function asInteger(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function asNullableInteger(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function mapEligibility(
+  row: Record<string, unknown>,
+): CourseSectionRegistrationEligibility {
+  return {
+    courseSectionId: String(row.course_section_id),
+    academicPeriodId: String(row.academic_period_id),
+    status: String(row.status),
+    capacity: asNullableInteger(row.capacity),
+    activeRegistrationCount: asInteger(row.active_registration_count),
+    hasActiveRegistrationForStudent: Boolean(row.has_active_registration_for_student),
+    registrationWindowOpen: Boolean(row.registration_window_open),
+    unmetPrerequisites: asStringArray(row.unmet_prerequisites),
+    activeHolds: asStringArray(row.active_holds),
   };
 }
 
@@ -107,6 +146,112 @@ export class PostgresCourseRegistrationRepository
     );
 
     return result.rows[0] ? mapResult(result.rows[0]) : undefined;
+  }
+
+  async evaluateSectionEligibility(input: {
+    tenantId: string;
+    courseSectionId: string;
+    studentPersonId: string;
+    periodRegistrationId: string;
+    evaluatedAt: string;
+  }) {
+    const result = await this.database.query(
+      `with target_section as (
+         select section.id,
+                section.academic_period_id,
+                section.course_id,
+                section.capacity,
+                section.status
+           from academy_course_sections section
+           join academy_period_registrations period_registration
+             on period_registration.tenant_id = section.tenant_id
+            and period_registration.id = $4
+            and period_registration.academic_period_id = section.academic_period_id
+          where section.tenant_id = $1
+            and section.id = $2
+        ),
+        active_registrations as (
+          select count(*)::int as active_registration_count
+            from academy_course_section_registrations registration
+           where registration.tenant_id = $1
+             and registration.course_section_id = $2
+             and registration.status in ('pending_confirmation', 'registered')
+        ),
+        duplicate_registration as (
+          select exists (
+            select 1
+              from academy_course_section_registrations registration
+             where registration.tenant_id = $1
+               and registration.student_person_id = $3
+               and registration.course_section_id = $2
+               and registration.status in ('pending_confirmation', 'registered', 'waitlisted')
+          ) as has_active_registration_for_student
+        ),
+        open_window as (
+          select exists (
+            select 1
+              from academy_enrollment_windows enrollment_window
+              join target_section section
+                on section.academic_period_id = enrollment_window.academic_period_id
+             where enrollment_window.tenant_id = $1
+               and enrollment_window.window_type in ('registration', 'add_drop')
+               and enrollment_window.opens_at <= $5::timestamptz
+               and (
+                 enrollment_window.closes_at is null
+                 or enrollment_window.closes_at >= $5::timestamptz
+               )
+          ) as registration_window_open
+        ),
+        unmet_prerequisites as (
+          select coalesce(
+            array_agg(prerequisite.required_course_id order by prerequisite.required_course_id)
+              filter (where prerequisite.required_course_id is not null),
+            array[]::text[]
+          ) as unmet_prerequisites
+            from target_section section
+            join academy_course_prerequisites prerequisite
+              on prerequisite.tenant_id = $1
+             and prerequisite.course_id = section.course_id
+            left join academy_course_section_registrations completed_registration
+              on completed_registration.tenant_id = $1
+             and completed_registration.student_person_id = $3
+             and completed_registration.status = 'completed'
+            left join academy_course_sections completed_section
+              on completed_section.tenant_id = completed_registration.tenant_id
+             and completed_section.id = completed_registration.course_section_id
+             and completed_section.course_id = prerequisite.required_course_id
+           where completed_section.id is null
+        )
+        select section.id as course_section_id,
+               section.academic_period_id,
+               section.status,
+               section.capacity,
+               active_registrations.active_registration_count,
+               duplicate_registration.has_active_registration_for_student,
+               open_window.registration_window_open,
+               unmet_prerequisites.unmet_prerequisites,
+               array[]::text[] as active_holds
+          from target_section section
+         cross join active_registrations
+         cross join duplicate_registration
+         cross join open_window
+         cross join unmet_prerequisites`,
+      [
+        input.tenantId,
+        input.courseSectionId,
+        input.studentPersonId,
+        input.periodRegistrationId,
+        input.evaluatedAt,
+      ],
+    );
+
+    if (!result.rows[0]) {
+      throw new Error(
+        "Course section eligibility failed: section and period registration must share the same academic period.",
+      );
+    }
+
+    return mapEligibility(result.rows[0]);
   }
 
   async createRegistration(
