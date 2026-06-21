@@ -59,7 +59,7 @@ export function StudentAccountView({ statement }: { statement: StudentAccountSta
           return;
         }
 
-        setMessage("Payment intent created. Online processor handoff is not enabled in this slice.");
+        setMessage("Payment intent created. Online processor handoff is pending finance activation.");
       } catch {
         setError("Payment intent failed.");
       }

@@ -80,10 +80,10 @@ export function StudentPwaShell({
               <h1>{title}</h1>
               <span>{description}</span>
             </div>
-            <button className="student-pwa-alert-button" type="button" aria-label="Notifications unavailable">
+            <Link className="student-pwa-alert-button" href="/student/messages" aria-label="Open messages">
               <Bell />
-              <span>Notifications</span>
-            </button>
+              <span>Messages</span>
+            </Link>
           </section>
           {children}
         </main>
@@ -95,35 +95,6 @@ export function StudentPwaShell({
         ))}
       </nav>
     </div>
-  );
-}
-
-export function StudentPwaPlaceholder({
-  activeHref,
-  actionLabel,
-}: {
-  activeHref: string;
-  actionLabel: string;
-}) {
-  const destination = studentPwaDestinations.find(({ href }) => href === activeHref);
-
-  if (!destination) return null;
-
-  const Icon = iconByName[destination.icon];
-
-  return (
-    <section className="student-pwa-placeholder" aria-labelledby="placeholder-title">
-      <div className="student-pwa-placeholder-icon">
-        <Icon />
-      </div>
-      <p>Student records are not connected in this sprint</p>
-      <h2 id="placeholder-title">{actionLabel}</h2>
-      <span>{destination.description}</span>
-      <div className="student-pwa-safe-state">
-        <ShieldCheck />
-        <span>This page does not expose draft, held, provider-secret, or cross-student records.</span>
-      </div>
-    </section>
   );
 }
 

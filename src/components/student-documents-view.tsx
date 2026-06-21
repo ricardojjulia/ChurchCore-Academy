@@ -88,7 +88,7 @@ export function StudentDocumentsView({ model }: { model: StudentDashboardReadMod
 
       <div className="student-pwa-safe-state">
         <ShieldCheck />
-        <span>Only released Academy-owned document summaries are shown. Downloads and uploads are not enabled in this sprint.</span>
+        <span>Only released Academy-owned document summaries are shown. Official transcript fulfillment remains registrar-controlled.</span>
       </div>
     </section>
   );

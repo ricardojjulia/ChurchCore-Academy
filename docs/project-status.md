@@ -26,6 +26,7 @@ Competitive MVP release program.
 - working MVP surface pass for student/program indexes and dashboard navigation to core staff/admin workflows
 - Gradebook Phase 1 schema, RLS, override audit, GrowthFrameFilter, route scaffolds, tenant-scoped read models, and faculty grade-entry queue
 - Student PWA shell and provider-neutral LMS launch
+- Student PWA workflow surfaces for courses, schedule, progress, documents/transcript request, account, aid, messages, LMS launch, attendance, and privacy controls
 - no-LMS provider and Moodle/Canvas contract foundations
 - deterministic ShepherdAI workflow suggestions
 - LLIS learner consent lifecycle and immutable evidence ledger
@@ -37,7 +38,6 @@ Competitive MVP release program.
 ## Partially Implemented
 
 - Gradebook bulk operations and full faculty grading workflow polish
-- Student PWA persistence across courses, schedule, progress, documents, and messages
 - Moodle and Canvas execution beyond launch and contract/planning foundations
 - browser role-matrix acceptance across later Release 2+ workflows
 - complete production operations, observability, backup, and incident procedures
@@ -52,7 +52,7 @@ Competitive MVP release program.
 - certified ATS/IPEDS compliance reporting
 - live email/SMS provider workers and communications delivery automation
 - executable LMS synchronization workers
-- complete Student PWA data workflows
+- browser role-matrix verification for complete Student PWA workflows
 
 ## Product Safety Position
 

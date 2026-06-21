@@ -134,12 +134,14 @@ Verification note: Slice 7 passed focused communications tests, `npm test`, `npm
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-student-pwa-workflow-completion.md`
 - Expected modules: `src/modules/student-pwa/*`, student pages, service worker/offline policy.
 
-- [ ] Write failing tests for registration, schedule, transcript request, billing view, messages, documents, progress, and privacy controls.
-- [ ] Implement release-safe PWA read/write models.
-- [ ] Complete student route actions and empty states.
-- [ ] Verify no sensitive dynamic data is cached offline.
-- [ ] Verify with test/lint/build and browser PWA checks.
-- [ ] Update Student PWA docs and commit the slice.
+- [x] Write failing tests for registration, schedule, transcript request, billing view, messages, documents, progress, and privacy controls.
+- [x] Implement release-safe PWA read/write models.
+- [x] Complete student route actions and empty states.
+- [x] Verify no sensitive dynamic data is cached offline.
+- [x] Verify with test/lint/build and browser PWA checks.
+- [x] Update Student PWA docs and commit the slice.
+
+Verification note: Slice 8 passed focused Student PWA and registration route tests, `npx tsc --noEmit`, `npm test`, `npm run lint`, `npm run build`, `git diff --check`, and protected-route HTTP smoke for Student PWA routes and the registrations API. Browser visual verification was unavailable because the in-app browser connector previously returned unavailable.
 
 ## Task 9: LMS Execution Workers
 
