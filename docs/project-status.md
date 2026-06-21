@@ -2,11 +2,15 @@
 
 - Version: `0.1.0`
 - Stage: active pre-production development
-- Updated: 2026-06-20
+- Updated: 2026-06-21
 
 ## Current Assessment
 
 ChurchCore Academy has a substantial domain, security, and integration foundation. It should be evaluated as an emerging platform with several production-shaped vertical slices, not as a complete production SIS.
+
+Council Review VII rates the current full SIS competitive readiness at **43/100**.
+The governing path to a fully working competitive MVP is ADR-0033, the Full SIS
+Competitive MVP release program.
 
 ## Implemented and Verified
 
@@ -26,6 +30,7 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 - deterministic ShepherdAI workflow suggestions
 - LLIS learner consent lifecycle and immutable evidence ledger
 - Release 1 authentication, tenant isolation, RLS, and seeded-runtime-data exit gate closeout
+- Council Review VII Full SIS Competitive MVP release program, change-management record, and AI prompt pack
 
 ## Partially Implemented
 
@@ -55,3 +60,4 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 - Federal-aid functionality requires separate regulatory validation and activation gates.
 
 The canonical sequence is maintained in the [Factory Roadmap](product/factory-roadmap.md).
+The full SIS competitive release program is recorded in [ADR-0033](adr/0033-full-sis-competitive-mvp-release-program.md).
