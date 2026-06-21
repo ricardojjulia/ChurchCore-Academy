@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createInstitutionProfileDefaults } from "@/modules/academy-config/defaults";
+import type { InstitutionMode } from "@/modules/academy-config/types";
 import { validateInstitutionProfile } from "@/modules/academy-config/validation";
 
 test("creates children's school defaults with guardian support and school-year records", () => {
@@ -59,7 +60,7 @@ test("supports mixed institutions only when concrete modes are present", () => {
 
   const invalidProfile = {
     ...validProfile,
-    supportedModes: ["mixed"],
+    supportedModes: ["mixed"] as InstitutionMode[],
   };
 
   assert.deepEqual(validateInstitutionProfile(invalidProfile), [

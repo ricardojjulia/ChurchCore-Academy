@@ -19,9 +19,11 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WithdrawRegistrationButton } from "@/components/withdraw-registration-button";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
-import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { fetchStudentRecords, fetchProgramList, fetchAdministrators, fetchSectionList } from "@/lib/academy-read-models";
+import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
 
 interface RegistrationRow {
@@ -51,22 +53,45 @@ export default async function StudentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { actor, dataset } = await loadProtectedAcademyDataset();
-  const student = dataset.students.find((item) => item.id === id);
+  const actor = await requireActor();
 
-  if (!student) {
-    notFound();
-  }
+  const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations } =
+    await withAcademyDatabaseContext(actor, async (client) => {
+      const shepherdRepo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));
+      const [s, p, a, sec, sugg, wflow, regs] = await Promise.all([
+        fetchStudentRecords(actor.tenantId, client),
+        fetchProgramList(actor.tenantId, client),
+        fetchAdministrators(actor.tenantId, client),
+        fetchSectionList(actor.tenantId, client),
+        shepherdRepo.fetchSuggestions(actor.tenantId),
+        shepherdRepo.fetchWorkflows(actor.tenantId),
+        client.query(
+          `select id, course_section_id, status, registered_at
+             from academy_course_section_registrations
+            where tenant_id = $1 and student_person_id = $2
+            order by registered_at desc`,
+          [actor.tenantId, id],
+        ) as Promise<{ rows: RegistrationRow[] }>,
+      ]);
+      return {
+        students: s,
+        programs: p,
+        administrators: a,
+        sections: sec,
+        allSuggestions: sugg,
+        allWorkflows: wflow,
+        registrations: regs.rows,
+      };
+    });
 
-  const program = dataset.programs.find((item) => item.id === student.programId);
-  const advisor = dataset.administrators.find((item) => item.id === student.advisorUserId);
-  const evaluation = await runAcademicWorkflowEvaluationJob(
-    actor.tenantId,
-    dataset,
-    null,
-  );
-  const suggestions = evaluation.workflows.getStudentSuggestions(id);
-  const workflows = evaluation.workflows.getStudentWorkflows(id);
+  const student = students.find((item) => item.id === id);
+  if (!student) notFound();
+
+  const program = programs.find((item) => item.id === student.programId);
+  const advisor = administrators.find((item) => item.id === student.advisorUserId);
+  const suggestions = allSuggestions.filter((s) => s.entityType === "student" && s.entityId === id);
+  const suggestionIds = new Set(suggestions.map((s) => s.id));
+  const workflows = allWorkflows.filter((w) => w.suggestionId != null && suggestionIds.has(w.suggestionId));
   const progressPercent = program ? Math.min(100, Math.round((student.creditsEarned / program.requiredCredits) * 100)) : 0;
   const administrativeSignals = [
     ...student.missingEnrollmentSteps.map((value) => ({ category: "Enrollment", value })),
@@ -75,18 +100,7 @@ export default async function StudentPage({
     ...student.recordAlerts.map((value) => ({ category: "Record", value })),
   ];
 
-  const registrations = await withAcademyDatabaseContext(actor, async (client) => {
-    const result = await client.query(
-      `select id, course_section_id, status, registered_at
-         from academy_course_section_registrations
-        where tenant_id = $1 and student_person_id = $2
-        order by registered_at desc`,
-      [actor.tenantId, id],
-    ) as { rows: RegistrationRow[] };
-    return result.rows;
-  });
-
-  const sectionById = new Map(dataset.sections.map((s) => [s.id, s]));
+  const sectionById = new Map(sections.map((s) => [s.id, s]));
 
   return (
     <AdminShell

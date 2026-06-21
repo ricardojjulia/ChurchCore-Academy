@@ -8,7 +8,7 @@ export default async function StudentCoursesPage() {
   const model = await loadStudentPwaPageModel();
 
   return (
-    <StudentPwaShell activeHref="/student/courses" title="Courses" description="Review your current Academy courses and sections.">
+    <StudentPwaShell title="Courses" description="Review your current Academy courses and sections.">
       <section className="student-pwa-surface" aria-labelledby="student-courses-heading">
         <div className="student-pwa-surface-heading">
           <div>

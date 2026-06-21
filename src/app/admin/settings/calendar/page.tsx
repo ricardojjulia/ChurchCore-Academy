@@ -3,7 +3,9 @@ import type React from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { AcademyCalendarRepository } from "@/modules/academic-calendar/postgres-repository";
 import {
   AcademicPeriodReviewItem,
   AcademicYearReviewItem,
@@ -16,9 +18,14 @@ import {
   buildAcademicCalendarReviewModel,
 } from "@/modules/academic-calendar/review-view";
 
+type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
+
 export default async function CalendarSettingsPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const model = buildAcademicCalendarReviewModel(dataset.academicCalendar);
+  const actor = await requireActor();
+  const academicCalendar = await withAcademyDatabaseContext(actor, async (client) =>
+    new AcademyCalendarRepository(asAcademyDatabase<RepoPool>(client)).fetchAcademicCalendarConfiguration(actor.tenantId),
+  );
+  const model = buildAcademicCalendarReviewModel(academicCalendar);
 
   return (
     <AdminShell

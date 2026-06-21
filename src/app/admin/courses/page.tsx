@@ -4,10 +4,11 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import type { Course, CourseSection } from "@/modules/course-catalog/types";
 import type { InstitutionSubdivision } from "@/modules/academic-calendar/types";
-import type { Person } from "@/modules/people/types";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ function subdivisionLabel(subdivisions: InstitutionSubdivision[], id?: string) {
   return subdivisions.find((s) => s.id === id)?.name ?? "—";
 }
 
-function instructorLabel(people: Person[], instructorId?: string) {
+function instructorLabel(people: { id: string; displayName: string }[], instructorId?: string) {
   if (!instructorId) return "Unassigned";
   return people.find((p) => p.id === instructorId)?.displayName ?? "Unknown";
 }
@@ -60,11 +61,21 @@ function sectionStatusVariant(status: CourseSection["status"]): "default" | "sec
   return "outline";
 }
 
+type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
+
 export default async function CoursesPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const catalog = dataset.courseCatalog;
+  const actor = await requireActor();
+  const { catalog, people } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [courseCatalog, peopleResult] = await Promise.all([
+      new AcademyCourseCatalogRepository(asAcademyDatabase<RepoPool>(client)).fetchCourseCatalogConfiguration(actor.tenantId),
+      client.query(
+        `select id::text, display_name as "displayName" from academy_people where tenant_id = $1`,
+        [actor.tenantId],
+      ) as Promise<{ rows: { id: string; displayName: string }[] }>,
+    ]);
+    return { catalog: courseCatalog, people: peopleResult.rows };
+  });
   const { courses, sections, subdivisions, academicPeriods, academicYears } = catalog;
-  const people = dataset.peopleConfiguration.people;
 
   const activeCourses = courses.filter((c) => c.status === "active");
   const scheduledSections = sections.filter((s) => s.status !== "cancelled" && s.status !== "archived");

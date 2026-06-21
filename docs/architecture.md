@@ -61,7 +61,7 @@ If a feature only exists because Moodle or Canvas behaves a certain way, it belo
 - Seeded Academy records are prohibited from runtime UI modules.
 - Audit records are append-only and reject secret-shaped metadata.
 
-Request-facing reads and workflow mutations share verified request-scoped RLS transactions. Until live policy and browser-role verification are complete, Release 1 is implemented but not production-approved.
+Request-facing reads and workflow mutations share verified request-scoped RLS transactions. The Release 1 security exit gate is closed for the verified-session, request-scoped RLS, immutable audit, and seeded-runtime-data foundation. Later workflow releases still require their own browser role-matrix and live policy acceptance before production use.
 
 ## Admissions boundary
 

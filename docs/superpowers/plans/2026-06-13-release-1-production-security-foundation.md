@@ -423,7 +423,7 @@ git commit -m "docs: define Academy security operations and release status"
 - Modify: this plan to check completed tasks and record verification evidence
 - Create: `docs/superpowers/plans/2026-06-13-release-1-security-verification.md`
 
-- [ ] **Step 1: Run the full gate**
+- [x] **Step 1: Run the full gate**
 
 ```bash
 npm test
@@ -433,15 +433,15 @@ git diff --check
 npm audit
 ```
 
-- [ ] **Step 2: Run database verification**
+- [x] **Step 2: Run database verification**
 
 Apply migrations to local Supabase/Postgres, then test authenticated tenant A, tenant B, student, guardian, staff, and unauthenticated database claims.
 
-- [ ] **Step 3: Run browser verification**
+- [x] **Step 3: Run browser verification**
 
 Verify login requirements and allowed/denied states for administrator, academic staff, student, guardian, and platform staff routes.
 
-- [ ] **Step 4: Conduct security review**
+- [x] **Step 4: Conduct security review**
 
 Review the branch for:
 
@@ -453,13 +453,18 @@ Review the branch for:
 - cross-tenant queries;
 - audit mutation paths.
 
-- [ ] **Step 5: Record residual risks**
+- [x] **Step 5: Record residual risks**
 
 The release cannot be marked production-ready while high-severity dependency findings remain unresolved or the supported Node runtime does not satisfy declared package engines.
 
-- [ ] **Step 6: Commit verification evidence**
+- [x] **Step 6: Commit verification evidence**
 
 ```bash
 git add docs/superpowers/plans
 git commit -m "docs: record Release 1 security verification"
 ```
+
+Closeout evidence is recorded in:
+
+- `docs/superpowers/plans/2026-06-13-release-1-security-verification.md`
+- `docs/reviews/2026-06-20-release-1-security-exit-gate-closeout.md`

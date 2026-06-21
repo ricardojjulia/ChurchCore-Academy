@@ -10,7 +10,7 @@ export default async function StudentMessagesPage() {
 
   return (
     <StudentPwaShell
-      activeHref="/student/messages"
+     
       title="Messages"
       description="Administrative messages and Academy action reminders."
     >

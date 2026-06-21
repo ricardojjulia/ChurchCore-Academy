@@ -1302,3 +1302,158 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ─── Student PWA Error Boundary ─── */
+
+.student-pwa-error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: var(--color-surface, #f5f7fb);
+}
+
+.student-pwa-error-content {
+  max-width: 22rem;
+  width: 100%;
+  text-align: center;
+}
+
+.student-pwa-error-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.student-pwa-error-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.student-pwa-error-copy {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.student-pwa-error-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.student-pwa-error-retry {
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #374151;
+  font-family: inherit;
+}
+
+.student-pwa-error-home {
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  background: #17365d;
+  color: #fff;
+  font-size: 0.875rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.student-pwa-error-digest {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin-top: 2rem;
+}
+
+/* ─── Student PWA Loading Skeleton ─── */
+
+.student-pwa-loading-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--color-surface, #f5f7fb);
+}
+
+.student-pwa-loading-nav {
+  height: 3.5rem;
+  border-radius: 0;
+  flex-shrink: 0;
+}
+
+.student-pwa-loading-main {
+  flex: 1;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.student-pwa-loading-hero {
+  height: 6rem;
+  border-radius: 1rem;
+}
+
+.student-pwa-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.student-pwa-loading-card {
+  height: 7rem;
+  border-radius: 1rem;
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────────── */
+
+@media print {
+  .student-pwa-nav,
+  .student-pwa-bottom-nav,
+  .student-pwa-topbar,
+  .student-pwa-header,
+  [class*="-actions"],
+  button {
+    display: none !important;
+  }
+
+  .student-pwa-shell {
+    display: block !important;
+  }
+
+  .student-pwa-main {
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 11pt;
+  }
+
+  th,
+  td {
+    border: 1px solid #999;
+    padding: 4px 8px;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
+}

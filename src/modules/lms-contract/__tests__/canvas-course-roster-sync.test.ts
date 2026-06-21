@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createInstitutionProfileDefaults } from "@/modules/academy-config/defaults";
-import { InstitutionProfile } from "@/modules/academy-config/types";
+import type { InstitutionProfile, LmsProvider } from "@/modules/academy-config/types";
 import { createCanvasCourseShellProvisioningPlan, createCanvasRosterSyncPlan } from "../canvas-course-roster-sync";
 import { resolveTenantLmsProvider } from "../tenant-provider-selection";
 
 const now = "2026-06-11T12:00:00.000Z";
 
-function profile(status: InstitutionProfile["lmsPreference"]["selectionStatus"] = "active") {
+function profile(status: InstitutionProfile["lmsPreference"]["selectionStatus"] = "active"): InstitutionProfile {
   const base = createInstitutionProfileDefaults({
     tenantId: "tenant-canvas-sync",
     institutionName: "Canvas Sync Academy",
@@ -20,7 +20,7 @@ function profile(status: InstitutionProfile["lmsPreference"]["selectionStatus"] 
   return {
     ...base,
     lmsPreference: {
-      provider: "canvas",
+      provider: "canvas" as LmsProvider,
       selectionStatus: status,
     },
   };
@@ -53,8 +53,8 @@ test("active Canvas course shell provisioning returns safe idempotent plan", () 
       sectionId: "section-401-a",
       academicYearId: "year-2026",
       academicPeriodId: "period-fall-2026",
-      mappingIntent: "pending",
-      syncPolicy: "manual_review",
+      mappingIntent: "planned",
+      syncPolicy: "manual",
       idempotencyKey: "op-canvas-shell-1",
     },
   });
@@ -124,8 +124,8 @@ test("Canvas sync is gated by tenant provider status", () => {
       sectionId: "section-401-a",
       academicYearId: "year-2026",
       academicPeriodId: "period-fall-2026",
-      mappingIntent: "pending",
-      syncPolicy: "manual_review",
+      mappingIntent: "planned",
+      syncPolicy: "manual",
       idempotencyKey: "op-canvas-shell-2",
     },
   });
@@ -176,8 +176,8 @@ test("Canvas sync requires tenant match and idempotency key", () => {
           sectionId: "section-401-a",
           academicYearId: "year-2026",
           academicPeriodId: "period-fall-2026",
-          mappingIntent: "pending",
-          syncPolicy: "manual_review",
+          mappingIntent: "planned",
+          syncPolicy: "manual",
           idempotencyKey: "op-canvas-shell-3",
         },
       }),

@@ -10,16 +10,16 @@ async function source(path: string) {
 test("admin students index renders protected records instead of redirecting", async () => {
   const page = await source("src/app/admin/students/page.tsx");
 
-  assert.match(page, /loadProtectedAcademyDataset/);
-  assert.match(page, /dataset\.students/);
+  assert.match(page, /requireActor/);
+  assert.match(page, /fetchStudentRecords/);
   assert.match(page, /\/admin\/students\/\$\{student\.id\}/);
 });
 
 test("admin programs index renders protected records instead of redirecting", async () => {
   const page = await source("src/app/admin/programs/page.tsx");
 
-  assert.match(page, /loadProtectedAcademyDataset/);
-  assert.match(page, /dataset\.programs/);
+  assert.match(page, /requireActor/);
+  assert.match(page, /fetchProgramList/);
   assert.match(page, /\/admin\/programs\/\$\{program\.id\}/);
 });
 
@@ -46,4 +46,14 @@ test("admin dashboard exposes navigation to all working MVP surfaces", async () 
   ]) {
     assert.match(page, new RegExp(href.replace("/", "\\/").replace("[", "\\[")));
   }
+});
+
+test("admin dashboard reads persisted dashboard data without invoking workflow evaluation", async () => {
+  const page = await source("src/app/admin/page.tsx");
+
+  assert.match(page, /requireActor/);
+  assert.match(page, /withAcademyDatabaseContext/);
+  assert.match(page, /ShepherdAiPostgresRepository/);
+  assert.doesNotMatch(page, /runAcademicWorkflowEvaluationJob/);
+  assert.doesNotMatch(page, /evaluation\?\.dataset/);
 });

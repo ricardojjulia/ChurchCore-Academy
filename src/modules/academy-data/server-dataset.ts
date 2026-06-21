@@ -25,6 +25,11 @@ async function loadScopedDataset(actor: AcademyActor) {
   );
 }
 
+/**
+ * @deprecated ADR-0030 keeps this loader only as a temporary migration bridge.
+ * Runtime pages and components must use requireActor() with targeted,
+ * tenant-scoped database reads instead of loading the legacy full dataset.
+ */
 export async function loadProtectedAcademyDataset(
   dependencies: ProtectedAcademyDatasetDependencies = {},
 ) {

@@ -2,8 +2,11 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { FacultyShell } from "@/components/faculty-shell";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
-import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { fetchSectionList, fetchFacultyList } from "@/lib/academy-read-models";
+import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 import Link from "next/link";
 import { BookOpen, CalendarDays, ClipboardCheck, TriangleAlert, Users } from "lucide-react";
 
@@ -19,29 +22,39 @@ export default async function FacultyPortal() {
     redirect("/login");
   }
 
+  const actor = await requireActor();
+
   const rawName = user?.email?.split("@")[0] ?? "there";
   const firstName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  let dataset: Awaited<ReturnType<typeof loadProtectedAcademyDataset>>["dataset"] | null = null;
-  let evaluation: Awaited<ReturnType<typeof runAcademicWorkflowEvaluationJob>> | null = null;
+  type SectionRow = Awaited<ReturnType<typeof fetchSectionList>>[number];
+  type FacultyRow = Awaited<ReturnType<typeof fetchFacultyList>>[number];
+
+  let sections: SectionRow[] = [];
+  let faculty: FacultyRow[] = [];
+  let facultySignals: { id: string; workflowCode: string; summary: string; urgency: string }[] = [];
 
   try {
-    const result = await loadProtectedAcademyDataset();
-    dataset = result.dataset;
-    evaluation = await runAcademicWorkflowEvaluationJob(result.actor.tenantId, dataset, null);
+    const data = await withAcademyDatabaseContext(actor, async (client) => {
+      const repo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));
+      const [allSections, allFaculty, allSuggestions] = await Promise.all([
+        fetchSectionList(actor.tenantId, client),
+        fetchFacultyList(actor.tenantId, client),
+        repo.fetchSuggestions(actor.tenantId),
+      ]);
+      return { sections: allSections, faculty: allFaculty, suggestions: allSuggestions };
+    });
+    sections = data.sections;
+    faculty = data.faculty;
+    facultySignals = data.suggestions.filter(
+      (s) => s.workflowCode === "faculty_or_course_assignment_imbalance_review",
+    );
   } catch {
-    // graceful degradation if seed data unavailable
+    // graceful degradation
   }
-
-  const sections = dataset?.sections ?? [];
-  const faculty = dataset?.faculty ?? [];
-  const suggestions = evaluation?.suggestions ?? [];
-  const facultySignals = suggestions.filter(
-    (s) => s.workflowCode === "faculty_or_course_assignment_imbalance_review",
-  );
 
   // For demo: treat sections with setup alerts as "attendance due"
   const attendanceDue = sections.filter((s) => s.setupAlerts.length > 0);

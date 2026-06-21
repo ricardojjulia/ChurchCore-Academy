@@ -4,7 +4,9 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +21,16 @@ function statusVariant(status: string) {
 }
 
 export default async function StudentsPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const activeStudents = dataset.students.filter((student) => student.enrollmentStatus === "active");
-  const reviewStudents = dataset.students.filter(
+  const actor = await requireActor();
+  const { students, programs } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [s, p] = await Promise.all([
+      fetchStudentRecords(actor.tenantId, client),
+      fetchProgramList(actor.tenantId, client),
+    ]);
+    return { students: s, programs: p };
+  });
+  const activeStudents = students.filter((student) => student.enrollmentStatus === "active");
+  const reviewStudents = students.filter(
     (student) =>
       student.missingEnrollmentSteps.length > 0 ||
       student.missingDocuments.length > 0 ||
@@ -37,7 +46,7 @@ export default async function StudentsPage() {
       subtitle="Tenant-scoped student records, status, program assignment, and ShepherdAI review entry points."
     >
       <section className="ops-stats-grid">
-        <StudentIndexMetric label="Total students" value={dataset.students.length} detail="Protected tenant records" icon={<UsersRound />} />
+        <StudentIndexMetric label="Total students" value={students.length} detail="Protected tenant records" icon={<UsersRound />} />
         <StudentIndexMetric label="Active students" value={activeStudents.length} detail="Currently active enrollment" icon={<GraduationCap />} />
         <StudentIndexMetric label="Needs review" value={reviewStudents.length} detail="Records, documentation, or transcript signals" icon={<FileWarning />} />
       </section>
@@ -50,7 +59,7 @@ export default async function StudentsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {dataset.students.length === 0 ? (
+          {students.length === 0 ? (
             <div className="student-empty-state">
               <ShieldCheck />
               <span>No student records exist for this tenant yet. Start from admissions when applicant records are ready.</span>
@@ -72,8 +81,8 @@ export default async function StudentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dataset.students.map((student) => {
-                  const program = dataset.programs.find((item) => item.id === student.programId);
+                {students.map((student) => {
+                  const program = programs.find((item) => item.id === student.programId);
                   const needsReview =
                     student.missingEnrollmentSteps.length +
                     student.missingDocuments.length +

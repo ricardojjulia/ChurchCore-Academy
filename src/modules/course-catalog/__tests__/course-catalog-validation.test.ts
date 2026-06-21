@@ -236,7 +236,7 @@ test("accepts a children's school class with grade-band context and progress rec
     catalogProfile: {
       ...baseConfig().catalogProfile,
       tenantId: "tenant-child",
-      defaultCourseRecordType: "progress_report",
+      defaultCourseRecordType: "progress_record",
       defaultDurationUnit: "week",
       supportsCredits: false,
       supportsClockHours: false,
@@ -256,7 +256,7 @@ test("accepts a children's school class with grade-band context and progress rec
         title: "Reading Foundations",
         courseType: "children_class",
         courseLevel: "children",
-        recordType: "progress_report",
+        recordType: "progress_record",
         defaultDuration: {
           durationUnit: "week",
           durationValue: 16,
@@ -371,7 +371,7 @@ test("rejects children's school classes without grade-band context", () => {
     catalogProfile: {
       ...baseConfig().catalogProfile,
       tenantId: "tenant-child",
-      defaultCourseRecordType: "progress_report",
+      defaultCourseRecordType: "progress_record",
       supportsCredits: false,
       supportsGradeLevels: true,
     },
@@ -384,7 +384,7 @@ test("rejects children's school classes without grade-band context", () => {
         tenantId: "tenant-child",
         courseType: "children_class",
         courseLevel: "children",
-        recordType: "progress_report",
+        recordType: "progress_record",
         owningSubdivisionId: undefined,
         gradeBandSubdivisionId: undefined,
       },

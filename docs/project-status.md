@@ -2,7 +2,7 @@
 
 - Version: `0.1.0`
 - Stage: active pre-production development
-- Updated: 2026-06-16
+- Updated: 2026-06-20
 
 ## Current Assessment
 
@@ -25,13 +25,14 @@ ChurchCore Academy has a substantial domain, security, and integration foundatio
 - no-LMS provider and Moodle/Canvas contract foundations
 - deterministic ShepherdAI workflow suggestions
 - LLIS learner consent lifecycle and immutable evidence ledger
+- Release 1 authentication, tenant isolation, RLS, and seeded-runtime-data exit gate closeout
 
 ## Partially Implemented
 
 - Gradebook bulk operations and full faculty grading workflow polish
 - Student PWA persistence across courses, schedule, progress, documents, and messages
 - Moodle and Canvas execution beyond launch and contract/planning foundations
-- browser role-matrix acceptance across all protected pages
+- browser role-matrix acceptance across later Release 2+ workflows
 - complete production operations, observability, backup, and incident procedures
 
 ## Production MVP Blockers

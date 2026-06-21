@@ -10,16 +10,24 @@ import {
   ListChecks,
   School,
   Sparkles,
-  TriangleAlert,
   UsersRound,
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  asAcademyDatabase,
+  type AcademyQueryClient,
+  withAcademyDatabaseContext,
+} from "@/lib/academy-database-context";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
-import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { requireActor } from "@/lib/require-actor";
+import {
+  ShepherdAiPostgresRepository,
+  type ShepherdAiDatabase,
+} from "@/modules/shepherd-ai/postgres-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -35,19 +43,23 @@ const quickActions = [
   { label: "Student PWA", detail: "Student-facing records", href: "/student", Icon: ArrowRight },
 ];
 
-function isSeedDataUnavailableError(error: unknown) {
-  return (
-    error instanceof Error &&
-    (error.message.toLowerCase().includes("is not seeded") ||
-      error.message.toLowerCase().includes("institution profile is not seeded"))
-  );
+type CountQueryResult = {
+  rows: Array<{ count: string | number | bigint }>;
+};
+
+async function countTenantRows(
+  client: AcademyQueryClient,
+  sql: string,
+  tenantId: string,
+) {
+  const result = (await client.query(sql, [tenantId])) as CountQueryResult;
+  return Number(result.rows[0]?.count ?? 0);
 }
 
 export default async function AdminDashboard() {
+  const actor = await requireActor();
   const user = await getCurrentUser();
-  // tenantId derives from the verified Supabase session only — never from caller-supplied headers.
-  const tenantId = user?.tenantId ?? "cca-main";
-  const institution = await getInstitutionProfile(tenantId);
+  const institution = await getInstitutionProfile(actor.tenantId);
 
   async function signOutAction() {
     "use server";
@@ -56,24 +68,42 @@ export default async function AdminDashboard() {
     redirect("/login");
   }
 
-  let evaluation: Awaited<
-    ReturnType<typeof runAcademicWorkflowEvaluationJob>
-  > | null = null;
-  let seedDataWarning: string | null = null;
+  const dashboardData = await withAcademyDatabaseContext(actor, async (client) => {
+    const shepherdAiRepository = new ShepherdAiPostgresRepository(
+      asAcademyDatabase<ShepherdAiDatabase>(client),
+    );
 
-  try {
-    evaluation = await runAcademicWorkflowEvaluationJob(tenantId);
-  } catch (error) {
-    if (!isSeedDataUnavailableError(error)) throw error;
-    seedDataWarning =
-      "Academy dataset is not seeded for this tenant yet. Metrics remain hidden until seeding completes.";
-  }
+    const suggestions = await shepherdAiRepository.fetchSuggestions(
+      actor.tenantId,
+    );
+    const workflows = await shepherdAiRepository.fetchWorkflows(actor.tenantId);
+    const studentsCount = await countTenantRows(
+      client,
+      "select count(*)::int as count from academy_student_profiles where tenant_id = $1",
+      actor.tenantId,
+    );
+    const programsCount = await countTenantRows(
+      client,
+      "select count(*)::int as count from academy_programs where tenant_id = $1",
+      actor.tenantId,
+    );
+    const facultyCount = await countTenantRows(
+      client,
+      "select count(*)::int as count from academy_staff_profiles where tenant_id = $1",
+      actor.tenantId,
+    );
 
-  const suggestions = evaluation?.suggestions ?? [];
-  const workflows = evaluation?.repository.workflows ?? [];
-  const studentsCount = evaluation?.dataset.students.length ?? 0;
-  const programsCount = evaluation?.dataset.programs.length ?? 0;
-  const facultyCount = evaluation?.dataset.faculty.length ?? 0;
+    return {
+      suggestions,
+      workflows,
+      studentsCount,
+      programsCount,
+      facultyCount,
+    };
+  });
+
+  const { suggestions, workflows, studentsCount, programsCount, facultyCount } =
+    dashboardData;
   const highUrgencyCount = suggestions.filter(
     (s) => s.urgency === "high" || s.urgency === "critical",
   ).length;
@@ -103,192 +133,131 @@ export default async function AdminDashboard() {
         stand.
       </p>
 
-      {evaluation ? (
-        <>
-          {/* Stat row */}
-          <section className="ops-stats-grid">
-            <DashboardMetric
-              label="ShepherdAI Signals"
-              value={suggestions.length}
-              icon={<Sparkles />}
-              detail="Open details"
-              bars={[3, 5, 4, 7, suggestions.length]}
-              href="/admin/workflows"
-            />
-            <DashboardMetric
-              label="High urgency"
-              value={highUrgencyCount}
-              icon={<FileWarning />}
-              detail="May require timely review"
-              bars={[1, 2, 1, 3, highUrgencyCount]}
-              accent="danger"
-            />
-            <DashboardMetric
-              label="Active workflows"
-              value={activeWorkflowCount}
-              icon={<ListChecks />}
-              detail="Promoted for human action"
-              bars={[2, 4, 3, 5, activeWorkflowCount]}
-            />
-            <DashboardMetric
-              label="Documentation cases"
-              value={missingDocCount}
-              icon={<ClipboardCheck />}
-              detail="Record completion review"
-              bars={[1, 1, 2, 2, missingDocCount]}
-              accent="warn"
-            />
-          </section>
+      {/* Stat row */}
+      <section className="ops-stats-grid">
+        <DashboardMetric
+          label="ShepherdAI Signals"
+          value={suggestions.length}
+          icon={<Sparkles />}
+          detail="Open details"
+          bars={[3, 5, 4, 7, suggestions.length]}
+          href="/admin/workflows"
+        />
+        <DashboardMetric
+          label="High urgency"
+          value={highUrgencyCount}
+          icon={<FileWarning />}
+          detail="May require timely review"
+          bars={[1, 2, 1, 3, highUrgencyCount]}
+          accent="danger"
+        />
+        <DashboardMetric
+          label="Active workflows"
+          value={activeWorkflowCount}
+          icon={<ListChecks />}
+          detail="Promoted for human action"
+          bars={[2, 4, 3, 5, activeWorkflowCount]}
+        />
+        <DashboardMetric
+          label="Documentation cases"
+          value={missingDocCount}
+          icon={<ClipboardCheck />}
+          detail="Record completion review"
+          bars={[1, 1, 2, 2, missingDocCount]}
+          accent="warn"
+        />
+      </section>
 
-          <section className="ops-stats-grid">
-            <DashboardMetric
-              label="Students"
-              value={studentsCount}
-              icon={<UsersRound />}
-              detail="Tenant-scoped dataset"
-              bars={[2, 3, 3, 4, studentsCount]}
-            />
-            <DashboardMetric
-              label="Programs"
-              value={programsCount}
-              icon={<GraduationCap />}
-              detail="Tracked academic programs"
-              bars={[1, 2, 2, 3, programsCount]}
-            />
-            <DashboardMetric
-              label="Faculty records"
-              value={facultyCount}
-              icon={<BookOpenCheck />}
-              detail="Load and advisor review"
-              bars={[1, 2, 3, 3, facultyCount]}
-            />
-            <DashboardMetric
-              label="Signal categories"
-              value={5}
-              icon={<Sparkles />}
-              detail="Enrollment, records, progress, transcripts, faculty"
-              bars={[3, 4, 4, 5, 5]}
-            />
-          </section>
+      <section className="ops-stats-grid">
+        <DashboardMetric
+          label="Students"
+          value={studentsCount}
+          icon={<UsersRound />}
+          detail="Tenant-scoped records"
+          bars={[2, 3, 3, 4, studentsCount]}
+        />
+        <DashboardMetric
+          label="Programs"
+          value={programsCount}
+          icon={<GraduationCap />}
+          detail="Tracked academic programs"
+          bars={[1, 2, 2, 3, programsCount]}
+        />
+        <DashboardMetric
+          label="Faculty records"
+          value={facultyCount}
+          icon={<BookOpenCheck />}
+          detail="Load and advisor review"
+          bars={[1, 2, 3, 3, facultyCount]}
+        />
+        <DashboardMetric
+          label="Signal categories"
+          value={5}
+          icon={<Sparkles />}
+          detail="Enrollment, records, progress, transcripts, faculty"
+          bars={[3, 4, 4, 5, 5]}
+        />
+      </section>
 
-          {/* Middle: quick-actions + signals */}
-          <div className="admin-dashboard-grid">
-            <div className="admin-panel">
-              <div className="admin-panel-heading">
-                <h2>Start Here</h2>
-              </div>
-              <div className="admin-quick-actions">
-                {quickActions.map((action) => {
-                  const { Icon } = action;
-                  return (
-                    <Link
-                      key={action.href}
-                      href={action.href}
-                      className="admin-quick-action"
-                    >
-                      <span className="admin-quick-action-icon">
-                        <Icon />
-                      </span>
-                      <span>
-                        {action.label}
-                        <span>{action.detail}</span>
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="admin-panel">
-              <div className="admin-panel-heading">
-                <h2>ShepherdAI Signals</h2>
-                <Link href="/admin/workflows">View all →</Link>
-              </div>
-              {suggestions.length === 0 ? (
-                <p className="admin-signal-empty">
-                  No active signals at this time.
-                </p>
-              ) : (
-                <div className="admin-signal-list">
-                  {suggestions.slice(0, 5).map((s) => (
-                    <div key={s.id} className="admin-signal-row">
-                      <span
-                        className="admin-signal-urgency"
-                        data-level={s.urgency}
-                        aria-hidden="true"
-                      />
-                      <span className="admin-signal-name">{s.summary}</span>
-                      <span
-                        className="admin-signal-badge"
-                        data-level={s.urgency}
-                      >
-                        {s.urgency}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+      {/* Middle: quick-actions + signals */}
+      <div className="admin-dashboard-grid">
+        <div className="admin-panel">
+          <div className="admin-panel-heading">
+            <h2>Start Here</h2>
           </div>
-        </>
-      ) : (
-        <section className="ops-empty-state" aria-live="polite">
-          <Card className="ops-panel ops-empty-card">
-            <CardContent>
-              <div className="ops-empty-header">
-                <span className="ops-empty-icon" aria-hidden="true">
-                  <TriangleAlert />
-                </span>
-                <div>
-                  <p className="ops-empty-eyebrow">Tenant setup required</p>
-                  <h3>Dashboard data is not ready yet</h3>
-                </div>
-              </div>
-              <p className="ops-empty-copy">
-                {seedDataWarning ??
-                  "Academy runtime data is unavailable for this tenant."}
-              </p>
-              <div className="ops-empty-actions">
-                <Link href="/platform/control" className="academy-action-link">
-                  Open Platform Control
-                </Link>
+          <div className="admin-quick-actions">
+            {quickActions.map((action) => {
+              const { Icon } = action;
+              return (
                 <Link
-                  href="/admin/settings/institution"
-                  className="academy-action-link"
+                  key={action.href}
+                  href={action.href}
+                  className="admin-quick-action"
                 >
-                  Review Institution Setup
+                  <span className="admin-quick-action-icon">
+                    <Icon />
+                  </span>
+                  <span>
+                    {action.label}
+                    <span>{action.detail}</span>
+                  </span>
                 </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="admin-panel">
-            <div className="admin-panel-heading">
-              <h2>Start Here</h2>
-            </div>
-            <div className="admin-quick-actions">
-              {quickActions.map((action) => {
-                const { Icon } = action;
-                return (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className="admin-quick-action"
-                  >
-                    <span className="admin-quick-action-icon">
-                      <Icon />
-                    </span>
-                    <span>
-                      {action.label}
-                      <span>{action.detail}</span>
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+              );
+            })}
           </div>
-        </section>
-      )}
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-panel-heading">
+            <h2>ShepherdAI Signals</h2>
+            <Link href="/admin/workflows">View all →</Link>
+          </div>
+          {suggestions.length === 0 ? (
+            <p className="admin-signal-empty">
+              No active signals at this time.
+            </p>
+          ) : (
+            <div className="admin-signal-list">
+              {suggestions.slice(0, 5).map((s) => (
+                <div key={s.id} className="admin-signal-row">
+                  <span
+                    className="admin-signal-urgency"
+                    data-level={s.urgency}
+                    aria-hidden="true"
+                  />
+                  <span className="admin-signal-name">{s.summary}</span>
+                  <span
+                    className="admin-signal-badge"
+                    data-level={s.urgency}
+                  >
+                    {s.urgency}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </AdminShell>
   );
 }

@@ -4,7 +4,9 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +15,16 @@ function formatCode(value: string) {
 }
 
 export default async function ProgramsPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const activeStudents = dataset.students.filter((student) => student.enrollmentStatus === "active");
-  const assignedStudents = dataset.students.filter((student) => Boolean(student.programId));
+  const actor = await requireActor();
+  const { students, programs } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [s, p] = await Promise.all([
+      fetchStudentRecords(actor.tenantId, client),
+      fetchProgramList(actor.tenantId, client),
+    ]);
+    return { students: s, programs: p };
+  });
+  const activeStudents = students.filter((student) => student.enrollmentStatus === "active");
+  const assignedStudents = students.filter((student) => Boolean(student.programId));
 
   return (
     <AdminShell
@@ -29,7 +38,7 @@ export default async function ProgramsPage() {
       </p>
 
       <section className="ops-stats-grid">
-        <ProgramIndexMetric label="Programs" value={dataset.programs.length} detail="Tracked academic programs" icon={<GraduationCap />} />
+        <ProgramIndexMetric label="Programs" value={programs.length} detail="Tracked academic programs" icon={<GraduationCap />} />
         <ProgramIndexMetric label="Assigned students" value={assignedStudents.length} detail="Students with program ownership" icon={<UsersRound />} />
         <ProgramIndexMetric label="Active students" value={activeStudents.length} detail="Current academic records" icon={<BookOpenCheck />} />
       </section>
@@ -42,7 +51,7 @@ export default async function ProgramsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {dataset.programs.length === 0 ? (
+          {programs.length === 0 ? (
             <div className="student-empty-state">
               <ShieldCheck />
               <span>No programs exist for this tenant yet. Configure courses and programs before reviewing progress.</span>
@@ -64,8 +73,8 @@ export default async function ProgramsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dataset.programs.map((program) => {
-                  const programStudents = dataset.students.filter((student) => student.programId === program.id);
+                {programs.map((program) => {
+                  const programStudents = students.filter((student) => student.programId === program.id);
                   const activeProgramStudents = programStudents.filter((student) => student.enrollmentStatus === "active");
 
                   return (

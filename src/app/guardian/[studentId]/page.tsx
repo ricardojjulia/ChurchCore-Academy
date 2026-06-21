@@ -6,7 +6,8 @@ import { BookOpen, GraduationCap, ShieldCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 
 export const dynamic = "force-dynamic";
@@ -31,35 +32,37 @@ export default async function GuardianStudentPage({
     redirect("/login");
   }
 
-  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
-  const relationship = await withAcademyDatabaseContext(actor, async (client) => {
-    const result = await client.query(
-      `select relationship_type, authority
-       from academy_student_relationships
-       where tenant_id = $1
-         and related_person_id = $2
-         and student_person_id = $3
-         and status = 'active'
-       limit 1`,
-      [actor.tenantId, actor.userId, studentId],
-    ) as { rows: RelationshipCheck[] };
-    return result.rows[0] ?? null;
-  });
+  const [students, programs, relationship] = await Promise.all([
+    withAcademyDatabaseContext(actor, (client) => fetchStudentRecords(actor.tenantId, client)),
+    withAcademyDatabaseContext(actor, (client) => fetchProgramList(actor.tenantId, client)),
+    withAcademyDatabaseContext(actor, async (client) => {
+      const result = await client.query(
+        `select relationship_type, authority
+         from academy_student_relationships
+         where tenant_id = $1
+           and related_person_id = $2
+           and student_person_id = $3
+           and status = 'active'
+         limit 1`,
+        [actor.tenantId, actor.userId, studentId],
+      ) as { rows: RelationshipCheck[] };
+      return result.rows[0] ?? null;
+    }),
+  ]);
 
   if (!relationship) {
     notFound();
   }
 
-  const student = dataset.students.find((s) => s.id === studentId);
+  const student = students.find((s) => s.id === studentId);
   if (!student) {
     notFound();
   }
 
-  const program = dataset.programs.find((p) => p.id === student.programId);
-  const period = dataset.academicCalendar?.periods?.find(
-    (p) => p.id === student.activeTerm,
-  );
+  const program = programs.find((p) => p.id === student.programId);
+  const period = undefined as { startsOn?: string } | undefined;
 
   const progressPercent = program
     ? Math.min(100, Math.round((student.creditsEarned / program.requiredCredits) * 100))

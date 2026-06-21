@@ -4,9 +4,13 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
+
+const GRADUATION_CREDIT_THRESHOLD = 0.95;
 
 function credentialLabel(credential: string) {
   const map: Record<string, string> = {
@@ -23,19 +27,26 @@ function credentialLabel(credential: string) {
 }
 
 export default async function GraduationPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
+  const { students, programs } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [s, p] = await Promise.all([
+      fetchStudentRecords(actor.tenantId, client),
+      fetchProgramList(actor.tenantId, client),
+    ]);
+    return { students: s, programs: p };
+  });
 
-  const activeStudents = dataset.students.filter((s) => s.enrollmentStatus === "active");
+  const activeStudents = students.filter((s) => s.enrollmentStatus === "active");
 
   const candidateRows = activeStudents.map((student) => {
-    const program = dataset.programs.find((p) => p.id === student.programId);
+    const program = programs.find((p) => p.id === student.programId);
     const progressPct = program && program.requiredCredits > 0
       ? Math.min(100, Math.round((student.creditsEarned / program.requiredCredits) * 100))
       : null;
     const holds = student.graduationAdministrativeHolds;
     const readyToReview =
       student.allProgramCoursesCompleted ||
-      (progressPct !== null && progressPct >= Math.round(dataset.thresholds.graduationCreditThreshold * 100));
+      (progressPct !== null && progressPct >= Math.round(GRADUATION_CREDIT_THRESHOLD * 100));
 
     return { student, program, progressPct, holds, readyToReview };
   });
@@ -55,7 +66,7 @@ export default async function GraduationPage() {
         <MetricCard label="Active students" value={activeStudents.length} detail="Eligible for graduation review" icon={<GraduationCap />} />
         <MetricCard label="Review ready" value={reviewReady.length} detail="No holds, near or at credit threshold" icon={<CheckCircle2 />} />
         <MetricCard label="Administrative holds" value={withHolds.length} detail="Must be cleared before graduation" icon={<TriangleAlert />} />
-        <MetricCard label="Credit threshold" value={`${Math.round(dataset.thresholds.graduationCreditThreshold * 100)}%`} detail="Required credit completion for review" icon={<ShieldCheck />} />
+        <MetricCard label="Credit threshold" value={`${Math.round(GRADUATION_CREDIT_THRESHOLD * 100)}%`} detail="Required credit completion for review" icon={<ShieldCheck />} />
       </section>
 
       {reviewReady.length > 0 && (

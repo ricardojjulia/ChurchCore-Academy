@@ -263,6 +263,81 @@ export class GradebookPostgresRepository {
     return result.rows.map(mapAuditRow);
   }
 
+  async gradeSubmission(input: {
+    tenantId: string;
+    submissionId: string;
+    assignmentId: string;
+    learnerPersonId: string;
+    gradedByPersonId: string;
+    pointsEarned: number | null;
+    maxPoints: number;
+    letterGrade?: string | null;
+    isPassing?: boolean | null;
+    instructorFeedback?: string | null;
+    sensitivityTier?: string;
+  }): Promise<GradebookRecordRead> {
+    const result = await this.database.query(
+      `insert into public.academy_gradebook_records (
+         tenant_id, submission_id, assignment_id, learner_person_id,
+         graded_by_person_id, points_earned, max_points, letter_grade,
+         is_passing, instructor_feedback, sensitivity_tier, graded_at
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+       on conflict (tenant_id, submission_id) do update
+         set points_earned        = excluded.points_earned,
+             max_points           = excluded.max_points,
+             letter_grade         = excluded.letter_grade,
+             is_passing           = excluded.is_passing,
+             instructor_feedback  = excluded.instructor_feedback,
+             graded_by_person_id  = excluded.graded_by_person_id,
+             graded_at            = now(),
+             updated_at           = now()
+       returning
+         id, submission_id, assignment_id, learner_person_id,
+         points_earned, max_points, percentage, letter_grade,
+         is_passing, instructor_feedback, sensitivity_tier,
+         graded_at, is_overridden`,
+      [
+        input.tenantId,
+        input.submissionId,
+        input.assignmentId,
+        input.learnerPersonId,
+        input.gradedByPersonId,
+        input.pointsEarned ?? null,
+        input.maxPoints,
+        input.letterGrade ?? null,
+        input.isPassing ?? null,
+        input.instructorFeedback ?? null,
+        input.sensitivityTier ?? "standard",
+      ],
+    );
+
+    const row = result.rows[0];
+    return {
+      id: String(row.id),
+      submissionId: String(row.submission_id),
+      assignmentId: String(row.assignment_id),
+      assignmentTitle: "",
+      courseId: "",
+      courseTitle: "",
+      sectionId: null,
+      sectionCode: null,
+      learnerPersonId: String(row.learner_person_id),
+      learnerDisplayName: "",
+      pointsEarned: row.points_earned === null ? null : Number(row.points_earned),
+      maxPoints: Number(row.max_points),
+      percentage: row.percentage === null ? null : Number(row.percentage),
+      letterGrade: row.letter_grade === null ? null : String(row.letter_grade),
+      isPassing: row.is_passing === null ? null : Boolean(row.is_passing),
+      instructorFeedback: row.instructor_feedback === null ? null : String(row.instructor_feedback),
+      sensitivityTier: row.sensitivity_tier as GradebookRecordRead["sensitivityTier"],
+      gradedAt: iso(row.graded_at),
+      isOverridden: Boolean(row.is_overridden),
+      status: "graded",
+      submittedAt: null,
+    };
+  }
+
   private async fetchInstructorGradingTargets(
     tenantId: string,
     instructorPersonId: string,

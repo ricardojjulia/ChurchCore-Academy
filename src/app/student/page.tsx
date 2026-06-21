@@ -9,7 +9,7 @@ export default async function StudentHomePage() {
 
   return (
     <StudentPwaShell
-      activeHref="/student"
+     
       title="Student dashboard"
       description={`Released Academy records for ${model.student.displayName}.`}
     >

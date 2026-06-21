@@ -2,12 +2,19 @@ import { AlertTriangle, BookOpenCheck, Building2, CheckCircle2, GraduationCap, P
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import { InstitutionCapabilityReviewItem, InstitutionReviewItem, buildInstitutionReviewModel } from "@/modules/academy-config/review-view";
 
+type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
+
 export default async function InstitutionSettingsPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const model = buildInstitutionReviewModel(dataset.institutionProfile);
+  const actor = await requireActor();
+  const institutionProfile = await withAcademyDatabaseContext(actor, async (client) =>
+    new AcademyConfigRepository(asAcademyDatabase<RepoPool>(client)).fetchInstitutionProfile(actor.tenantId),
+  );
+  const model = buildInstitutionReviewModel(institutionProfile);
 
   return (
     <AdminShell

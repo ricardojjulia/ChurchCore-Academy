@@ -52,6 +52,7 @@ Completed:
 - Release 1 verified-session authentication and safe API error mapping
 - Release 1 RLS and immutable audit migration
 - Release 1 protected-page removal of seeded runtime records
+- Release 1 production security exit gate closeout
 - Release 2 Slice 1 persistent admissions application-to-decision workflow
 - Release 2 Slice 1 authenticated admissions APIs and staff review page
 - Release 2 Slice 1 tenant-aware admissions constraints, forced RLS, idempotency, and immutable events
@@ -61,12 +62,10 @@ Completed:
 
 In progress:
 
-- browser acceptance for the converted admissions workflow
-- dependency and supported Node runtime remediation
+- browser acceptance for Release 2 converted admissions/enrollment workflows
 
 Next:
 
-- close the Release 1 production security exit gate
 - build course-section registration and enrollment confirmation
 - execute attendance, grade entry, transcript issuance, and persistent Student PWA slices
 

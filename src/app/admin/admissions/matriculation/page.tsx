@@ -4,12 +4,12 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import {
   asAcademyDatabase,
   withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
-import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
+import { requireActor } from "@/lib/require-actor";
+import { fetchStudentRecords } from "@/lib/academy-read-models";
 import {
   AdmissionsDatabase,
   PostgresAdmissionsRepository,
@@ -18,22 +18,21 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function MatriculationPage() {
-  const actor = await resolveAcademyActorForServerComponent();
+  const actor = await requireActor();
 
-  const [applications, { dataset }] = await Promise.all([
-    withAcademyDatabaseContext(actor, (client) =>
-      new PostgresAdmissionsRepository(
-        asAcademyDatabase<AdmissionsDatabase>(client),
-      ).list(actor.tenantId),
-    ),
-    loadProtectedAcademyDataset(),
-  ]);
+  const { applications, students } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [apps, allStudents] = await Promise.all([
+      new PostgresAdmissionsRepository(asAcademyDatabase<AdmissionsDatabase>(client)).list(actor.tenantId),
+      fetchStudentRecords(actor.tenantId, client),
+    ]);
+    return { applications: apps, students: allStudents };
+  });
 
   const accepted = applications.filter((a) => a.status === "accepted");
 
   // Determine which accepted applicants have an active enrollment
   const enrolledPersonIds = new Set(
-    dataset.students
+    students
       .filter((s) => s.enrollmentStatus === "active")
       .map((s) => s.id),
   );
@@ -45,7 +44,7 @@ export default async function MatriculationPage() {
     (a) => enrolledPersonIds.has(a.applicantPersonId),
   );
 
-  const studentById = new Map(dataset.students.map((s) => [s.id, s]));
+  const studentById = new Map(students.map((s) => [s.id, s]));
 
   return (
     <AdminShell
