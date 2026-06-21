@@ -26,12 +26,14 @@
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-course-registration-enrollment-confirmation.md`
 - Expected modules: `src/modules/course-registration/*`, `src/app/api/academy/registrations/*`, admin/student pages, migrations.
 
-- [ ] Write the failing domain tests for registration eligibility, capacity, holds, prerequisites, enrollment windows, and idempotency.
-- [ ] Implement the minimal policy/service/repository changes.
-- [ ] Add or update API routes with `requireActor()` and request-scoped DB context.
-- [ ] Add admin and student UI paths.
-- [ ] Verify with `npm test`, `npm run lint`, `npm run build`, role-matrix checks, and browser flow.
-- [ ] Update docs and commit the slice.
+- [x] Write the failing domain tests for registration eligibility, capacity, holds, prerequisites, enrollment windows, and idempotency.
+- [x] Implement the minimal policy/service/repository changes.
+- [x] Add or update API routes with `requireActor()` and request-scoped DB context.
+- [x] Add admin and student UI paths.
+- [x] Verify with `npm test`, `npm run lint`, `npm run build`, role-matrix checks, and browser flow.
+- [x] Update docs and commit the slice.
+
+Verification note: Slice 1 was merged as `eaf7cbc` with course-registration eligibility, registration workflow expansion, admin/student read surfaces, focused tests, and runbook/docs.
 
 ## Task 2: Attendance And Production Grade Posting
 
@@ -40,12 +42,14 @@
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-attendance-grade-posting.md`
 - Expected modules: `src/modules/attendance/*`, `src/modules/gradebook/*`, faculty/admin routes, migrations.
 
-- [ ] Write failing tests for attendance session capture, faculty ownership, grade submission, registrar posting, overrides, and student release filtering.
-- [ ] Implement attendance and grade posting state transitions.
-- [ ] Add protected API mutations and audit events.
-- [ ] Complete faculty/admin UI flows.
-- [ ] Verify with test/lint/build, role matrix, browser checks, and audit inspection.
-- [ ] Update docs and commit the slice.
+- [x] Write failing tests for attendance session capture, faculty ownership, grade submission, registrar posting, overrides, and student release filtering.
+- [x] Implement attendance and grade posting state transitions.
+- [x] Add protected API mutations and audit events.
+- [x] Complete faculty/admin UI flows.
+- [x] Verify with test/lint/build, role matrix, browser checks, and audit inspection.
+- [x] Update docs and commit the slice.
+
+Verification note: Slice 2 was merged as `2cc4abd` with attendance service checks, registrar grade posting, student release filtering, immutable posting audit, focused tests, and runbook/docs.
 
 ## Task 3: Transcript Request And Issuance
 
@@ -150,12 +154,14 @@ Verification note: Slice 8 passed focused Student PWA and registration route tes
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-lms-execution-workers.md`
 - Expected modules: `src/modules/lms-contract/*`, worker scripts/routes, reconciliation tests.
 
-- [ ] Write failing tests for course provisioning, roster sync, grade/progress reviewed imports, retries, idempotency, and reconciliation.
-- [ ] Implement executable worker boundaries for active Moodle and Canvas tenants.
-- [ ] Keep official records behind Academy review.
-- [ ] Add operational runbook and failure recovery.
-- [ ] Verify with provider contract tests, test/lint/build, and reconciliation evidence.
+- [x] Write failing tests for course provisioning, roster sync, grade/progress reviewed imports, retries, idempotency, and reconciliation.
+- [x] Implement executable worker boundaries for active Moodle and Canvas tenants.
+- [x] Keep official records behind Academy review.
+- [x] Add operational runbook and failure recovery.
+- [x] Verify with provider contract tests, test/lint/build, and reconciliation evidence.
 - [ ] Commit the slice.
+
+Verification note: Slice 9 passed focused LMS worker and contract route tests, `npx tsc --noEmit`, `npm test`, `npm run lint`, `npm run build`, `git diff --check`, and protected-route HTTP smoke. Existing Moodle/Canvas reconciliation tests remain green; live provider HTTP clients remain an activation step behind the executable worker boundary.
 
 ## Task 10: Competitive Acceptance And Onboarding
 
