@@ -87,14 +87,15 @@ Completed:
 - ADR-0033 Slice 8 Student PWA workflow completion across courses, schedule, progress, documents, account, aid, messages, LMS, attendance, and privacy controls
 - ADR-0033 Slice 9 LMS execution-worker boundary for Moodle/Canvas normalized operations, retry/idempotency handling, and reviewed imports
 - ADR-0038 Prompt 1 role-matrix acceptance inventory, checklist, finance role mapping, and executable acceptance tests
+- ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
 
 In progress:
 
-- ADR-0038 competitive acceptance and deployment readiness prompts 2-5
+- ADR-0038 competitive acceptance and deployment readiness prompts 3-5
 
 Next:
 
-- execute migration/seed/live-tenant rehearsal, deployment runbooks, provider activation checklists, and final council closeout under ADR-0038
+- execute deployment runbooks, provider activation checklists, and final council closeout under ADR-0038
 
 ## Full SIS Competitive MVP Program
 
@@ -129,7 +130,7 @@ controlled pilot release.
 Approved sequence:
 
 1. Acceptance checklist and role matrix. Status: implemented as `docs/acceptance/role-matrix-checklist.md` and `src/modules/acceptance/role-matrix.ts`.
-2. Migration, seed, and live-tenant rehearsal.
+2. Migration, seed, and live-tenant rehearsal. Status: implemented as `docs/runbooks/migration-seed-rehearsal.md` and `scripts/verify-migration-seed-rehearsal.ts`.
 3. Deployment operations runbook.
 4. Provider activation checklists.
 5. Final council closeout and release package.
