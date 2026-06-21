@@ -35,6 +35,7 @@ The governing path for the next step is ADR-0038, the Competitive Acceptance And
 - ADR-0038 Prompt 1 role-matrix acceptance checklist with executable route/API inventory and finance role mapping
 - ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
 - ADR-0038 Prompt 3 deployment operations, incident response, and backup/restore runbooks
+- ADR-0038 Prompt 4 provider activation checklist for payments, communications, Moodle, Canvas, and regulated aid
 - reporting dashboard and CSV export foundation for core SIS domains
 - persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers
 
