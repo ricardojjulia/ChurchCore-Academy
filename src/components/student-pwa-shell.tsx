@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  CreditCard,
   FileText,
   GraduationCap,
   Home,
@@ -27,6 +28,7 @@ const iconByName = {
   learning: LibraryBig,
   attendance: ClipboardCheck,
   privacy: ShieldCheck,
+  account: CreditCard,
 };
 
 export function StudentPwaShell({
