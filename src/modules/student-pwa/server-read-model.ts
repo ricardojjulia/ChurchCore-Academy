@@ -1,4 +1,3 @@
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import { AcademyDataset } from "@/modules/academy-data/types";
 import {
   AcademyQueryClient,
@@ -15,7 +14,7 @@ import { InstitutionProfile } from "@/modules/academy-config/types";
 import { PeopleConfiguration } from "@/modules/people/types";
 
 interface ProtectedDatasetResult {
-  actor: Awaited<ReturnType<typeof loadProtectedAcademyDataset>>["actor"];
+  actor: AcademyActor;
   dataset: AcademyDataset;
 }
 
@@ -569,9 +568,7 @@ export async function loadStudentPwaPageModel(
     );
   }
 
-  const { actor, dataset } = await (
-    dependencies.loadProtectedDataset ?? loadProtectedAcademyDataset
-  )();
+  const { actor, dataset } = await dependencies.loadProtectedDataset();
   const source = buildStudentPwaSourceFromDataset(dataset, actor.userId);
 
   return buildStudentDashboardReadModel(

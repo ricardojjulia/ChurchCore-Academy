@@ -33,6 +33,7 @@ The governing path for the next step is ADR-0038, the Competitive Acceptance And
 - Council Review VII Full SIS Competitive MVP release program, change-management record, and AI prompt pack
 - Council Review VIII post-Slice-9 assessment, ADR-0038 deployment-readiness decision, change-management addendum, and acceptance/deployment prompt pack
 - ADR-0038 Prompt 1 role-matrix acceptance checklist with executable route/API inventory and finance role mapping
+- ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
 - reporting dashboard and CSV export foundation for core SIS domains
 - persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers
 
