@@ -94,3 +94,9 @@ Use the software factory to implement one live provider family at a time from `d
 ## Final Statement
 
 ChurchCore Academy is now a controlled-pilot candidate for core SIS workflows. It is not generally available and should not be marketed as a fully production-complete SIS until live provider activation, production observability, and pilot evidence close.
+
+## Post-Closeout Addendum
+
+Authenticated role walkthrough harness status: implemented after closeout as `docs/acceptance/authenticated-role-walkthrough-evidence.md`, `scripts/generate-authenticated-role-walkthrough.ts`, and `supabase/migrations/20260621193000_seed_acceptance_role_walkthrough_accounts.sql`.
+
+Remaining evidence: run the generated browser commands against each pilot tenant, capture screenshots and console-error output, and attach observed pass/fail results to the tenant onboarding record.
