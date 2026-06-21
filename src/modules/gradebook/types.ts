@@ -26,6 +26,9 @@ export interface GradebookRecordRead {
   sensitivityTier: SensitivityTier;
   gradedAt: string;
   isOverridden: boolean;
+  postingStatus?: "draft" | "posted" | "held" | "revoked";
+  postedAt?: string | null;
+  releasedToStudentAt?: string | null;
   status: SubmissionStatus;
   submittedAt: string | null;
   behavioralSignal?: string | null;

@@ -69,15 +69,17 @@ Completed:
 - ADR-0033 Slice 1 course-section registration eligibility and enrollment confirmation
 - ADR-0033 Slice 1 Admin Sections registration review surface
 - ADR-0033 Slice 1 Student PWA schedule/courses backed by persisted registrations
+- ADR-0033 Slice 2 attendance service authorization and active-registration enforcement
+- ADR-0033 Slice 2 registrar grade posting state, immutable posting events, and student release filtering
 
 In progress:
 
 - browser acceptance for Release 2 converted admissions/enrollment workflows
-- ADR-0033 Slice 1 verification and PR review
+- ADR-0033 Slice 2 verification and PR review
 
 Next:
 
-- execute attendance, grade entry, transcript issuance, billing, aid, reporting, communications, LMS worker, and competitive acceptance slices under ADR-0033
+- execute transcript issuance, billing, aid, reporting, communications, LMS worker, and competitive acceptance slices under ADR-0033
 
 ## Full SIS Competitive MVP Program
 

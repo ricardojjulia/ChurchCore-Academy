@@ -81,6 +81,53 @@ export class PostgresAttendanceRepository implements AttendanceRepository {
     return mapRow(result.rows[0]);
   }
 
+  async canRecordSectionAttendance(input: {
+    tenantId: string;
+    courseSectionId: string;
+    actorPersonId: string;
+    hasAdminAccess: boolean;
+  }): Promise<boolean> {
+    const result = await this.database.query(
+      `select true as can_record
+         from academy_course_sections section
+        where section.tenant_id = $1
+          and section.id = $2
+          and (
+            $4::boolean = true
+            or section.primary_instructor_id = $3
+            or section.assistant_instructor_ids ? $3
+          )
+        limit 1`,
+      [
+        input.tenantId,
+        input.courseSectionId,
+        input.actorPersonId,
+        input.hasAdminAccess,
+      ],
+    );
+
+    return Boolean(result.rows[0]);
+  }
+
+  async isStudentActivelyRegistered(input: {
+    tenantId: string;
+    courseSectionId: string;
+    studentPersonId: string;
+  }): Promise<boolean> {
+    const result = await this.database.query(
+      `select true as registered
+         from academy_course_section_registrations registration
+        where registration.tenant_id = $1
+          and registration.course_section_id = $2
+          and registration.student_person_id = $3
+          and registration.status in ('pending_confirmation', 'registered')
+        limit 1`,
+      [input.tenantId, input.courseSectionId, input.studentPersonId],
+    );
+
+    return Boolean(result.rows[0]);
+  }
+
   async listBySection(
     tenantId: string,
     courseSectionId: string,

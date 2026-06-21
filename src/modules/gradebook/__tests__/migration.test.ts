@@ -5,6 +5,8 @@ import test from "node:test";
 import { listMigrationFiles } from "@/lib/migrations";
 
 const migrationName = "20260616002351_gradebook_phase1.sql";
+const postingWorkflowMigrationName =
+  "20260621030000_attendance_grade_posting_workflow.sql";
 
 async function readMigration() {
   return readFile(join(process.cwd(), "supabase/migrations", migrationName), "utf8");
@@ -16,10 +18,13 @@ test("local migration discovery includes gradebook phase 1 after platform admin 
 
   const previousIndex = names.indexOf("20260615100000_seed_platform_admin_account.sql");
   const migrationIndex = names.indexOf(migrationName);
+  const postingWorkflowIndex = names.indexOf(postingWorkflowMigrationName);
 
   assert.notEqual(previousIndex, -1);
   assert.notEqual(migrationIndex, -1);
+  assert.notEqual(postingWorkflowIndex, -1);
   assert.ok(migrationIndex > previousIndex);
+  assert.ok(postingWorkflowIndex > migrationIndex);
 });
 
 test("gradebook phase 1 migration creates repo-native ADR-2025-009 tables", async () => {
@@ -76,4 +81,20 @@ test("gradebook phase 1 migration includes service-role warning and explicit gra
   assert.match(sql, /revoke update, delete on public\.academy_gradebook_override_audit from authenticated/i);
   assert.doesNotMatch(sql, /user_metadata/i);
   assert.doesNotMatch(sql, /create policy if not exists/i);
+});
+
+test("gradebook posting workflow migration adds registrar posting state and immutable audit", async () => {
+  const sql = await readFile(
+    join(process.cwd(), "supabase/migrations", postingWorkflowMigrationName),
+    "utf8",
+  );
+
+  assert.match(sql, /add column if not exists posting_status text not null default 'draft'/i);
+  assert.match(sql, /check \(posting_status in \('draft', 'posted', 'held', 'revoked'\)\)/i);
+  assert.match(sql, /create table if not exists public\.academy_gradebook_posting_events/i);
+  assert.match(sql, /event_type text not null check \(event_type in \('posted', 'held', 'released', 'revoked'\)\)/i);
+  assert.match(sql, /academy_reject_gradebook_posting_event_mutation/i);
+  assert.match(sql, /alter table public\.academy_gradebook_posting_events enable row level security/i);
+  assert.match(sql, /force row level security/i);
+  assert.match(sql, /revoke update, delete on public\.academy_gradebook_posting_events from authenticated/i);
 });
