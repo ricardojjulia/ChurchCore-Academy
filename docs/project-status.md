@@ -32,6 +32,7 @@ Competitive MVP release program.
 - Release 1 authentication, tenant isolation, RLS, and seeded-runtime-data exit gate closeout
 - Council Review VII Full SIS Competitive MVP release program, change-management record, and AI prompt pack
 - reporting dashboard and CSV export foundation for core SIS domains
+- persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers
 
 ## Partially Implemented
 
@@ -49,7 +50,7 @@ Competitive MVP release program.
 - billing and payments
 - institutional and regulated financial aid
 - certified ATS/IPEDS compliance reporting
-- notifications and communications
+- live email/SMS provider workers and communications delivery automation
 - executable LMS synchronization workers
 - complete Student PWA data workflows
 

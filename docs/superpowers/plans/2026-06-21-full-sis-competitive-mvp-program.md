@@ -118,12 +118,14 @@ Verification note: Slice 6 passed focused reporting tests, `npx tsc --noEmit`, f
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-notifications-communications.md`
 - Expected modules: `src/modules/communications/*`, templates, notification APIs, student/guardian/admin message routes.
 
-- [ ] Write failing tests for templates, audience resolution, consent/guardian rules, send queue, retries, and audit.
-- [ ] Implement in-app notification and email-provider boundary.
-- [ ] Add workflow-triggered messages for admissions, registration, billing, transcripts, grade release, and workflow assignments.
-- [ ] Add user-facing message centers.
-- [ ] Verify with test/lint/build, browser checks, and provider-safe payload tests.
-- [ ] Update communications runbook and commit the slice.
+- [x] Write failing tests for templates, audience resolution, consent/guardian rules, send queue, retries, and audit.
+- [x] Implement in-app notification and email-provider boundary.
+- [x] Add workflow-triggered messages for admissions, registration, billing, transcripts, grade release, and workflow assignments.
+- [x] Add user-facing message centers.
+- [x] Verify with test/lint/build, browser checks, and provider-safe payload tests.
+- [x] Update communications runbook and commit the slice.
+
+Verification note: Slice 7 passed focused communications tests, `npm test`, `npm run lint`, `npm run build`, `git diff --check`, local migration replay, live repository smoke against `cca-main`, and HTTP protected-route smoke for admin/student/guardian communications routes. Browser visual verification was unavailable because the in-app browser connector returned unavailable.
 
 ## Task 8: Student PWA Workflow Completion
 
