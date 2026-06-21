@@ -88,14 +88,15 @@ Completed:
 - ADR-0033 Slice 9 LMS execution-worker boundary for Moodle/Canvas normalized operations, retry/idempotency handling, and reviewed imports
 - ADR-0038 Prompt 1 role-matrix acceptance inventory, checklist, finance role mapping, and executable acceptance tests
 - ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
+- ADR-0038 Prompt 3 deployment operations, incident response, and backup/restore runbooks
 
 In progress:
 
-- ADR-0038 competitive acceptance and deployment readiness prompts 3-5
+- ADR-0038 competitive acceptance and deployment readiness prompts 4-5
 
 Next:
 
-- execute deployment runbooks, provider activation checklists, and final council closeout under ADR-0038
+- execute provider activation checklists and final council closeout under ADR-0038
 
 ## Full SIS Competitive MVP Program
 
@@ -131,7 +132,7 @@ Approved sequence:
 
 1. Acceptance checklist and role matrix. Status: implemented as `docs/acceptance/role-matrix-checklist.md` and `src/modules/acceptance/role-matrix.ts`.
 2. Migration, seed, and live-tenant rehearsal. Status: implemented as `docs/runbooks/migration-seed-rehearsal.md` and `scripts/verify-migration-seed-rehearsal.ts`.
-3. Deployment operations runbook.
+3. Deployment operations runbook. Status: implemented as `docs/runbooks/deployment-operations.md`, `docs/runbooks/incident-response.md`, and `docs/runbooks/backup-restore.md`.
 4. Provider activation checklists.
 5. Final council closeout and release package.
 
