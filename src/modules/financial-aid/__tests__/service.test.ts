@@ -25,6 +25,12 @@ const registrar: AcademyActor = {
   roles: ["registrar"],
 };
 
+const finance: AcademyActor = {
+  userId: "person-finance",
+  tenantId: "tenant-1",
+  roles: ["finance"],
+};
+
 const student: AcademyActor = {
   userId: "person-student",
   tenantId: "tenant-1",
@@ -199,6 +205,20 @@ test("accepted institutional aid disbursement posts through ledger integration",
   assert.deepEqual(repository.calls, [
     "award-status:award-1:accepted",
     "post:disbursement-1:person-registrar:post-1",
+  ]);
+});
+
+test("finance role can administer institutional aid", async () => {
+  const repository = mockRepository();
+  const service = new FinancialAidService(repository);
+
+  await service.createPackage(finance, {
+    studentPersonId: "person-student",
+    aidYear: "2026-2027",
+  });
+
+  assert.deepEqual(repository.calls, [
+    "package:person-student:2026-2027",
   ]);
 });
 

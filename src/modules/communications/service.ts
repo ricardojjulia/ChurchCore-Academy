@@ -25,6 +25,7 @@ const adminRoles = new Set<AcademyRole>([
   "academic_admin",
   "dean",
   "admissions",
+  "finance",
 ]);
 
 const templates: Record<CommunicationTemplateKey, TemplateDefinition> = {

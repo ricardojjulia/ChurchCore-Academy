@@ -21,6 +21,7 @@ const aidAdminRoles = new Set<AcademyRole>([
   "registrar",
   "academic_admin",
   "dean",
+  "finance",
 ]);
 
 const regulatedAidAwardTypes = new Set<AidAwardType>([

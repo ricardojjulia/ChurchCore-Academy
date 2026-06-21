@@ -9,6 +9,7 @@ const ASSIGNABLE_ROLES: ReadonlySet<AcademyRole> = new Set([
   "registrar",
   "academic_admin",
   "admissions",
+  "finance",
   "advisor",
   "faculty",
   "teacher",

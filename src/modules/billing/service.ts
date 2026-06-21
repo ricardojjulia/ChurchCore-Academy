@@ -13,6 +13,7 @@ const billingAdminRoles = new Set<AcademyRole>([
   "registrar",
   "academic_admin",
   "dean",
+  "finance",
 ]);
 
 export function hasBillingAdminAccess(actor: AcademyActor) {

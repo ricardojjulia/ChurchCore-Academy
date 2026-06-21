@@ -24,6 +24,12 @@ const registrar: AcademyActor = {
   roles: ["registrar"],
 };
 
+const finance: AcademyActor = {
+  userId: "person-finance",
+  tenantId: "tenant-1",
+  roles: ["finance"],
+};
+
 const student: AcademyActor = {
   userId: "person-student",
   tenantId: "tenant-1",
@@ -173,6 +179,23 @@ test("payment posting is provider-safe and records a negative ledger entry", asy
   assert.deepEqual(repository.calls, [
     "intent:person-student:45000:manual:intent-1",
     "payment:person-student:45000:receipt-1:payment-1",
+  ]);
+});
+
+test("finance role can administer student accounts", async () => {
+  const repository = mockRepository();
+  const service = new BillingService(repository);
+
+  await service.assessCharge(finance, {
+    studentPersonId: "person-student",
+    amountCents: 10000,
+    currency: "USD",
+    description: "Tuition installment",
+    idempotencyKey: "finance-charge-1",
+  });
+
+  assert.deepEqual(repository.calls, [
+    "charge:person-student:10000:finance-charge-1",
   ]);
 });
 
