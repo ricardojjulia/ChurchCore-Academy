@@ -17,7 +17,7 @@
 </div>
 
 > [!IMPORTANT]
-> ChurchCore Academy is under active development and is not yet approved for production academic records. The repository contains tested foundations and working vertical slices, but several core SIS workflows remain on the roadmap.
+> ChurchCore Academy is under active development and is not yet approved for production academic records. The repository contains tested pre-production SIS workflow foundations through Council Review VIII; competitive acceptance, deployment readiness, and live provider activation remain before production or general-availability claims.
 
 ## Why ChurchCore Academy
 
@@ -56,8 +56,9 @@ ChurchCore Academy is designed around that variability:
 | ShepherdAI Academy | Deterministic foundation | Human-reviewed academic workflow recommendations only |
 | Living Learner Intelligence System | Governed foundation | Consent lifecycle and immutable evidence ledger implemented |
 | Billing, aid, reporting, communications | Working foundations | Production provider activation and operations hardening remain |
+| Competitive readiness | ADR-0038 accepted | Role-matrix acceptance, migration/seed rehearsal, deployment operations, provider activation, and final council closeout remain |
 
-See [Project Status](docs/project-status.md) and the [Factory Roadmap](docs/product/factory-roadmap.md) for the detailed delivery position.
+See [Project Status](docs/project-status.md), [Council Review VIII](docs/reviews/2026-06-21-council-review-8-post-slice-9-mvp-competitiveness.md), and the [Factory Roadmap](docs/product/factory-roadmap.md) for the detailed delivery position.
 
 ## Product Boundary
 

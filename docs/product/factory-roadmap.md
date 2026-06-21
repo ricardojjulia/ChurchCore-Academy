@@ -14,6 +14,14 @@ June 21, 2026. The governing decision and execution prompts are recorded in
 `docs/change-management/2026-06-21-full-sis-mvp-change-management.md`, and
 `docs/prompts/2026-06-21-full-sis-mvp-factory-prompts.md`.
 
+Council Review VIII approved the Competitive Acceptance And Deployment
+Readiness program on June 21, 2026. The current readiness decision and execution
+prompts are recorded in
+`docs/adr/0038-competitive-acceptance-and-deployment-readiness.md`,
+`docs/reviews/2026-06-21-council-review-8-post-slice-9-mvp-competitiveness.md`,
+`docs/change-management/2026-06-21-competitive-acceptance-deployment-readiness.md`,
+and `docs/prompts/2026-06-21-competitive-acceptance-deployment-prompts.md`.
+
 Current delivery sequence:
 
 1. Governed foundation: verified identity, tenant RLS, learner-owned consent,
@@ -71,15 +79,21 @@ Completed:
 - ADR-0033 Slice 1 Student PWA schedule/courses backed by persisted registrations
 - ADR-0033 Slice 2 attendance service authorization and active-registration enforcement
 - ADR-0033 Slice 2 registrar grade posting state, immutable posting events, and student release filtering
+- ADR-0033 Slice 3 transcript request, issuance, hold, release, revoke, and print/export filtering
+- ADR-0033 Slice 4 billing ledger, payment-intent boundary, and student account view
+- ADR-0033 Slice 5 institutional financial-aid foundation with regulated-aid activation gate
+- ADR-0033 Slice 6 reporting dashboard and CSV export foundation
+- ADR-0033 Slice 7 persisted communications queue, templates, message centers, and provider-safe email boundary
+- ADR-0033 Slice 8 Student PWA workflow completion across courses, schedule, progress, documents, account, aid, messages, LMS, attendance, and privacy controls
+- ADR-0033 Slice 9 LMS execution-worker boundary for Moodle/Canvas normalized operations, retry/idempotency handling, and reviewed imports
 
 In progress:
 
-- browser acceptance for Release 2 converted admissions/enrollment workflows
-- ADR-0033 Slice 2 verification and PR review
+- ADR-0038 competitive acceptance and deployment readiness
 
 Next:
 
-- execute transcript issuance, billing, aid, reporting, communications, LMS worker, and competitive acceptance slices under ADR-0033
+- execute role-matrix acceptance, migration/seed/live-tenant rehearsal, deployment runbooks, provider activation checklists, and final council closeout under ADR-0038
 
 ## Full SIS Competitive MVP Program
 
@@ -102,6 +116,24 @@ Approved sequence:
 Each item must move through the software factory: intake, discovery, spec, plan,
 implementation, verification, review, and delivery. Screen-only completion does
 not satisfy the release gate.
+
+Status: Slices 1-9 are shipped. Slice 10 is superseded by ADR-0038 and becomes
+the acceptance/deployment readiness program.
+
+## Competitive Acceptance And Deployment Readiness Program
+
+ADR-0038 is the current governing program for moving from pre-production MVP to
+controlled pilot release.
+
+Approved sequence:
+
+1. Acceptance checklist and role matrix.
+2. Migration, seed, and live-tenant rehearsal.
+3. Deployment operations runbook.
+4. Provider activation checklists.
+5. Final council closeout and release package.
+
+Each item must use the software factory and must end with verifiable evidence.
 
 ## Sprint Cadence
 

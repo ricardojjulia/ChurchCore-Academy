@@ -159,7 +159,7 @@ Verification note: Slice 8 passed focused Student PWA and registration route tes
 - [x] Keep official records behind Academy review.
 - [x] Add operational runbook and failure recovery.
 - [x] Verify with provider contract tests, test/lint/build, and reconciliation evidence.
-- [ ] Commit the slice.
+- [x] Commit the slice.
 
 Verification note: Slice 9 passed focused LMS worker and contract route tests, `npx tsc --noEmit`, `npm test`, `npm run lint`, `npm run build`, `git diff --check`, and protected-route HTTP smoke. Existing Moodle/Canvas reconciliation tests remain green; live provider HTTP clients remain an activation step behind the executable worker boundary.
 
@@ -170,12 +170,14 @@ Verification note: Slice 9 passed focused LMS worker and contract route tests, `
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-competitive-acceptance-onboarding.md`
 - Expected docs: onboarding runbooks, release checklist, support procedures, competitive readiness report.
 
-- [ ] Write acceptance checklist for all primary roles and workflows.
+- [x] Write acceptance checklist for all primary roles and workflows.
 - [ ] Run browser role-matrix verification for admin, registrar, faculty, student, guardian, finance, admissions, and platform admin.
 - [ ] Run migration/seed/live-tenant rehearsal.
-- [ ] Update README, project status, roadmap, runbooks, and release notes.
+- [x] Update README, project status, roadmap, runbooks, and release notes.
 - [ ] Run `npm test`, `npm run lint`, `npm run build`, and security/privacy review.
-- [ ] Produce final council closeout and commit the release package.
+- [x] Produce final council closeout and commit the release package.
+
+Governance note: Council Review VIII converted Task 10 into ADR-0038, the Competitive Acceptance And Deployment Readiness program. Acceptance checklist prompts, deployment-readiness prompts, provider activation prompts, and final closeout prompts are recorded in `docs/prompts/2026-06-21-competitive-acceptance-deployment-prompts.md`.
 
 ## Self-Review
 

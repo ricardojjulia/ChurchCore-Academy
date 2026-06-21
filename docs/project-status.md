@@ -6,11 +6,10 @@
 
 ## Current Assessment
 
-ChurchCore Academy has a substantial domain, security, and integration foundation. It should be evaluated as an emerging platform with several production-shaped vertical slices, not as a complete production SIS.
+ChurchCore Academy has completed the major ADR-0033 pre-production SIS workflow slices. It should now be evaluated as a controlled-pilot candidate that still requires competitive acceptance, deployment readiness, provider activation, and final council closeout before production or general-availability claims.
 
-Council Review VII rates the current full SIS competitive readiness at **43/100**.
-The governing path to a fully working competitive MVP is ADR-0033, the Full SIS
-Competitive MVP release program.
+Council Review VIII rates the current pre-production MVP readiness at **77/100** and competitive readiness at **68/100**.
+The governing path for the next step is ADR-0038, the Competitive Acceptance And Deployment Readiness program.
 
 ## Implemented and Verified
 
@@ -32,6 +31,7 @@ Competitive MVP release program.
 - LLIS learner consent lifecycle and immutable evidence ledger
 - Release 1 authentication, tenant isolation, RLS, and seeded-runtime-data exit gate closeout
 - Council Review VII Full SIS Competitive MVP release program, change-management record, and AI prompt pack
+- Council Review VIII post-Slice-9 assessment, ADR-0038 deployment-readiness decision, change-management addendum, and acceptance/deployment prompt pack
 - reporting dashboard and CSV export foundation for core SIS domains
 - persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers
 
@@ -60,3 +60,4 @@ Competitive MVP release program.
 
 The canonical sequence is maintained in the [Factory Roadmap](product/factory-roadmap.md).
 The full SIS competitive release program is recorded in [ADR-0033](adr/0033-full-sis-competitive-mvp-release-program.md).
+The current acceptance and deployment readiness program is recorded in [ADR-0038](adr/0038-competitive-acceptance-and-deployment-readiness.md).
