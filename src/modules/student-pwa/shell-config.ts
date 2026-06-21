@@ -5,7 +5,7 @@ export type StudentPwaDestination = {
   label: string;
   title: string;
   description: string;
-  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance";
+  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance" | "account";
 };
 
 export const studentPwaDestinations: StudentPwaDestination[] = [
@@ -64,6 +64,13 @@ export const studentPwaDestinations: StudentPwaDestination[] = [
     title: "My Attendance",
     description: "Your attendance records by section and session date appear here once submitted by faculty.",
     icon: "attendance",
+  },
+  {
+    href: "/student/account",
+    label: "Account",
+    title: "My Account",
+    description: "Your released student account balance, charges, credits, and payments appear here.",
+    icon: "account",
   },
   {
     href: "/student/privacy",

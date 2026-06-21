@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookOpenCheck,
   BookOpen,
+  CircleDollarSign,
   ClipboardCheck,
   FileWarning,
   GraduationCap,
@@ -39,6 +40,7 @@ const quickActions = [
   { label: "Graduation", detail: "Credit readiness and holds", href: "/admin/graduation", Icon: GraduationCap },
   { label: "ShepherdAI Queue", detail: "Human-reviewed signals", href: "/admin/workflows", Icon: Sparkles },
   { label: "Gradebook", detail: "Grades and override audit", href: "/admin/gradebook", Icon: School },
+  { label: "Billing", detail: "Ledger and payments", href: "/admin/billing", Icon: CircleDollarSign },
   { label: "Faculty", detail: "Staffing and section setup", href: "/admin/faculty", Icon: BookOpenCheck },
   { label: "Student PWA", detail: "Student-facing records", href: "/student", Icon: ArrowRight },
 ];

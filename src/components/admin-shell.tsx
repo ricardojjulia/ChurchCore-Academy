@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import {
   Activity,
   BarChart3,
+  CircleDollarSign,
   BookOpen,
   ChevronRight,
   FolderOpen,
@@ -27,6 +28,7 @@ export type AdminSection =
   | "records"
   | "academics"
   | "dailyops"
+  | "finance"
   | "reports"
   | "system";
 
@@ -83,6 +85,14 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Faculty", href: "/admin/faculty" },
       { label: "Staff Directory", href: "/admin/staff" },
       { label: "ShepherdAI Queue", href: "/admin/workflows" },
+    ],
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    Icon: CircleDollarSign,
+    items: [
+      { label: "Billing", href: "/admin/billing" },
     ],
   },
   {

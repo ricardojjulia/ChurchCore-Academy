@@ -70,12 +70,14 @@ Verification note: Slice 3 passed focused transcript tests, full `npm test`, `np
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-billing-payments-student-accounts.md`
 - Expected modules: `src/modules/billing/*`, payment provider boundary, admin/student account pages, migrations.
 
-- [ ] Write failing tests for ledger entries, charge assessment, payment intent creation, payment posting, void/refund, and student account visibility.
-- [ ] Implement append-only ledger and provider-safe payment boundary.
-- [ ] Add admin finance and student account UI.
-- [ ] Add audit events and safe error handling.
-- [ ] Verify with test/lint/build, payment-provider sandbox checks, role matrix, and browser checks.
-- [ ] Update billing runbook and commit the slice.
+- [x] Write failing tests for ledger entries, charge assessment, payment intent creation, payment posting, void/refund, and student account visibility.
+- [x] Implement append-only ledger and provider-safe payment boundary.
+- [x] Add admin finance and student account UI.
+- [x] Add audit events and safe error handling.
+- [x] Verify with test/lint/build, payment-provider sandbox checks, role matrix, and browser checks.
+- [x] Update billing runbook and commit the slice.
+
+Verification note: Slice 4 passed focused billing tests, full `npm test`, `npm run lint`, `npm run build`, `npx tsc --noEmit`, local migration replay, and protected-route HTTP smoke. The slice uses an MVP manual payment provider boundary; live payment-provider sandbox checkout is deferred because no card-data handoff or Stripe integration ships in this slice. The in-app Browser `iab` target was unavailable in this Codex session, so visual browser smoke is deferred to PR review.
 
 ## Task 5: Financial Aid Foundation
 
