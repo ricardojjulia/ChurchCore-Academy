@@ -117,6 +117,28 @@ test("resolves explicit local bootstrap actor only on loopback", () => {
   });
 });
 
+test("local bootstrap accepts finance as a first-class Academy role", () => {
+  const actor = resolveLocalBootstrapAcademyActor(
+    new Request("http://localhost/api/academy/billing", {
+      headers: {
+        "x-academy-tenant-id": "tenant-a",
+        "x-academy-user-id": "user-finance",
+        "x-academy-roles": "finance",
+      },
+    }),
+    {
+      NODE_ENV: "development",
+      ACADEMY_LOCAL_BOOTSTRAP_ENABLED: "true",
+    },
+  );
+
+  assert.deepEqual(actor, {
+    userId: "user-finance",
+    tenantId: "tenant-a",
+    roles: ["finance"],
+  });
+});
+
 test("rejects local bootstrap in production and on non-loopback hosts", () => {
   assert.equal(
     canUseLocalAcademyBootstrap("http://localhost/api/academy", {

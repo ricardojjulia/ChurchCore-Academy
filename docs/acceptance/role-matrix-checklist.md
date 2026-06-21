@@ -8,7 +8,9 @@ Executable inventory: `src/modules/acceptance/role-matrix.ts`
 
 This checklist is the ADR-0038 Prompt 1 acceptance artifact. It defines the controlled-pilot role matrix and the smoke evidence expected for protected pages and APIs.
 
-Authenticated browser walkthroughs and live-tenant rehearsals remain required before a production or general-availability claim.
+Authenticated browser walkthrough harness: `docs/acceptance/authenticated-role-walkthrough-evidence.md`.
+
+Live tenant walkthrough screenshots and console-error evidence remain required before a production or general-availability claim.
 
 ## Role Profiles
 
@@ -54,6 +56,7 @@ Unauthenticated page requests should redirect to login. Unauthenticated API requ
 
 ```bash
 node --import tsx --test src/modules/acceptance/__tests__/role-matrix.test.ts
+npm run verify:role-walkthrough
 npm test
 npm run lint
 npm run build
@@ -61,8 +64,5 @@ npm run build
 
 ## Remaining ADR-0038 Evidence
 
-- authenticated role-by-role browser walkthrough;
-- migration, seed, and live-tenant rehearsal;
-- deployment operations runbook;
-- provider activation checklists;
-- final council closeout and release package.
+- live tenant authenticated role-by-role browser walkthrough screenshots and console/error capture;
+- per-pilot-tenant evidence log approval before expanding controlled-pilot use.

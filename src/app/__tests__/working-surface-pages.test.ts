@@ -57,3 +57,11 @@ test("admin dashboard reads persisted dashboard data without invoking workflow e
   assert.doesNotMatch(page, /runAcademicWorkflowEvaluationJob/);
   assert.doesNotMatch(page, /evaluation\?\.dataset/);
 });
+
+test("platform control page enforces platform staff access before rendering", async () => {
+  const page = await source("src/app/platform/control/page.tsx");
+
+  assert.match(page, /canAccessPlatformStaffWorkspace/);
+  assert.match(page, /redirect\("\/"\)/);
+  assert.match(page, /TenantControlPanel/);
+});

@@ -16,6 +16,7 @@ const allowedRoles = new Set<AcademyRole>([
   "registrar",
   "academic_admin",
   "admissions",
+  "finance",
   "applicant",
   "advisor",
   "faculty",

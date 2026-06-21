@@ -27,6 +27,7 @@
     "verify:enrollment-conversion-rls": "node --env-file=.env.local --import tsx scripts/verify-enrollment-conversion-rls.ts",
     "verify:llis-consent-rls": "node --env-file=.env.local --import tsx scripts/verify-llis-consent-rls.ts",
     "verify:migration-seed-rehearsal": "node --env-file=.env.local --import tsx scripts/verify-migration-seed-rehearsal.ts",
+    "verify:role-walkthrough": "node --env-file=.env.local --import tsx scripts/generate-authenticated-role-walkthrough.ts",
     "db:migrate:local": "node --env-file=.env.local --import tsx scripts/db-migrate-local.ts",
     "db:seed:local": "node --env-file=.env.local --import tsx scripts/db-seed-local.ts"
   },

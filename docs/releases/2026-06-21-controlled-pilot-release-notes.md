@@ -26,6 +26,7 @@ This is not a general-availability release and not a blanket production official
 - Student PWA routes for courses, schedule, progress, documents, account, aid, messages, LMS launch, attendance, and privacy;
 - Moodle/Canvas/no-LMS provider-neutral contracts and executable worker boundary;
 - role-matrix acceptance inventory;
+- authenticated role walkthrough harness and seeded acceptance personas;
 - migration/seed rehearsal gate;
 - deployment, incident, backup/restore, and provider activation runbooks.
 
@@ -64,7 +65,7 @@ Then execute:
 
 - Provider activation remains a separate gate.
 - Production observability needs implementation beyond runbook coverage.
-- Authenticated browser walkthroughs should be repeated per pilot tenant.
+- Authenticated browser walkthrough screenshots and console-error checks should be repeated per pilot tenant using `docs/acceptance/authenticated-role-walkthrough-evidence.md`.
 - Regulated aid requires legal/compliance owner approval.
 
 ## Rollback

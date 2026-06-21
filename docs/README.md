@@ -25,6 +25,7 @@ This directory contains the durable product, architecture, delivery, operations,
 
 - [Authentication and Tenant Access](runbooks/academy-auth-and-tenant-access.md)
 - [Admissions Operations](runbooks/admissions-operations.md)
+- [Authenticated Role Walkthrough Evidence](acceptance/authenticated-role-walkthrough-evidence.md)
 - [Deployment Operations](runbooks/deployment-operations.md)
 - [Incident Response](runbooks/incident-response.md)
 - [Backup and Restore](runbooks/backup-restore.md)
