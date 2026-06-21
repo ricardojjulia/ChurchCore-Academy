@@ -5,7 +5,7 @@ export type StudentPwaDestination = {
   label: string;
   title: string;
   description: string;
-  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance" | "account";
+  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance" | "account" | "aid";
 };
 
 export const studentPwaDestinations: StudentPwaDestination[] = [
@@ -71,6 +71,13 @@ export const studentPwaDestinations: StudentPwaDestination[] = [
     title: "My Account",
     description: "Your released student account balance, charges, credits, and payments appear here.",
     icon: "account",
+  },
+  {
+    href: "/student/aid",
+    label: "Aid",
+    title: "My Aid",
+    description: "Your released institutional aid awards, disbursements, and holds appear here.",
+    icon: "aid",
   },
   {
     href: "/student/privacy",

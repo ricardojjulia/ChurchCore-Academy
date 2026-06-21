@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   FileWarning,
   GraduationCap,
+  HandCoins,
   ListChecks,
   School,
   Sparkles,
@@ -41,6 +42,7 @@ const quickActions = [
   { label: "ShepherdAI Queue", detail: "Human-reviewed signals", href: "/admin/workflows", Icon: Sparkles },
   { label: "Gradebook", detail: "Grades and override audit", href: "/admin/gradebook", Icon: School },
   { label: "Billing", detail: "Ledger and payments", href: "/admin/billing", Icon: CircleDollarSign },
+  { label: "Financial Aid", detail: "Institutional awards", href: "/admin/financial-aid", Icon: HandCoins },
   { label: "Faculty", detail: "Staffing and section setup", href: "/admin/faculty", Icon: BookOpenCheck },
   { label: "Student PWA", detail: "Student-facing records", href: "/student", Icon: ArrowRight },
 ];
