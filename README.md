@@ -51,11 +51,11 @@ ChurchCore Academy is designed around that variability:
 | Authentication and tenant isolation | Release 1 exit gate closed | Verified Supabase sessions, request-scoped database context, forced RLS, no runtime seeded-data fallback |
 | Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion; demo chains seeded |
 | Student enrollment | Foundation + seed data | Full program enrollment, period registration, and section registration chains seeded |
-| Student PWA | Working shell and read surfaces | Persistence is incomplete for several student workflows |
+| Student PWA | Workflow surface | Courses, schedule, progress, documents/transcript request, account, aid, messages, LMS launch, attendance, and privacy controls are wired to governed routes/read models |
 | LMS integrations | Contract and adapter foundations | Moodle/Canvas execution workers remain incomplete |
 | ShepherdAI Academy | Deterministic foundation | Human-reviewed academic workflow recommendations only |
 | Living Learner Intelligence System | Governed foundation | Consent lifecycle and immutable evidence ledger implemented |
-| Billing, aid, reporting, communications | Planned | Not production-complete |
+| Billing, aid, reporting, communications | Working foundations | Production provider activation and operations hardening remain |
 
 See [Project Status](docs/project-status.md) and the [Factory Roadmap](docs/product/factory-roadmap.md) for the detailed delivery position.
 

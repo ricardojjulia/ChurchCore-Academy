@@ -283,6 +283,7 @@ Suggested 1-week sprints:
 3. Student dashboard read models - complete
 4. Student documents and progress surface - complete
 5. PWA installability and offline verification - complete
+6. Student workflow completion and self-service actions - complete
 
 Required ADRs:
 
