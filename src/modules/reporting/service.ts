@@ -14,6 +14,7 @@ const reportingRoles = new Set<AcademyRole>([
   "registrar",
   "academic_admin",
   "dean",
+  "finance",
 ]);
 
 export const reportDefinitions: ReportDefinition[] = [
