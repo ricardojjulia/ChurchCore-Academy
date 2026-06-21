@@ -34,6 +34,7 @@ The governing path for the next step is ADR-0038, the Competitive Acceptance And
 - Council Review VIII post-Slice-9 assessment, ADR-0038 deployment-readiness decision, change-management addendum, and acceptance/deployment prompt pack
 - ADR-0038 Prompt 1 role-matrix acceptance checklist with executable route/API inventory and finance role mapping
 - ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
+- ADR-0038 Prompt 3 deployment operations, incident response, and backup/restore runbooks
 - reporting dashboard and CSV export foundation for core SIS domains
 - persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers
 
@@ -42,7 +43,7 @@ The governing path for the next step is ADR-0038, the Competitive Acceptance And
 - Gradebook bulk operations and full faculty grading workflow polish
 - live Moodle and Canvas HTTP clients beyond normalized executable worker boundaries
 - authenticated browser role-matrix acceptance across later Release 2+ workflows
-- complete production operations, observability, backup, and incident procedures
+- complete production observability instrumentation and provider-specific operations activation
 
 ## Production MVP Blockers
 
