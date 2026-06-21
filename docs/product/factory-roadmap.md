@@ -7,6 +7,13 @@ The trust boundary and conditions are recorded in
 `docs/adr/0022-living-learner-intelligence-trust-boundary.md` and
 `docs/reviews/2026-06-14-llis-council-review.md`.
 
+Council Review VII approved the Full SIS Competitive MVP release program on
+June 21, 2026. The governing decision and execution prompts are recorded in
+`docs/adr/0033-full-sis-competitive-mvp-release-program.md`,
+`docs/reviews/2026-06-21-council-review-7-full-sis-mvp-competitiveness.md`,
+`docs/change-management/2026-06-21-full-sis-mvp-change-management.md`, and
+`docs/prompts/2026-06-21-full-sis-mvp-factory-prompts.md`.
+
 Current delivery sequence:
 
 1. Governed foundation: verified identity, tenant RLS, learner-owned consent,
@@ -67,7 +74,29 @@ In progress:
 Next:
 
 - build course-section registration and enrollment confirmation
-- execute attendance, grade entry, transcript issuance, and persistent Student PWA slices
+- execute attendance, grade entry, transcript issuance, billing, aid, reporting, communications, persistent Student PWA, LMS worker, and competitive acceptance slices under ADR-0033
+
+## Full SIS Competitive MVP Program
+
+ADR-0033 is now the governing release program for moving from foundations and
+vertical slices to a fully working competitive SIS MVP.
+
+Approved sequence:
+
+1. Course-section registration and enrollment confirmation.
+2. Attendance and production grade posting.
+3. Transcript request, issuance, hold, release, revoke.
+4. Billing, payments, and student account ledger.
+5. Financial aid foundation.
+6. Reporting and exports.
+7. Notifications and communications.
+8. Student PWA workflow completion.
+9. LMS execution workers and reconciliation acceptance.
+10. Competitive acceptance and onboarding readiness.
+
+Each item must move through the software factory: intake, discovery, spec, plan,
+implementation, verification, review, and delivery. Screen-only completion does
+not satisfy the release gate.
 
 ## Sprint Cadence
 

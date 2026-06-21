@@ -35,6 +35,7 @@ Examples:
 docs/adr/0001-use-one-week-factory-sprints.md
 docs/adr/0002-institution-type-model.md
 docs/adr/0003-lms-provider-contract-boundary.md
+docs/adr/0033-full-sis-competitive-mvp-release-program.md
 ```
 
 ## ADR Template
