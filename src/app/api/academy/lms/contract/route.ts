@@ -13,6 +13,10 @@ import {
   createCanvasProgressReturnImportPlan,
 } from "@/modules/lms-contract/canvas-grade-progress-return";
 import {
+  createMoodleGradeReturnImportPlan,
+  createMoodleProgressReturnImportPlan,
+} from "@/modules/lms-contract/moodle-grade-progress-return";
+import {
   createUnsupportedLmsOperationResult,
   LmsActorContext,
   LmsCourseShellRequest,
@@ -23,6 +27,7 @@ import {
   lmsProviderDescriptors,
 } from "@/modules/lms-contract/contract";
 import { createCanvasCourseShellProvisioningPlan, createCanvasRosterSyncPlan } from "@/modules/lms-contract/canvas-course-roster-sync";
+import { createMoodleCourseShellProvisioningPlan, createMoodleRosterSyncPlan } from "@/modules/lms-contract/moodle-course-roster-sync";
 import { resolveTenantLmsProvider } from "@/modules/lms-contract/tenant-provider-selection";
 
 interface InstitutionProfileReader {
@@ -340,102 +345,6 @@ export async function buildLmsContractDescriptorPayload(
   };
 }
 
-function unsupportedCourseShellPlan(actor: AcademyActor, tenantId: string, requestCorrelationId: string, idempotencyKey: string) {
-  return {
-    result: createUnsupportedLmsOperationResult({
-      providerId: "moodle",
-      capability: "course_shell_provisioning",
-      tenantId,
-      correlationId: requestCorrelationId,
-      operationId: idempotencyKey,
-      safeMessage: "Moodle course-shell API contract stub is not implemented yet.",
-    }),
-    auditEvent: {
-      tenantId,
-      providerId: "moodle",
-      operation: "course_shell_provisioning",
-      actorPersonId: actor.userId,
-      targetReferences: [],
-      correlationId: requestCorrelationId,
-      resultStatus: "unsupported",
-      redactedMetadata: {},
-    },
-    providerOperations: [],
-  };
-}
-
-function unsupportedRosterSyncPlan(actor: AcademyActor, tenantId: string, requestCorrelationId: string, idempotencyKey: string) {
-  return {
-    result: createUnsupportedLmsOperationResult({
-      providerId: "moodle",
-      capability: "roster_sync",
-      tenantId,
-      correlationId: requestCorrelationId,
-      operationId: idempotencyKey,
-      safeMessage: "Moodle roster-sync API contract stub is not implemented yet.",
-    }),
-    auditEvent: {
-      tenantId,
-      providerId: "moodle",
-      operation: "roster_sync",
-      actorPersonId: actor.userId,
-      targetReferences: [],
-      correlationId: requestCorrelationId,
-      resultStatus: "unsupported",
-      redactedMetadata: {},
-    },
-    providerOperations: [],
-  };
-}
-
-function unsupportedGradeReturnPlan(actor: AcademyActor, tenantId: string, requestCorrelationId: string, idempotencyKey: string) {
-  return {
-    result: createUnsupportedLmsOperationResult({
-      providerId: "moodle",
-      capability: "grade_return",
-      tenantId,
-      correlationId: requestCorrelationId,
-      operationId: idempotencyKey,
-      safeMessage: "Moodle grade-return API contract stub is not implemented yet.",
-    }),
-    auditEvent: {
-      tenantId,
-      providerId: "moodle",
-      operation: "grade_return",
-      actorPersonId: actor.userId,
-      targetReferences: [],
-      correlationId: requestCorrelationId,
-      resultStatus: "unsupported",
-      redactedMetadata: {},
-    },
-    reviewedImport: undefined,
-  };
-}
-
-function unsupportedProgressReturnPlan(actor: AcademyActor, tenantId: string, requestCorrelationId: string, idempotencyKey: string) {
-  return {
-    result: createUnsupportedLmsOperationResult({
-      providerId: "moodle",
-      capability: "progress_return",
-      tenantId,
-      correlationId: requestCorrelationId,
-      operationId: idempotencyKey,
-      safeMessage: "Moodle progress-return API contract stub is not implemented yet.",
-    }),
-    auditEvent: {
-      tenantId,
-      providerId: "moodle",
-      operation: "progress_return",
-      actorPersonId: actor.userId,
-      targetReferences: [],
-      correlationId: requestCorrelationId,
-      resultStatus: "unsupported",
-      redactedMetadata: {},
-    },
-    reviewedImport: undefined,
-  };
-}
-
 export async function buildLmsCourseShellPlanPayload(
   repository: InstitutionProfileReader,
   actor: AcademyActor,
@@ -481,6 +390,24 @@ export async function buildLmsCourseShellPlanPayload(
     };
   }
 
+  if (resolved.tenant.providerId === "moodle") {
+    const plan = createMoodleCourseShellProvisioningPlan({
+      resolvedProvider: resolved,
+      configuration: {
+        tenantId,
+        defaultInstructorRole: "editingteacher",
+        defaultStudentRole: "student",
+      },
+      request,
+    });
+
+    return {
+      operation: "course_shell_plan",
+      providerId: resolved.tenant.providerId,
+      plan,
+    };
+  }
+
   if (resolved.tenant.providerId === "none") {
     return {
       operation: "course_shell_plan",
@@ -496,7 +423,18 @@ export async function buildLmsCourseShellPlanPayload(
   return {
     operation: "course_shell_plan",
     providerId: resolved.tenant.providerId,
-    plan: unsupportedCourseShellPlan(actor, tenantId, requestCorrelationId, input.idempotencyKey),
+    plan: {
+      result: createUnsupportedLmsOperationResult({
+        providerId: resolved.tenant.providerId,
+        capability: "course_shell_provisioning",
+        tenantId,
+        correlationId: requestCorrelationId,
+        operationId: input.idempotencyKey,
+        safeMessage: "Configured LMS provider cannot provision course shells.",
+      }),
+      auditEvent: undefined,
+      providerOperations: [],
+    },
   };
 }
 
@@ -542,6 +480,24 @@ export async function buildLmsRosterSyncPlanPayload(
     };
   }
 
+  if (resolved.tenant.providerId === "moodle") {
+    const plan = createMoodleRosterSyncPlan({
+      resolvedProvider: resolved,
+      configuration: {
+        tenantId,
+        defaultInstructorRole: "editingteacher",
+        defaultStudentRole: "student",
+      },
+      request,
+    });
+
+    return {
+      operation: "roster_sync_plan",
+      providerId: resolved.tenant.providerId,
+      plan,
+    };
+  }
+
   if (resolved.tenant.providerId === "none") {
     return {
       operation: "roster_sync_plan",
@@ -557,7 +513,18 @@ export async function buildLmsRosterSyncPlanPayload(
   return {
     operation: "roster_sync_plan",
     providerId: resolved.tenant.providerId,
-    plan: unsupportedRosterSyncPlan(actor, tenantId, requestCorrelationId, input.idempotencyKey),
+    plan: {
+      result: createUnsupportedLmsOperationResult({
+        providerId: resolved.tenant.providerId,
+        capability: "roster_sync",
+        tenantId,
+        correlationId: requestCorrelationId,
+        operationId: input.idempotencyKey,
+        safeMessage: "Configured LMS provider cannot sync rosters.",
+      }),
+      auditEvent: undefined,
+      providerOperations: [],
+    },
   };
 }
 
@@ -601,6 +568,23 @@ export async function buildLmsGradeReturnPlanPayload(
     };
   }
 
+  if (resolved.tenant.providerId === "moodle") {
+    const plan = createMoodleGradeReturnImportPlan({
+      resolvedProvider: resolved,
+      configuration: {
+        tenantId,
+        importSourceLabel: input.importSourceLabel,
+      },
+      batch,
+    });
+
+    return {
+      operation: "grade_return_plan",
+      providerId: resolved.tenant.providerId,
+      plan,
+    };
+  }
+
   if (resolved.tenant.providerId === "none") {
     return {
       operation: "grade_return_plan",
@@ -616,7 +600,18 @@ export async function buildLmsGradeReturnPlanPayload(
   return {
     operation: "grade_return_plan",
     providerId: resolved.tenant.providerId,
-    plan: unsupportedGradeReturnPlan(actor, tenantId, requestCorrelationId, input.idempotencyKey),
+    plan: {
+      result: createUnsupportedLmsOperationResult({
+        providerId: resolved.tenant.providerId,
+        capability: "grade_return",
+        tenantId,
+        correlationId: requestCorrelationId,
+        operationId: input.idempotencyKey,
+        safeMessage: "Configured LMS provider cannot return grades.",
+      }),
+      auditEvent: undefined,
+      reviewedImport: undefined,
+    },
   };
 }
 
@@ -660,6 +655,23 @@ export async function buildLmsProgressReturnPlanPayload(
     };
   }
 
+  if (resolved.tenant.providerId === "moodle") {
+    const plan = createMoodleProgressReturnImportPlan({
+      resolvedProvider: resolved,
+      configuration: {
+        tenantId,
+        importSourceLabel: input.importSourceLabel,
+      },
+      batch,
+    });
+
+    return {
+      operation: "progress_return_plan",
+      providerId: resolved.tenant.providerId,
+      plan,
+    };
+  }
+
   if (resolved.tenant.providerId === "none") {
     return {
       operation: "progress_return_plan",
@@ -675,7 +687,18 @@ export async function buildLmsProgressReturnPlanPayload(
   return {
     operation: "progress_return_plan",
     providerId: resolved.tenant.providerId,
-    plan: unsupportedProgressReturnPlan(actor, tenantId, requestCorrelationId, input.idempotencyKey),
+    plan: {
+      result: createUnsupportedLmsOperationResult({
+        providerId: resolved.tenant.providerId,
+        capability: "progress_return",
+        tenantId,
+        correlationId: requestCorrelationId,
+        operationId: input.idempotencyKey,
+        safeMessage: "Configured LMS provider cannot return progress.",
+      }),
+      auditEvent: undefined,
+      reviewedImport: undefined,
+    },
   };
 }
 

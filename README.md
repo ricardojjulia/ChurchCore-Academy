@@ -52,7 +52,7 @@ ChurchCore Academy is designed around that variability:
 | Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion; demo chains seeded |
 | Student enrollment | Foundation + seed data | Full program enrollment, period registration, and section registration chains seeded |
 | Student PWA | Workflow surface | Courses, schedule, progress, documents/transcript request, account, aid, messages, LMS launch, attendance, and privacy controls are wired to governed routes/read models |
-| LMS integrations | Contract and adapter foundations | Moodle/Canvas execution workers remain incomplete |
+| LMS integrations | Executable worker boundary | Moodle/Canvas normalized operations, reviewed imports, retry/idempotency handling; live provider HTTP clients remain activation work |
 | ShepherdAI Academy | Deterministic foundation | Human-reviewed academic workflow recommendations only |
 | Living Learner Intelligence System | Governed foundation | Consent lifecycle and immutable evidence ledger implemented |
 | Billing, aid, reporting, communications | Working foundations | Production provider activation and operations hardening remain |
