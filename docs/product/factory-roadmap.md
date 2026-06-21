@@ -90,14 +90,15 @@ Completed:
 - ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
 - ADR-0038 Prompt 3 deployment operations, incident response, and backup/restore runbooks
 - ADR-0038 Prompt 4 provider activation checklist for payments, communications, Moodle, Canvas, and regulated aid
+- ADR-0038 Prompt 5 Council Review IX split release decision and controlled-pilot release notes
 
 In progress:
 
-- ADR-0038 competitive acceptance and deployment readiness prompt 5
+- Controlled-pilot onboarding evidence by tenant
 
 Next:
 
-- execute final council closeout under ADR-0038
+- execute per-tenant authenticated browser role walkthrough, production observability instrumentation, and provider implementation activation as separate post-closeout work
 
 ## Full SIS Competitive MVP Program
 
@@ -135,7 +136,7 @@ Approved sequence:
 2. Migration, seed, and live-tenant rehearsal. Status: implemented as `docs/runbooks/migration-seed-rehearsal.md` and `scripts/verify-migration-seed-rehearsal.ts`.
 3. Deployment operations runbook. Status: implemented as `docs/runbooks/deployment-operations.md`, `docs/runbooks/incident-response.md`, and `docs/runbooks/backup-restore.md`.
 4. Provider activation checklists. Status: implemented as `docs/runbooks/provider-activation.md`.
-5. Final council closeout and release package.
+5. Final council closeout and release package. Status: implemented as `docs/reviews/2026-06-21-council-review-9-release-closeout.md` and `docs/releases/2026-06-21-controlled-pilot-release-notes.md`.
 
 Each item must use the software factory and must end with verifiable evidence.
 

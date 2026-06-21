@@ -25,6 +25,11 @@ This directory contains the durable product, architecture, delivery, operations,
 
 - [Authentication and Tenant Access](runbooks/academy-auth-and-tenant-access.md)
 - [Admissions Operations](runbooks/admissions-operations.md)
+- [Deployment Operations](runbooks/deployment-operations.md)
+- [Incident Response](runbooks/incident-response.md)
+- [Backup and Restore](runbooks/backup-restore.md)
+- [Migration Seed Rehearsal](runbooks/migration-seed-rehearsal.md)
+- [Provider Activation](runbooks/provider-activation.md)
 - [Moodle Configuration](integrations/moodle-provider-configuration.md)
 - [Canvas Configuration](integrations/canvas-provider-configuration.md)
 - [LLIS Retention and Deletion](policies/llis-data-retention-and-deletion.md)

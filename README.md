@@ -17,7 +17,7 @@
 </div>
 
 > [!IMPORTANT]
-> ChurchCore Academy is under active development and is not yet approved for production academic records. The repository contains tested pre-production SIS workflow foundations through Council Review VIII; competitive acceptance, deployment readiness, and live provider activation remain before production or general-availability claims.
+> ChurchCore Academy is a controlled-pilot candidate for core SIS workflows after Council Review IX. The release decision is split: core SIS pilot is allowed with provider activation disabled, while general availability, live payment/email/SMS/LMS providers, regulated aid, and broad production official-record use remain gated.
 
 ## Why ChurchCore Academy
 
@@ -56,9 +56,9 @@ ChurchCore Academy is designed around that variability:
 | ShepherdAI Academy | Deterministic foundation | Human-reviewed academic workflow recommendations only |
 | Living Learner Intelligence System | Governed foundation | Consent lifecycle and immutable evidence ledger implemented |
 | Billing, aid, reporting, communications | Working foundations | Production provider activation and operations hardening remain |
-| Competitive readiness | ADR-0038 accepted | Role-matrix acceptance, migration/seed rehearsal, deployment operations, provider activation, and final council closeout remain |
+| Competitive readiness | Controlled-pilot candidate | ADR-0038 role matrix, migration rehearsal, deployment runbooks, provider activation checklist, and final council closeout are complete; live providers remain gated |
 
-See [Project Status](docs/project-status.md), [Council Review VIII](docs/reviews/2026-06-21-council-review-8-post-slice-9-mvp-competitiveness.md), and the [Factory Roadmap](docs/product/factory-roadmap.md) for the detailed delivery position.
+See [Project Status](docs/project-status.md), [Council Review IX](docs/reviews/2026-06-21-council-review-9-release-closeout.md), and the [Factory Roadmap](docs/product/factory-roadmap.md) for the detailed delivery position.
 
 ## Product Boundary
 
@@ -161,6 +161,7 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY` to browser code or commit populated env
 | `npm test` | Run the complete automated test suite |
 | `npm run db:migrate:local` | Apply ordered SQL migrations to local Postgres |
 | `npm run db:seed:local` | Seed local Academy data |
+| `npm run verify:migration-seed-rehearsal` | Verify migration tracking, deterministic seed counts, and runtime source boundary |
 | `npm run verify:admissions-rls` | Verify the admissions database role matrix |
 | `npm run verify:enrollment-conversion-rls` | Verify enrollment-conversion isolation |
 | `npm run verify:llis-consent-rls` | Verify LLIS consent and evidence isolation |
@@ -192,6 +193,8 @@ docs/superpowers/        Approved design specs and implementation plans
 - [LMS Provider Strategy](docs/lms-dual-provider-strategy.md)
 - [ShepherdAI Academy](docs/shepherd-ai-academy.md)
 - [Authentication and Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
+- [Deployment Operations Runbook](docs/runbooks/deployment-operations.md)
+- [Provider Activation Runbook](docs/runbooks/provider-activation.md)
 
 ## Contributing
 
