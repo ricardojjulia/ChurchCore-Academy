@@ -1,6 +1,20 @@
 import type { AcademyQueryClient } from "@/lib/academy-database-context";
 import type { AdminUser, CourseSection, FacultyRecord, Program, StudentRecord } from "@/modules/academy-data/types";
 
+export interface SectionRegistrationReviewRow {
+  id: string;
+  sectionId: string;
+  studentProfileId: string;
+  studentPersonId: string;
+  studentName: string;
+  studentEmail: string;
+  studentNumber: string;
+  status: string;
+  registeredAt: string;
+  confirmedAt?: string;
+  sourceApplicationId: string;
+}
+
 function rows<T>(result: unknown): T[] {
   return (result as { rows: T[] }).rows;
 }
@@ -107,6 +121,50 @@ export async function fetchSectionList(tenantId: string, client: AcademyQueryCli
     rosterCount: Number(row.roster_count),
     rosterCapacity: Number(row.capacity ?? 0),
     setupAlerts: [],
+  }));
+}
+
+export async function fetchSectionRegistrationReview(
+  tenantId: string,
+  client: AcademyQueryClient,
+): Promise<SectionRegistrationReviewRow[]> {
+  const result = await client.query(
+    `select
+       csr.id,
+       csr.course_section_id,
+       csr.student_profile_id,
+       csr.student_person_id,
+       person.display_name as student_name,
+       person.email as student_email,
+       profile.student_number,
+       csr.status,
+       csr.registered_at,
+       csr.confirmed_at,
+       csr.source_application_id
+     from academy_course_section_registrations csr
+     join academy_people person
+       on person.tenant_id = csr.tenant_id
+      and person.id = csr.student_person_id
+     join academy_student_profiles profile
+       on profile.tenant_id = csr.tenant_id
+      and profile.id = csr.student_profile_id
+     where csr.tenant_id = $1
+     order by csr.registered_at desc, person.display_name asc`,
+    [tenantId],
+  );
+
+  return rows<Record<string, unknown>>(result).map((row) => ({
+    id: String(row.id),
+    sectionId: String(row.course_section_id),
+    studentProfileId: String(row.student_profile_id),
+    studentPersonId: String(row.student_person_id),
+    studentName: String(row.student_name),
+    studentEmail: row.student_email != null ? String(row.student_email) : "",
+    studentNumber: String(row.student_number),
+    status: String(row.status),
+    registeredAt: String(row.registered_at),
+    confirmedAt: row.confirmed_at != null ? String(row.confirmed_at) : undefined,
+    sourceApplicationId: String(row.source_application_id),
   }));
 }
 

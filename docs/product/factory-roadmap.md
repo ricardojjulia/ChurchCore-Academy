@@ -66,15 +66,18 @@ Completed:
 - Release 2 Slice 2 accepted-application conversion into student profile, program enrollment, and period registration
 - Release 2 Slice 2 tenant-scoped student numbers, immutable conversion events, API/UI action, and live role matrix
 - clean local Supabase migration replay
+- ADR-0033 Slice 1 course-section registration eligibility and enrollment confirmation
+- ADR-0033 Slice 1 Admin Sections registration review surface
+- ADR-0033 Slice 1 Student PWA schedule/courses backed by persisted registrations
 
 In progress:
 
 - browser acceptance for Release 2 converted admissions/enrollment workflows
+- ADR-0033 Slice 1 verification and PR review
 
 Next:
 
-- build course-section registration and enrollment confirmation
-- execute attendance, grade entry, transcript issuance, billing, aid, reporting, communications, persistent Student PWA, LMS worker, and competitive acceptance slices under ADR-0033
+- execute attendance, grade entry, transcript issuance, billing, aid, reporting, communications, LMS worker, and competitive acceptance slices under ADR-0033
 
 ## Full SIS Competitive MVP Program
 
