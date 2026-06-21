@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   DELIVERY_METHODS,
@@ -88,4 +89,20 @@ test("cross-tenant rejection: empty tenantId is rejected", () => {
       }),
     /tenantId is required/,
   );
+});
+
+test("workflow migration adds transcript statuses, events, and immutability", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260621040000_transcript_request_issuance_workflow.sql",
+    "utf8",
+  );
+
+  for (const status of ["requested", "held", "issued", "released", "revoked"]) {
+    assert.match(migration, new RegExp(`'${status}'`));
+  }
+
+  assert.match(migration, /create table if not exists public\.academy_transcript_events/);
+  assert.match(migration, /alter table public\.academy_transcript_events enable row level security/);
+  assert.match(migration, /create trigger academy_transcript_events_immutable/);
+  assert.match(migration, /revoke update, delete on public\.academy_transcript_events from authenticated/);
 });

@@ -54,12 +54,14 @@
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-transcript-request-issuance.md`
 - Expected modules: `src/modules/transcripts/*`, `src/app/api/academy/transcripts/*`, student/admin transcript routes.
 
-- [ ] Write failing tests for transcript request, hold, issuance, release, revoke, delivery methods, and audit immutability.
-- [ ] Implement registrar-controlled transcript state transitions.
-- [ ] Add student request and admin issuance UI.
-- [ ] Add export/print output that excludes held or unreleased records.
-- [ ] Verify with test/lint/build, role matrix, and browser checks.
-- [ ] Update transcript runbook and commit the slice.
+- [x] Write failing tests for transcript request, hold, issuance, release, revoke, delivery methods, and audit immutability.
+- [x] Implement registrar-controlled transcript state transitions.
+- [x] Add student request and admin issuance UI.
+- [x] Add export/print output that excludes held or unreleased records.
+- [x] Verify with test/lint/build, role matrix, and browser checks.
+- [x] Update transcript runbook and commit the slice.
+
+Verification note: Slice 3 passed focused transcript tests, full `npm test`, `npm run lint`, `npm run build`, `npx tsc --noEmit`, local migration replay, and protected-route HTTP smoke. The in-app Browser `iab` target was unavailable in this Codex session, so visual browser smoke is deferred to PR review.
 
 ## Task 4: Billing, Payments, And Student Accounts
 
