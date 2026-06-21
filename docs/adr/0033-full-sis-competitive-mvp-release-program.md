@@ -88,3 +88,4 @@ Rejected. Council Review VII treats screen-only completion as a false MVP signal
 - ADR-0028 Gradebook API Route Contract
 - ADR-0030 Legacy Dataset Deprecation Strategy
 - ADR-0031 Workflow Evaluator Invocation Pattern
+- ADR-0038 Competitive Acceptance And Deployment Readiness
