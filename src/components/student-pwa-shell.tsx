@@ -11,6 +11,7 @@ import {
   CreditCard,
   FileText,
   GraduationCap,
+  HandCoins,
   Home,
   LibraryBig,
   MessageSquare,
@@ -29,6 +30,7 @@ const iconByName = {
   attendance: ClipboardCheck,
   privacy: ShieldCheck,
   account: CreditCard,
+  aid: HandCoins,
 };
 
 export function StudentPwaShell({

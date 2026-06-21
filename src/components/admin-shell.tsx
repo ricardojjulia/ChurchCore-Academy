@@ -93,6 +93,7 @@ const NAV_SECTIONS: NavSection[] = [
     Icon: CircleDollarSign,
     items: [
       { label: "Billing", href: "/admin/billing" },
+      { label: "Financial Aid", href: "/admin/financial-aid" },
     ],
   },
   {

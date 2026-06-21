@@ -86,12 +86,14 @@ Verification note: Slice 4 passed focused billing tests, full `npm test`, `npm r
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-financial-aid-foundation.md`
 - Expected modules: `src/modules/financial-aid/*`, aid admin pages, migrations.
 
-- [ ] Write failing tests for institutional aid packages, award status, disbursement scheduling, aid holds, and ledger integration.
-- [ ] Implement non-federal aid foundation first.
-- [ ] Add explicit activation gates for regulated/federal aid.
-- [ ] Add admin UI and student aid read model.
-- [ ] Verify with test/lint/build, role matrix, privacy review, and browser checks.
-- [ ] Update aid compliance notes and commit the slice.
+- [x] Write failing tests for institutional aid packages, award status, disbursement scheduling, aid holds, and ledger integration.
+- [x] Implement non-federal aid foundation first.
+- [x] Add explicit activation gates for regulated/federal aid.
+- [x] Add admin UI and student aid read model.
+- [x] Verify with test/lint/build, role matrix, privacy review, and browser checks.
+- [x] Update aid compliance notes and commit the slice.
+
+Verification note: Slice 5 passed focused financial-aid tests, Student PWA shell config test, full `npm test`, `npm run lint`, `npm run build`, `npx tsc --noEmit`, local migration replay, and protected-route HTTP smoke for `/admin/financial-aid`, `/student/aid`, and `/api/academy/financial-aid`. Federal and Title IV aid remain disabled by ADR-0036. The in-app Browser `iab` target was unavailable in this Codex session, so visual browser smoke is deferred to PR review.
 
 ## Task 6: Reporting And Exports
 
