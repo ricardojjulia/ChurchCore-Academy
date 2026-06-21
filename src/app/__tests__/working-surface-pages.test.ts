@@ -47,3 +47,13 @@ test("admin dashboard exposes navigation to all working MVP surfaces", async () 
     assert.match(page, new RegExp(href.replace("/", "\\/").replace("[", "\\[")));
   }
 });
+
+test("admin dashboard reads persisted dashboard data without invoking workflow evaluation", async () => {
+  const page = await source("src/app/admin/page.tsx");
+
+  assert.match(page, /requireActor/);
+  assert.match(page, /withAcademyDatabaseContext/);
+  assert.match(page, /ShepherdAiPostgresRepository/);
+  assert.doesNotMatch(page, /runAcademicWorkflowEvaluationJob/);
+  assert.doesNotMatch(page, /evaluation\?\.dataset/);
+});

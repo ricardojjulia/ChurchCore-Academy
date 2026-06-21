@@ -48,7 +48,7 @@ ChurchCore Academy is designed around that variability:
 | ShepherdAI workflow signals | Fixed in 0.5.0 | Workflows page now derives tenant ID from verified session instead of an unsecured request header |
 | Tenant identity wiring | Fixed in 0.7.0 | Developer account linked to `cca-main`; enrollment seed applied; migration runner tracks applied migrations |
 | Grading and transcript rules | Foundation + seed data | Evaluation scales, gradebook scales, sample submissions and records seeded |
-| Authentication and tenant isolation | Implemented, exit gate open | Verified Supabase sessions, request-scoped database context, forced RLS |
+| Authentication and tenant isolation | Release 1 exit gate closed | Verified Supabase sessions, request-scoped database context, forced RLS, no runtime seeded-data fallback |
 | Admissions | Working vertical slice | Application, submission, review, decision, audit, and conversion; demo chains seeded |
 | Student enrollment | Foundation + seed data | Full program enrollment, period registration, and section registration chains seeded |
 | Student PWA | Working shell and read surfaces | Persistence is incomplete for several student workflows |
@@ -102,7 +102,7 @@ Read [Architecture](docs/architecture.md), [Technology](docs/technology.md), and
 | Layer | Technology |
 | --- | --- |
 | Web application | Next.js 16 App Router, React 19, TypeScript 6 |
-| UI | Mantine 9, CSS, Lucide icons |
+| UI | Custom React components, Radix primitives, Tailwind/CSS utilities, Lucide icons |
 | Data and identity | Supabase Auth, PostgreSQL, Row Level Security |
 | Database access | `pg`, request-scoped transactions, SQL migrations |
 | Testing | Node test runner with `tsx` |

@@ -70,4 +70,5 @@ Never enable this flag in preview or production.
 
 - The security and enrollment migrations validate through a clean local Supabase reset.
 - Live admissions and enrollment-conversion role matrices run inside rolled-back transactions.
-- Production approval requires live policy and browser-role verification.
+- The Release 1 security exit gate is closed for verified-session identity, request-scoped RLS, and seeded-runtime-data removal.
+- New Release 2+ workflow surfaces still require live policy and browser-role verification before production tenant onboarding.
