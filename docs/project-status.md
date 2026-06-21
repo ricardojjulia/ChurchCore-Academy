@@ -31,6 +31,7 @@ Competitive MVP release program.
 - LLIS learner consent lifecycle and immutable evidence ledger
 - Release 1 authentication, tenant isolation, RLS, and seeded-runtime-data exit gate closeout
 - Council Review VII Full SIS Competitive MVP release program, change-management record, and AI prompt pack
+- reporting dashboard and CSV export foundation for core SIS domains
 
 ## Partially Implemented
 
@@ -47,7 +48,7 @@ Competitive MVP release program.
 - operational transcript issuance
 - billing and payments
 - institutional and regulated financial aid
-- reporting and exports
+- certified ATS/IPEDS compliance reporting
 - notifications and communications
 - executable LMS synchronization workers
 - complete Student PWA data workflows

@@ -102,12 +102,14 @@ Verification note: Slice 5 passed focused financial-aid tests, Student PWA shell
 - Create plan: `docs/superpowers/plans/YYYY-MM-DD-reporting-exports.md`
 - Expected modules: `src/modules/reporting/*`, `src/app/admin/reporting/*`, export APIs.
 
-- [ ] Write failing tests for enrollment, attendance, grades, admissions, billing, aid, and transcript report models.
-- [ ] Implement canonical reporting queries with tenant predicates.
-- [ ] Add CSV/export endpoints with role gates.
-- [ ] Add admin reporting UI with filters and download actions.
-- [ ] Verify with test/lint/build, role matrix, and export snapshots.
-- [ ] Update reporting runbook and commit the slice.
+- [x] Write failing tests for enrollment, attendance, grades, admissions, billing, aid, and transcript report models.
+- [x] Implement canonical reporting queries with tenant predicates.
+- [x] Add CSV/export endpoints with role gates.
+- [x] Add admin reporting UI with filters and download actions.
+- [x] Verify with test/lint/build, role matrix, and export snapshots.
+- [x] Update reporting runbook and commit the slice.
+
+Verification note: Slice 6 passed focused reporting tests, `npx tsc --noEmit`, full `npm test`, `npm run lint`, `npm run build`, local reporting repository smoke against `cca-main`, and protected-route HTTP smoke for `/admin/reporting` and `/api/academy/reports?report=enrollment&format=csv`. The in-app Browser `iab` target remained unavailable in this Codex session, so visual browser smoke is deferred to PR review.
 
 ## Task 7: Notifications And Communications
 
