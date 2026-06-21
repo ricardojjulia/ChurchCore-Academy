@@ -6,10 +6,9 @@
 
 ## Current Assessment
 
-ChurchCore Academy has completed the major ADR-0033 pre-production SIS workflow slices. It should now be evaluated as a controlled-pilot candidate that still requires competitive acceptance, deployment readiness, provider activation, and final council closeout before production or general-availability claims.
+ChurchCore Academy has completed the major ADR-0033 pre-production SIS workflow slices and the ADR-0038 acceptance/deployment readiness package. Council Review IX approves a split decision: ship a controlled pilot for core SIS workflows with provider activation disabled, and defer live providers, regulated aid, broad production official-record use, and general availability.
 
-Council Review VIII rates the current pre-production MVP readiness at **77/100** and competitive readiness at **68/100**.
-The governing path for the next step is ADR-0038, the Competitive Acceptance And Deployment Readiness program.
+Council Review IX rates controlled-pilot MVP readiness at **86/100**, competitive readiness at **78/100**, and production/GA readiness at **62/100**.
 
 ## Implemented and Verified
 
@@ -36,6 +35,7 @@ The governing path for the next step is ADR-0038, the Competitive Acceptance And
 - ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
 - ADR-0038 Prompt 3 deployment operations, incident response, and backup/restore runbooks
 - ADR-0038 Prompt 4 provider activation checklist for payments, communications, Moodle, Canvas, and regulated aid
+- Council Review IX split release decision and controlled-pilot release notes
 - reporting dashboard and CSV export foundation for core SIS domains
 - persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers
 
@@ -43,7 +43,7 @@ The governing path for the next step is ADR-0038, the Competitive Acceptance And
 
 - Gradebook bulk operations and full faculty grading workflow polish
 - live Moodle and Canvas HTTP clients beyond normalized executable worker boundaries
-- authenticated browser role-matrix acceptance across later Release 2+ workflows
+- per-tenant authenticated browser role-matrix walkthroughs during pilot onboarding
 - complete production observability instrumentation and provider-specific operations activation
 
 ## Production MVP Blockers
@@ -54,14 +54,16 @@ The governing path for the next step is ADR-0038, the Competitive Acceptance And
 - regulated/federal financial-aid activation and compliance validation
 - live Moodle/Canvas provider-client activation and tenant credentials
 - competitive acceptance/onboarding role-matrix verification across all primary workflows
+  - Status: baseline role-matrix inventory is complete; per-tenant authenticated walkthrough remains required.
 
 ## Product Safety Position
 
-- Academy is not approved for production official records.
+- Academy is approved only for controlled-pilot core SIS use under the Council Review IX split decision.
+- Academy is not approved for general availability or unrestricted production official records.
 - Model-generated learner predictions are not approved.
 - Autonomous academic or pastoral interventions are not approved.
 - Federal-aid functionality requires separate regulatory validation and activation gates.
 
 The canonical sequence is maintained in the [Factory Roadmap](product/factory-roadmap.md).
 The full SIS competitive release program is recorded in [ADR-0033](adr/0033-full-sis-competitive-mvp-release-program.md).
-The current acceptance and deployment readiness program is recorded in [ADR-0038](adr/0038-competitive-acceptance-and-deployment-readiness.md).
+The current release decision is recorded in [Council Review IX](reviews/2026-06-21-council-review-9-release-closeout.md) and [Controlled Pilot Release Notes](releases/2026-06-21-controlled-pilot-release-notes.md).

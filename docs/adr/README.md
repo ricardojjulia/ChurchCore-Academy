@@ -78,3 +78,9 @@ What other options were considered, and why were they rejected?
 4. Confirm student, guardian, grade, transcript, LMS, and ShepherdAI risks.
 5. Mark status as `accepted` only after implementation approach is approved.
 6. Supersede old ADRs instead of rewriting history.
+
+## Current Governing Decisions
+
+- `docs/adr/0033-full-sis-competitive-mvp-release-program.md` governs the full SIS competitive MVP workflow program.
+- `docs/adr/0038-competitive-acceptance-and-deployment-readiness.md` governs the acceptance and deployment readiness program.
+- `docs/reviews/2026-06-21-council-review-9-release-closeout.md` records the ADR-0038 final split release decision.
