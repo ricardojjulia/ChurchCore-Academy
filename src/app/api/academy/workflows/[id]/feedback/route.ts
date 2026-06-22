@@ -83,5 +83,5 @@ export async function recordWorkflowFeedbackRequest(
         ),
       ),
     }));
-  });
+  }, { operation: "workflow.feedback", tenantId: actor.tenantId, actorId: actor.userId });
 }

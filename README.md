@@ -196,6 +196,7 @@ docs/superpowers/        Approved design specs and implementation plans
 - [Authentication and Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
 - [Authenticated Role Walkthrough Evidence](docs/acceptance/authenticated-role-walkthrough-evidence.md)
 - [Deployment Operations Runbook](docs/runbooks/deployment-operations.md)
+- [Observability Runbook](docs/runbooks/observability.md)
 - [Provider Activation Runbook](docs/runbooks/provider-activation.md)
 
 ## Contributing

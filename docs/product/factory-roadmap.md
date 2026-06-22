@@ -92,6 +92,7 @@ Completed:
 - ADR-0038 Prompt 4 provider activation checklist for payments, communications, Moodle, Canvas, and regulated aid
 - ADR-0038 Prompt 5 Council Review IX split release decision and controlled-pilot release notes
 - Post-closeout authenticated role walkthrough harness and seeded acceptance personas
+- Post-closeout production observability foundation for controlled-pilot failures
 
 In progress:
 
@@ -99,7 +100,8 @@ In progress:
 
 Next:
 
-- execute production observability instrumentation and provider implementation activation as separate post-closeout work
+- execute provider implementation activation as separate post-closeout work
+- attach deployment-specific observability export, dashboards, and alert routing to the structured event boundary
 - run the generated authenticated role walkthrough against each pilot tenant and attach screenshots/console evidence to the tenant onboarding record
 
 ## Full SIS Competitive MVP Program

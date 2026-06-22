@@ -6,6 +6,10 @@ import {
   type LmsAuditEvent,
 } from "@/modules/lms-contract/contract";
 import { buildLmsOperationIdempotencyKey } from "@/modules/lms-contract/sync-audit-reconciliation";
+import {
+  emitOperationalEvent,
+  type OperationalEventSink,
+} from "@/modules/observability/operational-events";
 
 export type LmsExecutableProviderOperation = {
   type: string;
@@ -33,6 +37,7 @@ export interface ExecuteLmsProviderOperationsInput {
   auditEvent?: LmsAuditEvent;
   executor: LmsProviderOperationExecutor;
   completedOperationKeys?: ReadonlySet<string>;
+  emitEvent?: OperationalEventSink;
 }
 
 export interface ExecutedLmsProviderOperation extends LmsProviderOperationExecution {
@@ -117,6 +122,25 @@ export async function executeLmsProviderOperations(
     });
 
     if (execution.status !== "success") {
+      emitOperationalEvent(
+        {
+          category: "provider_worker_failure",
+          severity: execution.status === "retryable_failure" ? "warn" : "error",
+          operation: `lms.${input.capability}`,
+          tenantId: input.tenantId,
+          correlationId: input.correlationId,
+          message: execution.safeMessage,
+          metadata: {
+            providerId: input.providerId,
+            capability: input.capability,
+            operationType: operation.type,
+            operationKey,
+            status: execution.status,
+            retryAfterSeconds: execution.retryAfterSeconds,
+          },
+        },
+        input.emitEvent,
+      );
       break;
     }
   }

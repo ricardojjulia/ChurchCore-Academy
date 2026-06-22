@@ -100,3 +100,7 @@ ChurchCore Academy is now a controlled-pilot candidate for core SIS workflows. I
 Authenticated role walkthrough harness status: implemented after closeout as `docs/acceptance/authenticated-role-walkthrough-evidence.md`, `scripts/generate-authenticated-role-walkthrough.ts`, and `supabase/migrations/20260621193000_seed_acceptance_role_walkthrough_accounts.sql`.
 
 Remaining evidence: run the generated browser commands against each pilot tenant, capture screenshots and console-error output, and attach observed pass/fail results to the tenant onboarding record.
+
+Production observability foundation status: implemented after closeout as `src/modules/observability/operational-events.ts` and `docs/runbooks/observability.md`.
+
+Remaining observability evidence: connect deployment-specific log drains, dashboards, and alert routing to the structured event boundary before expanding beyond controlled pilot.

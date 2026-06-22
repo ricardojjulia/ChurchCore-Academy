@@ -86,6 +86,7 @@ curl -I https://<deployment-host>/platform/control
 Expected result: redirect to `/login?next=...`.
 
 6. Sign in with controlled-pilot test accounts and verify admin, faculty, student, guardian, finance, admissions, registrar, and platform admin surfaces according to `docs/acceptance/role-matrix-checklist.md`.
+7. Confirm structured operational events are visible in the deployment log sink according to `docs/runbooks/observability.md`.
 
 ## Monitoring Checklist
 
@@ -99,6 +100,8 @@ During and after deployment, monitor:
 - migration failures;
 - provider worker failures after provider activation;
 - audit/event table write failures.
+
+Structured event categories and redaction rules are defined in `docs/runbooks/observability.md`.
 
 ## Rollback
 

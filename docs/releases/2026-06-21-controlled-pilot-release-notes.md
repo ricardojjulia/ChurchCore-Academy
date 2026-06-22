@@ -27,6 +27,7 @@ This is not a general-availability release and not a blanket production official
 - Moodle/Canvas/no-LMS provider-neutral contracts and executable worker boundary;
 - role-matrix acceptance inventory;
 - authenticated role walkthrough harness and seeded acceptance personas;
+- structured observability events for auth, authorization, workflow, migration, and LMS provider-worker failures;
 - migration/seed rehearsal gate;
 - deployment, incident, backup/restore, and provider activation runbooks.
 
@@ -66,6 +67,7 @@ Then execute:
 - Provider activation remains a separate gate.
 - Production observability needs implementation beyond runbook coverage.
 - Authenticated browser walkthrough screenshots and console-error checks should be repeated per pilot tenant using `docs/acceptance/authenticated-role-walkthrough-evidence.md`.
+- Deployment-specific log drains, alert routing, and dashboards should be connected to the structured event boundary before expanding beyond controlled pilot.
 - Regulated aid requires legal/compliance owner approval.
 
 ## Rollback

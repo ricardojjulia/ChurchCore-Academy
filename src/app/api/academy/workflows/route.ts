@@ -59,5 +59,5 @@ export async function GET(request: NextRequest) {
         filters,
       ),
     );
-  });
+  }, { operation: "workflow.queue" });
 }

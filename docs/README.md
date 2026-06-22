@@ -28,6 +28,7 @@ This directory contains the durable product, architecture, delivery, operations,
 - [Authenticated Role Walkthrough Evidence](acceptance/authenticated-role-walkthrough-evidence.md)
 - [Deployment Operations](runbooks/deployment-operations.md)
 - [Incident Response](runbooks/incident-response.md)
+- [Observability](runbooks/observability.md)
 - [Backup and Restore](runbooks/backup-restore.md)
 - [Migration Seed Rehearsal](runbooks/migration-seed-rehearsal.md)
 - [Provider Activation](runbooks/provider-activation.md)

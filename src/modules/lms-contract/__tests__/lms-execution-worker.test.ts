@@ -5,6 +5,7 @@ import {
   executeLmsProviderOperations,
   type LmsExecutableProviderOperation,
 } from "@/modules/lms-contract/lms-execution-worker";
+import type { OperationalEvent } from "@/modules/observability/operational-events";
 
 const operation: LmsExecutableProviderOperation = {
   type: "upsert_course_shell",
@@ -75,6 +76,7 @@ test("suppresses duplicate provider execution by tenant/provider/capability/idem
 });
 
 test("marks retryable provider failures without exposing raw errors", async () => {
+  const events: OperationalEvent[] = [];
   const result = await executeLmsProviderOperations({
     tenantId: "tenant-1",
     providerId: "moodle",
@@ -89,10 +91,16 @@ test("marks retryable provider failures without exposing raw errors", async () =
         retryAfterSeconds: 60,
       }),
     },
+    emitEvent: (event) => events.push(event),
   });
 
   assert.equal(result.result.status, "retryable_failure");
   assert.equal(result.result.retryable, true);
   assert.equal(result.executions[0]?.retryAfterSeconds, 60);
   assert.doesNotMatch(JSON.stringify(result), /stack|password|token|raw/i);
+  assert.equal(events.length, 1);
+  assert.equal(events[0]?.category, "provider_worker_failure");
+  assert.equal(events[0]?.tenantId, "tenant-1");
+  assert.equal(events[0]?.metadata.providerId, "moodle");
+  assert.doesNotMatch(JSON.stringify(events[0]), /stack|password|token|raw/i);
 });
