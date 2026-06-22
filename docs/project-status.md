@@ -37,6 +37,7 @@ Council Review IX rates controlled-pilot MVP readiness at **86/100**, competitiv
 - ADR-0038 Prompt 4 provider activation checklist for payments, communications, Moodle, Canvas, and regulated aid
 - Council Review IX split release decision and controlled-pilot release notes
 - authenticated role walkthrough harness, seeded acceptance personas, and generated evidence template
+- production observability foundation for auth, authorization, workflow, migration, and LMS provider-worker failures
 - reporting dashboard and CSV export foundation for core SIS domains
 - persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers
 
@@ -45,7 +46,7 @@ Council Review IX rates controlled-pilot MVP readiness at **86/100**, competitiv
 - Gradebook bulk operations and full faculty grading workflow polish
 - live Moodle and Canvas HTTP clients beyond normalized executable worker boundaries
 - per-tenant authenticated browser role-matrix screenshots and console-error capture during pilot onboarding
-- complete production observability instrumentation and provider-specific operations activation
+- external observability exporter/alert routing and provider-specific operations activation
 
 ## Production MVP Blockers
 
@@ -56,6 +57,7 @@ Council Review IX rates controlled-pilot MVP readiness at **86/100**, competitiv
 - live Moodle/Canvas provider-client activation and tenant credentials
 - competitive acceptance/onboarding role-matrix verification across all primary workflows
   - Status: baseline role-matrix inventory, seeded personas, and generated walkthrough template are complete; per-tenant screenshot and console-error evidence remains required.
+  - Observability status: app-level structured failure events are implemented; deployment-specific log drains, alert routing, and dashboards remain required.
 
 ## Product Safety Position
 

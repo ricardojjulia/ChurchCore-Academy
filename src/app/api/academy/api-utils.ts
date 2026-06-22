@@ -4,6 +4,11 @@ import {
   AcademyAuthorizationError,
   AcademyConflictError,
 } from "@/modules/academy-auth/errors";
+import {
+  emitOperationalEvent,
+  type OperationalEventCategory,
+  type OperationalEventSink,
+} from "@/modules/observability/operational-events";
 
 export function jsonOk<T>(data: T, init?: ResponseInit) {
   return NextResponse.json(data, init);
@@ -17,13 +22,22 @@ export function getStringParam(value: string | string[] | undefined) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-export async function handleApi<T>(handler: () => Promise<T>) {
+export interface ApiObservabilityOptions {
+  operation?: string;
+  tenantId?: string;
+  actorId?: string;
+  correlationId?: string;
+  emitEvent?: OperationalEventSink;
+}
+
+export async function handleApi<T>(handler: () => Promise<T>, observability: ApiObservabilityOptions = {}) {
   try {
     return jsonOk(await handler());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected API error.";
 
     if (error instanceof AcademyAuthenticationError) {
+      emitApiFailure("authentication_failure", 401, message, observability);
       return jsonError(message, 401);
     }
 
@@ -31,6 +45,7 @@ export async function handleApi<T>(handler: () => Promise<T>) {
       error instanceof AcademyAuthorizationError ||
       message.includes("Forbidden")
     ) {
+      emitApiFailure("authorization_failure", 403, message, observability);
       return jsonError(message, 403);
     }
 
@@ -52,6 +67,39 @@ export async function handleApi<T>(handler: () => Promise<T>) {
       return jsonError(message, 400);
     }
 
+    emitApiFailure(
+      observability.operation?.startsWith("workflow.") ? "workflow_exception" : "unexpected_api_error",
+      500,
+      "Unexpected API error.",
+      {
+        ...observability,
+        metadata: {
+          errorName: error instanceof Error ? error.name : "UnknownError",
+          errorMessage: message,
+        },
+      },
+    );
     return jsonError("Unexpected API error.", 500);
   }
+}
+
+function emitApiFailure(
+  category: OperationalEventCategory,
+  status: number,
+  message: string,
+  observability: ApiObservabilityOptions & { metadata?: Record<string, unknown> },
+) {
+  const event: Parameters<typeof emitOperationalEvent>[0] = {
+    category,
+    severity: status >= 500 ? "error" : "warn",
+    operation: observability.operation ?? "api.request",
+    tenantId: observability.tenantId,
+    actorId: observability.actorId,
+    correlationId: observability.correlationId,
+    status,
+    message,
+    metadata: observability.metadata ?? {},
+  };
+
+  emitOperationalEvent(event, observability.emitEvent);
 }

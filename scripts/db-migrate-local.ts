@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { closeDatabasePool, getDatabasePool } from "@/lib/database";
 import { listMigrationFiles } from "@/lib/migrations";
+import { emitOperationalEvent } from "@/modules/observability/operational-events";
 
 async function ensureMigrationsTable(pool: ReturnType<typeof getDatabasePool>) {
   await pool.query(`
@@ -102,6 +103,16 @@ async function main() {
 
 main()
   .catch((error) => {
+    emitOperationalEvent({
+      category: "migration_error",
+      severity: "critical",
+      operation: "db.migrate.local",
+      message: "Database migration failed.",
+      metadata: {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    });
     console.error(error);
     process.exitCode = 1;
   })
