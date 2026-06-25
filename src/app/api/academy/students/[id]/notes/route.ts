@@ -35,15 +35,26 @@ export async function POST(
     const { id } = await params;
     const body = (await request.json()) as Record<string, unknown>;
     const noteText = typeof body.noteText === "string" ? body.noteText : "";
+    const noteType = typeof body.noteType === "string" ? body.noteType : "general";
+    const visibleToStudent = typeof body.visibleToStudent === "boolean" ? body.visibleToStudent : false;
 
     if (!noteText) {
       throw new Error("noteText is required.");
     }
 
+    const validNoteTypes = ["academic", "pastoral", "financial", "disciplinary", "general"];
+    if (!validNoteTypes.includes(noteType)) {
+      throw new Error(`Invalid noteType. Must be one of: ${validNoteTypes.join(", ")}.`);
+    }
+
     const { actor } = await resolveAcademyActorFromSession(request);
 
     return withAcademyDatabaseContext(actor, async (client) => {
-      return addAdvisorNote(actor, { studentPersonId: id, noteText }, client as unknown as Queryable);
+      return addAdvisorNote(
+        actor,
+        { studentPersonId: id, noteText, noteType: noteType as "academic" | "pastoral" | "financial" | "disciplinary" | "general", visibleToStudent },
+        client as unknown as Queryable,
+      );
     });
   });
 }
