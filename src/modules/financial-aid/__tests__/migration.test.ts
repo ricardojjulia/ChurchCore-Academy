@@ -6,6 +6,10 @@ const migration = readFileSync(
   "supabase/migrations/20260621060000_financial_aid_foundation.sql",
   "utf8",
 );
+const aidLetterMigration = readFileSync(
+  "supabase/migrations/20260623060000_aid_award_letter.sql",
+  "utf8",
+);
 
 test("financial aid migration creates package award disbursement and hold tables", () => {
   assert.match(migration, /create table if not exists public\.academy_aid_packages/);
@@ -45,4 +49,14 @@ test("financial aid disbursements link to immutable billing ledger entries", () 
   assert.match(migration, /ledger_entry_id uuid/);
   assert.match(migration, /references public\.academy_billing_ledger_entries \(tenant_id, id\) on delete restrict/);
   assert.match(migration, /unique \(tenant_id, idempotency_key\)/);
+});
+
+test("aid award letter migration creates governed aid letter entity", () => {
+  assert.match(aidLetterMigration, /create table if not exists public\.academy_aid_letters/);
+  assert.match(aidLetterMigration, /status text not null default 'draft' check \(status in \('draft', 'issued', 'accepted', 'declined', 'expired'\)\)/);
+  assert.match(aidLetterMigration, /acceptance_ip_hash text/);
+  assert.match(aidLetterMigration, /storage_path text/);
+  assert.match(aidLetterMigration, /alter table public\.academy_aid_letters enable row level security/);
+  assert.match(aidLetterMigration, /alter table public\.academy_aid_letters force row level security/);
+  assert.match(aidLetterMigration, /grant select, insert, update on public\.academy_aid_letters to authenticated/);
 });
