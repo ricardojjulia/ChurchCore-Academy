@@ -1,7 +1,7 @@
 import { AcademicPeriod, AcademicYear, InstitutionSubdivision } from "@/modules/academic-calendar/types";
 import { InstitutionProfile, InstructionalRoleLabel, LmsProvider, OfficialRecordName } from "@/modules/academy-config/types";
 
-export type CourseRecordType = OfficialRecordName | "attendance_only" | "non_record";
+export type CourseRecordType = OfficialRecordName | "credit_course" | "clock_hour_course" | "attendance_only" | "non_record";
 export type CourseDurationUnit = "credit_hour" | "clock_hour" | "instructional_day" | "week" | "module" | "semester" | "trimester" | "quarter" | "custom";
 export type CourseType =
   | "bible_course"

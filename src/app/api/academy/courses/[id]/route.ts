@@ -1,57 +1,64 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { CourseCatalogService } from "@/modules/course-catalog/service";
 import {
-  updateCourse,
-  archiveCourse,
-  type UpdateCourseInput,
-} from "@/modules/course-catalog/mutations";
-import type { CourseDuration } from "@/modules/course-catalog/types";
+  AcademyCourseCatalogRepository,
+  type CourseCatalogRepository,
+} from "@/modules/course-catalog/postgres-repository";
+import type { CourseStatus } from "@/modules/course-catalog/types";
 
-interface Queryable {
-  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+type Queryable = {
+  query(sql: string, params: unknown[]): Promise<{
+    rowCount: number | null;
+    rows: Record<string, unknown>[];
+  }>;
+};
+
+interface Params {
+  params: Promise<{ id: string }>;
 }
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: Request, { params }: Params) {
   return handleApi(async () => {
-    const { id } = await context.params;
-    const body = await request.json() as Record<string, unknown>;
+    const { id } = await params;
     const { actor } = await resolveAcademyActorFromSession(request);
 
-    const input: UpdateCourseInput = {};
-
-    if (typeof body.code === "string") input.code = body.code;
-    if (typeof body.title === "string") input.title = body.title;
-    if (typeof body.description === "string") input.description = body.description;
-    if (typeof body.courseType === "string") input.courseType = body.courseType as never;
-    if (typeof body.courseLevel === "string") input.courseLevel = body.courseLevel as never;
-    if (typeof body.recordType === "string") input.recordType = body.recordType as never;
-    if (typeof body.defaultDuration === "object") input.defaultDuration = body.defaultDuration as CourseDuration;
-    if (typeof body.defaultCredits === "number") input.defaultCredits = body.defaultCredits;
-    if (typeof body.defaultClockHours === "number") input.defaultClockHours = body.defaultClockHours;
-    if (typeof body.defaultCompetencySetId === "string") input.defaultCompetencySetId = body.defaultCompetencySetId;
-    if (typeof body.owningSubdivisionId === "string") input.owningSubdivisionId = body.owningSubdivisionId;
-    if (typeof body.gradeBandSubdivisionId === "string") input.gradeBandSubdivisionId = body.gradeBandSubdivisionId;
-
     return withAcademyDatabaseContext(actor, async (client) => {
-      return updateCourse(actor, id, input, asAcademyDatabase<Queryable>(client));
+      const repository = new AcademyCourseCatalogRepository(asAcademyDatabase<Queryable>(client));
+      const service = new CourseCatalogService(repository as CourseCatalogRepository);
+
+      const course = await service.getCourse(actor, id);
+      if (!course) {
+        throw new Error("Course not found.");
+      }
+
+      return { course };
     });
   });
 }
 
-export async function DELETE(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: Params) {
   return handleApi(async () => {
-    const { id } = await context.params;
+    const { id } = await params;
+    const body = (await request.json()) as Record<string, unknown>;
     const { actor } = await resolveAcademyActorFromSession(request);
 
     return withAcademyDatabaseContext(actor, async (client) => {
-      return archiveCourse(actor, id, asAcademyDatabase<Queryable>(client));
+      const repository = new AcademyCourseCatalogRepository(asAcademyDatabase<Queryable>(client));
+      const service = new CourseCatalogService(repository as CourseCatalogRepository);
+
+      const course = await service.updateCourse(actor, id, {
+        title: typeof body.title === "string" ? body.title : undefined,
+        description: typeof body.description === "string" ? body.description : undefined,
+        defaultCredits: typeof body.defaultCredits === "number" ? body.defaultCredits : undefined,
+        defaultClockHours: typeof body.defaultClockHours === "number" ? body.defaultClockHours : undefined,
+        owningSubdivisionId: typeof body.owningSubdivisionId === "string" ? body.owningSubdivisionId : undefined,
+        prerequisiteIds: Array.isArray(body.prerequisiteIds) ? body.prerequisiteIds.filter((id): id is string => typeof id === "string") : undefined,
+        status: typeof body.status === "string" ? body.status as CourseStatus : undefined,
+      });
+
+      return { course };
     });
   });
 }

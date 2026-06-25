@@ -413,3 +413,366 @@ export async function deleteTerm(
     [actor.tenantId, termId],
   );
 }
+
+export interface CreatePeriodInput {
+  termId: string;
+  name: string;
+  code: string;
+  periodType: string;
+  startsOn: string;
+  endsOn: string;
+  sequence: number;
+}
+
+export async function createPeriod(
+  actor: AcademyActor,
+  input: CreatePeriodInput,
+  client: Queryable,
+): Promise<AcademicPeriod> {
+  if (!input.name || input.name.trim().length === 0) {
+    throw new Error("Period name is required.");
+  }
+  if (!input.code || input.code.trim().length === 0) {
+    throw new Error("Period code is required.");
+  }
+  if (!input.startsOn || !input.endsOn) {
+    throw new Error("Start and end dates are required.");
+  }
+  if (new Date(input.startsOn) >= new Date(input.endsOn)) {
+    throw new Error("Start date must be before end date.");
+  }
+
+  const term = await client.query(
+    `select id, academic_year_id, starts_on, ends_on from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, input.termId],
+  );
+
+  if (!term.rowCount || term.rowCount === 0) {
+    throw new Error(`Term ${input.termId} not found.`);
+  }
+
+  const termRow = term.rows[0];
+  const termStart = new Date(String(termRow.starts_on));
+  const termEnd = new Date(String(termRow.ends_on));
+  const periodStart = new Date(input.startsOn);
+  const periodEnd = new Date(input.endsOn);
+
+  if (periodStart < termStart || periodEnd > termEnd) {
+    throw new Error("Period dates must fall within the term boundaries.");
+  }
+
+  const existing = await client.query(
+    `select id from academy_academic_periods where tenant_id = $1 and parent_period_id = $2 and code = $3`,
+    [actor.tenantId, input.termId, input.code.trim().toUpperCase()],
+  );
+
+  if (existing.rowCount && existing.rowCount > 0) {
+    throw new AcademyConflictError(`Period with code ${input.code} already exists in this term.`);
+  }
+
+  const result = await client.query(
+    `insert into academy_academic_periods (
+      id, tenant_id, academic_year_id, parent_period_id, name, code, period_type, starts_on, ends_on, sequence, status, created_at, updated_at
+    ) values (
+      gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, 'planned', now(), now()
+    ) returning *`,
+    [
+      actor.tenantId,
+      termRow.academic_year_id,
+      input.termId,
+      input.name.trim(),
+      input.code.trim().toUpperCase(),
+      input.periodType,
+      input.startsOn,
+      input.endsOn,
+      input.sequence,
+    ],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Period creation failed.");
+  }
+
+  return mapAcademicPeriodRow(result.rows[0]);
+}
+
+export interface UpdatePeriodInput {
+  name?: string;
+  code?: string;
+  startsOn?: string;
+  endsOn?: string;
+  sequence?: number;
+}
+
+export async function updatePeriod(
+  actor: AcademyActor,
+  periodId: string,
+  input: UpdatePeriodInput,
+  client: Queryable,
+): Promise<AcademicPeriod> {
+  const existing = await client.query(
+    `select id, parent_period_id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, periodId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Period ${periodId} not found.`);
+  }
+
+  const row = existing.rows[0];
+  const status = String(row.status);
+
+  if (status === "completed" || status === "archived") {
+    throw new Error("Cannot edit a completed or archived period.");
+  }
+
+  if (input.startsOn || input.endsOn) {
+    const canEdit = await canEditPeriodDates(periodId, actor.tenantId, client);
+    if (!canEdit) {
+      throw new Error("Cannot edit period dates when course sections are assigned to this period.");
+    }
+
+    if (status === "active" || status === "enrollment_open") {
+      throw new Error("Cannot edit period dates in active or enrollment_open state.");
+    }
+
+    if (row.parent_period_id) {
+      const term = await client.query(
+        `select starts_on, ends_on from academy_academic_periods where tenant_id = $1 and id = $2`,
+        [actor.tenantId, String(row.parent_period_id)],
+      );
+
+      if (term.rowCount && term.rowCount > 0) {
+        const termStart = new Date(String(term.rows[0].starts_on));
+        const termEnd = new Date(String(term.rows[0].ends_on));
+
+        const currentPeriod = await client.query(
+          `select starts_on, ends_on from academy_academic_periods where tenant_id = $1 and id = $2`,
+          [actor.tenantId, periodId],
+        );
+
+        const periodStart = input.startsOn ? new Date(input.startsOn) : new Date(String(currentPeriod.rows[0].starts_on));
+        const periodEnd = input.endsOn ? new Date(input.endsOn) : new Date(String(currentPeriod.rows[0].ends_on));
+
+        if (periodStart < termStart || periodEnd > termEnd) {
+          throw new Error("Period dates must fall within the term boundaries.");
+        }
+        if (periodStart >= periodEnd) {
+          throw new Error("Start date must be before end date.");
+        }
+      }
+    }
+  }
+
+  const sets: string[] = ["updated_at = now()"];
+  const values: unknown[] = [actor.tenantId, periodId];
+  let idx = 3;
+
+  if (input.name !== undefined) {
+    sets.push(`name = $${idx++}`);
+    values.push(input.name.trim());
+  }
+  if (input.code !== undefined) {
+    sets.push(`code = $${idx++}`);
+    values.push(input.code.trim().toUpperCase());
+  }
+  if (input.startsOn !== undefined) {
+    sets.push(`starts_on = $${idx++}`);
+    values.push(input.startsOn);
+  }
+  if (input.endsOn !== undefined) {
+    sets.push(`ends_on = $${idx++}`);
+    values.push(input.endsOn);
+  }
+  if (input.sequence !== undefined) {
+    sets.push(`sequence = $${idx++}`);
+    values.push(input.sequence);
+  }
+
+  const result = await client.query(
+    `update academy_academic_periods set ${sets.join(", ")} where tenant_id = $1 and id = $2 returning *`,
+    values,
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Period update failed.");
+  }
+
+  return mapAcademicPeriodRow(result.rows[0]);
+}
+
+export async function canEditPeriodDates(
+  periodId: string,
+  tenantId: string,
+  client: Queryable,
+): Promise<boolean> {
+  const sections = await client.query(
+    `select count(*) as count from academy_course_sections where tenant_id = $1 and academic_period_id = $2`,
+    [tenantId, periodId],
+  );
+
+  const count = sections.rows[0] ? Number(sections.rows[0].count) : 0;
+  return count === 0;
+}
+
+export async function getSectionCount(
+  periodId: string,
+  tenantId: string,
+  client: Queryable,
+): Promise<number> {
+  const sections = await client.query(
+    `select count(*) as count from academy_course_sections where tenant_id = $1 and academic_period_id = $2`,
+    [tenantId, periodId],
+  );
+
+  return sections.rows[0] ? Number(sections.rows[0].count) : 0;
+}
+
+const validTransitions: Record<string, string[]> = {
+  planned: ["enrollment_open"],
+  enrollment_open: ["active"],
+  active: ["completed"],
+  completed: ["archived"],
+};
+
+export async function transitionTermState(
+  actor: AcademyActor,
+  termId: string,
+  newState: string,
+  client: Queryable,
+): Promise<AcademicPeriod> {
+  const existing = await client.query(
+    `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, termId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Term ${termId} not found.`);
+  }
+
+  const currentState = String(existing.rows[0].status);
+  const allowed = validTransitions[currentState] || [];
+
+  if (!allowed.includes(newState)) {
+    throw new Error(`Cannot transition from ${currentState} to ${newState}.`);
+  }
+
+  const result = await client.query(
+    `update academy_academic_periods set status = $3, updated_at = now()
+     where tenant_id = $1 and id = $2 returning *`,
+    [actor.tenantId, termId, newState],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Term state transition failed.");
+  }
+
+  return mapAcademicPeriodRow(result.rows[0]);
+}
+
+export async function transitionPeriodState(
+  actor: AcademyActor,
+  periodId: string,
+  newState: string,
+  client: Queryable,
+): Promise<AcademicPeriod> {
+  const existing = await client.query(
+    `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, periodId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Period ${periodId} not found.`);
+  }
+
+  const currentState = String(existing.rows[0].status);
+  const allowed = validTransitions[currentState] || [];
+
+  if (!allowed.includes(newState)) {
+    throw new Error(`Cannot transition from ${currentState} to ${newState}.`);
+  }
+
+  const result = await client.query(
+    `update academy_academic_periods set status = $3, updated_at = now()
+     where tenant_id = $1 and id = $2 returning *`,
+    [actor.tenantId, periodId, newState],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Period state transition failed.");
+  }
+
+  return mapAcademicPeriodRow(result.rows[0]);
+}
+
+export async function archiveTerm(
+  actor: AcademyActor,
+  termId: string,
+  client: Queryable,
+): Promise<{ success: boolean; blockingRecords?: number }> {
+  const existing = await client.query(
+    `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, termId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Term ${termId} not found.`);
+  }
+
+  const enrollments = await client.query(
+    `select count(*) as count from academy_student_enrollments ase
+     join academy_course_sections acs on ase.section_id = acs.id
+     where acs.tenant_id = $1 and acs.academic_period_id = $2`,
+    [actor.tenantId, termId],
+  );
+
+  const enrollmentCount = enrollments.rows[0] ? Number(enrollments.rows[0].count) : 0;
+
+  if (enrollmentCount > 0) {
+    return { success: false, blockingRecords: enrollmentCount };
+  }
+
+  await client.query(
+    `update academy_academic_periods set status = 'archived', updated_at = now()
+     where tenant_id = $1 and id = $2`,
+    [actor.tenantId, termId],
+  );
+
+  return { success: true };
+}
+
+export async function archivePeriod(
+  actor: AcademyActor,
+  periodId: string,
+  client: Queryable,
+): Promise<{ success: boolean; blockingRecords?: number }> {
+  const existing = await client.query(
+    `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, periodId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Period ${periodId} not found.`);
+  }
+
+  const enrollments = await client.query(
+    `select count(*) as count from academy_student_enrollments ase
+     join academy_course_sections acs on ase.section_id = acs.id
+     where acs.tenant_id = $1 and acs.academic_period_id = $2`,
+    [actor.tenantId, periodId],
+  );
+
+  const enrollmentCount = enrollments.rows[0] ? Number(enrollments.rows[0].count) : 0;
+
+  if (enrollmentCount > 0) {
+    return { success: false, blockingRecords: enrollmentCount };
+  }
+
+  await client.query(
+    `update academy_academic_periods set status = 'archived', updated_at = now()
+     where tenant_id = $1 and id = $2`,
+    [actor.tenantId, periodId],
+  );
+
+  return { success: true };
+}

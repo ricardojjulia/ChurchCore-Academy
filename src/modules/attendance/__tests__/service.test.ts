@@ -31,6 +31,7 @@ function attendanceRecord(
     studentPersonId: input.studentPersonId,
     sessionDate: input.sessionDate,
     status: input.status,
+    sessionType: input.sessionType,
     recordedAt: "2026-09-01T14:00:00.000Z",
     recordedByPersonId: input.recordedByPersonId,
     note: input.note,
@@ -74,11 +75,14 @@ test("records attendance when faculty owns the section and student is actively r
     studentPersonId: "student-1",
     sessionDate: "2026-09-01",
     status: "present",
+    sessionType: "class",
   });
 
   assert.equal(result.status, "present");
+  assert.equal(result.sessionType, "class");
   assert.equal(upserts[0].tenantId, "tenant-1");
   assert.equal(upserts[0].recordedByPersonId, "faculty-1");
+  assert.equal(upserts[0].sessionType, "class");
 });
 
 test("rejects student attempts before repository writes", async () => {
@@ -92,6 +96,7 @@ test("rejects student attempts before repository writes", async () => {
         studentPersonId: "student-1",
         sessionDate: "2026-09-01",
         status: "present",
+        sessionType: "class",
       }),
     /Forbidden attendance write access/i,
   );
@@ -110,6 +115,7 @@ test("rejects faculty attendance outside owned sections", async () => {
         studentPersonId: "student-1",
         sessionDate: "2026-09-01",
         status: "present",
+        sessionType: "class",
       }),
     /Faculty can record attendance only for assigned sections/i,
   );
@@ -128,6 +134,7 @@ test("rejects attendance for students without active section registration", asyn
         studentPersonId: "student-2",
         sessionDate: "2026-09-01",
         status: "absent",
+        sessionType: "class",
       }),
     /Student must have an active section registration/i,
   );
@@ -144,8 +151,10 @@ test("legacy constructor signature still supported for backwards compatibility",
     studentPersonId: "student-1",
     sessionDate: "2026-09-01",
     status: "present",
+    sessionType: "lab",
   });
 
   assert.equal(result.status, "present");
+  assert.equal(result.sessionType, "lab");
   assert.equal(upserts.length, 1);
 });
