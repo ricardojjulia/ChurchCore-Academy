@@ -8,6 +8,11 @@ import { recordStudentAidDecision, LetterDatabaseClient } from "@/modules/financ
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+function requestIp(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || request.headers.get("x-real-ip") || "unknown";
+}
+
 export async function POST(request: Request, context: RouteContext) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
@@ -19,6 +24,7 @@ export async function POST(request: Request, context: RouteContext) {
         {
           packageId,
           decision: body.decision as "accepted" | "declined",
+          requestIp: requestIp(request),
         },
         asAcademyDatabase<LetterDatabaseClient>(client),
       ),
