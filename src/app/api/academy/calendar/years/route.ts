@@ -5,9 +5,23 @@ import {
   createAcademicYear,
   type CreateAcademicYearInput,
 } from "@/modules/academic-calendar/mutations";
+import { AcademyCalendarRepository } from "@/modules/academic-calendar/postgres-repository";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+}
+
+export async function GET(request: Request) {
+  return handleApi(async () => {
+    const { actor } = await resolveAcademyActorFromSession(request);
+
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const config = await new AcademyCalendarRepository(
+        asAcademyDatabase<Queryable>(client)
+      ).fetchAcademicCalendarConfiguration(actor.tenantId);
+      return config.academicYears;
+    });
+  });
 }
 
 export async function POST(request: Request) {
