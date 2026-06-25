@@ -76,6 +76,7 @@ test("student transcript request infers the subject from the verified actor", as
           });
         },
       } as never),
+      generatePdf: async () => null, // Mock PDF generation
     },
   );
   const body = await response.json() as TranscriptRecord;
@@ -112,6 +113,7 @@ test("transcript mutations require an idempotency key", async () => {
       serviceForActor: async () => {
         throw new Error("service should not be reached");
       },
+      generatePdf: async () => null,
     },
   );
 
@@ -124,6 +126,7 @@ test("student transcript list rejects another student's records", async () => {
     {
       resolveActor: async () => student,
       findByStudent: async () => [transcript()],
+      generatePdf: async () => null,
     },
   );
 
@@ -138,6 +141,7 @@ test("registrar transcript list may read a student record set", async () => {
       findByStudent: async (_actor, studentPersonId) => [
         transcript({ studentPersonId }),
       ],
+      generatePdf: async () => null,
     },
   );
   const body = await response.json() as TranscriptRecord[];

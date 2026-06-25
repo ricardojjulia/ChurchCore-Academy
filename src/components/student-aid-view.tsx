@@ -1,5 +1,8 @@
-import { HandCoins, ReceiptText, ShieldAlert } from "lucide-react";
-import type { StudentAidSummary } from "@/modules/financial-aid/types";
+"use client";
+
+import { useState, useTransition } from "react";
+import { HandCoins, ReceiptText, ShieldAlert, CheckCircle2, XCircle } from "lucide-react";
+import type { StudentAidSummary, AidPackage } from "@/modules/financial-aid/types";
 
 function money(amountCents: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -21,9 +24,75 @@ function displayDate(value: string) {
   }).format(new Date(value));
 }
 
+type DecisionState = Record<string, "accepted" | "declined" | "pending" | null>;
+
 export function StudentAidView({ summary }: { summary: StudentAidSummary }) {
+  const [decisions, setDecisions] = useState<DecisionState>({});
+  const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function showToast(type: "success" | "error", text: string) {
+    setToastMessage({ type, text });
+    setTimeout(() => setToastMessage(null), 4000);
+  }
+
+  function submitDecision(pkg: AidPackage, decision: "accepted" | "declined") {
+    setProcessingId(pkg.id);
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/academy/financial-aid/${pkg.id}/decision`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision }),
+        });
+        const payload = await res.json() as { error?: string };
+
+        if (!res.ok) {
+          showToast("error", payload.error ?? `Could not ${decision} the award package.`);
+        } else {
+          setDecisions((prev) => ({ ...prev, [pkg.id]: decision }));
+          showToast(
+            "success",
+            decision === "accepted"
+              ? `Award package for ${pkg.aidYear} accepted.`
+              : `Award package for ${pkg.aidYear} declined.`,
+          );
+        }
+      } catch {
+        showToast("error", "Something went wrong. Please try again.");
+      } finally {
+        setProcessingId(null);
+      }
+    });
+  }
+
+  function packageDecision(pkg: AidPackage): "accepted" | "declined" | null {
+    if (decisions[pkg.id]) return decisions[pkg.id] as "accepted" | "declined";
+    if (pkg.acceptedAt) return "accepted";
+    if (pkg.declinedAt) return "declined";
+    return null;
+  }
+
+  const offeredPackages = summary.packages.filter(
+    (pkg) => pkg.status === "offered" && packageDecision(pkg) === null,
+  );
+
   return (
     <>
+      {toastMessage?.type === "success" && (
+        <div className="student-pwa-notice" role="status">
+          <CheckCircle2 size={16} />
+          <p>{toastMessage.text}</p>
+        </div>
+      )}
+      {toastMessage?.type === "error" && (
+        <div className="student-pwa-notice-error" role="alert">
+          <XCircle size={16} />
+          <p>{toastMessage.text}</p>
+        </div>
+      )}
+
       <div className="student-pwa-stats">
         <div className="student-pwa-stat">
           <span className="student-pwa-stat-value">{money(summary.totalAcceptedCents, summary.currency)}</span>
@@ -38,6 +107,60 @@ export function StudentAidView({ summary }: { summary: StudentAidSummary }) {
           <span className="student-pwa-stat-label">Active holds</span>
         </div>
       </div>
+
+      {offeredPackages.length > 0 && (
+        <section className="student-pwa-panel" aria-labelledby="award-decision-heading">
+          <div className="student-pwa-panel-heading">
+            <div>
+              <p>Action required</p>
+              <h2 id="award-decision-heading">Review your aid offer</h2>
+            </div>
+            <HandCoins />
+          </div>
+          {offeredPackages.map((pkg) => {
+            const pkgAwards = summary.awards.filter((a) => a.packageId === pkg.id);
+            const totalCents = pkgAwards.reduce((sum, a) => sum + a.amountCents, 0);
+            const isProcessing = isPending && processingId === pkg.id;
+            return (
+              <div key={pkg.id} className="student-pwa-form" aria-label={`Aid offer ${pkg.aidYear}`}>
+                <p><strong>Aid year:</strong> {pkg.aidYear}</p>
+                {totalCents > 0 && (
+                  <p><strong>Total offered:</strong> {money(totalCents, summary.currency)}</p>
+                )}
+                {pkg.acceptanceDeadline && (
+                  <p><strong>Deadline:</strong> {displayDate(pkg.acceptanceDeadline)}</p>
+                )}
+                <div className="student-pwa-form-actions">
+                  <button
+                    type="button"
+                    className="student-pwa-action"
+                    onClick={() => submitDecision(pkg, "accepted")}
+                    disabled={isProcessing}
+                    aria-busy={isProcessing ? "true" : undefined}
+                  >
+                    {isProcessing ? "Processing…" : "Accept Award"}
+                  </button>
+                  <button
+                    type="button"
+                    className="student-pwa-action-secondary"
+                    onClick={() => submitDecision(pkg, "declined")}
+                    disabled={isProcessing}
+                  >
+                    Decline Award
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {summary.packages.filter((pkg) => packageDecision(pkg) === "accepted").length > 0 && (
+        <div className="student-pwa-notice" role="status">
+          <CheckCircle2 size={16} />
+          <p>Your aid offer has been accepted. Awards will be posted to your account per the disbursement schedule.</p>
+        </div>
+      )}
 
       <section className="student-pwa-panel">
         <div className="student-pwa-panel-heading">

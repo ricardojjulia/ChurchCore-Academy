@@ -29,14 +29,14 @@ async function loadGradedCounts(
 ): Promise<Map<string, number>> {
   const result = await client.query(
     `select
-       a.course_section_id as section_id,
+       a.section_id as section_id,
        count(distinct r.id) as graded
      from public.academy_gradebook_assignments a
      left join public.academy_gradebook_records r
        on r.tenant_id = a.tenant_id
       and r.assignment_id = a.id
      where a.tenant_id = $1
-     group by a.course_section_id`,
+     group by a.section_id`,
     [tenantId],
   ) as { rows: { section_id: string; graded: string }[] };
   return new Map(result.rows.map((r) => [r.section_id, parseInt(r.graded)]));

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CreditCard, ReceiptText } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CreditCard, ReceiptText, CheckCircle2, XCircle } from "lucide-react";
 import type { StudentAccountStatement } from "@/modules/billing/types";
 
 function money(amountCents: number, currency = "USD") {
@@ -21,10 +22,19 @@ function postedDate(value: string) {
 }
 
 export function StudentAccountView({ statement }: { statement: StudentAccountStatement }) {
+  const searchParams = useSearchParams();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const suggestedPayment = Math.max(statement.balanceCents, 0);
+
+  const paymentStatus = searchParams.get("payment");
+  const paymentSuccessMessage = paymentStatus === "success"
+    ? "Payment successful! Your account will update shortly."
+    : null;
+  const paymentCancelMessage = paymentStatus === "cancelled"
+    ? "Payment was cancelled. Your balance remains unchanged."
+    : null;
 
   function createPaymentIntent() {
     setMessage(null);
@@ -68,6 +78,19 @@ export function StudentAccountView({ statement }: { statement: StudentAccountSta
 
   return (
     <>
+      {(message ?? paymentSuccessMessage) && (
+        <div className="student-pwa-notice" role="status">
+          <CheckCircle2 size={16} />
+          <p>{message ?? paymentSuccessMessage}</p>
+        </div>
+      )}
+      {(error ?? paymentCancelMessage) && (
+        <div className="student-pwa-notice-error" role="alert">
+          <XCircle size={16} />
+          <p>{error ?? paymentCancelMessage}</p>
+        </div>
+      )}
+
       <div className="student-pwa-stats">
         <div className="student-pwa-stat">
           <span className="student-pwa-stat-value">{money(statement.balanceCents, statement.currency)}</span>
@@ -99,8 +122,6 @@ export function StudentAccountView({ statement }: { statement: StudentAccountSta
         >
           {isPending ? "Creating..." : `Create payment intent for ${money(suggestedPayment, statement.currency)}`}
         </button>
-        {message && <p className="ops-form-success" role="status">{message}</p>}
-        {error && <p className="ops-form-error" role="alert">{error}</p>}
       </section>
 
       <section className="student-pwa-panel">

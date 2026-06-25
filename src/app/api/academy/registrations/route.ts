@@ -9,6 +9,7 @@ import {
 } from "@/modules/course-registration/postgres-repository";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import { canManageCourseRegistration } from "@/modules/course-registration/policy";
+import { registerStudentForSection } from "@/modules/course-registration/self-registration";
 
 // AcademyQueryClient.query returns Promise<unknown>; cast the result to extract rows.
 type RawQueryResult = { rows: Record<string, unknown>[] };
@@ -24,14 +25,35 @@ export async function POST(request: Request) {
 
     const applicationId = typeof body.applicationId === "string" ? body.applicationId : null;
     const courseSectionId = typeof body.courseSectionId === "string" ? body.courseSectionId : null;
+    const studentPersonId = typeof body.studentPersonId === "string" ? body.studentPersonId : null;
     const idempotencyKey = typeof body.idempotencyKey === "string"
       ? body.idempotencyKey
       : randomUUID();
 
+    const { actor } = await resolveAcademyActorFromSession(request);
+
+    // Self-registration flow (student-initiated, no applicationId)
+    if (studentPersonId && !applicationId) {
+      if (!courseSectionId) throw new Error("courseSectionId is required.");
+
+      return withAcademyDatabaseContext(actor, async (client) => {
+        return registerStudentForSection(
+          actor,
+          { sectionId: courseSectionId, studentPersonId },
+          client as unknown as {
+            query(sql: string, params: unknown[]): Promise<{
+              rowCount: number | null;
+              rows: Record<string, unknown>[];
+            }>;
+          },
+        );
+      });
+    }
+
+    // Legacy admission-based registration flow
     if (!applicationId) throw new Error("applicationId is required.");
     if (!courseSectionId) throw new Error("courseSectionId is required.");
 
-    const { actor } = await resolveAcademyActorFromSession(request);
     return withAcademyDatabaseContext(actor, async (client) => {
       const repository = new PostgresCourseRegistrationRepository(
         asAcademyDatabase<CourseRegistrationDatabase>(client),

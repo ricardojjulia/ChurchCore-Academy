@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Link2 } from "lucide-react";
 
 export interface BillingStudentOption {
   id: string;
@@ -10,7 +11,7 @@ export interface BillingStudentOption {
 
 export function BillingActionForm({ students }: { students: BillingStudentOption[] }) {
   const [studentPersonId, setStudentPersonId] = useState("");
-  const [action, setAction] = useState<"charge" | "credit" | "payment">("charge");
+  const [action, setAction] = useState<"charge" | "credit" | "payment" | "payment_link">("charge");
   const [amount, setAmount] = useState("250.00");
   const [description, setDescription] = useState("Tuition charge");
   const [providerReference, setProviderReference] = useState("");
@@ -40,6 +41,28 @@ export function BillingActionForm({ students }: { students: BillingStudentOption
     startTransition(async () => {
       try {
         const idempotencyKey = crypto.randomUUID();
+
+        if (action === "payment_link") {
+          const response = await fetch("/api/academy/billing/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              studentPersonId,
+              amountCents,
+              description,
+            }),
+          });
+          const payload = await response.json() as { error?: string };
+
+          if (!response.ok) {
+            setError(payload.error ?? "Payment link generation failed.");
+            return;
+          }
+
+          setMessage("Payment link sent to student by email.");
+          return;
+        }
+
         const response = await fetch("/api/academy/billing", {
           method: "POST",
           headers: {
@@ -99,11 +122,12 @@ export function BillingActionForm({ students }: { students: BillingStudentOption
             id="billing-action"
             className="ops-form-select"
             value={action}
-            onChange={(event) => setAction(event.target.value as "charge" | "credit" | "payment")}
+            onChange={(event) => setAction(event.target.value as "charge" | "credit" | "payment" | "payment_link")}
           >
             <option value="charge">Assess charge</option>
             <option value="credit">Apply credit</option>
             <option value="payment">Post manual payment</option>
+            <option value="payment_link">Generate Stripe payment link</option>
           </select>
         </div>
 
@@ -151,8 +175,20 @@ export function BillingActionForm({ students }: { students: BillingStudentOption
       {message && <p className="ops-form-success" role="status">{message}</p>}
 
       <button type="submit" className="ops-btn-primary" disabled={isPending}>
-        {isPending ? "Posting..." : "Post to account"}
+        {isPending
+          ? action === "payment_link"
+            ? "Generating link..."
+            : "Posting..."
+          : action === "payment_link"
+            ? "Generate and send payment link"
+            : "Post to account"}
       </button>
+
+      {action === "payment_link" && (
+        <p className="ops-metric-detail">
+          <Link2 size={13} /> Stripe-hosted checkout link will be emailed to the student.
+        </p>
+      )}
     </form>
   );
 }
