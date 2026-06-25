@@ -730,6 +730,124 @@
   font-size: 0.88rem;
 }
 
+/* ─── Dashboard: grouped quick-access ─── */
+
+.admin-quick-action-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-quick-action-group-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.625rem;
+}
+
+.admin-quick-action-group-label > span:first-child {
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.admin-quick-action-group-desc {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+/* ─── Dashboard: recommendations summary panel ─── */
+
+.admin-rec-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-rec-count {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.admin-rec-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.admin-rec-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.admin-rec-category {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.admin-rec-category:hover {
+  border-color: var(--brand-accent);
+  background: var(--surface-card);
+}
+
+.admin-rec-category-count {
+  min-width: 1.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-rec-category > span:nth-child(2) {
+  flex: 1;
+}
+
+.admin-rec-category svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.admin-rec-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--brand-primary);
+  color: #fff;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 150ms ease;
+  margin-top: 0.25rem;
+}
+
+.admin-rec-cta:hover {
+  opacity: 0.88;
+}
+
 /* ─── Faculty Portal ─── */
 
 .faculty-stat {
