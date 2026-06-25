@@ -7,8 +7,12 @@ import {
   CanvasReturnConfiguration,
   createCanvasGradeReturnImportPlan,
   createCanvasProgressReturnImportPlan,
+  executeCanvasGradeReturn,
+  executeCanvasProgressReturn,
 } from "../canvas-grade-progress-return";
 import { resolveTenantLmsProvider } from "../tenant-provider-selection";
+import { CanvasHttpClient } from "../canvas-http-client";
+import { CircuitBreakerDb } from "../circuit-breaker";
 
 const now = "2026-06-12T12:00:00.000Z";
 
@@ -269,4 +273,216 @@ test("Canvas return import requires idempotency keys before review imports are c
       }),
     /Canvas return import requires an idempotency key./,
   );
+});
+
+const mockDb: CircuitBreakerDb = {
+  query: async () => ({ rows: [] }),
+};
+
+const openDb: CircuitBreakerDb = {
+  query: async (sql: string) => {
+    if (sql.includes("SELECT state")) {
+      return { rows: [{ state: "open", opened_at: new Date().toISOString() }] };
+    }
+    return { rows: [] };
+  },
+};
+
+test("executeCanvasGradeReturn approves results when matching submission is found", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-grade-exec-1");
+  const plan = createCanvasGradeReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig(),
+    batch: gradeBatch({
+      tenant: resolved.tenant,
+      results: [{ studentPersonId: "student-1", providerResultId: "10", label: "Final grade", value: "A-", reviewStatus: "pending_review" }],
+    }),
+  });
+
+  const mockHttpClient = {
+    get: async () => [{ id: 10, grade: "A", workflow_state: "graded" }],
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasGradeReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map([["student-1", 99]]),
+  });
+
+  assert.equal(result.result.status, "success");
+  assert.equal(result.updatedReviewedImport.results[0].reviewStatus, "accepted_for_review");
+});
+
+test("executeCanvasGradeReturn rejects results when student has no Canvas user mapping", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-grade-exec-2");
+  const plan = createCanvasGradeReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig(),
+    batch: gradeBatch({ tenant: resolved.tenant }),
+  });
+
+  const mockHttpClient = {
+    get: async () => [],
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasGradeReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map(),
+  });
+
+  assert.equal(result.result.status, "success");
+  assert.equal(result.updatedReviewedImport.results[0].reviewStatus, "rejected");
+});
+
+test("executeCanvasGradeReturn returns retryable_failure when circuit breaker is open", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-grade-exec-3");
+  const plan = createCanvasGradeReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig(),
+    batch: gradeBatch({ tenant: resolved.tenant }),
+  });
+
+  const mockHttpClient = {
+    get: async () => { throw new Error("Should not be called"); },
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasGradeReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: openDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map(),
+  });
+
+  assert.equal(result.result.status, "retryable_failure");
+  assert.match(result.result.safeMessage, /circuit breaker is open/);
+});
+
+test("executeCanvasGradeReturn does not leak tokens in error messages", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-grade-exec-4");
+  const plan = createCanvasGradeReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig({ importSourceLabel: "Canvas API" }),
+    batch: gradeBatch({ tenant: resolved.tenant }),
+  });
+
+  const sensitiveToken = "secret-canvas-token-99999";
+  const mockHttpClient = {
+    get: async () => { throw new Error(`Canvas API error with ${sensitiveToken}`); },
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasGradeReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map([["student-1", 99]]),
+  });
+
+  assert.doesNotMatch(result.result.safeMessage, new RegExp(sensitiveToken));
+});
+
+test("executeCanvasProgressReturn approves results when module ID matches", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-progress-exec-1");
+  const plan = createCanvasProgressReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig(),
+    batch: progressBatch({
+      tenant: resolved.tenant,
+      results: [{ studentPersonId: "student-1", providerProgressId: "55", label: "Module 1", summary: "Complete", reviewStatus: "pending_review" }],
+    }),
+  });
+
+  const mockHttpClient = {
+    get: async () => [{ id: 55, name: "Module 1" }],
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasProgressReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map([["student-1", 99]]),
+  });
+
+  assert.equal(result.result.status, "success");
+  assert.equal(result.result.capability, "progress_return");
+  assert.equal(result.updatedReviewedImport.results[0].reviewStatus, "accepted_for_review");
+});
+
+test("executeCanvasProgressReturn rejects results when student has no Canvas user mapping", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-progress-exec-2");
+  const plan = createCanvasProgressReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig(),
+    batch: progressBatch({ tenant: resolved.tenant }),
+  });
+
+  const mockHttpClient = {
+    get: async () => [{ id: 55, name: "Module 1" }],
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasProgressReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map(),
+  });
+
+  assert.equal(result.result.status, "success");
+  assert.equal(result.updatedReviewedImport.results[0].reviewStatus, "rejected");
+});
+
+test("executeCanvasProgressReturn returns retryable_failure when circuit breaker is open", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-progress-exec-3");
+  const plan = createCanvasProgressReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig(),
+    batch: progressBatch({ tenant: resolved.tenant }),
+  });
+
+  const mockHttpClient = {
+    get: async () => { throw new Error("Should not be called"); },
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasProgressReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: openDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map(),
+  });
+
+  assert.equal(result.result.status, "retryable_failure");
+  assert.match(result.result.safeMessage, /circuit breaker is open/);
+});
+
+test("executeCanvasProgressReturn marks as pending_review when module ID is not found", async () => {
+  const resolved = resolvedProvider("active", "corr-canvas-progress-exec-4");
+  const plan = createCanvasProgressReturnImportPlan({
+    resolvedProvider: resolved,
+    configuration: returnConfig(),
+    batch: progressBatch({ tenant: resolved.tenant }),
+  });
+
+  const mockHttpClient = {
+    get: async () => [{ id: 999, name: "Unrelated Module" }],
+  } as unknown as CanvasHttpClient;
+
+  const result = await executeCanvasProgressReturn({
+    reviewedImport: plan.reviewedImport!,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "42",
+    personIdToCanvasUserId: new Map([["student-1", 99]]),
+  });
+
+  assert.equal(result.result.status, "success");
+  assert.equal(result.updatedReviewedImport.results[0].reviewStatus, "pending_review");
 });

@@ -7,6 +7,8 @@ import {
 } from "./contract";
 import { createLmsAuditEvent } from "./sync-audit-reconciliation";
 import { ResolvedTenantLmsProvider } from "./tenant-provider-selection";
+import { MoodleHttpClient, LmsProviderError } from "./moodle-http-client";
+import { CircuitBreakerDb, getCircuitState, recordFailure, recordSuccess } from "./circuit-breaker";
 
 export interface MoodleSyncConfiguration {
   tenantId: string;
@@ -296,4 +298,123 @@ export function createMoodleRosterSyncPlan(input: CreateMoodleRosterSyncPlanInpu
       },
     ],
   };
+}
+
+export interface ExecuteMoodleRosterSyncInput {
+  plan: MoodleSyncPlan<MoodleRosterSyncOperation>;
+  httpClient: MoodleHttpClient;
+  db: CircuitBreakerDb;
+  moodleCourseId: number;
+  personIdToMoodleUserId: Map<string, number>;
+}
+
+export async function executeMoodleRosterSync(
+  input: ExecuteMoodleRosterSyncInput,
+): Promise<{ result: LmsOperationResult; auditEvent: LmsAuditEvent }> {
+  const { plan, httpClient, db, moodleCourseId, personIdToMoodleUserId } = input;
+  const tenantId = plan.result.tenantId;
+
+  const circuitState = await getCircuitState(tenantId, "moodle", db);
+  if (circuitState === "open") {
+    return {
+      result: {
+        ...plan.result,
+        status: "retryable_failure",
+        safeMessage: "Moodle integration circuit breaker is open",
+      },
+      auditEvent: createLmsAuditEvent({
+        ...plan.auditEvent,
+        resultStatus: "retryable_failure",
+        metadata: {
+          ...plan.auditEvent.redactedMetadata,
+          circuitState: "open",
+        },
+      }),
+    };
+  }
+
+  if (plan.providerOperations.length === 0) {
+    return {
+      result: plan.result,
+      auditEvent: plan.auditEvent,
+    };
+  }
+
+  const operation = plan.providerOperations[0];
+
+  try {
+    const activeEnrollments = operation.memberships.filter((m) => m.enrollmentState === "active");
+    const withdrawnEnrollments = operation.memberships.filter((m) => m.enrollmentState === "withdrawn");
+
+    if (activeEnrollments.length > 0) {
+      const enrolments = activeEnrollments
+        .map((m) => {
+          const moodleUserId = personIdToMoodleUserId.get(m.personId);
+          if (!moodleUserId) return null;
+          const roleid = m.role === "student" ? 5 : 3;
+          return { roleid, userid: moodleUserId, courseid: moodleCourseId };
+        })
+        .filter((e): e is { roleid: number; userid: number; courseid: number } => e !== null);
+
+      if (enrolments.length > 0) {
+        await httpClient.call("enrol_manual_enrol_users", { enrolments });
+      }
+    }
+
+    if (withdrawnEnrollments.length > 0) {
+      const unenrolments = withdrawnEnrollments
+        .map((m) => {
+          const moodleUserId = personIdToMoodleUserId.get(m.personId);
+          if (!moodleUserId) return null;
+          return { userid: moodleUserId, courseid: moodleCourseId };
+        })
+        .filter((e): e is { userid: number; courseid: number } => e !== null);
+
+      if (unenrolments.length > 0) {
+        await httpClient.call("enrol_manual_unenrol_users", { enrolments: unenrolments });
+      }
+    }
+
+    await recordSuccess(tenantId, "moodle", db);
+
+    return {
+      result: {
+        ...plan.result,
+        status: "success",
+        safeMessage: "Moodle roster sync completed successfully",
+      },
+      auditEvent: createLmsAuditEvent({
+        ...plan.auditEvent,
+        resultStatus: "success",
+        metadata: {
+          ...plan.auditEvent.redactedMetadata,
+          enrolledCount: activeEnrollments.length,
+          withdrawnCount: withdrawnEnrollments.length,
+        },
+      }),
+    };
+  } catch (error) {
+    await recordFailure(tenantId, "moodle", db);
+
+    if (error instanceof LmsProviderError) {
+      return {
+        result: {
+          ...plan.result,
+          status: error.retryable ? "retryable_failure" : "permanent_failure",
+          safeMessage: error.message,
+        },
+        auditEvent: createLmsAuditEvent({
+          ...plan.auditEvent,
+          resultStatus: error.retryable ? "retryable_failure" : "permanent_failure",
+          metadata: {
+            ...plan.auditEvent.redactedMetadata,
+            errorCode: error.code,
+            httpStatus: error.httpStatus,
+          },
+        }),
+      };
+    }
+
+    throw error;
+  }
 }
