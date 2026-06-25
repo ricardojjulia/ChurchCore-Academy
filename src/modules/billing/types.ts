@@ -93,9 +93,22 @@ export interface MarkPaymentPostedInput {
   idempotencyKey: string;
 }
 
+export interface UpdateCheckoutSessionInput {
+  tenantId: string;
+  intentId: string;
+  stripeCheckoutSessionId: string;
+  checkoutUrl: string;
+}
+
 export interface BillingRepository {
   postLedgerEntry(input: PostLedgerEntryInput): Promise<BillingLedgerEntry>;
   createPaymentIntent(input: CreatePaymentIntentInput): Promise<BillingPaymentIntent>;
   markPaymentPosted(input: MarkPaymentPostedInput): Promise<BillingLedgerEntry>;
   readStatement(tenantId: string, studentPersonId: string): Promise<StudentAccountStatement>;
+  updateCheckoutSession(input: UpdateCheckoutSessionInput): Promise<void>;
+  findPaymentIntentByStripeSession(
+    tenantId: string,
+    stripeCheckoutSessionId: string
+  ): Promise<BillingPaymentIntent | undefined>;
+  studentExistsInTenant(tenantId: string, studentPersonId: string): Promise<boolean>;
 }

@@ -52,6 +52,7 @@ function mapRow(row: Record<string, unknown>): TranscriptRecord {
       ? String(row.revoked_by_person_id)
       : undefined,
     idempotencyKey: String(row.idempotency_key),
+    storageUrl: row.storage_url != null ? String(row.storage_url) : undefined,
   };
 }
 
@@ -134,7 +135,7 @@ export class PostgresTranscriptRepository implements TranscriptRepository {
                 recipient_name, recipient_email, note, issued_at, issued_by_person_id,
                 requested_by_person_id, requested_at, hold_reason, held_at,
                 released_at, released_by_person_id, revoked_at, revoked_by_person_id,
-                idempotency_key
+                idempotency_key, storage_url
            from academy_transcript_issuances
           where tenant_id = $1 and idempotency_key = $2`,
         [input.tenantId, input.idempotencyKey],
@@ -159,7 +160,7 @@ export class PostgresTranscriptRepository implements TranscriptRepository {
               recipient_name, recipient_email, note, issued_at, issued_by_person_id,
               requested_by_person_id, requested_at, hold_reason, held_at,
               released_at, released_by_person_id, revoked_at, revoked_by_person_id,
-              idempotency_key
+              idempotency_key, storage_url
          from academy_transcript_issuances
         where tenant_id = $1 and student_person_id = $2
         order by issued_at desc`,
@@ -167,6 +168,48 @@ export class PostgresTranscriptRepository implements TranscriptRepository {
     );
 
     return result.rows.map(mapRow);
+  }
+
+  async findById(
+    tenantId: string,
+    transcriptId: string,
+  ): Promise<TranscriptRecord | null> {
+    const result = await this.database.query(
+      `select id, tenant_id, student_person_id, status, delivery_method,
+              recipient_name, recipient_email, note, issued_at, issued_by_person_id,
+              requested_by_person_id, requested_at, hold_reason, held_at,
+              released_at, released_by_person_id, revoked_at, revoked_by_person_id,
+              idempotency_key, storage_url
+         from academy_transcript_issuances
+        where tenant_id = $1 and id = $2`,
+      [tenantId, transcriptId],
+    );
+
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
+  }
+
+  async updateStorageUrl(
+    tenantId: string,
+    transcriptId: string,
+    storageUrl: string,
+  ): Promise<TranscriptRecord> {
+    const result = await this.database.query(
+      `update academy_transcript_issuances
+          set storage_url = $3
+        where tenant_id = $1 and id = $2
+       returning id, tenant_id, student_person_id, status, delivery_method,
+                 recipient_name, recipient_email, note, issued_at, issued_by_person_id,
+                 requested_by_person_id, requested_at, hold_reason, held_at,
+                 released_at, released_by_person_id, revoked_at, revoked_by_person_id,
+                 idempotency_key, storage_url`,
+      [tenantId, transcriptId, storageUrl],
+    );
+
+    if (!result.rows[0]) {
+      throw new Error(`Transcript ${transcriptId} not found in tenant ${tenantId}.`);
+    }
+
+    return mapRow(result.rows[0]);
   }
 
   async hold(

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type React from "react";
 import { useMemo, useState } from "react";
-import { CheckCircle2, Clock3, ExternalLink, FileCheck2, MessageSquareText, UserRoundCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, ExternalLink, FileCheck2, MessageSquareText, Timer, UserRoundCheck, XCircle } from "lucide-react";
 import { AdminUser } from "@/modules/academy-data/types";
 import { WorkflowQueueItem } from "@/modules/academic-workflows/repository";
 import { QueueFilters, WorkflowCode } from "@/modules/shepherd-ai/types";
@@ -301,6 +301,7 @@ function WorkflowRow({
   const isWorkflow = item.kind === "workflow";
   const canPromote = isSuggestion && item.status !== "promoted_to_workflow" && item.status !== "dismissed" && item.status !== "resolved";
   const canDismiss = isSuggestion && item.status !== "dismissed" && item.status !== "promoted_to_workflow";
+  const canSnooze = isSuggestion && (item.status === "suggested" || item.status === "deferred");
   const canComplete = isWorkflow && item.status !== "completed";
   const canDefer = item.status !== "completed" && item.status !== "dismissed";
 
@@ -388,6 +389,16 @@ function WorkflowRow({
                 <CheckCircle2 />
               </Button>
             </Tooltip>
+          ) : null}
+          {canSnooze ? (
+            <SnoozeDialog
+              disabled={disabled}
+              onSubmit={(snoozeUntil) =>
+                onAction(item.id, `/api/academy/shepherd-ai/suggestions/${item.id}/snooze`, {
+                  snoozeUntil,
+                })
+              }
+            />
           ) : null}
           {canDefer ? (
             <NoteDialog
@@ -489,6 +500,65 @@ function NoteDialog({
             Save
           </Button>
         </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function SnoozeDialog({
+  disabled,
+  onSubmit,
+}: {
+  disabled: boolean;
+  onSubmit: (snoozeUntil: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedDays, setSelectedDays] = useState(1);
+
+  const snoozeDurations = [
+    { value: 1, label: "1 day" },
+    { value: 3, label: "3 days" },
+    { value: 7, label: "7 days" },
+    { value: 30, label: "30 days" },
+  ];
+
+  function getSnoozeUntil(days: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString();
+  }
+
+  return (
+    <>
+      <Tooltip label="Snooze">
+        <Button type="button" size="icon-sm" variant="outline" disabled={disabled} onClick={() => setOpen(true)}>
+          <Timer />
+        </Button>
+      </Tooltip>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Snooze suggestion</DialogTitle>
+            <DialogDescription>Hide this suggestion temporarily. It will reappear after the selected duration.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <Select
+              value={String(selectedDays)}
+              onChange={(value) => setSelectedDays(Number(value))}
+              data={snoozeDurations.map((d) => ({ value: String(d.value), label: d.label }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => {
+                void onSubmit(getSnoozeUntil(selectedDays)).then(() => setOpen(false));
+              }}
+            >
+              Snooze
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

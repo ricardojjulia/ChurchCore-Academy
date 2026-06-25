@@ -34,12 +34,15 @@ export interface TranscriptRecord {
   revokedAt?: string;
   revokedByPersonId?: string;
   idempotencyKey: string;
+  storageUrl?: string;
 }
 
 export interface TranscriptRepository {
   createRequest(input: TranscriptRequestInput): Promise<TranscriptRecord>;
   issue(input: TranscriptIssuanceRequest): Promise<TranscriptRecord>;
   findByStudent(tenantId: string, studentPersonId: string): Promise<TranscriptRecord[]>;
+  findById(tenantId: string, transcriptId: string): Promise<TranscriptRecord | null>;
+  updateStorageUrl(tenantId: string, transcriptId: string, storageUrl: string): Promise<TranscriptRecord>;
   hold(tenantId: string, transcriptId: string, heldByPersonId: string, reason: string): Promise<TranscriptRecord>;
   release(tenantId: string, transcriptId: string, releasedByPersonId: string, reason: string): Promise<TranscriptRecord>;
   revoke(tenantId: string, transcriptId: string, revokedByPersonId: string, reason: string): Promise<TranscriptRecord>;

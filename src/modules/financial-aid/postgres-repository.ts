@@ -37,6 +37,10 @@ function mapPackage(row: Record<string, unknown>): AidPackage {
     studentPersonId: String(row.student_person_id),
     aidYear: String(row.aid_year),
     status: String(row.status) as AidPackage["status"],
+    acceptedAt: row.accepted_at != null ? asIso(row.accepted_at) : undefined,
+    declinedAt: row.declined_at != null ? asIso(row.declined_at) : undefined,
+    acceptanceDeadline: row.acceptance_deadline != null ? asDate(row.acceptance_deadline) : undefined,
+    letterStatus: row.letter_status != null ? String(row.letter_status) : undefined,
     createdByPersonId: String(row.created_by_person_id),
     createdAt: asIso(row.created_at),
     updatedAt: asIso(row.updated_at),
@@ -358,6 +362,7 @@ export class PostgresFinancialAidRepository implements FinancialAidRepository {
   ): Promise<StudentAidSummary> {
     const packages = await this.database.query(
       `select id, tenant_id, student_person_id, aid_year, status,
+              accepted_at, declined_at, acceptance_deadline, letter_status,
               created_by_person_id, created_at, updated_at
          from academy_aid_packages
         where tenant_id = $1 and student_person_id = $2

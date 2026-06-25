@@ -7,8 +7,11 @@ import {
   createMoodleCourseShellProvisioningPlan,
   createMoodleRosterSyncPlan,
   MoodleSyncConfiguration,
+  executeMoodleRosterSync,
 } from "../moodle-course-roster-sync";
 import { resolveTenantLmsProvider } from "../tenant-provider-selection";
+import { MoodleHttpClient } from "../moodle-http-client";
+import { CircuitBreakerDb } from "../circuit-breaker";
 
 const now = "2026-06-04T12:00:00.000Z";
 
@@ -243,4 +246,93 @@ test("Moodle sync requires idempotency keys before provider operations are plann
       }),
     /Moodle sync requires an idempotency key./,
   );
+});
+
+test("executeMoodleRosterSync calls Moodle enrol/unenrol and records circuit state", async () => {
+  const resolved = resolvedProvider();
+  const plan = createMoodleRosterSyncPlan({
+    resolvedProvider: resolved,
+    configuration: syncConfig(),
+    request: rosterRequest({
+      tenant: resolved.tenant,
+      sectionId: "section-1",
+      instructorPersonIds: ["instructor-1"],
+      studentPersonIds: ["student-1", "student-2"],
+      enrollmentStates: { "student-1": "active", "student-2": "withdrawn" },
+    }),
+  });
+
+  let enrolCalled = false;
+  let unenrolCalled = false;
+
+  const mockHttpClient = {
+    call: async (wsfunction: string, params: Record<string, unknown>) => {
+      if (wsfunction === "enrol_manual_enrol_users") {
+        enrolCalled = true;
+        assert.ok(params.enrolments);
+      }
+      if (wsfunction === "enrol_manual_unenrol_users") {
+        unenrolCalled = true;
+        assert.ok(params.enrolments);
+      }
+      return {};
+    },
+  } as MoodleHttpClient;
+
+  const mockDb: CircuitBreakerDb = {
+    query: async () => ({ rows: [] }),
+  };
+
+  const personIdToMoodleUserId = new Map([
+    ["instructor-1", 10],
+    ["student-1", 20],
+    ["student-2", 21],
+  ]);
+
+  const result = await executeMoodleRosterSync({
+    plan,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    moodleCourseId: 5,
+    personIdToMoodleUserId,
+  });
+
+  assert.equal(result.result.status, "success");
+  assert.equal(enrolCalled, true);
+  assert.equal(unenrolCalled, true);
+});
+
+test("executeMoodleRosterSync returns circuit_open when circuit breaker is open", async () => {
+  const resolved = resolvedProvider();
+  const plan = createMoodleRosterSyncPlan({
+    resolvedProvider: resolved,
+    configuration: syncConfig(),
+    request: rosterRequest({ tenant: resolved.tenant }),
+  });
+
+  const mockHttpClient = {
+    call: async () => {
+      throw new Error("Should not be called");
+    },
+  } as MoodleHttpClient;
+
+  const mockDb: CircuitBreakerDb = {
+    query: async (sql: string) => {
+      if (sql.includes("SELECT state")) {
+        return { rows: [{ state: "open", opened_at: new Date().toISOString() }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const result = await executeMoodleRosterSync({
+    plan,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    moodleCourseId: 5,
+    personIdToMoodleUserId: new Map(),
+  });
+
+  assert.equal(result.result.status, "retryable_failure");
+  assert.match(result.result.safeMessage, /circuit breaker is open/);
 });

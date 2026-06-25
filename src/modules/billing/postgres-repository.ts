@@ -7,6 +7,7 @@ import type {
   MarkPaymentPostedInput,
   PostLedgerEntryInput,
   StudentAccountStatement,
+  UpdateCheckoutSessionInput,
 } from "@/modules/billing/types";
 
 interface QueryResult {
@@ -244,6 +245,40 @@ export class PostgresBillingRepository implements BillingRepository {
       [tenantId, idempotencyKey],
     );
     return result.rows[0] ? mapLedgerEntry(result.rows[0]) : undefined;
+  }
+
+  async updateCheckoutSession(input: UpdateCheckoutSessionInput): Promise<void> {
+    await this.database.query(
+      `update academy_payment_intents
+          set stripe_checkout_session_id = $3,
+              checkout_url = $4
+        where tenant_id = $1
+          and id = $2`,
+      [input.tenantId, input.intentId, input.stripeCheckoutSessionId, input.checkoutUrl],
+    );
+  }
+
+  async findPaymentIntentByStripeSession(
+    tenantId: string,
+    stripeCheckoutSessionId: string,
+  ): Promise<BillingPaymentIntent | undefined> {
+    const result = await this.database.query(
+      `select id, tenant_id, student_person_id, amount_cents, currency,
+              provider, status, provider_reference, created_by_person_id,
+              created_at, idempotency_key
+         from academy_payment_intents
+        where tenant_id = $1 and stripe_checkout_session_id = $2`,
+      [tenantId, stripeCheckoutSessionId],
+    );
+    return result.rows[0] ? mapPaymentIntent(result.rows[0]) : undefined;
+  }
+
+  async studentExistsInTenant(tenantId: string, studentPersonId: string): Promise<boolean> {
+    const result = await this.database.query(
+      `select 1 from academy_people where tenant_id = $1 and id = $2 limit 1`,
+      [tenantId, studentPersonId],
+    );
+    return result.rows.length > 0;
   }
 
   private async findPaymentIntentByIdempotencyKey(

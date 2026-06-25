@@ -17,6 +17,7 @@ import {
   TranscriptPeriodReviewItem,
   buildAcademicCalendarReviewModel,
 } from "@/modules/academic-calendar/review-view";
+import { NewYearButton, NewTermButton } from "./calendar-actions";
 
 type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
 
@@ -70,6 +71,7 @@ export default async function CalendarSettingsPage() {
                 <CardTitle>Academic Years</CardTitle>
                 <CardDescription>Reporting years scoped to branches, schools, and institution-wide records.</CardDescription>
               </div>
+              <NewYearButton />
             </div>
           </CardHeader>
           <CardContent className="calendar-review-stack">
@@ -89,6 +91,7 @@ export default async function CalendarSettingsPage() {
                 <CardTitle>Periods</CardTitle>
                 <CardDescription>Terms, modules, sessions, and reporting periods tied to academic years.</CardDescription>
               </div>
+              <NewTermButton years={academicCalendar.academicYears.map((y) => ({ id: y.id, name: y.name }))} />
             </div>
           </CardHeader>
           <CardContent className="calendar-review-stack">

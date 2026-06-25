@@ -142,6 +142,16 @@ export class BillingService {
     }
     assertPositiveAmount(input.amountCents);
 
+    const studentExists = await this.repository.studentExistsInTenant(
+      actor.tenantId,
+      input.studentPersonId,
+    );
+    if (!studentExists) {
+      throw new AcademyAuthorizationError(
+        "Student does not belong to your institution.",
+      );
+    }
+
     return this.repository.createPaymentIntent({
       tenantId: actor.tenantId,
       studentPersonId: requireText(input.studentPersonId, "studentPersonId"),

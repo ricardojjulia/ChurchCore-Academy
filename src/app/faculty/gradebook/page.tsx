@@ -11,6 +11,7 @@ import {
   GradebookPostgresRepository,
   type GradebookDatabase,
 } from "@/modules/gradebook/postgres-repository";
+import { FacultyGradebookAssignmentPanel } from "@/components/faculty-gradebook-assignment-panel";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,16 @@ export default async function FacultyGradebookPage() {
     return repo.fetchInstructorGradebook(actor.tenantId, actor.userId);
   });
 
+  // Derive section list from records + targets so the assignment panel
+  // knows which sections belong to this instructor.
+  const sectionIds = new Set<string>();
+  for (const r of gradebook.records) {
+    if (r.sectionId) sectionIds.add(r.sectionId);
+  }
+  for (const t of gradebook.gradingTargets ?? []) {
+    sectionIds.add(t.sectionCode); // sectionCode is the display label; id would need a join
+  }
+
   const records = gradebook.records;
   const targets = gradebook.gradingTargets ?? [];
 
@@ -51,6 +62,27 @@ export default async function FacultyGradebookPage() {
 
   const students = [...studentSet.entries()].map(([id, v]) => ({ id, ...v }));
 
+  // Build a per-section map for the assignment panel:
+  // { sectionId -> { sectionCode, students[] } }
+  const sectionMap = new Map<
+    string,
+    { sectionCode: string; students: { id: string; name: string }[] }
+  >();
+
+  for (const r of records) {
+    if (!r.sectionId) continue;
+    const entry = sectionMap.get(r.sectionId) ?? {
+      sectionCode: r.sectionCode ?? r.sectionId,
+      students: [],
+    };
+    if (!entry.students.some((s) => s.id === r.learnerPersonId)) {
+      entry.students.push({ id: r.learnerPersonId, name: r.learnerDisplayName });
+    }
+    sectionMap.set(r.sectionId, entry);
+  }
+
+  const sections = [...sectionMap.entries()].map(([id, v]) => ({ id, ...v }));
+
   return (
     <FacultyShell
       eyebrow="Grading"
@@ -59,6 +91,11 @@ export default async function FacultyGradebookPage() {
       userEmail={user?.email}
       signOutAction={signOutAction}
     >
+      {/* Assignment creation panel — client component */}
+      {sections.length > 0 && (
+        <FacultyGradebookAssignmentPanel sections={sections} />
+      )}
+
       {records.length === 0 && targets.length === 0 ? (
         <Card>
           <CardContent className="pt-6">

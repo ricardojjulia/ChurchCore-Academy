@@ -27,6 +27,10 @@ export interface AidPackage {
   studentPersonId: string;
   aidYear: string;
   status: AidPackageStatus;
+  acceptedAt?: string;
+  declinedAt?: string;
+  acceptanceDeadline?: string;
+  letterStatus?: string;
   createdByPersonId: string;
   createdAt: string;
   updatedAt: string;

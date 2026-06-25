@@ -52,7 +52,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Applications", href: "/admin/admissions" },
       { label: "Decisions", href: "/admin/admissions/decisions" },
-      { label: "Matriculation", href: "/admin/admissions/matriculation" },
+      { label: "Enrollment", href: "/admin/admissions/matriculation" },
     ],
   },
   {

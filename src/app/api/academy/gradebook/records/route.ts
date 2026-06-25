@@ -5,6 +5,9 @@ import {
   GradebookPostgresRepository,
   type GradebookDatabase,
 } from "@/modules/gradebook/postgres-repository";
+import { computeStudentGpa } from "@/modules/grading-records/gpa-calculator";
+import { evaluateStudentGpaSignal } from "@/modules/shepherd-ai/gpa-drop-evaluator";
+import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 
 const INSTRUCTOR_ROLES = new Set(["faculty", "teacher", "professor"]);
 const ADMIN_ROLES = new Set(["institution_admin", "dean", "registrar", "academic_admin"]);
@@ -85,7 +88,7 @@ export async function POST(request: Request) {
         }
       }
 
-      return repo.gradeSubmission({
+      const gradeRecord = await repo.gradeSubmission({
         tenantId: actor.tenantId,
         submissionId,
         assignmentId,
@@ -98,6 +101,72 @@ export async function POST(request: Request) {
         instructorFeedback: typeof body.instructorFeedback === "string" ? body.instructorFeedback : null,
         sensitivityTier: typeof body.sensitivityTier === "string" ? body.sensitivityTier : "standard",
       });
+
+      // Compute and update student GPA within the same transaction
+      const gpaResult = await computeStudentGpa(
+        actor.tenantId,
+        learnerPersonId,
+        client as unknown as { query(sql: string, params?: unknown[]): Promise<{ rows: unknown[] }> },
+      );
+
+      await (client as unknown as { query(sql: string, params?: unknown[]): Promise<{ rows: unknown[] }> }).query(
+        `update public.academy_student_profiles
+         set gpa = $1
+         where person_id = $2 and tenant_id = $3`,
+        [gpaResult.gpa, learnerPersonId, actor.tenantId],
+      );
+
+      return { gradeRecord, learnerPersonId, currentGpa: gpaResult.gpa };
+    }).then(async (result) => {
+      // Fire ShepherdAI GPA signal evaluation as non-blocking side effect
+      setImmediate(async () => {
+        try {
+          const shepherdRepo = new ShepherdAiPostgresRepository();
+          const { actor } = await resolveAcademyActorFromSession(request);
+
+          await withAcademyDatabaseContext(actor, async (client) => {
+            // Fetch grading profile to check supportsGpa
+            const profileQuery = await (client as unknown as { query(sql: string, params?: unknown[]): Promise<{ rows: unknown[] }> }).query(
+              `select supports_gpa from public.academy_grading_profiles
+               where tenant_id = $1`,
+              [actor.tenantId],
+            );
+
+            const supportsGpa = profileQuery.rows[0] ? Boolean((profileQuery.rows[0] as { supports_gpa: boolean }).supports_gpa) : true;
+
+            // Fetch section name
+            const sectionQuery = await (client as unknown as { query(sql: string, params?: unknown[]): Promise<{ rows: unknown[] }> }).query(
+              `select s.section_code
+               from public.academy_course_sections s
+               join public.academy_gradebook_assignments a
+                 on a.tenant_id = s.tenant_id and a.section_id = s.id
+               where a.tenant_id = $1 and a.id = $2`,
+              [actor.tenantId, result.gradeRecord.assignmentId],
+            );
+
+            const sectionName = sectionQuery.rows[0] ? String((sectionQuery.rows[0] as { section_code: string }).section_code) : "Unknown Section";
+
+            // For now, previousGpa is null (we would need to track this separately)
+            const previousGpa = null;
+            const onAcademicProbation = false; // Would need to query from academic standing
+
+            await evaluateStudentGpaSignal(
+              actor.tenantId,
+              result.learnerPersonId,
+              result.currentGpa,
+              previousGpa,
+              sectionName,
+              onAcademicProbation,
+              supportsGpa,
+              shepherdRepo,
+            );
+          });
+        } catch (err) {
+          console.error("ShepherdAI GPA signal evaluation failed:", err instanceof Error ? err.message : String(err));
+        }
+      });
+
+      return result.gradeRecord;
     });
   });
 }

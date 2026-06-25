@@ -9,6 +9,13 @@ import type {
   AttendanceRequestInput,
 } from "@/modules/attendance/types";
 import { validateAttendanceInput } from "@/modules/attendance/types";
+import type {
+  AttendanceThresholdConfig,
+  AttendanceThresholdDatabase,
+} from "@/modules/attendance/threshold-evaluator";
+import { checkAttendanceThreshold } from "@/modules/attendance/threshold-evaluator";
+import type { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import type { CommunicationsService } from "@/modules/communications/service";
 
 const attendanceWriteRoles = new Set<AcademyRole>([
   "institution_admin",
@@ -35,8 +42,33 @@ function hasAttendanceAdminAccess(actor: AcademyActor) {
   return actor.roles.some((role) => attendanceAdminRoles.has(role));
 }
 
+export interface AttendanceServiceDependencies {
+  repository: AttendanceRepository;
+  thresholdDatabase?: AttendanceThresholdDatabase;
+  thresholdConfig?: AttendanceThresholdConfig;
+  shepherdRepo?: ShepherdAiPostgresRepository;
+  communicationsService?: CommunicationsService;
+}
+
 export class AttendanceService {
-  constructor(private readonly repository: AttendanceRepository) {}
+  private readonly repository: AttendanceRepository;
+  private readonly thresholdDatabase?: AttendanceThresholdDatabase;
+  private readonly thresholdConfig?: AttendanceThresholdConfig;
+  private readonly shepherdRepo?: ShepherdAiPostgresRepository;
+  private readonly communicationsService?: CommunicationsService;
+
+  constructor(deps: AttendanceServiceDependencies | AttendanceRepository) {
+    if ("upsert" in deps) {
+      // Legacy constructor signature for backwards compatibility
+      this.repository = deps;
+    } else {
+      this.repository = deps.repository;
+      this.thresholdDatabase = deps.thresholdDatabase;
+      this.thresholdConfig = deps.thresholdConfig;
+      this.shepherdRepo = deps.shepherdRepo;
+      this.communicationsService = deps.communicationsService;
+    }
+  }
 
   async recordAttendance(
     actor: AcademyActor,
@@ -71,7 +103,7 @@ export class AttendanceService {
       );
     }
 
-    return this.repository.upsert(
+    const record = await this.repository.upsert(
       validateAttendanceInput({
         tenantId: actor.tenantId,
         courseSectionId: input.courseSectionId,
@@ -82,5 +114,29 @@ export class AttendanceService {
         note: input.note,
       }),
     );
+
+    // Non-blocking threshold check (fire and forget)
+    if (
+      this.thresholdDatabase &&
+      this.thresholdConfig &&
+      this.shepherdRepo &&
+      this.communicationsService
+    ) {
+      checkAttendanceThreshold(
+        actor.tenantId,
+        input.studentPersonId,
+        input.courseSectionId,
+        this.thresholdConfig,
+        this.thresholdDatabase,
+        this.shepherdRepo,
+        this.communicationsService,
+        actor,
+      ).catch(() => {
+        // Threshold check failure should not fail the attendance record
+        // Errors are swallowed to keep the operation non-blocking
+      });
+    }
+
+    return record;
   }
 }

@@ -7,7 +7,9 @@ export type CommunicationTemplateKey =
   | "billing_account_update"
   | "grade_release"
   | "attendance_concern"
-  | "workflow_assignment";
+  | "workflow_assignment"
+  | "application_received"
+  | "award_letter_ready";
 
 export type CommunicationChannel = "in_app" | "email";
 export type CommunicationStatus = "queued" | "sent" | "failed" | "read" | "cancelled";
@@ -68,6 +70,7 @@ export interface CreateCommunicationInput {
   sourceId: string;
   idempotencyKey: string;
   essential: boolean;
+  sendAt?: string;
 }
 
 export interface CommunicationMessage {
@@ -88,6 +91,7 @@ export interface CommunicationMessage {
   retryCount: number;
   providerReference?: string;
   failureReason?: string;
+  sendAt?: string;
   createdAt: string;
   sentAt?: string;
   readAt?: string;

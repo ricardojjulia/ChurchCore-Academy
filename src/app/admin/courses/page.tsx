@@ -9,6 +9,8 @@ import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-dat
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import type { Course, CourseSection } from "@/modules/course-catalog/types";
 import type { InstitutionSubdivision } from "@/modules/academic-calendar/types";
+import { NewCourseButton } from "./course-actions";
+import { NewSectionButton } from "./section-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +113,7 @@ export default async function CoursesPage() {
               <CardTitle>Courses</CardTitle>
               <CardDescription>All catalog courses across Bible school, children&apos;s school, seminary, and college programs.</CardDescription>
             </div>
+            <NewCourseButton />
           </div>
         </CardHeader>
         <CardContent>
@@ -170,6 +173,12 @@ export default async function CoursesPage() {
               <CardTitle>Sections</CardTitle>
               <CardDescription>Scheduled offerings with period, instructor, and capacity assignments.</CardDescription>
             </div>
+            <NewSectionButton
+              courses={courses.map((c) => ({ id: c.id, code: c.code, title: c.title }))}
+              periods={academicPeriods.map((p) => ({ id: p.id, name: p.name, academicYearId: p.academicYearId }))}
+              years={academicYears.map((y) => ({ id: y.id, name: y.name }))}
+              staff={people.map((p) => ({ personId: p.id, displayName: p.displayName }))}
+            />
           </div>
         </CardHeader>
         <CardContent>

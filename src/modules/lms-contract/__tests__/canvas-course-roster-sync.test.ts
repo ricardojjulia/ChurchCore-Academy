@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createInstitutionProfileDefaults } from "@/modules/academy-config/defaults";
 import type { InstitutionProfile, LmsProvider } from "@/modules/academy-config/types";
-import { createCanvasCourseShellProvisioningPlan, createCanvasRosterSyncPlan } from "../canvas-course-roster-sync";
+import {
+  createCanvasCourseShellProvisioningPlan,
+  createCanvasRosterSyncPlan,
+  executeCanvasRosterSync,
+} from "../canvas-course-roster-sync";
 import { resolveTenantLmsProvider } from "../tenant-provider-selection";
+import { CanvasHttpClient } from "../canvas-http-client";
+import { CircuitBreakerDb } from "../circuit-breaker";
 
 const now = "2026-06-11T12:00:00.000Z";
 
@@ -205,4 +211,117 @@ test("Canvas sync requires tenant match and idempotency key", () => {
       }),
     /Canvas sync requires an idempotency key./,
   );
+});
+
+test("executeCanvasRosterSync enrolls and records circuit success", async () => {
+  const resolved = resolveTenantLmsProvider(profile(), {
+    tenantId: "tenant-canvas-sync",
+    correlationId: "corr-canvas-sync-5",
+  });
+
+  const plan = createCanvasRosterSyncPlan({
+    resolvedProvider: resolved,
+    configuration: {
+      tenantId: "tenant-canvas-sync",
+      defaultInstructorRole: "teacher",
+      defaultStudentRole: "student",
+    },
+    request: {
+      tenant: resolved.tenant,
+      actor,
+      sectionId: "section-1",
+      instructorPersonIds: ["instructor-1"],
+      studentPersonIds: ["student-1", "student-2"],
+      enrollmentStates: { "student-1": "active", "student-2": "withdrawn" },
+      idempotencyKey: "op-canvas-roster-exec-1",
+    },
+  });
+
+  let enrollCalled = false;
+  let deleteCalled = false;
+
+  const mockHttpClient = {
+    post: async (path: string) => {
+      if (path.includes("/enrollments") && !path.includes("/enrollments/")) {
+        enrollCalled = true;
+      }
+      if (path.includes("/enrollments/")) {
+        deleteCalled = true;
+      }
+      return {};
+    },
+  } as unknown as CanvasHttpClient;
+
+  const mockDb: CircuitBreakerDb = {
+    query: async () => ({ rows: [] }),
+  };
+
+  const personIdToCanvasUserId = new Map([
+    ["instructor-1", 10],
+    ["student-1", 20],
+    ["student-2", 21],
+  ]);
+
+  const result = await executeCanvasRosterSync({
+    plan,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "5",
+    personIdToCanvasUserId,
+  });
+
+  assert.equal(result.result.status, "success");
+  assert.equal(enrollCalled, true);
+  assert.equal(deleteCalled, true);
+});
+
+test("executeCanvasRosterSync returns circuit_open when breaker is tripped", async () => {
+  const resolved = resolveTenantLmsProvider(profile(), {
+    tenantId: "tenant-canvas-sync",
+    correlationId: "corr-canvas-sync-6",
+  });
+
+  const plan = createCanvasRosterSyncPlan({
+    resolvedProvider: resolved,
+    configuration: {
+      tenantId: "tenant-canvas-sync",
+      defaultInstructorRole: "teacher",
+      defaultStudentRole: "student",
+    },
+    request: {
+      tenant: resolved.tenant,
+      actor,
+      sectionId: "section-1",
+      instructorPersonIds: [],
+      studentPersonIds: [],
+      enrollmentStates: {},
+      idempotencyKey: "op-canvas-roster-exec-2",
+    },
+  });
+
+  const mockHttpClient = {
+    post: async () => {
+      throw new Error("Should not be called");
+    },
+  } as unknown as CanvasHttpClient;
+
+  const mockDb: CircuitBreakerDb = {
+    query: async (sql: string) => {
+      if (sql.includes("SELECT state")) {
+        return { rows: [{ state: "open", opened_at: new Date().toISOString() }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const result = await executeCanvasRosterSync({
+    plan,
+    httpClient: mockHttpClient,
+    db: mockDb,
+    canvasCourseId: "5",
+    personIdToCanvasUserId: new Map(),
+  });
+
+  assert.equal(result.result.status, "retryable_failure");
+  assert.match(result.result.safeMessage, /circuit breaker is open/);
 });

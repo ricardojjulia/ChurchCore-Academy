@@ -43,6 +43,7 @@ function mapMessage(row: Record<string, unknown>): CommunicationMessage {
     retryCount: Number(row.retry_count),
     providerReference: row.provider_reference != null ? String(row.provider_reference) : undefined,
     failureReason: row.failure_reason != null ? String(row.failure_reason) : undefined,
+    sendAt: row.send_at != null ? asIso(row.send_at) : undefined,
     createdAt: asIso(row.created_at),
     sentAt: row.sent_at != null ? asIso(row.sent_at) : undefined,
     readAt: row.read_at != null ? asIso(row.read_at) : undefined,
@@ -145,8 +146,9 @@ export class PostgresCommunicationsRepository implements CommunicationsRepositor
            source_id,
            idempotency_key,
            retry_count,
+           send_at,
            created_at
-         ) values ($1, $2, $3, $4, $5, $6, $7, $8, 'queued', $9, $10, $11, $12, $13)
+         ) values ($1, $2, $3, $4, $5, $6, $7, $8, 'queued', $9, $10, $11, $12, $13, $14)
          on conflict (tenant_id, recipient_person_id, channel, idempotency_key) do nothing
          returning *`,
         [
@@ -162,6 +164,7 @@ export class PostgresCommunicationsRepository implements CommunicationsRepositor
           message.sourceId,
           message.idempotencyKey,
           message.retryCount,
+          message.sendAt ?? null,
           message.createdAt,
         ],
       );

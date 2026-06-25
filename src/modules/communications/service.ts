@@ -64,6 +64,16 @@ const templates: Record<CommunicationTemplateKey, TemplateDefinition> = {
     body: "{{recipientName}}, {{workflowTitle}} has been assigned to you. Review details at {{actionUrl}}.",
     required: ["recipientName", "workflowTitle", "actionUrl"],
   },
+  application_received: {
+    subject: "Application received for {{programName}}",
+    body: "{{applicantName}}, your application for {{programName}} has been received. You can track your status at {{statusUrl}}.",
+    required: ["applicantName", "programName", "statusUrl"],
+  },
+  award_letter_ready: {
+    subject: "Your financial aid award letter is ready",
+    body: "{{studentName}}, your financial aid award letter for {{academicYear}} is now available. Please log in to review and respond by {{deadline}}.",
+    required: ["studentName", "academicYear", "deadline"],
+  },
 };
 
 function assertAdmin(actor: AcademyActor) {
@@ -190,6 +200,7 @@ export class CommunicationsService {
           sourceId: input.sourceId,
           idempotencyKey: input.idempotencyKey,
           retryCount: 0,
+          sendAt: input.sendAt,
           createdAt,
         });
       }

@@ -125,6 +125,9 @@ function mockRepository(): BillingRepository & { calls: string[] } {
     async readStatement(_tenantId, studentPersonId) {
       return statement({ studentPersonId });
     },
+    async updateCheckoutSession() {},
+    async findPaymentIntentByStripeSession() { return undefined; },
+    async studentExistsInTenant() { return true; },
   };
 }
 
