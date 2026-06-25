@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { listCourseRegistrations } from "@/app/api/academy/registrations/route";
+import { readDeleteRegistrationBody } from "@/app/api/academy/registrations/[id]/route";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 
 const student: AcademyActor = {
@@ -83,4 +84,39 @@ test("registrar registration list may read the tenant roster", async () => {
   assert.equal(response.status, 200);
   assert.equal(body[0]?.studentPersonId, "person-student");
   assert.deepEqual(queries, [["tenant-1"]]);
+});
+
+test("delete registration body accepts an optional override reason", async () => {
+  const body = await readDeleteRegistrationBody(
+    new Request("http://localhost/api/academy/registrations/registration-1", {
+      method: "DELETE",
+      body: JSON.stringify({ overrideReason: "Registrar-approved late drop." }),
+    }),
+  );
+
+  assert.deepEqual(body, { overrideReason: "Registrar-approved late drop." });
+});
+
+test("delete registration body accepts an empty body", async () => {
+  const body = await readDeleteRegistrationBody(
+    new Request("http://localhost/api/academy/registrations/registration-1", {
+      method: "DELETE",
+    }),
+  );
+
+  assert.deepEqual(body, {});
+});
+
+test("delete registration body rejects malformed JSON safely", async () => {
+  await assert.rejects(
+    async () => {
+      await readDeleteRegistrationBody(
+        new Request("http://localhost/api/academy/registrations/registration-1", {
+          method: "DELETE",
+          body: "{",
+        }),
+      );
+    },
+    { message: "Malformed JSON body." },
+  );
 });

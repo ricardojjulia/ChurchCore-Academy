@@ -11,6 +11,22 @@ interface Params {
   params: Promise<{ id: string }>;
 }
 
+export async function readDeleteRegistrationBody(request: Request) {
+  const rawBody = await request.text();
+  if (!rawBody.trim()) {
+    return {};
+  }
+
+  try {
+    const body = JSON.parse(rawBody) as Record<string, unknown>;
+    return {
+      overrideReason: typeof body.overrideReason === "string" ? body.overrideReason : undefined,
+    };
+  } catch {
+    throw new Error("Malformed JSON body.");
+  }
+}
+
 export async function PATCH(request: Request, { params }: Params) {
   return handleApi(async () => {
     const { id } = await params;
@@ -50,13 +66,16 @@ export async function DELETE(request: Request, { params }: Params) {
   return handleApi(async () => {
     const { id } = await params;
     const { actor } = await resolveAcademyActorFromSession(request);
+    const { overrideReason } = await readDeleteRegistrationBody(request);
 
     return withAcademyDatabaseContext(actor, async (client) => {
-      const db = client as unknown as {
-        query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+      const db = {
+        transactionManaged: true,
+        query: async (sql: string, params?: unknown[]) =>
+          client.query(sql, params) as Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>,
       };
       try {
-        await dropStudentFromSection(actor, { registrationId: id }, db);
+        await dropStudentFromSection(actor, { registrationId: id, overrideReason }, db);
         return { id, status: "withdrawn" };
       } catch (err) {
         if (err instanceof AcademyConflictError) {

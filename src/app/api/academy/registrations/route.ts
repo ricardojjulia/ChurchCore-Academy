@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     const applicationId = typeof body.applicationId === "string" ? body.applicationId : null;
     const courseSectionId = typeof body.courseSectionId === "string" ? body.courseSectionId : null;
     const studentPersonId = typeof body.studentPersonId === "string" ? body.studentPersonId : null;
+    const overrideReason = typeof body.overrideReason === "string" ? body.overrideReason : undefined;
     const idempotencyKey = typeof body.idempotencyKey === "string"
       ? body.idempotencyKey
       : randomUUID();
@@ -37,15 +38,19 @@ export async function POST(request: Request) {
       if (!courseSectionId) throw new Error("courseSectionId is required.");
 
       return withAcademyDatabaseContext(actor, async (client) => {
-        return registerStudentForSection(
-          actor,
-          { sectionId: courseSectionId, studentPersonId },
-          client as unknown as {
-            query(sql: string, params: unknown[]): Promise<{
+        const db = {
+          transactionManaged: true,
+          query: async (sql: string, params?: unknown[]) =>
+            client.query(sql, params) as Promise<{
               rowCount: number | null;
               rows: Record<string, unknown>[];
-            }>;
-          },
+            }>,
+        };
+
+        return registerStudentForSection(
+          actor,
+          { sectionId: courseSectionId, studentPersonId, overrideReason },
+          db,
         );
       });
     }
