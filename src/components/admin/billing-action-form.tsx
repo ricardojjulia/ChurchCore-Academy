@@ -43,7 +43,7 @@ export function BillingActionForm({ students }: { students: BillingStudentOption
         const idempotencyKey = crypto.randomUUID();
 
         if (action === "payment_link") {
-          const response = await fetch("/api/academy/billing/checkout", {
+          const response = await fetch("/api/academy/billing/payment-link", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

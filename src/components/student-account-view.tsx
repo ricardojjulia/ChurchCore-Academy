@@ -36,7 +36,7 @@ export function StudentAccountView({ statement }: { statement: StudentAccountSta
     ? "Payment was cancelled. Your balance remains unchanged."
     : null;
 
-  function createPaymentIntent() {
+  function startStripeCheckout() {
     setMessage(null);
     setError(null);
 
@@ -47,31 +47,27 @@ export function StudentAccountView({ statement }: { statement: StudentAccountSta
 
     startTransition(async () => {
       try {
-        const idempotencyKey = crypto.randomUUID();
-        const response = await fetch("/api/academy/billing", {
+        const response = await fetch("/api/academy/students/me/billing/pay", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Idempotency-Key": idempotencyKey,
-          },
-          body: JSON.stringify({
-            action: "payment_intent",
-            amountCents: suggestedPayment,
-            currency: statement.currency,
-            provider: "manual",
-            idempotencyKey,
-          }),
         });
-        const payload = await response.json() as { error?: string };
+        const payload = await response.json() as {
+          checkoutUrl?: string;
+          error?: string;
+        };
 
         if (!response.ok) {
-          setError(payload.error ?? "Payment intent failed.");
+          setError(payload.error ?? "Checkout session creation failed.");
           return;
         }
 
-        setMessage("Payment intent created. Online processor handoff is pending finance activation.");
+        if (!payload.checkoutUrl) {
+          setError("Checkout session creation failed.");
+          return;
+        }
+
+        window.location.assign(payload.checkoutUrl);
       } catch {
-        setError("Payment intent failed.");
+        setError("Checkout session creation failed.");
       }
     });
   }
@@ -111,16 +107,16 @@ export function StudentAccountView({ statement }: { statement: StudentAccountSta
           <CreditCard />
         </div>
         <p>
-          Create a safe payment intent for the current balance. This MVP does not
-          collect card data or store payment credentials.
+          Pay the current balance through Stripe-hosted Checkout. Academy never
+          collects card data or stores payment credentials.
         </p>
         <button
           type="button"
           className="student-pwa-empty-link"
-          onClick={createPaymentIntent}
+          onClick={startStripeCheckout}
           disabled={isPending || suggestedPayment <= 0}
         >
-          {isPending ? "Creating..." : `Create payment intent for ${money(suggestedPayment, statement.currency)}`}
+          {isPending ? "Redirecting..." : `Pay ${money(suggestedPayment, statement.currency)}`}
         </button>
       </section>
 
