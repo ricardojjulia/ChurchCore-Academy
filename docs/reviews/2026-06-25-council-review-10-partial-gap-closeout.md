@@ -106,7 +106,7 @@ The student PWA is the most visible surface. It becomes useful only after Wave 2
 guardian PWA has no shell at all — it needs to be built from scratch in Sprint C.
 
 UI priority within each sprint:
-- Sprint A: admin-facing CRUD forms (high surface area, straightforward Mantine table + modal pattern)
+- Sprint A: admin-facing CRUD forms (high surface area, straightforward table + modal pattern)
 - Sprint B: faculty/student-facing transaction flows (grade entry, transcript request, payment intent)
 - Sprint C: student PWA self-service and guardian shell (most user-facing, most polish needed)
 
