@@ -6,7 +6,6 @@ import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import { BillingService } from "@/modules/billing/service";
 import {
   BillingLedgerEntry,
-  BillingPaymentIntent,
   BillingRepository,
 } from "@/modules/billing/types";
 
