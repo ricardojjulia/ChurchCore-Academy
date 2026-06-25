@@ -3,7 +3,7 @@
 
 **Established:** 2026-06-22 (Council Review X)
 **Status:** ACTIVE DIRECTIVE — Nothing else ships until this plan is complete
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-06-25
 
 ---
 
@@ -44,11 +44,11 @@ feature audit of actual running code produced a different result. This roadmap g
 | Financial aid | **PARTIAL** | Aid packages + awards — no FAFSA, federal aid gate blocked |
 | Communications | **WORKING** | Queue + templates + Resend email worker — Vercel Cron delivers queued messages |
 | Reporting | **PARTIAL** | 5 report types + CSV — no IPEDS, no scheduled delivery |
-| LMS integration | **PARTIAL** | Circuit breaker + retry infra built — real HTTP calls in adapters still stub |
+| LMS integration | **WORKING** | Moodle + Canvas HTTP clients live — enrollment, grade sync, progress return, circuit breaker |
 | Ministry Formation Records | **WORKING** | Module, DB, API routes, pastoral note privacy enforced |
 | Public applicant portal | **WORKING** | `/apply` public form + `/apply/status` token check + staff queue integration |
-| Denomination integration | **MISSING** | Not started |
-| Alumni CRM | **MISSING** | Not started |
+| Denomination integration | **WORKING** | Membership sync, ordination tracking, denomination roster API |
+| Alumni CRM | **WORKING** | Post-graduation records, giving module, alumni directory API |
 
 ---
 
@@ -65,7 +65,7 @@ feature audit of actual running code produced a different result. This roadmap g
 | AI-driven early alert | ✗ | ✗ | ✗ | △ → Tier 1 (persist) |
 | Student mobile PWA | △ | ✗ | ✗ | ✓ (read-only now) |
 | Ministry Formation Records | ✗ | ✗ | ✗ | **Target: ✓** |
-| Faith denomination integration | △ | △ | △ | ✗ → Tier 4 |
+| Faith denomination integration | △ | △ | △ | ✓ |
 | Single price, all types | ✗ | ✗ | ✗ | **Target: ✓** |
 
 **Competitive milestone (90 days):** Stripe live + public portal + email + ShepherdAI persisted =
@@ -156,7 +156,7 @@ These prevent any real school from using ChurchCore Academy today. Nothing else 
 | T4-02 | IPEDS/ATS certified compliance reporting | DONE | — | — | — | ☒ |
 | T4-03 | Alumni CRM and giving module | DONE | — | — | — | ☒ |
 | T4-04 | Accreditation documentation package generator | DONE | — | — | — | ☒ |
-| T4-05 | Canvas live HTTP integration | STUB | — | — | — | ☐ |
+| T4-05 | Canvas live HTTP integration | DONE | — | [ADR-0046](adr/0046-lms-http-client-implementation-retry-strategy.md) | — | ☒ |
 | T4-06 | Regulated federal financial aid activation | DONE | — | — | — | ☒ |
 | T4-07 | Multi-campus / satellite-site support | DONE | — | — | — | ☒ |
 | T4-08 | Applicant CRM: inquiry pipeline, drip sequences, conversion tracking | DONE | — | — | — | ☒ |
@@ -174,13 +174,13 @@ Agents must read existing ADRs 0001–0038 for format and context.
 |-----|----------|------|--------|
 | ADR-0039 | ShepherdAI workflow action persistence strategy | T1-01 | ☒ DONE |
 | ADR-0040 | Email delivery provider selection and queue worker | T1-02 | ☒ DONE |
-| ADR-0041 | Public applicant portal auth boundary and spam controls | T1-03 | ☐ TO WRITE |
-| ADR-0042 | Stripe payment integration and PCI boundary | T2-01 | ☐ TO WRITE |
-| ADR-0043 | GPA calculation engine and grade-to-profile linkage | T2-06 | ☐ TO WRITE |
-| ADR-0044 | Transcript PDF generation strategy | T2-08 | ☐ TO WRITE |
-| ADR-0045 | Ministry Formation Records model and privacy boundary | T3-01 | ☐ TO WRITE |
-| ADR-0046 | LMS HTTP client implementation and retry strategy | T3-03 | ☐ TO WRITE |
-| ADR-0047 | Tuition schedule and payment plan engine | T3-09 | ☐ TO WRITE |
+| ADR-0041 | Public applicant portal auth boundary and spam controls | T1-03 | ☒ DONE |
+| ADR-0042 | Stripe payment integration and PCI boundary | T2-01 | ☒ DONE |
+| ADR-0043 | GPA calculation engine and grade-to-profile linkage | T2-06 | ☒ DONE |
+| ADR-0044 | Transcript PDF generation strategy | T2-08 | ☒ DONE |
+| ADR-0045 | Ministry Formation Records model and privacy boundary | T3-01 | ☒ DONE |
+| ADR-0046 | LMS HTTP client implementation and retry strategy | T3-03 | ☒ DONE |
+| ADR-0047 | Tuition schedule and payment plan engine | T3-09 | ☒ DONE |
 
 ---
 
@@ -237,9 +237,10 @@ in the following sequence with maximum parallelism:
 | 2026-06-23 | Sprint 3-A complete: T2-01 Stripe — checkout session, webhook handler, PCI SAQ-A, idempotent ledger credit | Ricardo Julia |
 | 2026-06-23 | Sprint 3-B complete: T2-03/04/05 admin CRUDs — course create/edit/archive, section+instructor, calendar year/term | Ricardo Julia |
 | 2026-06-23 | Sprint 3-C complete: T1-05 student transcript request + T2-07 faculty assignment grid | Ricardo Julia |
-| — | Sprint 2 execution complete | — |
-| — | Sprint 3 execution complete | — |
-| — | Sprint 4 execution complete | — |
+| 2026-06-23 | Sprint 2 execution complete: T2-08 transcript PDF, T2-09 self-registration, T2-10 attendance enforcement, T2-11 student record editable fields | Ricardo Julia |
+| 2026-06-23 | Sprint 3 execution complete: T2-02 document checklist, T3-01 ministry formation, T3-04 guardian scoped access, T3-05 ShepherdAI attendance, T3-06 watchlist, T3-07 student PWA self-service, T3-08 financial aid letter | Ricardo Julia |
+| 2026-06-24 | Sprint 4 execution complete: T4-01–T4-10 all shipped (denomination, compliance, alumni, accreditation, Canvas HTTP, federal aid, multi-campus, applicant CRM, retention risk, conduct) | Ricardo Julia |
+| 2026-06-25 | T4-05 Canvas live HTTP integration — executeCanvasProgressReturn added, LmsReviewedImportStatus bug fixed, ADR-0046 finalized. All roadmap items ☒. | Ricardo Julia |
 
 ---
 
