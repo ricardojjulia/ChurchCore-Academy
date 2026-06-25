@@ -6,7 +6,7 @@ import {
   AcademyCourseCatalogRepository,
   type CourseCatalogRepository,
 } from "@/modules/course-catalog/postgres-repository";
-import type { CourseStatus } from "@/modules/course-catalog/types";
+import type { DeliveryMode } from "@/modules/course-catalog/types";
 
 type Queryable = {
   query(sql: string, params: unknown[]): Promise<{
@@ -28,19 +28,16 @@ export async function GET(request: Request, { params }: Params) {
       const repository = new AcademyCourseCatalogRepository(asAcademyDatabase<Queryable>(client));
       const service = new CourseCatalogService(repository as CourseCatalogRepository);
 
-      const course = await service.getCourse(actor, id);
-      if (!course) {
-        throw new Error("Course not found.");
-      }
+      const sections = await service.listSectionsByCourse(actor, id);
 
-      return { course };
+      return { sections };
     });
   });
 }
 
-export async function PATCH(request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
   return handleApi(async () => {
-    const { id } = await params;
+    const { id: courseId } = await params;
     const body = (await request.json()) as Record<string, unknown>;
     const { actor } = await resolveAcademyActorFromSession(request);
 
@@ -48,17 +45,19 @@ export async function PATCH(request: Request, { params }: Params) {
       const repository = new AcademyCourseCatalogRepository(asAcademyDatabase<Queryable>(client));
       const service = new CourseCatalogService(repository as CourseCatalogRepository);
 
-      const course = await service.updateCourse(actor, id, {
-        title: typeof body.title === "string" ? body.title : undefined,
-        description: typeof body.description === "string" ? body.description : undefined,
-        defaultCredits: typeof body.defaultCredits === "number" ? body.defaultCredits : undefined,
-        defaultClockHours: typeof body.defaultClockHours === "number" ? body.defaultClockHours : undefined,
-        owningSubdivisionId: typeof body.owningSubdivisionId === "string" ? body.owningSubdivisionId : undefined,
-        prerequisiteIds: Array.isArray(body.prerequisiteIds) ? body.prerequisiteIds.filter((id): id is string => typeof id === "string") : undefined,
-        status: typeof body.status === "string" ? body.status as CourseStatus : undefined,
+      const section = await service.createSection(actor, {
+        courseId,
+        academicYearId: typeof body.academicYearId === "string" ? body.academicYearId : "",
+        academicPeriodId: typeof body.academicPeriodId === "string" ? body.academicPeriodId : "",
+        sectionCode: typeof body.sectionCode === "string" ? body.sectionCode : "",
+        deliveryMode: typeof body.deliveryMode === "string" ? body.deliveryMode as DeliveryMode : "in_person",
+        capacity: typeof body.capacity === "number" ? body.capacity : undefined,
+        primaryInstructorId: typeof body.primaryInstructorId === "string" ? body.primaryInstructorId : undefined,
+        schedulePattern: typeof body.schedulePattern === "string" ? body.schedulePattern : undefined,
+        subdivisionId: typeof body.subdivisionId === "string" ? body.subdivisionId : undefined,
       });
 
-      return { course };
+      return { section };
     });
-  });
+  }, { operation: "section.create" });
 }
