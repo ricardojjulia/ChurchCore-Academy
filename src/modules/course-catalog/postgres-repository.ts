@@ -217,7 +217,77 @@ export function mapCourseCatalogRows(rows: {
   };
 }
 
-export class AcademyCourseCatalogRepository {
+export interface CourseCatalogRepository {
+  fetchCourseCatalogConfiguration(tenantId: string): Promise<CourseCatalogConfiguration>;
+  findCourseById(courseId: string): Promise<Course | null>;
+  findCourseByCode(tenantId: string, code: string): Promise<Course | null>;
+  createCourse(input: {
+    tenantId: string;
+    code: string;
+    title: string;
+    description: string;
+    courseType: Course["courseType"];
+    courseLevel: Course["courseLevel"];
+    recordType: Course["recordType"];
+    defaultCredits?: number;
+    defaultClockHours?: number;
+    owningSubdivisionId?: string;
+    prerequisiteIds: string[];
+    status: Course["status"];
+  }): Promise<Course>;
+  updateCourse(
+    courseId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      defaultCredits?: number;
+      defaultClockHours?: number;
+      owningSubdivisionId?: string;
+      prerequisiteIds?: string[];
+      status?: Course["status"];
+    },
+  ): Promise<Course>;
+  findActiveSectionsByCourseId(courseId: string): Promise<CourseSection[]>;
+  createSection(input: {
+    tenantId: string;
+    courseId: string;
+    academicYearId: string;
+    academicPeriodId: string;
+    sectionCode: string;
+    deliveryMode: CourseSection["deliveryMode"];
+    capacity?: number;
+    primaryInstructorId?: string;
+    schedulePattern?: string;
+    subdivisionId?: string;
+    status: CourseSection["status"];
+  }): Promise<CourseSection>;
+  findSectionById(sectionId: string): Promise<CourseSection | null>;
+  findSectionByCodeAndPeriod(
+    courseId: string,
+    periodId: string,
+    sectionCode: string,
+  ): Promise<CourseSection | null>;
+  updateSection(
+    sectionId: string,
+    updates: {
+      capacity?: number;
+      primaryInstructorId?: string;
+      schedulePattern?: string;
+      status?: CourseSection["status"];
+    },
+  ): Promise<CourseSection>;
+  getEnrollmentCount(sectionId: string): Promise<number>;
+  fetchPrerequisites(tenantId: string): Promise<CoursePrerequisite[]>;
+  fetchPrerequisitesByCourseId(courseId: string): Promise<CoursePrerequisite[]>;
+  fetchCompletedCourseIds(studentPersonId: string): Promise<string[]>;
+  listCourses(
+    tenantId: string,
+    filters?: { subdivisionId?: string; includeArchived?: boolean },
+  ): Promise<Course[]>;
+  listSectionsByCourseId(courseId: string): Promise<CourseSection[]>;
+}
+
+export class AcademyCourseCatalogRepository implements CourseCatalogRepository {
   constructor(private readonly pool: Queryable = getDatabasePool()) {}
 
   async fetchCourseCatalogConfiguration(tenantId: string) {
@@ -260,5 +330,342 @@ export class AcademyCourseCatalogRepository {
       prerequisites: prerequisites.rows,
       lmsMappings: lmsMappings.rows,
     });
+  }
+
+  async findCourseById(courseId: string): Promise<Course | null> {
+    const result = await this.pool.query(
+      "select * from academy_courses where id = $1",
+      [courseId],
+    );
+    return result.rowCount ? mapCourseRow(result.rows[0]) : null;
+  }
+
+  async findCourseByCode(tenantId: string, code: string): Promise<Course | null> {
+    const result = await this.pool.query(
+      "select * from academy_courses where tenant_id = $1 and code = $2",
+      [tenantId, code],
+    );
+    return result.rowCount ? mapCourseRow(result.rows[0]) : null;
+  }
+
+  async createCourse(input: {
+    tenantId: string;
+    code: string;
+    title: string;
+    description: string;
+    courseType: Course["courseType"];
+    courseLevel: Course["courseLevel"];
+    recordType: Course["recordType"];
+    defaultCredits?: number;
+    defaultClockHours?: number;
+    owningSubdivisionId?: string;
+    prerequisiteIds: string[];
+    status: Course["status"];
+  }): Promise<Course> {
+    const result = await this.pool.query(
+      `insert into academy_courses (
+        tenant_id, code, title, description, course_type, course_level, record_type,
+        default_duration, default_credits, default_clock_hours, owning_subdivision_id, status
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      returning *`,
+      [
+        input.tenantId,
+        input.code,
+        input.title,
+        input.description,
+        input.courseType,
+        input.courseLevel,
+        input.recordType,
+        JSON.stringify({
+          durationUnit: input.defaultCredits ? "credit_hour" : "clock_hour",
+          durationValue: input.defaultCredits ?? input.defaultClockHours ?? 0,
+          creditHours: input.defaultCredits,
+          clockHours: input.defaultClockHours,
+        }),
+        input.defaultCredits,
+        input.defaultClockHours,
+        input.owningSubdivisionId,
+        input.status,
+      ],
+    );
+
+    const course = mapCourseRow(result.rows[0]);
+
+    // Insert prerequisites
+    if (input.prerequisiteIds.length > 0) {
+      for (const prereqId of input.prerequisiteIds) {
+        await this.pool.query(
+          `insert into academy_course_prerequisites (
+            tenant_id, course_id, required_course_id, requirement_type
+          ) values ($1, $2, $3, $4)`,
+          [input.tenantId, course.id, prereqId, "required_before_registration"],
+        );
+      }
+    }
+
+    return course;
+  }
+
+  async updateCourse(
+    courseId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      defaultCredits?: number;
+      defaultClockHours?: number;
+      owningSubdivisionId?: string;
+      prerequisiteIds?: string[];
+      status?: Course["status"];
+    },
+  ): Promise<Course> {
+    const course = await this.findCourseById(courseId);
+    if (!course) {
+      throw new Error("Course not found.");
+    }
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (updates.title !== undefined) {
+      fields.push(`title = $${paramIndex++}`);
+      values.push(updates.title);
+    }
+    if (updates.description !== undefined) {
+      fields.push(`description = $${paramIndex++}`);
+      values.push(updates.description);
+    }
+    if (updates.defaultCredits !== undefined) {
+      fields.push(`default_credits = $${paramIndex++}`);
+      values.push(updates.defaultCredits);
+    }
+    if (updates.defaultClockHours !== undefined) {
+      fields.push(`default_clock_hours = $${paramIndex++}`);
+      values.push(updates.defaultClockHours);
+    }
+    if (updates.owningSubdivisionId !== undefined) {
+      fields.push(`owning_subdivision_id = $${paramIndex++}`);
+      values.push(updates.owningSubdivisionId);
+    }
+    if (updates.status !== undefined) {
+      fields.push(`status = $${paramIndex++}`);
+      values.push(updates.status);
+    }
+
+    if (fields.length > 0) {
+      fields.push(`updated_at = now()`);
+      values.push(courseId);
+      const result = await this.pool.query(
+        `update academy_courses set ${fields.join(", ")} where id = $${paramIndex} returning *`,
+        values,
+      );
+      if (result.rowCount === 0) {
+        throw new Error("Course not found.");
+      }
+    }
+
+    // Update prerequisites if provided
+    if (updates.prerequisiteIds !== undefined) {
+      await this.pool.query(
+        "delete from academy_course_prerequisites where course_id = $1",
+        [courseId],
+      );
+      for (const prereqId of updates.prerequisiteIds) {
+        await this.pool.query(
+          `insert into academy_course_prerequisites (
+            tenant_id, course_id, required_course_id, requirement_type
+          ) values ($1, $2, $3, $4)`,
+          [course.tenantId, courseId, prereqId, "required_before_registration"],
+        );
+      }
+    }
+
+    return (await this.findCourseById(courseId))!;
+  }
+
+  async findActiveSectionsByCourseId(courseId: string): Promise<CourseSection[]> {
+    const result = await this.pool.query(
+      `select * from academy_course_sections
+       where course_id = $1 and status in ('scheduled', 'open', 'in_progress')`,
+      [courseId],
+    );
+    return result.rows.map(mapSectionRow);
+  }
+
+  async createSection(input: {
+    tenantId: string;
+    courseId: string;
+    academicYearId: string;
+    academicPeriodId: string;
+    sectionCode: string;
+    deliveryMode: CourseSection["deliveryMode"];
+    capacity?: number;
+    primaryInstructorId?: string;
+    schedulePattern?: string;
+    subdivisionId?: string;
+    status: CourseSection["status"];
+  }): Promise<CourseSection> {
+    const result = await this.pool.query(
+      `insert into academy_course_sections (
+        tenant_id, course_id, academic_year_id, academic_period_id, section_code,
+        delivery_mode, capacity, primary_instructor_role, primary_instructor_id,
+        schedule_pattern, subdivision_id, assistant_instructor_ids, status
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      returning *`,
+      [
+        input.tenantId,
+        input.courseId,
+        input.academicYearId,
+        input.academicPeriodId,
+        input.sectionCode,
+        input.deliveryMode,
+        input.capacity,
+        "instructor",
+        input.primaryInstructorId,
+        input.schedulePattern,
+        input.subdivisionId,
+        JSON.stringify([]),
+        input.status,
+      ],
+    );
+    return mapSectionRow(result.rows[0]);
+  }
+
+  async findSectionById(sectionId: string): Promise<CourseSection | null> {
+    const result = await this.pool.query(
+      "select * from academy_course_sections where id = $1",
+      [sectionId],
+    );
+    return result.rowCount ? mapSectionRow(result.rows[0]) : null;
+  }
+
+  async findSectionByCodeAndPeriod(
+    courseId: string,
+    periodId: string,
+    sectionCode: string,
+  ): Promise<CourseSection | null> {
+    const result = await this.pool.query(
+      `select * from academy_course_sections
+       where course_id = $1 and academic_period_id = $2 and section_code = $3`,
+      [courseId, periodId, sectionCode],
+    );
+    return result.rowCount ? mapSectionRow(result.rows[0]) : null;
+  }
+
+  async updateSection(
+    sectionId: string,
+    updates: {
+      capacity?: number;
+      primaryInstructorId?: string;
+      schedulePattern?: string;
+      status?: CourseSection["status"];
+    },
+  ): Promise<CourseSection> {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (updates.capacity !== undefined) {
+      fields.push(`capacity = $${paramIndex++}`);
+      values.push(updates.capacity);
+    }
+    if (updates.primaryInstructorId !== undefined) {
+      fields.push(`primary_instructor_id = $${paramIndex++}`);
+      values.push(updates.primaryInstructorId);
+    }
+    if (updates.schedulePattern !== undefined) {
+      fields.push(`schedule_pattern = $${paramIndex++}`);
+      values.push(updates.schedulePattern);
+    }
+    if (updates.status !== undefined) {
+      fields.push(`status = $${paramIndex++}`);
+      values.push(updates.status);
+    }
+
+    if (fields.length > 0) {
+      fields.push(`updated_at = now()`);
+      values.push(sectionId);
+      const result = await this.pool.query(
+        `update academy_course_sections set ${fields.join(", ")} where id = $${paramIndex} returning *`,
+        values,
+      );
+      if (result.rowCount === 0) {
+        throw new Error("Section not found.");
+      }
+      return mapSectionRow(result.rows[0]);
+    }
+
+    return (await this.findSectionById(sectionId))!;
+  }
+
+  async getEnrollmentCount(sectionId: string): Promise<number> {
+    const result = await this.pool.query(
+      `select count(*) as count from academy_course_section_registrations
+       where course_section_id = $1 and status = 'registered'`,
+      [sectionId],
+    );
+    return Number(result.rows[0].count);
+  }
+
+  async fetchPrerequisites(tenantId: string): Promise<CoursePrerequisite[]> {
+    const result = await this.pool.query(
+      "select * from academy_course_prerequisites where tenant_id = $1",
+      [tenantId],
+    );
+    return result.rows.map(mapPrerequisiteRow);
+  }
+
+  async fetchPrerequisitesByCourseId(courseId: string): Promise<CoursePrerequisite[]> {
+    const result = await this.pool.query(
+      "select * from academy_course_prerequisites where course_id = $1",
+      [courseId],
+    );
+    return result.rows.map(mapPrerequisiteRow);
+  }
+
+  async fetchCompletedCourseIds(studentPersonId: string): Promise<string[]> {
+    const result = await this.pool.query(
+      `select distinct cs.course_id
+       from academy_course_section_registrations r
+       join academy_course_sections cs on cs.id = r.course_section_id
+       join academy_transcript_records tr on tr.registration_id = r.id
+       where r.student_person_id = $1
+         and r.status = 'registered'
+         and tr.is_posted = true
+         and tr.transcript_released = true`,
+      [studentPersonId],
+    );
+    return result.rows.map((row) => String(row.course_id));
+  }
+
+  async listCourses(
+    tenantId: string,
+    filters?: { subdivisionId?: string; includeArchived?: boolean },
+  ): Promise<Course[]> {
+    let sql = "select * from academy_courses where tenant_id = $1";
+    const values: unknown[] = [tenantId];
+    let paramIndex = 2;
+
+    if (filters?.subdivisionId) {
+      sql += ` and owning_subdivision_id = $${paramIndex++}`;
+      values.push(filters.subdivisionId);
+    }
+
+    if (!filters?.includeArchived) {
+      sql += " and status != 'archived'";
+    }
+
+    sql += " order by code asc";
+
+    const result = await this.pool.query(sql, values);
+    return result.rows.map(mapCourseRow);
+  }
+
+  async listSectionsByCourseId(courseId: string): Promise<CourseSection[]> {
+    const result = await this.pool.query(
+      "select * from academy_course_sections where course_id = $1 order by section_code asc",
+      [courseId],
+    );
+    return result.rows.map(mapSectionRow);
   }
 }
