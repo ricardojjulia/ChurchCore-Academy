@@ -6,7 +6,7 @@ import {
   type AttendanceDatabase,
 } from "@/modules/attendance/postgres-repository";
 import { AttendanceService } from "@/modules/attendance/service";
-import type { AttendanceStatus } from "@/modules/attendance/types";
+import type { AttendanceStatus, SessionType } from "@/modules/attendance/types";
 import type { AttendanceThresholdDatabase } from "@/modules/attendance/threshold-evaluator";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import { CommunicationsService } from "@/modules/communications/service";
@@ -85,6 +85,7 @@ export async function POST(request: Request) {
           typeof body.studentPersonId === "string" ? body.studentPersonId : "",
         sessionDate: typeof body.sessionDate === "string" ? body.sessionDate : "",
         status: body.status as AttendanceStatus,
+        sessionType: (body.sessionType as SessionType) ?? "class",
         note: typeof body.note === "string" ? body.note : undefined,
       });
     });

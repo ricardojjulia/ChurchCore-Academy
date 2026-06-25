@@ -14,6 +14,7 @@ import type {
   AttendanceThresholdDatabase,
 } from "@/modules/attendance/threshold-evaluator";
 import { checkAttendanceThreshold } from "@/modules/attendance/threshold-evaluator";
+import { checkGuardianNotification } from "@/modules/attendance/guardian-notifier";
 import type { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { CommunicationsService } from "@/modules/communications/service";
 
@@ -110,18 +111,20 @@ export class AttendanceService {
         studentPersonId: input.studentPersonId,
         sessionDate: input.sessionDate,
         status: input.status,
+        sessionType: input.sessionType ?? "class",
         recordedByPersonId: actor.userId,
         note: input.note,
       }),
     );
 
-    // Non-blocking threshold check (fire and forget)
+    // Non-blocking threshold check and guardian notification (fire and forget)
     if (
       this.thresholdDatabase &&
       this.thresholdConfig &&
       this.shepherdRepo &&
       this.communicationsService
     ) {
+      // Check attendance threshold for ShepherdAI signal
       checkAttendanceThreshold(
         actor.tenantId,
         input.studentPersonId,
@@ -133,6 +136,22 @@ export class AttendanceService {
         actor,
       ).catch(() => {
         // Threshold check failure should not fail the attendance record
+        // Errors are swallowed to keep the operation non-blocking
+      });
+
+      // Check guardian notification for consecutive absences / spiritual formation
+      checkGuardianNotification(
+        actor.tenantId,
+        input.studentPersonId,
+        input.courseSectionId,
+        input.sessionDate,
+        input.status,
+        input.sessionType ?? "class",
+        this.thresholdDatabase,
+        this.communicationsService,
+        actor,
+      ).catch(() => {
+        // Guardian notification failure should not fail the attendance record
         // Errors are swallowed to keep the operation non-blocking
       });
     }
