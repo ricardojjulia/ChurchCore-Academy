@@ -67,7 +67,7 @@ function repository(options: {
 
 test("records attendance when faculty owns the section and student is actively registered", async () => {
   const { repo, upserts } = repository();
-  const service = new AttendanceService(repo);
+  const service = new AttendanceService({ repository: repo });
 
   const result = await service.recordAttendance(facultyActor, {
     courseSectionId: "section-1",
@@ -83,7 +83,7 @@ test("records attendance when faculty owns the section and student is actively r
 
 test("rejects student attempts before repository writes", async () => {
   const { repo, upserts } = repository();
-  const service = new AttendanceService(repo);
+  const service = new AttendanceService({ repository: repo });
 
   await assert.rejects(
     () =>
@@ -101,7 +101,7 @@ test("rejects student attempts before repository writes", async () => {
 
 test("rejects faculty attendance outside owned sections", async () => {
   const { repo, upserts } = repository({ canRecord: false });
-  const service = new AttendanceService(repo);
+  const service = new AttendanceService({ repository: repo });
 
   await assert.rejects(
     () =>
@@ -119,7 +119,7 @@ test("rejects faculty attendance outside owned sections", async () => {
 
 test("rejects attendance for students without active section registration", async () => {
   const { repo, upserts } = repository({ studentRegistered: false });
-  const service = new AttendanceService(repo);
+  const service = new AttendanceService({ repository: repo });
 
   await assert.rejects(
     () =>
@@ -133,4 +133,19 @@ test("rejects attendance for students without active section registration", asyn
   );
 
   assert.equal(upserts.length, 0);
+});
+
+test("legacy constructor signature still supported for backwards compatibility", async () => {
+  const { repo, upserts } = repository();
+  const service = new AttendanceService(repo);
+
+  const result = await service.recordAttendance(facultyActor, {
+    courseSectionId: "section-1",
+    studentPersonId: "student-1",
+    sessionDate: "2026-09-01",
+    status: "present",
+  });
+
+  assert.equal(result.status, "present");
+  assert.equal(upserts.length, 1);
 });

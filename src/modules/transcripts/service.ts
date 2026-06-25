@@ -137,3 +137,15 @@ function assertTranscriptAdmin(actor: AcademyActor) {
     );
   }
 }
+
+/**
+ * Returns a signed download URL for a released transcript, or null if the
+ * record is not in a state where the student may download it.
+ *
+ * Rule: only 'released' records with a storageUrl are downloadable.
+ * 'issued' means the registrar is still processing; 'held' means blocked.
+ */
+export function buildSignedDownloadUrl(record: TranscriptRecord): string | null {
+  if (record.status !== "released") return null;
+  return record.storageUrl ?? null;
+}

@@ -96,13 +96,48 @@ export class AcademicWorkflowsPostgresService {
   }
 
   async dismissSuggestion(tenantId: string, suggestionId: string, note?: string) {
-    void note;
-    return this.updateSuggestionStatus(tenantId, suggestionId, "dismissed");
+    const result = await this.database.query(
+      `update ai_suggestions
+       set status = 'dismissed', dismiss_note = $3
+       where id = $1 and tenant_id = $2
+       returning id, status`,
+      [suggestionId, tenantId, note ?? null],
+    );
+
+    if (result.rowCount === 0) {
+      throw new Error(`Suggestion ${suggestionId} was not found.`);
+    }
+
+    const row = result.rows[0] as SuggestionStatusRow;
+    return {
+      id: row.id,
+      status: row.status,
+    };
   }
 
   async deferSuggestion(tenantId: string, suggestionId: string, reason?: string) {
     void reason;
     return this.updateSuggestionStatus(tenantId, suggestionId, "deferred");
+  }
+
+  async snoozeSuggestion(tenantId: string, suggestionId: string, snoozeUntil: string) {
+    const result = await this.database.query(
+      `update ai_suggestions
+       set status = 'deferred', snooze_until = $3::timestamptz
+       where id = $1 and tenant_id = $2
+       returning id, status`,
+      [suggestionId, tenantId, snoozeUntil],
+    );
+
+    if (result.rowCount === 0) {
+      throw new Error(`Suggestion ${suggestionId} was not found.`);
+    }
+
+    const row = result.rows[0] as SuggestionStatusRow;
+    return {
+      id: row.id,
+      status: row.status,
+    };
   }
 
   async assignWorkflow(tenantId: string, workflowId: string, assignedToUserId: string) {
