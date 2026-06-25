@@ -181,6 +181,41 @@ Agents must read existing ADRs 0001–0038 for format and context.
 | ADR-0045 | Ministry Formation Records model and privacy boundary | T3-01 | ☒ DONE |
 | ADR-0046 | LMS HTTP client implementation and retry strategy | T3-03 | ☒ DONE |
 | ADR-0047 | Tuition schedule and payment plan engine | T3-09 | ☒ DONE |
+| ADR-0048 | Application document checklist and admissions completion workflow | G-A6 | ☒ DONE |
+| ADR-0049 | Student record editable fields and advisor notes audit model | G-A3 | ☒ DONE |
+| ADR-0050 | Academic calendar admin CRUD with term-lock policy | G-A1 | ☒ DONE |
+| ADR-0051 | Course catalog and section admin CRUD with archive policy | G-A2 | ☒ DONE |
+| ADR-0052 | Student self-registration add/drop and enrollment window policy | G-B2 | ☒ DONE |
+| ADR-0053 | Attendance threshold enforcement and guardian absence notification | G-A5 | ☒ DONE |
+| ADR-0054 | Faculty assignment creation and per-assignment grade entry model | G-A4 | ☒ DONE |
+| ADR-0055 | Student PWA full self-service scope and data boundary | G-C1 | ☒ DONE |
+| ADR-0056 | Guardian PWA shell auth boundary and scoped portal policy | G-C2 | ☒ DONE |
+| ADR-0057 | Financial aid award letter generation and regulatory boundary | G-B4 | ☒ DONE |
+| ADR-0058 | Compliance and institutional reporting — IPEDS subset and scheduled delivery | G-C3 | ☒ DONE |
+
+---
+
+## PARTIAL Gap Closure Program
+
+**Council Review:** `docs/reviews/2026-06-25-council-review-10-partial-gap-closeout.md`
+**Execution Prompts:** `docs/prompts/2026-06-25-partial-gap-closeout-prompts.md`
+**Status:** ACTIVE — 13 PARTIAL domains → WORKING across 3 sprints
+
+| ID | Domain | ADR | Sprint | Status |
+| --- | --- | --- | --- | --- |
+| G-A1 | Academic calendar admin CRUD | ADR-0050 | Sprint A | ☐ |
+| G-A2 | Course catalog + section CRUD | ADR-0051 | Sprint A | ☐ |
+| G-A3 | Student record editable fields + advisor notes | ADR-0049 | Sprint A | ☐ |
+| G-A4 | Faculty assignment creation | ADR-0054 | Sprint A | ☐ |
+| G-A5 | Attendance enforcement + guardian alerts | ADR-0053 | Sprint A | ☐ |
+| G-A6 | Application document checklist | ADR-0048 | Sprint A | ☐ |
+| G-B1 | Transcript PDF + grade history | ADR-0044 | Sprint B | ☐ |
+| G-B2 | Student self-registration add/drop | ADR-0052 | Sprint B | ☐ |
+| G-B3 | Stripe payment collection | ADR-0042 | Sprint B | ☐ |
+| G-B4 | Financial aid award letter | ADR-0057 | Sprint B | ☐ |
+| G-C1 | Student PWA full self-service | ADR-0055 | Sprint C | ☐ |
+| G-C2 | Guardian PWA shell | ADR-0056 | Sprint C | ☐ |
+| G-C3 | Compliance reporting IPEDS | ADR-0058 | Sprint C | ☐ |
 
 ---
 
@@ -241,6 +276,7 @@ in the following sequence with maximum parallelism:
 | 2026-06-23 | Sprint 3 execution complete: T2-02 document checklist, T3-01 ministry formation, T3-04 guardian scoped access, T3-05 ShepherdAI attendance, T3-06 watchlist, T3-07 student PWA self-service, T3-08 financial aid letter | Ricardo Julia |
 | 2026-06-24 | Sprint 4 execution complete: T4-01–T4-10 all shipped (denomination, compliance, alumni, accreditation, Canvas HTTP, federal aid, multi-campus, applicant CRM, retention risk, conduct) | Ricardo Julia |
 | 2026-06-25 | T4-05 Canvas live HTTP integration — executeCanvasProgressReturn added, LmsReviewedImportStatus bug fixed, ADR-0046 finalized. All roadmap items ☒. | Ricardo Julia |
+| 2026-06-25 | Council Review X (partial gap closeout) — 8-voice + wildcard council evaluated 13 PARTIAL domains, unanimous ship. ADRs 0048–0058 written. 3-sprint parallelized execution plan in `docs/prompts/2026-06-25-partial-gap-closeout-prompts.md`. | Ricardo Julia |
 
 ---
 
