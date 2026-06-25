@@ -1,5 +1,7 @@
 export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
+export type SessionType = "class" | "lab" | "chapel" | "spiritual_formation" | "other";
+
 export interface AttendanceRecord {
   id: string;
   tenantId: string;
@@ -7,6 +9,7 @@ export interface AttendanceRecord {
   studentPersonId: string;
   sessionDate: string;
   status: AttendanceStatus;
+  sessionType: SessionType;
   recordedAt: string;
   recordedByPersonId: string;
   note?: string;
@@ -18,6 +21,7 @@ export interface RecordAttendanceInput {
   studentPersonId: string;
   sessionDate: string;
   status: AttendanceStatus;
+  sessionType: SessionType;
   recordedByPersonId: string;
   note?: string;
 }
@@ -27,6 +31,7 @@ export interface AttendanceRequestInput {
   studentPersonId: string;
   sessionDate: string;
   status: AttendanceStatus;
+  sessionType?: SessionType;
   note?: string;
 }
 
@@ -49,8 +54,14 @@ export interface AttendanceRepository {
 
 export const ATTENDANCE_STATUSES: AttendanceStatus[] = ["present", "absent", "late", "excused"];
 
+export const SESSION_TYPES: SessionType[] = ["class", "lab", "chapel", "spiritual_formation", "other"];
+
 export function isValidAttendanceStatus(value: string): value is AttendanceStatus {
   return (ATTENDANCE_STATUSES as string[]).includes(value);
+}
+
+export function isValidSessionType(value: string): value is SessionType {
+  return (SESSION_TYPES as string[]).includes(value);
 }
 
 export function validateAttendanceInput(input: Partial<RecordAttendanceInput>): RecordAttendanceInput {
@@ -61,6 +72,9 @@ export function validateAttendanceInput(input: Partial<RecordAttendanceInput>): 
   if (!input.recordedByPersonId?.trim()) throw new Error("recordedByPersonId is required.");
   if (!input.status || !isValidAttendanceStatus(input.status)) {
     throw new Error(`status must be one of: ${ATTENDANCE_STATUSES.join(", ")}.`);
+  }
+  if (!input.sessionType || !isValidSessionType(input.sessionType)) {
+    throw new Error(`sessionType must be one of: ${SESSION_TYPES.join(", ")}.`);
   }
 
   // Validate ISO date format (YYYY-MM-DD)
