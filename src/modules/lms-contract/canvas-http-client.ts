@@ -1,113 +1,95 @@
 import { withRetry } from "./retry";
 import { LmsProviderError } from "./moodle-http-client";
 
+export interface CanvasTokenRefreshResult {
+  accessToken: string;
+  expiresAt?: string;
+}
+
+export interface CanvasTokenRefresher {
+  refreshAccessToken(input: { expiredAccessToken: string }): Promise<CanvasTokenRefreshResult>;
+}
+
+export interface CanvasHttpClientOptions {
+  tokenRefresher?: CanvasTokenRefresher;
+}
+
 export class CanvasHttpClient {
   private readonly baseUrl: string;
-  private readonly accessToken: string;
+  private accessToken: string;
+  private readonly tokenRefresher?: CanvasTokenRefresher;
 
-  constructor(baseUrl: string, accessToken: string) {
+  constructor(baseUrl: string, accessToken: string, options: CanvasHttpClientOptions = {}) {
     this.baseUrl = baseUrl;
     this.accessToken = accessToken;
+    this.tokenRefresher = options.tokenRefresher;
   }
 
   async get<T>(path: string, params?: Record<string, string>): Promise<T> {
-    return withRetry(
-      async () => {
-        const url = this.buildUrl(path, params);
-
-        let response: Response;
-        try {
-          response = await fetch(url, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${this.accessToken}`,
-              Accept: "application/json",
-            },
-          });
-        } catch (error) {
-          if (error instanceof TypeError) {
-            throw new LmsProviderError({
-              code: "NETWORK_ERROR",
-              message: `Network error calling Canvas API: ${error.message}`,
-              retryable: true,
-            });
-          }
-          throw error;
-        }
-
-        return this.handleResponse<T>(response);
-      },
-      3,
-      1000,
-    );
+    return withRetry(() => this.request<T>("GET", path, undefined, params), 3, 1000);
   }
 
   async post<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    return withRetry(
-      async () => {
-        const url = this.buildUrl(path);
-
-        let response: Response;
-        try {
-          response = await fetch(url, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${this.accessToken}`,
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify(body),
-          });
-        } catch (error) {
-          if (error instanceof TypeError) {
-            throw new LmsProviderError({
-              code: "NETWORK_ERROR",
-              message: `Network error calling Canvas API: ${error.message}`,
-              retryable: true,
-            });
-          }
-          throw error;
-        }
-
-        return this.handleResponse<T>(response);
-      },
-      3,
-      1000,
-    );
+    return withRetry(() => this.request<T>("POST", path, body), 3, 1000);
   }
 
   async put<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    return withRetry(
-      async () => {
-        const url = this.buildUrl(path);
+    return withRetry(() => this.request<T>("PUT", path, body), 3, 1000);
+  }
 
-        let response: Response;
-        try {
-          response = await fetch(url, {
-            method: "PUT",
-            headers: {
-              Authorization: `Bearer ${this.accessToken}`,
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify(body),
-          });
-        } catch (error) {
-          if (error instanceof TypeError) {
-            throw new LmsProviderError({
-              code: "NETWORK_ERROR",
-              message: `Network error calling Canvas API: ${error.message}`,
-              retryable: true,
-            });
-          }
-          throw error;
-        }
+  private async request<T>(
+    method: "GET" | "POST" | "PUT",
+    path: string,
+    body?: Record<string, unknown>,
+    params?: Record<string, string>,
+    refreshed = false,
+  ): Promise<T> {
+    const response = await this.fetchCanvas(method, path, body, params);
 
-        return this.handleResponse<T>(response);
-      },
-      3,
-      1000,
-    );
+    if (response.status === 401 && this.tokenRefresher && !refreshed) {
+      const previousToken = this.accessToken;
+      const refreshedToken = await this.tokenRefresher.refreshAccessToken({ expiredAccessToken: previousToken });
+      this.accessToken = refreshedToken.accessToken;
+      return this.request<T>(method, path, body, params, true);
+    }
+
+    return this.handleResponse<T>(response);
+  }
+
+  private async fetchCanvas(
+    method: "GET" | "POST" | "PUT",
+    path: string,
+    body?: Record<string, unknown>,
+    params?: Record<string, string>,
+  ) {
+    const url = this.buildUrl(path, params);
+
+    try {
+      return await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          ...(method === "GET" ? {} : { "Content-Type": "application/json" }),
+          Accept: "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new LmsProviderError({
+          code: "NETWORK_ERROR",
+          message: this.redactProviderText(`Network error calling Canvas API: ${error.message}`),
+          retryable: true,
+        });
+      }
+      throw error;
+    }
+  }
+
+  private redactProviderText(value: string): string {
+    return value
+      .replaceAll(this.accessToken, "[REDACTED]")
+      .replace(/authorization\s+bearer\s+\S+/gi, "[REDACTED]");
   }
 
   private buildUrl(path: string, params?: Record<string, string>): string {
