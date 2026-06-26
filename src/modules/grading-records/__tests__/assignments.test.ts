@@ -8,8 +8,6 @@ import {
   submitDraftFinalGrade,
   GradeDeadlineError,
   type AssignmentDatabase,
-  type AssignmentRecord,
-  type SubmissionScoreRecord,
 } from "@/modules/grading-records/assignment-service";
 
 // ---------------------------------------------------------------------------
@@ -32,12 +30,6 @@ const facultyOtherTenant: AcademyActor = {
   tenantId: "tenant-2",
   userId: "faculty-x",
   roles: ["faculty"],
-};
-
-const admin: AcademyActor = {
-  tenantId: "tenant-1",
-  userId: "admin-1",
-  roles: ["institution_admin"],
 };
 
 const student: AcademyActor = {
@@ -96,7 +88,7 @@ function makeSubmissionRow(overrides: Partial<DbRow> = {}): DbRow {
  */
 function makeDb(
   queryMap: Array<{ match: string | RegExp; rows: DbRow[] }> = [],
-  ops: { deleted?: string[] } = {},
+  _ops: { deleted?: string[] } = {},
 ): AssignmentDatabase {
   return {
     async query(sql: string, _params?: unknown[]) {

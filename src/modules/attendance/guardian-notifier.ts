@@ -352,7 +352,7 @@ export async function checkGuardianNotification(
         [sessionDate],
       );
       return { notificationSent: true, reason: "Spiritual formation absence" };
-    } catch (error) {
+    } catch {
       return { notificationSent: false, reason: "Communication failed" };
     }
   }
@@ -440,7 +440,7 @@ export async function checkGuardianNotification(
       );
 
       return { notificationSent: true, reason: `${consecutiveCount} consecutive absences` };
-    } catch (error) {
+    } catch {
       return { notificationSent: false, reason: "Communication failed" };
     }
   }

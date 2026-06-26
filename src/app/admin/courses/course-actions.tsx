@@ -55,7 +55,7 @@ export function NewCourseButton() {
 
       setOpen(false);
       window.location.reload();
-    } catch (error) {
+    } catch {
       alert("Network error creating course");
     } finally {
       setLoading(false);

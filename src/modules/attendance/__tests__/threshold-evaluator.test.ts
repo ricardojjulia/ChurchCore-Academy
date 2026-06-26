@@ -225,7 +225,7 @@ test("excused absence config = false: excused absences excluded from rate calcul
   // Mock database will return 2 absences (unexcused only) out of 10 total
   const db = mockDatabase({ absenceCount: 2, totalMeetings: 10 });
   const { repo, suggestions } = mockShepherdRepo();
-  const { service, communications } = mockCommunicationsService();
+  const { service } = mockCommunicationsService();
 
   const result = await checkAttendanceThreshold(
     "tenant-1",
@@ -254,7 +254,7 @@ test("excused absence config = true: excused absences included", async () => {
   // Mock database will return 3 absences (including excused) out of 10 total
   const db = mockDatabase({ absenceCount: 3, totalMeetings: 10 });
   const { repo, suggestions } = mockShepherdRepo();
-  const { service, communications } = mockCommunicationsService();
+  const { service } = mockCommunicationsService();
 
   const result = await checkAttendanceThreshold(
     "tenant-1",
@@ -277,7 +277,7 @@ test("excused absence config = true: excused absences included", async () => {
 test("section with 1 total meeting: signal fires with 'Low meeting count' note", async () => {
   const db = mockDatabase({ absenceCount: 1, totalMeetings: 1 });
   const { repo, suggestions } = mockShepherdRepo();
-  const { service, communications } = mockCommunicationsService();
+  const { service } = mockCommunicationsService();
 
   const result = await checkAttendanceThreshold(
     "tenant-1",

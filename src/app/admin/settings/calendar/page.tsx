@@ -154,7 +154,7 @@ export default function CalendarAdminPage() {
 
       setNewTermOpen(false);
       fetchData();
-    } catch (err) {
+    } catch {
       alert("Network error creating term");
     }
   }
@@ -188,7 +188,7 @@ export default function CalendarAdminPage() {
       setEditTermOpen(false);
       setSelectedTerm(null);
       fetchData();
-    } catch (err) {
+    } catch {
       alert("Network error updating term");
     }
   }
@@ -208,7 +208,7 @@ export default function CalendarAdminPage() {
       }
 
       fetchData();
-    } catch (err) {
+    } catch {
       alert("Network error transitioning state");
     }
   }
@@ -243,7 +243,7 @@ export default function CalendarAdminPage() {
       setNewPeriodOpen(false);
       setSelectedTerm(null);
       fetchData();
-    } catch (err) {
+    } catch {
       alert("Network error creating period");
     }
   }
@@ -278,7 +278,7 @@ export default function CalendarAdminPage() {
       setSelectedPeriod(null);
       setSelectedTerm(null);
       fetchData();
-    } catch (err) {
+    } catch {
       alert("Network error updating period");
     }
   }
@@ -298,7 +298,7 @@ export default function CalendarAdminPage() {
       }
 
       fetchData();
-    } catch (err) {
+    } catch {
       alert("Network error transitioning period state");
     }
   }
@@ -327,7 +327,7 @@ export default function CalendarAdminPage() {
       setArchiveConfirmOpen(false);
       setArchiveTarget(null);
       fetchData();
-    } catch (err) {
+    } catch {
       alert("Network error archiving");
     }
   }

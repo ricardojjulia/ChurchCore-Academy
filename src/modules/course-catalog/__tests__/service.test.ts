@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AcademyActor } from "@/modules/academy-auth/policy";
-import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import { CourseCatalogService, validatePrerequisites } from "@/modules/course-catalog/service";
 import type {
   Course,
@@ -14,12 +13,6 @@ const admin: AcademyActor = {
   userId: "person-admin",
   tenantId: "tenant-1",
   roles: ["institution_admin"],
-};
-
-const registrar: AcademyActor = {
-  userId: "person-registrar",
-  tenantId: "tenant-1",
-  roles: ["registrar"],
 };
 
 const student: AcademyActor = {

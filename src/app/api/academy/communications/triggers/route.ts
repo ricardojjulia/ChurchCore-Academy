@@ -18,13 +18,6 @@ interface TriggersRouteDependencies {
   resolveActor?: (request: Request) => Promise<AcademyActor>;
 }
 
-function text(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${field} is required.`);
-  }
-  return value.trim();
-}
-
 function eventType(value: unknown): CommunicationEventType {
   const allowed: CommunicationEventType[] = [
     "registration_confirmed",

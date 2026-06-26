@@ -13,10 +13,6 @@ import {
   type UpdateAssignmentInput,
 } from "@/modules/grading-records/assignment-grading-service";
 
-interface Queryable {
-  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
-}
-
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string; assignmentId: string }> }

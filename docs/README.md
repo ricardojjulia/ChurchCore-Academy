@@ -5,6 +5,9 @@ This directory contains the durable product, architecture, delivery, operations,
 ## Start Here
 
 - [Repository README](../README.md)
+- [HOWTO](../HOWTO.md)
+- [CHANGELOG](../CHANGELOG.md)
+- [Versioning](../VERSIONING.md)
 - [Project Status](project-status.md)
 - [Technology Overview](technology.md)
 - [Architecture Boundary](architecture.md)
@@ -25,6 +28,14 @@ This directory contains the durable product, architecture, delivery, operations,
 
 - [Authentication and Tenant Access](runbooks/academy-auth-and-tenant-access.md)
 - [Admissions Operations](runbooks/admissions-operations.md)
+- [Course Registration Operations](runbooks/course-registration-operations.md)
+- [Attendance and Grade Posting Operations](runbooks/attendance-grade-posting-operations.md)
+- [Transcript Operations](runbooks/transcript-operations.md)
+- [Billing Operations](runbooks/billing-operations.md)
+- [Financial Aid Operations](runbooks/financial-aid-operations.md)
+- [Reporting and Exports](runbooks/reporting-exports.md)
+- [Communications Operations](runbooks/communications-operations.md)
+- [LMS Execution Workers](runbooks/lms-execution-workers.md)
 - [Authenticated Role Walkthrough Evidence](acceptance/authenticated-role-walkthrough-evidence.md)
 - [Deployment Operations](runbooks/deployment-operations.md)
 - [Incident Response](runbooks/incident-response.md)
@@ -38,6 +49,7 @@ This directory contains the durable product, architecture, delivery, operations,
 
 ## Delivery Artifacts
 
+- `docs/releases/`: release notes and readiness packages
 - `docs/superpowers/specs/`: approved designs
 - `docs/superpowers/plans/`: implementation plans
 - `docs/reviews/`: Council and delivery reviews

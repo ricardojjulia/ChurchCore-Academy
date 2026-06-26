@@ -1,8 +1,5 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import {
-  asAcademyDatabase,
-  withAcademyDatabaseContext,
-} from "@/lib/academy-database-context";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import { getLinkedStudentsForGuardian } from "@/modules/people/guardian-access";

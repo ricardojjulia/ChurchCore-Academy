@@ -15,10 +15,6 @@ import {
   type BulkGradeInput,
 } from "@/modules/grading-records/assignment-grading-service";
 
-interface Queryable {
-  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
-}
-
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string; assignmentId: string }> }

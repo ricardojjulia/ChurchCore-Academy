@@ -4,9 +4,7 @@ import { AdmissionDocumentService } from "@/modules/admissions/document-service"
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import {
   ApplicationDocument,
-  ChecklistCompletionStatus,
   CreateDocumentTypeInput,
-  DocumentChecklistItem,
   DocumentType,
   UploadUrlRequest,
   WaiveDocumentInput,

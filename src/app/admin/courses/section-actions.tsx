@@ -60,7 +60,7 @@ export function NewSectionButton({ courses, periods, years, staff }: NewSectionB
 
       setOpen(false);
       window.location.reload();
-    } catch (error) {
+    } catch {
       alert("Network error creating section");
     } finally {
       setLoading(false);
