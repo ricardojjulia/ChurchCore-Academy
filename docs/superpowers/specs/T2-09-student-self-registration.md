@@ -1,7 +1,7 @@
 # Story: Student Self-Registration (Add/Drop)
 **ID:** T2-09
 **Tier:** 2 — Complete Core SIS Workflows
-**Status:** Ready for implementation
+**Status:** Implemented in Sprint B / PR #62
 **Date:** 2026-06-22
 
 ## User Story

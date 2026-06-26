@@ -12,7 +12,11 @@ import {
   PostgresReportRepository,
   type ReportingDatabase,
 } from "@/modules/reporting/postgres-repository";
-import { ReportingService, reportDefinitions } from "@/modules/reporting/service";
+import {
+  IPEDS_REVIEW_DISCLAIMER,
+  ReportingService,
+  reportDefinitions,
+} from "@/modules/reporting/service";
 import type { ReportRowValue } from "@/modules/reporting/types";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +79,33 @@ export default async function ReportingPage() {
             </div>
           </div>
         </CardHeader>
+      </Card>
+
+      <Card className="ops-panel">
+        <CardHeader className="ops-card-header">
+          <div className="ops-heading">
+            <div className="ops-icon"><ShieldCheck /></div>
+            <div>
+              <CardTitle>IPEDS-formatted Export</CardTitle>
+              <CardDescription>{IPEDS_REVIEW_DISCLAIMER}</CardDescription>
+            </div>
+          </div>
+          <Link
+            className="ops-btn-primary"
+            href="/api/academy/reporting/ipeds?format=csv"
+          >
+            <Download size={14} />
+            Export IPEDS Review CSV
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <p className="admin-signal-empty">
+            Configure UNITID, full-time credit thresholds, and program CIP codes in compliance settings before submission review.
+          </p>
+          <Link href="/admin/settings/compliance" className="ops-page-action-link">
+            Open compliance settings →
+          </Link>
+        </CardContent>
       </Card>
 
       <div className="admin-dashboard-grid">

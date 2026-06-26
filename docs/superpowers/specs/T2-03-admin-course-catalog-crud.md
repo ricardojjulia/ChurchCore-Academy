@@ -1,7 +1,7 @@
 # Story: Admin Course Catalog CRUD
 **ID:** T2-03
 **Tier:** 2 — Complete Core SIS Workflows
-**Status:** Ready for implementation
+**Status:** Implemented in Sprint A / PR #61
 **Date:** 2026-06-22
 
 ## User Story

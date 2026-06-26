@@ -171,6 +171,14 @@ export function buildStudentPwaSourceFromDataset(
       courseId: course.id,
       releaseStatus,
     })),
+    selfService: {
+      registration: { status: currentCourses.length > 0 ? "available" : "unavailable" },
+      billing: { status: "available" },
+      transcripts: { status: "available" },
+      financialAid: { status: "available" },
+      contact: { status: "available" },
+      notifications: { status: "available" },
+    },
   };
 }
 
@@ -540,6 +548,14 @@ async function fetchStudentPwaSourceFromDatabase(
       },
     ],
     learningLinks: [],
+    selfService: {
+      registration: { status: registrationRows.length > 0 ? "available" : "unavailable" },
+      billing: { status: "available" },
+      transcripts: { status: "available" },
+      financialAid: { status: "available" },
+      contact: { status: "available" },
+      notifications: { status: "available" },
+    },
   };
 }
 

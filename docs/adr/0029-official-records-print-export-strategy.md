@@ -1,7 +1,7 @@
 # ADR-0029 — Official Records Print and Export Strategy
 
 **Date:** 2026-06-18  
-**Status:** Accepted  
+**Status:** Accepted; partially superseded by ADR-0044 for transcript PDF generation
 **Deciders:** Council Review IV (Agent 3 + synthesis)
 
 ---
@@ -38,9 +38,9 @@ Add a transcript issuance form to `/admin/transcripts/page.tsx` that:
 - POSTs to the existing `/api/academy/transcripts` route.
 - Shows a success confirmation and refreshes the issued-transcripts list.
 
-### 3. PDF generation (deferred)
+### 3. PDF generation (superseded for transcripts)
 
-Server-side PDF generation (e.g., via Puppeteer or a headless render) is **deferred to a future phase**. The immediate solution is print CSS + a transcript download that opens a print-optimized page. No client-side PDF library (jsPDF, pdfmake) may be added to the bundle — they are large and produce non-accessible PDFs.
+Server-side PDF generation was deferred in this ADR. ADR-0044 supersedes that deferral for academic transcript PDFs by adopting `@react-pdf/renderer`, private Supabase Storage, and signed URL delivery. This ADR still governs print CSS and non-transcript print/export behavior.
 
 ---
 
@@ -48,8 +48,8 @@ Server-side PDF generation (e.g., via Puppeteer or a headless render) is **defer
 
 - Staff can produce clean printed transcripts immediately after Prompt F is executed.
 - The `"print"` delivery method type becomes usable from the admin UI.
-- No new runtime dependencies are added.
-- PDF-quality output (for certified transcripts sent to other institutions) remains a Phase 12+ deliverable.
+- Transcript PDF-quality output is governed by ADR-0044.
+- Non-transcript PDF-quality output remains a later deliverable unless a separate ADR accepts it.
 
 ---
 

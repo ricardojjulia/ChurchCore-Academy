@@ -5,6 +5,9 @@ import type { AcademyActor } from "@/modules/academy-auth/policy";
 import {
   buildReportingDashboard,
   exportReportCsv,
+  exportIpedsCsv,
+  generateIpedsExport,
+  IPEDS_REVIEW_DISCLAIMER,
   reportDefinitions,
   ReportingService,
 } from "@/modules/reporting/service";
@@ -192,4 +195,82 @@ test("service denies non-reporting roles", async () => {
     () => service.readDashboard(studentActor),
     AcademyAuthorizationError,
   );
+});
+
+test("IPEDS export produces review-required headcount and level breakdown", () => {
+  const exportData = generateIpedsExport({
+    institution: {
+      name: "ChurchCore Seminary",
+      address: "100 Seminary Way",
+      primaryMode: "seminary",
+      ipedsUnitid: null,
+      fullTimeCreditHoursThreshold: 12,
+    },
+    enrollmentRows: [
+      { studentPersonId: "s1", level: "undergraduate", enrolledCredits: 12 },
+      { studentPersonId: "s2", level: "graduate", enrolledCredits: 9 },
+      { studentPersonId: "s3", level: "certificate", enrolledCredits: 6 },
+    ],
+    facultyCount: 1,
+  });
+
+  assert.equal(exportData.label, "IPEDS-formatted (review required)");
+  assert.equal(exportData.disclaimer, IPEDS_REVIEW_DISCLAIMER);
+  assert.equal(exportData.warnings.includes("unitid_not_configured"), true);
+  assert.equal(exportData.ic.totalEnrollment, 3);
+  assert.deepEqual(exportData.ef.byLevel, {
+    undergraduate: 1,
+    graduate: 1,
+    certificate: 1,
+  });
+  assert.equal(exportData.ef.byAttendanceStatus.fullTime, 1);
+  assert.equal(exportData.ef.byAttendanceStatus.partTime, 2);
+});
+
+test("IPEDS CSV includes mandatory disclaimer header", () => {
+  const csv = exportIpedsCsv(generateIpedsExport({
+    institution: {
+      name: "ChurchCore Seminary",
+      address: "100 Seminary Way",
+      primaryMode: "seminary",
+      ipedsUnitid: "12345678",
+      fullTimeCreditHoursThreshold: 12,
+    },
+    enrollmentRows: [{ studentPersonId: "s1", level: "graduate", enrolledCredits: 12 }],
+    facultyCount: 1,
+  }));
+
+  assert.match(csv, new RegExp(IPEDS_REVIEW_DISCLAIMER));
+  assert.match(csv, /IPEDS-formatted \(review required\)/);
+});
+
+test("scheduled report email body contains signed link but no student PII", async () => {
+  const notifications: string[] = [];
+  const service = new ReportingService(new FakeReportRepository(), {
+    storage: {
+      upload: async () => "tenant-1/scheduled/enrollment_summary/2026-06-26/report.csv",
+      signedUrl: async () => "https://signed.example/report.csv",
+    },
+    notify: async (message) => {
+      notifications.push(message.body);
+    },
+    now: () => new Date("2026-06-26T04:00:00.000Z"),
+  });
+
+  await service.runScheduledReports(adminActor, [{
+    id: "schedule-1",
+    tenantId: "tenant-1",
+    reportType: "enrollment_summary",
+    frequency: "weekly",
+    deliveryMethod: "email",
+    recipients: ["registrar@example.edu"],
+    format: "csv",
+    nextRunAt: "2026-06-26T03:00:00.000Z",
+    active: true,
+  }]);
+
+  assert.equal(notifications.length, 1);
+  assert.match(notifications[0], /https:\/\/signed\.example\/report\.csv/);
+  assert.doesNotMatch(notifications[0], /Ada Rivera/);
+  assert.doesNotMatch(notifications[0], /S-001/);
 });
