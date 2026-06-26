@@ -23,6 +23,28 @@ Before activating Moodle for a tenant:
 - Run `assertProviderCanActivate` successfully before setting the tenant provider to active. Activation requires passed validation evidence and the required Moodle secret reference, including `moodleWebServiceToken` for server-to-server Web Services.
 - Run reconciliation after launch, course shell, roster, grade, or progress configuration changes.
 
+## Web Service Function Checklist
+
+Enable only the Moodle functions needed by the tenant's selected operation families:
+
+- Course shell lookup/provisioning support: `core_course_get_courses_by_field`
+- Roster enrollment: `enrol_manual_enrol_users`
+- Roster withdrawal: `enrol_manual_unenrol_users`
+- Grade return: `gradereport_user_get_grade_items`
+
+Moodle may return Web Service exceptions inside HTTP 200 responses. Academy treats those payloads as provider errors, classifies them as non-retryable unless a future adapter explicitly marks the condition transient, and redacts token/raw-payload text before surfacing safe messages.
+
+## Least-Privilege Capability Checklist
+
+The Moodle service user should be scoped to the minimum context and capabilities required by the enabled functions:
+
+- view course metadata for mapped courses/categories;
+- create or update course shells only when course shell sync is enabled;
+- manually enroll and unenroll users only when roster sync is enabled;
+- read grade items only when grade return is enabled;
+- read completion/progress data only when progress return is enabled;
+- no site administration rights unless the tenant's Moodle instance requires them for a documented sandbox exception.
+
 ## Secret Handling
 
 Store the following only in the tenant-scoped secret layer:

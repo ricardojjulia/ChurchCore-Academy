@@ -219,12 +219,67 @@ test("MoodleHttpClient throws on non-JSON response", async () => {
   resetFetch();
 });
 
-test("MoodleHttpClient does not leak tokens in error messages", async () => {
-  mockFetch(async () => createResponse({ exception: "invalid_token", message: "Token expired" }));
+test("MoodleHttpClient exposes typed helpers for course lookup, enrolment, and grade item return", async () => {
+  const calls: Array<{ wsfunction: string; body: string }> = [];
+
+  mockFetch(async (url, init) => {
+    const parsed = new URL(url);
+    const wsfunction = parsed.searchParams.get("wsfunction") ?? "";
+    const body = init?.body?.toString() ?? "";
+    calls.push({ wsfunction, body });
+
+    if (wsfunction === "core_course_get_courses_by_field") {
+      return createResponse({ courses: [{ id: 42, fullname: "Intro Theology", shortname: "THEO-101" }] });
+    }
+    if (wsfunction === "enrol_manual_enrol_users") {
+      return createResponse(null);
+    }
+    if (wsfunction === "gradereport_user_get_grade_items") {
+      return createResponse({ usergrades: [{ userid: 7, gradeitems: [{ itemname: "Final", graderaw: 94 }] }] });
+    }
+
+    return createResponse({ exception: "invalid_parameter_exception", message: "Unexpected function" });
+  });
+
+  const client = new MoodleHttpClient("https://moodle.example.edu", "test-token");
+
+  const courses = await client.getCoursesByField("shortname", "THEO-101");
+  await client.enrolUsers([{ roleid: 5, userid: 7, courseid: 42 }]);
+  const grades = await client.getUserGradeItems({ courseid: 42, userid: 7 });
+
+  assert.equal(courses.courses[0]?.id, 42);
+  assert.equal(grades.usergrades[0]?.userid, 7);
+  assert.deepEqual(
+    calls.map((call) => call.wsfunction),
+    ["core_course_get_courses_by_field", "enrol_manual_enrol_users", "gradereport_user_get_grade_items"],
+  );
+  assert.match(calls[0]?.body ?? "", /field=shortname/);
+  assert.match(calls[1]?.body ?? "", /enrolments%5B0%5D%5Buserid%5D=7/);
+  assert.match(calls[2]?.body ?? "", /courseid=42/);
+
+  resetFetch();
+});
+
+test("MoodleHttpClient redacts tokens and provider payload fragments from thrown errors", async () => {
+  mockFetch(async () =>
+    createResponse({
+      exception: "invalid_token",
+      message: "Token secret-ws-token-12345 expired for raw payload {\"token\":\"secret-ws-token-12345\"}",
+      errorcode: "invalidtoken",
+    }),
+  );
 
   const client = new MoodleHttpClient("https://moodle.example.edu", "secret-ws-token-12345");
 
-  await assert.rejects(async () => client.call("core_course_get_courses"));
+  await assert.rejects(
+    async () => client.call("core_course_get_courses"),
+    (error: LmsProviderError) => {
+      assert.equal(error.code, "invalidtoken");
+      assert.doesNotMatch(error.message, /secret-ws-token-12345|raw payload|\{"token"/i);
+      assert.match(error.message, /\[REDACTED\]/);
+      return true;
+    },
+  );
 
   resetFetch();
 });
