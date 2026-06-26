@@ -26,6 +26,9 @@ Implemented modules:
 1. Tenant `lmsPreference.provider` must be `canvas`.
 2. Tenant `lmsPreference.selectionStatus` must be `active`.
 3. Canvas launch base URL must be configured.
+4. Non-secret Canvas activation settings must be stored in `lms_provider_configs` with provider `canvas`, launch mode, enabled operation families, root account/context identifiers, and validation evidence.
+5. Canvas secret values must stay outside Academy domain tables. `lms_provider_secret_refs` stores references only.
+6. `assertProviderCanActivate` must pass before activation. Canvas activation requires passed validation evidence and required Canvas secret references, including access-token and refresh-token references for live REST calls.
 
 If these are not true, launch responses remain `unavailable` with safe reasons.
 
@@ -33,6 +36,8 @@ If these are not true, launch responses remain `unavailable` with safe reasons.
 
 - Never return provider secrets in launch responses.
 - Keep provider credentials and raw payloads in secret storage only.
+- Keep `lms_provider_configs` limited to non-secret values such as base URL, launch mode, enabled operations, root account/context identifiers, provider status, and validation evidence.
+- Reject token, credential, password, private key, signature, authorization header, API key, or raw provider payload fields from non-secret Canvas config.
 - Use audit-safe references in launch responses.
 - Enforce tenant matching across resolved provider, request tenant, and launch configuration tenant.
 

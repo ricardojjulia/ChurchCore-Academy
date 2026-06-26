@@ -12,12 +12,15 @@ Before activating Moodle for a tenant:
 
 - Confirm the tenant selected Moodle as the active LMS provider.
 - Confirm the Moodle base URL uses HTTPS in production.
+- Store non-secret activation settings in `lms_provider_configs` with provider `moodle`, launch mode, enabled operation families, Moodle context identifiers, and validation evidence.
+- Store only secret references in `lms_provider_secret_refs`; the actual Moodle token or launch secret must remain in the encrypted provider secret layer.
 - Configure identity launch separately from server-to-server sync credentials.
 - Enable Moodle Web Services only if the tenant uses course, roster, grade, progress, or reconciliation sync.
 - Enable only the Moodle protocol required by the selected adapter path.
 - Create a custom External Service with only the functions required by enabled sync families.
 - Assign least-privilege Moodle capabilities to the service user.
 - Create service credentials through the tenant-scoped secret layer, not Academy domain records.
+- Run `assertProviderCanActivate` successfully before setting the tenant provider to active. Activation requires passed validation evidence and the required Moodle secret reference, including `moodleWebServiceToken` for server-to-server Web Services.
 - Run reconciliation after launch, course shell, roster, grade, or progress configuration changes.
 
 ## Secret Handling
@@ -30,6 +33,8 @@ Store the following only in the tenant-scoped secret layer:
 - webhook secrets
 - refresh tokens
 - private signing keys
+
+`lms_provider_configs` may store only non-secret values such as base URL, launch mode, enabled operations, account/context identifiers, provider status, and validation evidence. Any token, credential, password, private key, signature, authorization header, or raw provider payload belongs outside that table.
 
 Never expose Moodle tokens, raw provider payloads, provider error bodies, internal Moodle user ids, or raw Moodle course ids through:
 
