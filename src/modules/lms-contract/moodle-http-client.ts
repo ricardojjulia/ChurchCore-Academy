@@ -14,6 +14,28 @@ export class LmsProviderError extends Error {
   }
 }
 
+export interface MoodleCourseLookupResponse {
+  courses: Array<Record<string, unknown>>;
+  warnings?: Array<Record<string, unknown>>;
+}
+
+export interface MoodleEnrolment {
+  roleid: number;
+  userid: number;
+  courseid: number;
+}
+
+export interface MoodleGradeItemsRequest {
+  courseid: number;
+  userid?: number;
+  groupid?: number;
+}
+
+export interface MoodleGradeItemsResponse {
+  usergrades: Array<Record<string, unknown>>;
+  warnings?: Array<Record<string, unknown>>;
+}
+
 export class MoodleHttpClient {
   private readonly baseUrl: string;
   private readonly wstoken: string;
@@ -21,6 +43,18 @@ export class MoodleHttpClient {
   constructor(baseUrl: string, wstoken: string) {
     this.baseUrl = baseUrl;
     this.wstoken = wstoken;
+  }
+
+  async getCoursesByField(field: "id" | "ids" | "shortname" | "idnumber" | "category", value: string | number) {
+    return this.call<MoodleCourseLookupResponse>("core_course_get_courses_by_field", { field, value });
+  }
+
+  async enrolUsers(enrolments: MoodleEnrolment[]) {
+    return this.call<null>("enrol_manual_enrol_users", { enrolments });
+  }
+
+  async getUserGradeItems(input: MoodleGradeItemsRequest) {
+    return this.call<MoodleGradeItemsResponse>("gradereport_user_get_grade_items", { ...input });
   }
 
   async call<T>(wsfunction: string, params: Record<string, unknown> = {}): Promise<T> {
@@ -42,7 +76,7 @@ export class MoodleHttpClient {
           if (error instanceof TypeError) {
             throw new LmsProviderError({
               code: "NETWORK_ERROR",
-              message: `Network error calling Moodle Web Service: ${error.message}`,
+              message: this.redactProviderText(`Network error calling Moodle Web Service: ${error.message}`),
               retryable: true,
             });
           }
@@ -84,7 +118,7 @@ export class MoodleHttpClient {
         if (this.isMoodleException(json)) {
           throw new LmsProviderError({
             code: json.errorcode || "MOODLE_EXCEPTION",
-            message: json.message || "Moodle Web Service exception",
+            message: this.redactProviderText(json.message || "Moodle Web Service exception"),
             httpStatus: 200,
             retryable: false,
           });
@@ -95,6 +129,13 @@ export class MoodleHttpClient {
       3,
       1000,
     );
+  }
+
+  private redactProviderText(value: string): string {
+    let redacted = value.replaceAll(this.wstoken, "[REDACTED]");
+    redacted = redacted.replace(/\{[^{}]*(token|secret|password|private.?key|authorization)[^{}]*\}/gi, "[REDACTED]");
+    redacted = redacted.replace(/raw payload\s*\[REDACTED\]/gi, "[REDACTED]");
+    return redacted;
   }
 
   private buildUrl(wsfunction: string): string {
