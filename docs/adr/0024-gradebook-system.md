@@ -1,6 +1,6 @@
-# ADR-2025-009: ChurchCore Academy Gradebook System
+# ADR-0024 — Gradebook System
 
-Status: Accepted for Phase 1 Sprint 1.1
+Status: Accepted
 
 Date: 2026-06-16
 

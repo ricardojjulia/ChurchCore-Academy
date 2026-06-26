@@ -5,6 +5,8 @@
 **Deciders:** Ricardo Julia (sole approver)
 **Council review:** `docs/reviews/2026-06-25-council-review-10-partial-gap-closeout.md`
 
+**Implementation status:** IPEDS JSON/CSV export foundation, mandatory disclaimer, compliance settings page, scheduled-report schema, private report bucket, and cron auth shell shipped in Sprint C / PR #63. Scheduled-report management routes, admin scheduling UI, due-report processing, notification delivery, retention cleanup, UNITID persistence, and CIP persistence remain follow-on work.
+
 ---
 
 ## Context
@@ -53,6 +55,8 @@ certify IPEDS compliance."
 
 ### 2. Scheduled report delivery
 
+Current Sprint C implementation creates the scheduled-report storage model and cron boundary. Full due-report processing and delivery are not yet complete.
+
 Add `academy_scheduled_reports` table:
 
 - `id`, `tenant_id`
@@ -86,22 +90,24 @@ Add optional fields to `InstitutionProfile`:
 
 These fields are managed at `/admin/settings/compliance`.
 
+Current Sprint C implementation exposes the compliance settings surface and review boundary. Persistent UNITID, threshold, and CIP code editing remain follow-on work.
+
 ### 4. Admin UI
 
 - `/admin/reporting` — existing report surfaces plus IPEDS export tab
 - IPEDS export tab: institution configuration status (UNITID set? CIP codes assigned?), export button,
   disclaimer banner, download link
-- Scheduled reports tab: list of scheduled reports with frequency, recipients, last run, next run,
+- Scheduled reports tab (follow-on): list of scheduled reports with frequency, recipients, last run, next run,
   enable/disable toggle
-- "New scheduled report" modal: report type, frequency, format, delivery method, recipients
+- "New scheduled report" modal (follow-on): report type, frequency, format, delivery method, recipients
 
 ### 5. API routes
 
 - `GET /api/academy/reporting/ipeds` — generates and returns IPEDS export (admin role)
-- `GET /api/academy/reporting/scheduled` — list scheduled reports (admin role)
-- `POST /api/academy/reporting/scheduled` — create scheduled report (admin role)
-- `PATCH /api/academy/reporting/scheduled/[id]` — edit/disable scheduled report (admin role)
-- `DELETE /api/academy/reporting/scheduled/[id]` — delete scheduled report (admin role)
+- `GET /api/academy/reporting/scheduled` — list scheduled reports (admin role, follow-on)
+- `POST /api/academy/reporting/scheduled` — create scheduled report (admin role, follow-on)
+- `PATCH /api/academy/reporting/scheduled/[id]` — edit/disable scheduled report (admin role, follow-on)
+- `DELETE /api/academy/reporting/scheduled/[id]` — delete scheduled report (admin role, follow-on)
 
 ---
 

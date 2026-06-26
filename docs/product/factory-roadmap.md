@@ -369,7 +369,7 @@ Required ADRs:
 
 Goal: implement Canvas as the second LMS provider through the same contract.
 
-Status: substantially complete (Sprints 1–7 delivered — launch mapping, course/roster sync, grade/progress return, reconciliation, Student PWA bridge, runtime orchestration, and production auth wiring).
+Status: deferred/foundation only. The provider-neutral LMS contract and shared worker boundaries can support Canvas, but a dedicated Canvas adapter ADR, OAuth/token storage ADR, live Canvas HTTP client, and production activation evidence are still required.
 
 Required ADRs:
 
@@ -487,6 +487,8 @@ Required ADRs:
 ### Phase 16: Compliance and Accreditation Reporting
 
 Goal: native ATS Standards and IPEDS reporting for accredited institutions.
+
+Status: foundation started. Sprint C / ADR-0058 shipped the IPEDS review-required export foundation and scheduled-report schema; ATS templates, full scheduled-report delivery, custom report builder, persistent IPEDS configuration, and FERPA consent/access-log reporting remain open.
 
 Suggested 1-week sprints:
 
