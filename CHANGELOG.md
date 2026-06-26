@@ -6,7 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Added
+
+- Council Review XIII MVP and competitive stance evaluation at `docs/reviews/2026-06-26-council-review-13-mvp-competitive-stance.md`, including council-role findings, wildcard adversarial review, updated scorecard, competitor stance, and recommended next factory moves.
+
+### Changed
+
+- Updated `docs/project-status.md` to reference Council Review XIII and clarify that controlled-pilot/design-partner positioning is approved while production/GA parity claims remain deferred.
 
 ## [0.8.0] - 2026-06-26
 

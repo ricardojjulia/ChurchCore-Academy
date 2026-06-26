@@ -9,6 +9,7 @@
 ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, and the ADR-0059 full Moodle/Canvas LMS implementation closeout.
 
 Council Review IX approved a split release decision for controlled-pilot core SIS workflows with provider activation disabled unless separately approved. Council Review XII closed the Academy-owned Moodle and Canvas implementation work while preserving the external sandbox-evidence gate for production LMS activation.
+Council Review XIII revalidated the current MVP and competitive stance: ChurchCore Academy is strong enough for controlled-pilot and design-partner positioning, but not approved for production/GA parity claims against mature SIS vendors.
 
 Current posture:
 
@@ -51,6 +52,7 @@ Current posture:
 - Authenticated role walkthrough harness, seeded acceptance personas, and generated evidence template.
 - Production observability foundation for authentication, authorization, workflow, migration, and LMS provider-worker failures.
 - Council Review XII full LMS integration MVP closeout.
+- Council Review XIII MVP and competitive stance evaluation.
 - README, HOWTO, CHANGELOG, and VERSIONING documentation refresh.
 
 ## External Release Gates
@@ -90,5 +92,6 @@ These are not open implementation tasks in the repository. They are live-environ
 - [ADR-0059 Full Moodle And Canvas Live Integration](adr/0059-full-moodle-canvas-live-integration.md)
 - [Council Review IX Release Closeout](reviews/2026-06-21-council-review-9-release-closeout.md)
 - [Council Review XII LMS Closeout](reviews/2026-06-26-council-review-12-full-lms-integration-mvp.md)
+- [Council Review XIII MVP And Competitive Stance](reviews/2026-06-26-council-review-13-mvp-competitive-stance.md)
 - [Controlled Pilot Release Notes](releases/2026-06-21-controlled-pilot-release-notes.md)
 - [Full LMS Integration Readiness](releases/2026-06-26-full-lms-integration-readiness.md)
