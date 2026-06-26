@@ -109,11 +109,13 @@ const styles = StyleSheet.create({
     borderTop: "1pt solid #000",
   },
   summaryRow: {
+    flexDirection: "row",
     fontSize: 10,
     marginBottom: 3,
   },
   summaryLabel: {
     fontWeight: "bold",
+    marginRight: 3,
   },
   footerSection: {
     marginTop: 30,
@@ -205,14 +207,12 @@ function TranscriptDocument({ data }: { data: TranscriptPdfData }) {
         {/* Summary Section */}
         <View style={styles.summarySection}>
           <View style={styles.summaryRow}>
-            <Text>
-              <Text style={styles.summaryLabel}>Total Credits Earned: </Text>
-              {data.creditsEarned.toFixed(1)}
-            </Text>
+            <Text style={styles.summaryLabel}>Total Credits Earned: </Text>
+            <Text>{data.creditsEarned.toFixed(1)}</Text>
           </View>
           <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Cumulative GPA: </Text>
             <Text>
-              <Text style={styles.summaryLabel}>Cumulative GPA: </Text>
               {data.cumulativeGpa !== null
                 ? data.cumulativeGpa.toFixed(2)
                 : "N/A"}

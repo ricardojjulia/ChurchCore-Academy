@@ -12,12 +12,15 @@ interface QueryResult {
 }
 
 class MockDatabase {
+  readonly queries: string[] = [];
+
   private registrations: Record<string, unknown>[] = [];
   private sections: Record<string, unknown>[] = [];
   private enrollmentWindows: Record<string, unknown>[] = [];
   private prerequisites: Record<string, unknown>[] = [];
   private studentProfiles: Record<string, unknown>[] = [];
   private periodRegistrations: Record<string, unknown>[] = [];
+  private auditEvents: Record<string, unknown>[] = [];
 
   constructor() {
     // Setup default section
@@ -57,8 +60,30 @@ class MockDatabase {
     });
   }
 
-  async query(sql: string, params: unknown[]): Promise<QueryResult> {
+  async query(sql: string, params: unknown[] = []): Promise<QueryResult> {
+    this.queries.push(sql);
     const normalized = sql.toLowerCase().trim();
+
+    if (["begin", "commit", "rollback"].includes(normalized)) {
+      return { rowCount: null, rows: [] };
+    }
+
+    if (normalized.includes("insert into academy_audit_events")) {
+      const [tenantId, actorPersonId, action, entityType, entityId, , redactedMetadata] = params;
+      const auditEvent = {
+        id: `audit-${this.auditEvents.length + 1}`,
+        tenant_id: tenantId,
+        actor_person_id: actorPersonId,
+        action,
+        entity_type: entityType,
+        entity_id: entityId,
+        redacted_metadata: typeof redactedMetadata === "string"
+          ? JSON.parse(redactedMetadata) as Record<string, unknown>
+          : redactedMetadata,
+      };
+      this.auditEvents.push(auditEvent);
+      return { rowCount: 1, rows: [auditEvent] };
+    }
 
     // Get section with enrollment window — check BEFORE the registration check because
     // the section query contains a subquery against academy_course_section_registrations
@@ -269,6 +294,22 @@ class MockDatabase {
     });
   }
 
+  addStudent(studentPersonId: string) {
+    const profileId = `profile-${studentPersonId}`;
+    this.studentProfiles.push({
+      id: profileId,
+      tenant_id: "tenant-a",
+      person_id: studentPersonId,
+    });
+    this.periodRegistrations.push({
+      id: `period-reg-${studentPersonId}`,
+      tenant_id: "tenant-a",
+      student_profile_id: profileId,
+      program_enrollment_id: `program-enroll-${studentPersonId}`,
+      academic_period_id: "period-1",
+    });
+  }
+
   setCapacity(sectionId: string, capacity: number) {
     const section = this.sections.find((s) => s.id === sectionId);
     if (section) {
@@ -278,6 +319,10 @@ class MockDatabase {
 
   clearEnrollmentWindow() {
     this.enrollmentWindows = [];
+  }
+
+  getAuditEvents() {
+    return this.auditEvents;
   }
 }
 
@@ -323,6 +368,47 @@ describe("registerStudentForSection", () => {
     );
 
     assert.equal(first.id, second.id);
+  });
+
+  it("rejects a student registering another student", async () => {
+    const actor: AcademyActor = {
+      userId: "student-123",
+      tenantId: "tenant-a",
+      roles: ["student"],
+    };
+    const db = new MockDatabase();
+    db.addStudent("student-456");
+
+    await assert.rejects(
+      async () => {
+        await registerStudentForSection(
+          actor,
+          { sectionId: "section-123", studentPersonId: "student-456" },
+          db,
+        );
+      },
+      { message: /students can only register themselves/i },
+    );
+  });
+
+  it("locks the section row before checking capacity", async () => {
+    const actor: AcademyActor = {
+      userId: "student-123",
+      tenantId: "tenant-a",
+      roles: ["student"],
+    };
+    const db = new MockDatabase();
+
+    await registerStudentForSection(
+      actor,
+      { sectionId: "section-123", studentPersonId: "student-123" },
+      db,
+    );
+
+    assert.ok(
+      db.queries.some((sql) => /from academy_course_sections s[\s\S]*for update/i.test(sql)),
+      "expected registration flow to lock the section row with FOR UPDATE",
+    );
   });
 
   it("throws error when capacity is full", async () => {
@@ -416,13 +502,44 @@ describe("registerStudentForSection", () => {
     const db = new MockDatabase();
     db.clearEnrollmentWindow();
 
+    const input = {
+      sectionId: "section-123",
+      studentPersonId: "student-123",
+      overrideReason: "Late registration approved by registrar.",
+    };
     const result = await registerStudentForSection(
       actor,
-      { sectionId: "section-123", studentPersonId: "student-123" },
+      input,
       db,
     );
 
     assert.equal(result.status, "registered");
+    assert.equal(db.getAuditEvents().length, 1);
+    assert.deepEqual(
+      (db.getAuditEvents()[0].redacted_metadata as Record<string, unknown>).reason,
+      "Late registration approved by registrar.",
+    );
+  });
+
+  it("requires registrar override reason outside enrollment window", async () => {
+    const actor: AcademyActor = {
+      userId: "registrar-1",
+      tenantId: "tenant-a",
+      roles: ["registrar"],
+    };
+    const db = new MockDatabase();
+    db.clearEnrollmentWindow();
+
+    await assert.rejects(
+      async () => {
+        await registerStudentForSection(
+          actor,
+          { sectionId: "section-123", studentPersonId: "student-123" },
+          db,
+        );
+      },
+      { message: /overrideReason is required/i },
+    );
   });
 
   it("throws error for cross-tenant access", async () => {
@@ -512,8 +629,42 @@ describe("dropStudentFromSection", () => {
 
     db.clearEnrollmentWindow();
 
-    await dropStudentFromSection(actorRegistrar, { registrationId: registration.id }, db);
+    await dropStudentFromSection(
+      actorRegistrar,
+      { registrationId: registration.id, overrideReason: "Registrar-approved late drop." },
+      db,
+    );
 
     assert.ok(true);
+    assert.equal(db.getAuditEvents().length, 1);
+  });
+
+  it("requires registrar override reason to drop outside enrollment window", async () => {
+    const actorStudent: AcademyActor = {
+      userId: "student-123",
+      tenantId: "tenant-a",
+      roles: ["student"],
+    };
+    const actorRegistrar: AcademyActor = {
+      userId: "registrar-1",
+      tenantId: "tenant-a",
+      roles: ["registrar"],
+    };
+    const db = new MockDatabase();
+
+    const registration = await registerStudentForSection(
+      actorStudent,
+      { sectionId: "section-123", studentPersonId: "student-123" },
+      db,
+    );
+
+    db.clearEnrollmentWindow();
+
+    await assert.rejects(
+      async () => {
+        await dropStudentFromSection(actorRegistrar, { registrationId: registration.id }, db);
+      },
+      { message: /overrideReason is required/i },
+    );
   });
 });

@@ -46,6 +46,7 @@ function mockPdfData(
 
 function mockStorageClient(options: {
   fileExists?: boolean;
+  uploadedBuffers?: Buffer[];
 } = {}): {
   client: TranscriptStorageClient;
   calls: string[];
@@ -54,6 +55,7 @@ function mockStorageClient(options: {
 
   const client: TranscriptStorageClient = {
     async upload(bucket, path, buffer, contentType) {
+      options.uploadedBuffers?.push(buffer);
       calls.push(`upload:${bucket}:${path}:${contentType}:${buffer.length}`);
     },
     async exists(bucket, path) {
@@ -123,6 +125,47 @@ test("generateTranscriptPdf skips upload when file already exists (idempotency)"
     calls.some((call) => call.startsWith("signedUrl:")),
     "Should create signed URL",
   );
+});
+
+test("generateTranscriptPdf uploads a PDF when the student has no grade records", async () => {
+  const uploadedBuffers: Buffer[] = [];
+  const data = mockPdfData({
+    cumulativeGpa: null,
+    creditsEarned: 0,
+    gradeRows: [],
+  });
+  const { client, calls } = mockStorageClient({
+    fileExists: false,
+    uploadedBuffers,
+  });
+
+  const result = await generateTranscriptPdf(data, "issuance-1", client);
+
+  assert.equal(result.path, "tenant-1/student-1/issuance-1.pdf");
+  assert.equal(uploadedBuffers.length, 1);
+  assert.ok(uploadedBuffers[0].length > 0);
+  assert.ok(
+    calls.some((call) => call.startsWith("upload:transcripts:tenant-1/student-1/issuance-1.pdf")),
+    "Should upload no-grade transcript PDF to the transcripts bucket",
+  );
+});
+
+test("generateTranscriptPdf does not leak issuance internal notes into PDF bytes", async () => {
+  const uploadedBuffers: Buffer[] = [];
+  const internalNote = "PRIVATE_REGISTRAR_NOTE_DO_NOT_RENDER";
+  const data = {
+    ...mockPdfData(),
+    internalNotes: internalNote,
+  } as TranscriptPdfData & { internalNotes: string };
+  const { client } = mockStorageClient({
+    fileExists: false,
+    uploadedBuffers,
+  });
+
+  await generateTranscriptPdf(data, "issuance-1", client);
+
+  assert.equal(uploadedBuffers.length, 1);
+  assert.doesNotMatch(uploadedBuffers[0].toString("latin1"), new RegExp(internalNote));
 });
 
 test("getTranscriptSignedUrl returns URL for released status", async () => {

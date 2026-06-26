@@ -1,24 +1,51 @@
-import { handleApi } from "@/app/api/academy/api-utils";
 import {
   withAcademyDatabaseContext,
   asAcademyDatabase,
 } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
-import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import {
+  AcademyAuthenticationError,
+  AcademyAuthorizationError,
+  AcademyConflictError,
+} from "@/modules/academy-auth/errors";
 import {
   PostgresTranscriptRepository,
   type TranscriptDatabase,
 } from "@/modules/transcripts/postgres-repository";
 import { hasTranscriptAdminAccess } from "@/modules/transcripts/service";
-import { getTranscriptSignedUrl } from "@/modules/transcripts/storage";
+import {
+  generateTranscriptPdf,
+  getTranscriptSignedUrl,
+} from "@/modules/transcripts/storage";
 import type { TranscriptStorageClient } from "@/modules/transcripts/storage";
+import { buildTranscriptPdfData } from "@/modules/transcripts/pdf-data-builder";
+import type { TranscriptPdfData } from "@/modules/transcripts/pdf-generator";
+import type { TranscriptRecord } from "@/modules/transcripts/types";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 interface TranscriptDownloadDependencies {
   resolveActor?: (request: Request) => Promise<AcademyActor>;
+  findById?: (
+    actor: AcademyActor,
+    transcriptId: string,
+  ) => Promise<TranscriptRecord | null>;
   storageClient?: TranscriptStorageClient;
+  buildPdfData?: (
+    actor: AcademyActor,
+    transcript: TranscriptRecord,
+  ) => Promise<TranscriptPdfData>;
+  generatePdf?: (
+    data: TranscriptPdfData,
+    issuanceId: string,
+    storage: TranscriptStorageClient,
+  ) => Promise<{ path: string; signedUrl: string }>;
+  updateStorageUrl?: (
+    actor: AcademyActor,
+    transcriptId: string,
+    storagePath: string,
+  ) => Promise<void>;
 }
 
 function makeStorageClient(): TranscriptStorageClient {
@@ -61,12 +88,54 @@ function makeStorageClient(): TranscriptStorageClient {
   };
 }
 
+async function defaultFindById(actor: AcademyActor, transcriptId: string) {
+  return withAcademyDatabaseContext(
+    actor,
+    async (client) => {
+      const repository = new PostgresTranscriptRepository(
+        asAcademyDatabase<TranscriptDatabase>(client),
+      );
+      return repository.findById(actor.tenantId, transcriptId);
+    },
+  );
+}
+
+async function defaultBuildPdfData(
+  actor: AcademyActor,
+  transcript: TranscriptRecord,
+) {
+  return withAcademyDatabaseContext(actor, async (client) =>
+    buildTranscriptPdfData({
+      tenantId: actor.tenantId,
+      studentPersonId: transcript.studentPersonId,
+      issuanceId: transcript.id,
+      issuanceDate: new Date(transcript.releasedAt ?? transcript.issuedAt)
+        .toISOString()
+        .split("T")[0],
+      client: asAcademyDatabase(client),
+    }),
+  );
+}
+
+async function defaultUpdateStorageUrl(
+  actor: AcademyActor,
+  transcriptId: string,
+  storagePath: string,
+) {
+  await withAcademyDatabaseContext(actor, async (client) => {
+    const repository = new PostgresTranscriptRepository(
+      asAcademyDatabase<TranscriptDatabase>(client),
+    );
+    await repository.updateStorageUrl(actor.tenantId, transcriptId, storagePath);
+  });
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
   dependencies: TranscriptDownloadDependencies = {},
 ) {
-  return handleApi(async () => {
+  try {
     const { id } = await params;
     if (!id) throw new Error("Transcript id is required.");
 
@@ -76,15 +145,9 @@ export async function GET(
         (await resolveAcademyActorFromSession(currentRequest)).actor)
     )(request);
 
-    // Fetch the transcript record to verify ownership and status
-    const transcript = await withAcademyDatabaseContext(
+    const transcript = await (dependencies.findById ?? defaultFindById)(
       actor,
-      async (client) => {
-        const repository = new PostgresTranscriptRepository(
-          asAcademyDatabase<TranscriptDatabase>(client),
-        );
-        return repository.findById(actor.tenantId, id);
-      },
+      id,
     );
 
     if (!transcript) {
@@ -107,7 +170,12 @@ export async function GET(
       );
     }
 
-    // Get signed URL using storage client
+    if (transcript.status !== "released") {
+      throw new AcademyAuthorizationError(
+        "Only released transcript PDFs can be downloaded.",
+      );
+    }
+
     const storage =
       dependencies.storageClient ?? makeStorageClient();
     const signedUrl = await getTranscriptSignedUrl(
@@ -118,13 +186,56 @@ export async function GET(
       storage,
     );
 
-    if (!signedUrl) {
-      throw new Error(
-        "Transcript PDF is not available for download. Only released transcripts can be downloaded.",
-      );
+    if (signedUrl) {
+      return NextResponse.redirect(signedUrl, { status: 302 });
     }
 
-    // Redirect to signed URL
-    return NextResponse.redirect(signedUrl, { status: 302 });
-  });
+    const pdfData = await (dependencies.buildPdfData ?? defaultBuildPdfData)(
+      actor,
+      transcript,
+    );
+    const generated = await (dependencies.generatePdf ?? generateTranscriptPdf)(
+      pdfData,
+      transcript.id,
+      storage,
+    );
+    await (dependencies.updateStorageUrl ?? defaultUpdateStorageUrl)(
+      actor,
+      transcript.id,
+      generated.path,
+    );
+
+    return NextResponse.redirect(generated.signedUrl, { status: 302 });
+  } catch (error) {
+    return mapDownloadError(error);
+  }
+}
+
+function mapDownloadError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Unexpected API error.";
+
+  if (error instanceof AcademyAuthenticationError) {
+    return NextResponse.json({ error: message }, { status: 401 });
+  }
+
+  if (
+    error instanceof AcademyAuthorizationError ||
+    message.includes("Forbidden")
+  ) {
+    return NextResponse.json({ error: message }, { status: 403 });
+  }
+
+  if (error instanceof AcademyConflictError) {
+    return NextResponse.json({ error: message }, { status: 409 });
+  }
+
+  if (message.includes("not found") || message.includes("was not found")) {
+    return NextResponse.json({ error: message }, { status: 404 });
+  }
+
+  if (message.includes(" is required") || message.includes(" are required")) {
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  return NextResponse.json({ error: "Unexpected API error." }, { status: 500 });
 }
