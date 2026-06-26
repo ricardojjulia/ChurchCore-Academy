@@ -195,6 +195,50 @@ test("Canvas launch is gated by tenant provider status", () => {
   }
 });
 
+test("Canvas launch returns safe unavailable reasons for credential circuit and mapping states", () => {
+  const resolved = resolveTenantLmsProvider(profile(), {
+    tenantId: "tenant-canvas-launch",
+    correlationId: "corr-canvas-launch-readiness",
+  });
+  const request = {
+    tenant: resolved.tenant,
+    actor: lmsActor(actor()),
+    courseId: "course-201",
+    sectionId: "section-201-a",
+    targetStudentPersonId: "student-one",
+    redirectPath: "/student/lms",
+    nonce: "nonce-readiness",
+  };
+
+  assert.equal(
+    createCanvasLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ credentialStatus: "invalid" }),
+      request,
+      now,
+    }).unavailableReason,
+    "Canvas credentials need administrator review before launch.",
+  );
+  assert.equal(
+    createCanvasLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ circuitState: "open" }),
+      request,
+      now,
+    }).unavailableReason,
+    "Canvas is temporarily paused while provider health recovers.",
+  );
+  assert.equal(
+    createCanvasLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ mappedCourseIds: ["course-other"], mappedSectionIds: ["section-other"] }),
+      request,
+      now,
+    }).unavailableReason,
+    "Canvas course mapping is missing for this launch.",
+  );
+});
+
 test("Canvas launch rejects cross-tenant launch configuration", () => {
   const resolved = resolveTenantLmsProvider(profile(), {
     tenantId: "tenant-canvas-launch",
