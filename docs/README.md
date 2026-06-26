@@ -14,6 +14,9 @@ This directory contains the durable product, architecture, delivery, operations,
 - [Product Master Plan](product/faith-based-academy-master-plan.md)
 - [Factory Roadmap](product/factory-roadmap.md)
 - [Software Factory](software-factory.md)
+- [Council System AI Coder Prompt](prompts/2026-06-26-council-system-ai-coder-prompt.md)
+- [Software Factory AI Coder Prompt](prompts/2026-06-26-software-factory-ai-coder-prompt.md)
+- [Testing and Code Health AI Coder Prompt](prompts/2026-06-26-testing-code-health-ai-coder-prompt.md)
 
 ## Architecture and Decisions
 
@@ -52,6 +55,7 @@ This directory contains the durable product, architecture, delivery, operations,
 - `docs/releases/`: release notes and readiness packages
 - `docs/superpowers/specs/`: approved designs
 - `docs/superpowers/plans/`: implementation plans
+- `docs/prompts/`: reusable AI-coder prompt packs
 - `docs/reviews/`: Council and delivery reviews
 - `docs/agents/`: reusable factory roles and procedures
 
