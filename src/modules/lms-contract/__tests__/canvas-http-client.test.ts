@@ -153,6 +153,40 @@ test("CanvasHttpClient treats HTTP 401 as non-retryable error", async () => {
   resetFetch();
 });
 
+test("CanvasHttpClient refreshes an expired access token once and retries the request", async () => {
+  const authorizations: string[] = [];
+  let refreshCalls = 0;
+
+  mockFetch(async (url, init) => {
+    authorizations.push((init?.headers as Record<string, string>)?.["Authorization"] ?? "");
+    if (authorizations.length === 1) {
+      return createResponse({ error: "Expired token" }, 401);
+    }
+    return createResponse({ id: 321, name: "Canvas Course" });
+  });
+
+  const client = new CanvasHttpClient("https://canvas.example.edu", "expired-token", {
+    tokenRefresher: {
+      refreshAccessToken: async (input) => {
+        refreshCalls++;
+        assert.equal(input.expiredAccessToken, "expired-token");
+        return {
+          accessToken: "fresh-token",
+          expiresAt: "2026-06-26T05:00:00.000Z",
+        };
+      },
+    },
+  });
+
+  const result = await client.get<{ id: number; name: string }>("/courses/321");
+
+  assert.equal(result.id, 321);
+  assert.equal(refreshCalls, 1);
+  assert.deepEqual(authorizations, ["Bearer expired-token", "Bearer fresh-token"]);
+
+  resetFetch();
+});
+
 test("CanvasHttpClient treats HTTP 503 as retryable error", async () => {
   let attempts = 0;
 
@@ -246,6 +280,22 @@ test("CanvasHttpClient does not leak tokens in error messages", async () => {
 
   await assert.rejects(async () => client.get("/courses"), (error: Error) => {
     assert.doesNotMatch(error.message, /secret-access-token-12345/);
+    return true;
+  });
+
+  resetFetch();
+});
+
+test("CanvasHttpClient redacts token-shaped network error text", async () => {
+  mockFetch(async () => {
+    throw new TypeError("fetch failed for Authorization Bearer secret-access-token-12345");
+  });
+
+  const client = new CanvasHttpClient("https://canvas.example.edu", "secret-access-token-12345");
+
+  await assert.rejects(async () => client.get("/courses"), (error: Error) => {
+    assert.doesNotMatch(error.message, /secret-access-token-12345|Authorization Bearer/i);
+    assert.match(error.message, /\[REDACTED\]/);
     return true;
   });
 

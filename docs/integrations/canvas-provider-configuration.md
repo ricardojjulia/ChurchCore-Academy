@@ -29,6 +29,7 @@ Implemented modules:
 4. Non-secret Canvas activation settings must be stored in `lms_provider_configs` with provider `canvas`, launch mode, enabled operation families, root account/context identifiers, and validation evidence.
 5. Canvas secret values must stay outside Academy domain tables. `lms_provider_secret_refs` stores references only.
 6. `assertProviderCanActivate` must pass before activation. Canvas activation requires passed validation evidence and required Canvas secret references, including access-token and refresh-token references for live REST calls.
+7. Canvas OAuth/developer-key setup must provide the scopes needed by the enabled operation families. Access tokens are bearer tokens and refreshed only through the provider secret boundary.
 
 If these are not true, launch responses remain `unavailable` with safe reasons.
 
@@ -38,8 +39,30 @@ If these are not true, launch responses remain `unavailable` with safe reasons.
 - Keep provider credentials and raw payloads in secret storage only.
 - Keep `lms_provider_configs` limited to non-secret values such as base URL, launch mode, enabled operations, root account/context identifiers, provider status, and validation evidence.
 - Reject token, credential, password, private key, signature, authorization header, API key, or raw provider payload fields from non-secret Canvas config.
+- Refresh expired Canvas access tokens through the server-side token refresher only; never persist refreshed token values in ordinary Academy domain tables.
 - Use audit-safe references in launch responses.
 - Enforce tenant matching across resolved provider, request tenant, and launch configuration tenant.
+
+## OAuth And REST Transport
+
+Canvas REST calls use HTTPS and `Authorization: Bearer <token>` headers. The live client retries a request once after a 401 only when a server-side token refresher is configured. If refresh is unavailable or the refreshed request still fails, the error remains non-retryable and safe for audit/log surfaces.
+
+Required REST scopes depend on the enabled operation families:
+
+- course shell sync: account/course read and course update/create scopes;
+- roster sync: enrollment read and enrollment update/create scopes;
+- grade/progress return: submission, grade, outcome, or progress read scopes selected for the tenant's Canvas model;
+- reconciliation: read scopes for courses, sections, enrollments, assignments/submissions, and account capability checks.
+
+## SIS Import Guardrails
+
+Canvas SIS Import is optional and high risk. Academy disables SIS import by default and treats it separately from normal REST operations.
+
+- `sisImportEnabled` must be explicitly true before any SIS import request is built.
+- Batch mode is disabled by default because Canvas batch imports can remove courses, sections, and enrollments.
+- Batch mode requires both `batchModeEnabled: true` and a `batchModeChangeThreshold` that is greater than or equal to the proposed change count.
+- SIS import audit metadata may include CSV kind, batch flag, change count, threshold, and idempotency key, but not CSV row contents.
+- Non-batch REST operations remain the preferred path for routine course and roster updates.
 
 ## Fields used by the launch mapper
 
