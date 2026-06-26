@@ -9,6 +9,17 @@ export type ReportId =
   | "retention"
   | "program_completion";
 
+export type ScheduledReportType =
+  | "enrollment_summary"
+  | "attendance_summary"
+  | "grade_summary"
+  | "financial_summary"
+  | "ipeds_export";
+
+export type ScheduledReportFrequency = "weekly" | "monthly" | "term_end";
+export type ScheduledReportDeliveryMethod = "email" | "download_link";
+export type ScheduledReportFormat = "csv" | "json";
+
 export type ReportRowValue = string | number | boolean | null | undefined;
 export type ReportRow = Record<string, ReportRowValue>;
 
@@ -50,4 +61,17 @@ export interface ReportingDashboard {
 
 export interface ReportRepository {
   readDataset(tenantId: string): Promise<ReportDataset>;
+}
+
+export interface ScheduledReport {
+  id: string;
+  tenantId: string;
+  reportType: ScheduledReportType;
+  frequency: ScheduledReportFrequency;
+  deliveryMethod: ScheduledReportDeliveryMethod;
+  recipients: string[];
+  format: ScheduledReportFormat;
+  nextRunAt: string;
+  lastRunAt?: string;
+  active: boolean;
 }

@@ -21,10 +21,11 @@ export interface GuardianStudentView {
   studentPersonId: string;
   studentName: string;
   enrollmentStatus: string;
-  balanceCents: number;
+  balanceCents: number | null;
   currency: string;
   attendance: GuardianStudentAttendanceSummary[];
-  grades: GuardianStudentGradeSummary;
+  grades: GuardianStudentGradeSummary | null;
+  ferpaRights: boolean;
 }
 
 export async function fetchGuardianStudentSummary(
@@ -35,7 +36,8 @@ export async function fetchGuardianStudentSummary(
 ): Promise<GuardianStudentView | null> {
   // Verify guardian-student link
   const relationshipResult = await db.query(
-    `select ferpa_restricted
+    `select ferpa_restricted,
+            case when ferpa_restricted then false else true end as ferpa_rights
      from academy_student_relationships
      where tenant_id = $1
        and related_person_id = $2
@@ -43,7 +45,7 @@ export async function fetchGuardianStudentSummary(
        and status = 'active'
      limit 1`,
     [tenantId, guardianPersonId, studentPersonId],
-  ) as { rows: { ferpa_restricted: boolean }[] };
+  ) as { rows: { ferpa_restricted: boolean; ferpa_rights?: boolean }[] };
 
   if (relationshipResult.rows.length === 0) {
     throw new AcademyAuthorizationError("Guardian is not linked to this student.");
@@ -53,6 +55,7 @@ export async function fetchGuardianStudentSummary(
   if (relationshipResult.rows[0].ferpa_restricted) {
     return null;
   }
+  const hasFerpaRights = relationshipResult.rows[0].ferpa_rights !== false;
 
   // Fetch student profile and person info
   const studentResult = await db.query(
@@ -111,55 +114,63 @@ export async function fetchGuardianStudentSummary(
     recentAbsenceDates: (row.recent_absence_dates || []).slice(0, 5),
   }));
 
-  // Fetch current term official posted grades
-  const gradesResult = await db.query(
-    `select
-       c.course_code,
-       c.title as course_title,
-       gr.final_letter_grade as grade
-     from academy_gradebook_records gr
-     join academy_course_sections cs on cs.id::text = gr.section_id and cs.tenant_id = gr.tenant_id
-     join academy_courses c on c.id = cs.course_id and c.tenant_id = cs.tenant_id
-     where gr.tenant_id = $1
-       and gr.learner_person_id = $2
-       and gr.status = 'official'
-     order by c.course_code`,
-    [tenantId, studentPersonId],
-  ) as { rows: { course_code: string; course_title: string; grade: string | null }[] };
+  let grades: GuardianStudentGradeSummary | null = null;
+  let balanceCents: number | null = null;
 
-  const postedGrades = gradesResult.rows.map((row) => ({
-    courseCode: row.course_code,
-    courseTitle: row.course_title,
-    grade: row.grade || "N/A",
-  }));
+  if (hasFerpaRights) {
+    const gradesResult = await db.query(
+      `select
+         c.course_code,
+         c.title as course_title,
+         gr.final_letter_grade as grade
+       from academy_gradebook_records gr
+       join academy_course_sections cs on cs.id::text = gr.section_id and cs.tenant_id = gr.tenant_id
+       join academy_courses c on c.id = cs.course_id and c.tenant_id = cs.tenant_id
+       where gr.tenant_id = $1
+         and gr.learner_person_id = $2
+         and gr.status = 'official'
+       order by c.course_code`,
+      [tenantId, studentPersonId],
+    ) as { rows: { course_code: string; course_title: string; grade: string | null }[] };
 
-  // Fetch GPA from student profile
-  const gpaResult = await db.query(
-    `select gpa
-     from academy_student_profiles
-     where tenant_id = $1
-       and person_id = $2`,
-    [tenantId, studentPersonId],
-  ) as { rows: { gpa: number | null }[] };
+    const postedGrades = gradesResult.rows.map((row) => ({
+      courseCode: row.course_code,
+      courseTitle: row.course_title,
+      grade: row.grade || "N/A",
+    }));
 
-  const cumulativeGpa = gpaResult.rows[0]?.gpa || null;
+    const gpaResult = await db.query(
+      `select gpa
+       from academy_student_profiles
+       where tenant_id = $1
+         and person_id = $2`,
+      [tenantId, studentPersonId],
+    ) as { rows: { gpa: number | null }[] };
 
-  // Fetch balance from billing ledger
-  const balanceResult = await db.query(
-    `select coalesce(sum(
-       case
-         when entry_type in ('charge') then amount_cents
-         when entry_type in ('credit', 'payment', 'refund') then -amount_cents
-         else 0
-       end
-     ), 0) as balance_cents
-     from academy_billing_ledger_entries
-     where tenant_id = $1
-       and student_person_id = $2`,
-    [tenantId, studentPersonId],
-  ) as { rows: { balance_cents: string }[] };
+    const cumulativeGpa = gpaResult.rows[0]?.gpa || null;
 
-  const balanceCents = parseInt(balanceResult.rows[0]?.balance_cents || "0", 10);
+    grades = {
+      termName: "Current Term",
+      cumulativeGpa,
+      postedGrades,
+    };
+
+    const balanceResult = await db.query(
+      `select coalesce(sum(
+         case
+           when entry_type in ('charge') then amount_cents
+           when entry_type in ('credit', 'payment', 'refund') then -amount_cents
+           else 0
+         end
+       ), 0) as balance_cents
+       from academy_billing_ledger_entries
+       where tenant_id = $1
+         and student_person_id = $2`,
+      [tenantId, studentPersonId],
+    ) as { rows: { balance_cents: string }[] };
+
+    balanceCents = parseInt(balanceResult.rows[0]?.balance_cents || "0", 10);
+  }
 
   return {
     studentPersonId: student.person_id,
@@ -168,11 +179,8 @@ export async function fetchGuardianStudentSummary(
     balanceCents,
     currency: student.currency,
     attendance,
-    grades: {
-      termName: "Current Term",
-      cumulativeGpa,
-      postedGrades,
-    },
+    grades,
+    ferpaRights: hasFerpaRights,
   };
 }
 
