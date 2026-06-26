@@ -1,4 +1,9 @@
-import { LmsCapability, LmsReconciliationReport, createEmptyLmsReconciliationReport } from "./contract";
+import {
+  type LmsCapability,
+  type LmsCredentialHealth,
+  type LmsReconciliationReport,
+  createEmptyLmsReconciliationReport,
+} from "./contract";
 import { ResolvedTenantLmsProvider } from "./tenant-provider-selection";
 
 type CanvasRosterRole = "teacher" | "ta" | "student";
@@ -7,6 +12,7 @@ type CanvasEnrollmentState = "active" | "paused" | "withdrawn" | "completed";
 export interface CanvasReconciliationConfiguration {
   tenantId: string;
   requiredCapabilities: LmsCapability[];
+  credentialHealth?: LmsCredentialHealth;
   accessToken?: string;
   refreshToken?: string;
   clientSecret?: string;
@@ -205,6 +211,22 @@ function reconcileCapabilities(report: LmsReconciliationReport, configuration: C
   }
 }
 
+function applyParitySummary(
+  report: LmsReconciliationReport,
+  configuration: CanvasReconciliationConfiguration,
+  snapshot: CanvasReconciliationSnapshot,
+) {
+  report.parity = {
+    expectedCourseShells: snapshot.expectedCourseShells.length,
+    observedCourseShells: snapshot.observedCourseShells.length,
+    rosterDrift: report.rosterDrift.length,
+    gradeReturnDrift: report.gradeReturnDrift.length,
+    progressReturnDrift: report.progressReturnDrift.length,
+    capabilityDrift: report.capabilityMismatches.length,
+    credentialHealth: configuration.credentialHealth ?? "valid",
+  };
+}
+
 export function createCanvasReconciliationReport(input: CreateCanvasReconciliationReportInput): LmsReconciliationReport {
   assertTenantMatch(input);
 
@@ -236,6 +258,7 @@ export function createCanvasReconciliationReport(input: CreateCanvasReconciliati
     target: "progress",
   });
   reconcileCapabilities(report, input.configuration, input.snapshot);
+  applyParitySummary(report, input.configuration, input.snapshot);
 
   return report;
 }

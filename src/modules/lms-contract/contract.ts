@@ -155,10 +155,23 @@ export interface LmsAuditEvent {
   redactedMetadata: Record<string, string | number | boolean>;
 }
 
+export type LmsCredentialHealth = "valid" | "invalid" | "unknown";
+
+export interface LmsReconciliationParitySummary {
+  expectedCourseShells: number;
+  observedCourseShells: number;
+  rosterDrift: number;
+  gradeReturnDrift: number;
+  progressReturnDrift: number;
+  capabilityDrift: number;
+  credentialHealth: LmsCredentialHealth;
+}
+
 export interface LmsReconciliationReport {
   tenantId: string;
   providerId: LmsProviderId;
   correlationId: string;
+  parity: LmsReconciliationParitySummary;
   missingMappings: string[];
   staleMappings: string[];
   duplicateProviderObjects: string[];
@@ -292,6 +305,15 @@ export function createEmptyLmsReconciliationReport(
     tenantId,
     providerId,
     correlationId,
+    parity: {
+      expectedCourseShells: 0,
+      observedCourseShells: 0,
+      rosterDrift: 0,
+      gradeReturnDrift: 0,
+      progressReturnDrift: 0,
+      capabilityDrift: 0,
+      credentialHealth: "unknown",
+    },
     missingMappings: [],
     staleMappings: [],
     duplicateProviderObjects: [],

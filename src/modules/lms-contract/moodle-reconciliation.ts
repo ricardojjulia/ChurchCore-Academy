@@ -1,4 +1,9 @@
-import { LmsCapability, LmsReconciliationReport, createEmptyLmsReconciliationReport } from "./contract";
+import {
+  type LmsCapability,
+  type LmsCredentialHealth,
+  type LmsReconciliationReport,
+  createEmptyLmsReconciliationReport,
+} from "./contract";
 import { ResolvedTenantLmsProvider } from "./tenant-provider-selection";
 
 type MoodleRosterRole = "editingteacher" | "teacher" | "student";
@@ -7,6 +12,7 @@ type MoodleEnrollmentState = "active" | "paused" | "withdrawn" | "completed";
 export interface MoodleReconciliationConfiguration {
   tenantId: string;
   requiredCapabilities: LmsCapability[];
+  credentialHealth?: LmsCredentialHealth;
   accessToken?: string;
   refreshToken?: string;
   clientSecret?: string;
@@ -205,6 +211,22 @@ function reconcileCapabilities(report: LmsReconciliationReport, configuration: M
   }
 }
 
+function applyParitySummary(
+  report: LmsReconciliationReport,
+  configuration: MoodleReconciliationConfiguration,
+  snapshot: MoodleReconciliationSnapshot,
+) {
+  report.parity = {
+    expectedCourseShells: snapshot.expectedCourseShells.length,
+    observedCourseShells: snapshot.observedCourseShells.length,
+    rosterDrift: report.rosterDrift.length,
+    gradeReturnDrift: report.gradeReturnDrift.length,
+    progressReturnDrift: report.progressReturnDrift.length,
+    capabilityDrift: report.capabilityMismatches.length,
+    credentialHealth: configuration.credentialHealth ?? "valid",
+  };
+}
+
 export function createMoodleReconciliationReport(input: CreateMoodleReconciliationReportInput): LmsReconciliationReport {
   assertTenantMatch(input);
 
@@ -236,6 +258,7 @@ export function createMoodleReconciliationReport(input: CreateMoodleReconciliati
     target: "progress",
   });
   reconcileCapabilities(report, input.configuration, input.snapshot);
+  applyParitySummary(report, input.configuration, input.snapshot);
 
   return report;
 }

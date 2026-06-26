@@ -167,6 +167,50 @@ test("Moodle launch is gated by tenant provider status", () => {
   }
 });
 
+test("Moodle launch returns safe unavailable reasons for credential circuit and mapping states", () => {
+  const resolved = resolveTenantLmsProvider(profile(), {
+    tenantId: "tenant-moodle-launch",
+    correlationId: "corr-moodle-launch-readiness",
+  });
+  const request = {
+    tenant: resolved.tenant,
+    actor: lmsActor(actor()),
+    courseId: "course-101",
+    sectionId: "section-101-a",
+    targetStudentPersonId: "student-one",
+    redirectPath: "/student/lms",
+    nonce: "nonce-readiness",
+  };
+
+  assert.equal(
+    createMoodleLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ credentialStatus: "invalid" }),
+      request,
+      now,
+    }).unavailableReason,
+    "Moodle credentials need administrator review before launch.",
+  );
+  assert.equal(
+    createMoodleLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ circuitState: "open" }),
+      request,
+      now,
+    }).unavailableReason,
+    "Moodle is temporarily paused while provider health recovers.",
+  );
+  assert.equal(
+    createMoodleLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ mappedCourseIds: ["course-other"], mappedSectionIds: ["section-other"] }),
+      request,
+      now,
+    }).unavailableReason,
+    "Moodle course mapping is missing for this launch.",
+  );
+});
+
 test("Moodle launch rejects cross-tenant launch configuration", () => {
   const resolved = resolveTenantLmsProvider(profile(), {
     tenantId: "tenant-moodle-launch",
