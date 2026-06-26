@@ -1,7 +1,7 @@
 # Provider Activation Runbook
 
 Date: 2026-06-21  
-Governing ADR: `docs/adr/0038-competitive-acceptance-and-deployment-readiness.md`
+Governing ADRs: `docs/adr/0038-competitive-acceptance-and-deployment-readiness.md`, `docs/adr/0059-full-moodle-canvas-live-integration.md`
 
 ## Purpose
 
@@ -96,7 +96,7 @@ Rollback:
 
 ## Moodle Live HTTP Client
 
-Status before activation: blocked unless tenant Moodle credentials and live client evidence are approved.
+Status before activation: blocked unless tenant Moodle credentials and live client evidence are approved. The admin readiness surface is `/admin/settings/lms`.
 
 Required secrets:
 
@@ -108,11 +108,13 @@ Required secrets:
 Sandbox evidence:
 
 - resolve tenant provider selection as active Moodle;
+- validate Moodle credentials without exposing token values;
 - create course shell operation plan;
 - sync roster for teacher and student roles;
 - return grade/progress imports into reviewed-import state;
 - run reconciliation and review mapping drift;
 - verify Student PWA launch response does not expose tokens, base internal metadata, or raw provider payloads.
+- attach evidence in `docs/releases/2026-06-26-full-lms-integration-readiness.md`.
 
 Production evidence:
 
@@ -132,7 +134,7 @@ Rollback:
 
 ## Canvas Live HTTP Client
 
-Status before activation: blocked unless tenant Canvas credentials and live client evidence are approved.
+Status before activation: blocked unless tenant Canvas credentials and live client evidence are approved. The admin readiness surface is `/admin/settings/lms`.
 
 Required secrets:
 
@@ -144,11 +146,13 @@ Required secrets:
 Sandbox evidence:
 
 - resolve tenant provider selection as active Canvas;
+- validate Canvas OAuth/token refresh without exposing token values;
 - create course shell operation plan;
 - sync roster for teacher/student roles;
 - return grade/progress imports into reviewed-import state;
 - run reconciliation and review mapping drift;
 - verify Student PWA launch response does not expose tokens, client secrets, or raw provider payloads.
+- attach evidence in `docs/releases/2026-06-26-full-lms-integration-readiness.md`.
 
 Production evidence:
 
@@ -164,6 +168,17 @@ Rollback:
 - keep Academy as SIS source of truth;
 - require manual reconciliation before reactivation;
 - rotate Canvas service credentials when compromise is suspected.
+
+## LMS Rollback
+
+Use this rollback sequence for Moodle or Canvas provider incidents:
+
+1. Use `/admin/settings/lms` to record the intended pause action and operator review.
+2. Pause tenant provider status before stopping Academy SIS workflows.
+3. Stop live LMS worker execution and leave Academy course, roster, grade, transcript, and reviewed-import records intact.
+4. Keep Student PWA launch responses unavailable with safe reasons.
+5. Run reconciliation before resuming provider workers.
+6. Rotate provider credentials if any token, secret, webhook signature, or raw provider payload may have been exposed.
 
 ## Regulated Or Federal Aid
 

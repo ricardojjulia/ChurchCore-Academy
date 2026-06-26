@@ -106,6 +106,10 @@ Runtime orchestration:
 - `/api/academy/student/lms/launch` resolves the acting user, loads tenant people configuration, applies student access policy, then routes launch generation to Moodle, Canvas, or no-LMS behavior.
 - Launch responses remain contract-safe and return only availability fields, launch URL/expiry when available, and safe unavailable reasons otherwise.
 
+## Readiness Surface
+
+Administrators review Canvas activation status at `/admin/settings/lms`. Production activation remains deferred until the Canvas sandbox evidence section in `docs/releases/2026-06-26-full-lms-integration-readiness.md` is complete.
+
 ## Next increments (Phase 9)
 
 1. Replace bootstrap header-based actor simulation with authenticated student/guardian identity from production auth context.

@@ -106,6 +106,10 @@ Moodle names and marks should be used only to describe interoperability. ChurchC
 
 Keep ChurchCore Academy branding distinct from Moodle branding in tenant-facing materials.
 
+## Readiness Surface
+
+Administrators review Moodle activation status at `/admin/settings/lms`. Production activation remains deferred until the Moodle sandbox evidence section in `docs/releases/2026-06-26-full-lms-integration-readiness.md` is complete.
+
 ## Review Checklist
 
 - Moodle selected and active for the tenant.

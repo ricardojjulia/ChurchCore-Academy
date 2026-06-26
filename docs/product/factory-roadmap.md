@@ -93,14 +93,17 @@ Completed:
 - ADR-0038 Prompt 5 Council Review IX split release decision and controlled-pilot release notes
 - Post-closeout authenticated role walkthrough harness and seeded acceptance personas
 - Post-closeout production observability foundation for controlled-pilot failures
+- ADR-0059 full Moodle and Canvas integration implementation through activation boundary, live Moodle transport, live Canvas transport, durable worker, Student PWA launch parity, reviewed-import parity, reconciliation parity, and readiness surface
 
 In progress:
 
 - Controlled-pilot browser screenshot and console-error evidence by tenant
+- Moodle and Canvas sandbox validation evidence for live provider activation
 
 Next:
 
-- execute provider implementation activation as separate post-closeout work
+- attach Moodle and Canvas sandbox evidence to `docs/releases/2026-06-26-full-lms-integration-readiness.md` before production activation
+- execute provider production activation only after sandbox evidence, tenant owner approval, and rollback review
 - attach deployment-specific observability export, dashboards, and alert routing to the structured event boundary
 - run the generated authenticated role walkthrough against each pilot tenant and attach screenshots/console evidence to the tenant onboarding record
 
@@ -143,6 +146,24 @@ Approved sequence:
 5. Final council closeout and release package. Status: implemented as `docs/reviews/2026-06-21-council-review-9-release-closeout.md` and `docs/releases/2026-06-21-controlled-pilot-release-notes.md`.
 
 Each item must use the software factory and must end with verifiable evidence.
+
+## Full Moodle And Canvas LMS Integration Program
+
+ADR-0059 governs the current Moodle and Canvas live integration program.
+
+Status:
+
+- Provider activation boundary: merged.
+- Moodle live transport: merged.
+- Canvas live transport: merged.
+- Durable LMS worker and idempotent queue boundary: merged.
+- Student PWA launch, reviewed imports, and reconciliation parity: merged.
+- Activation UI, runbook, and release readiness closeout: implemented in the current closeout slice.
+- Production readiness: deferred until Moodle and Canvas sandbox evidence is attached.
+
+Truthful readiness statement:
+
+ChurchCore Academy now has the Academy-owned code and operational surfaces needed for Moodle and Canvas integration, but full production activation is not complete until both provider sandboxes prove credential validation, course shell sync, roster sync, launch, grade return, progress return, reconciliation, rollback, and secret-redaction behavior.
 
 ## Sprint Cadence
 
