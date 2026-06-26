@@ -352,6 +352,8 @@ Required ADRs:
 
 Goal: implement Moodle as the first LMS provider through the provider-neutral contract.
 
+Status: live-integration program approved by ADR-0059. Existing Moodle adapter foundations remain valid; full production-ready status requires the ADR-0059 activation, live HTTP, worker, reconciliation, and sandbox evidence gates.
+
 Suggested 1-week sprints:
 
 1. Moodle adapter design package - complete
@@ -369,7 +371,7 @@ Required ADRs:
 
 Goal: implement Canvas as the second LMS provider through the same contract.
 
-Status: deferred/foundation only. The provider-neutral LMS contract and shared worker boundaries can support Canvas, but a dedicated Canvas adapter ADR, OAuth/token storage ADR, live Canvas HTTP client, and production activation evidence are still required.
+Status: live-integration program approved by ADR-0059. Canvas remains foundation-only until the ADR-0059 OAuth/token, live HTTP, worker, reconciliation, activation, and sandbox evidence gates are complete.
 
 Required ADRs:
 
