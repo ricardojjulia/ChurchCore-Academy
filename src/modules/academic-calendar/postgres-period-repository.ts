@@ -21,10 +21,7 @@ function mapPeriodRow(row: Record<string, unknown>): AcademicPeriod {
   };
 }
 
-const mapYearRow = (row: Record<string, unknown>): AcademicYear => ({
-  id: String(row.id),
-  name: String(row.name),
-} as AcademicYear);
+
 
 /**
  * This is a partial implementation for the purpose of this feature.
@@ -94,10 +91,24 @@ export class PostgresAcademicPeriodRepository {
 
   async listYears(tenantId: string): Promise<AcademicYear[]> {
     const result = await this.db.query(
-      `select id, name from academy_academic_years where tenant_id = $1 order by starts_on desc`,
+      `select id, name, code, starts_on as "startsOn", ends_on as "endsOn", status, calendar_system as "calendarSystem"
+       from academy_academic_years
+       where tenant_id = $1
+       order by starts_on desc`,
       [tenantId],
     );
-    return result.rows.map(mapYearRow);
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      tenantId,
+      name: String(row.name),
+      code: String(row.code),
+      startsOn: row.startsOn instanceof Date ? row.startsOn.toISOString().slice(0, 10) : String(row.startsOn).slice(0, 10),
+      endsOn: row.endsOn instanceof Date ? row.endsOn.toISOString().slice(0, 10) : String(row.endsOn).slice(0, 10),
+      status: String(row.status) as unknown as AcademicYear["status"],
+      calendarSystem: String(row.calendarSystem) as unknown as AcademicYear["calendarSystem"],
+      createdAt: "",
+      updatedAt: "",
+    }));
   }
 
   async assertPeriodIsNotCompleted(periodId: string): Promise<void> {
