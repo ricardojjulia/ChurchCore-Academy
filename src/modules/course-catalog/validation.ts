@@ -1,4 +1,4 @@
-import { AcademicPeriod, AcademicYear, InstitutionSubdivision } from "@/modules/academic-calendar/types";
+import { AcademicPeriod, InstitutionSubdivision } from "@/modules/academic-calendar/types";
 import {
   Course,
   CourseCatalogConfiguration,

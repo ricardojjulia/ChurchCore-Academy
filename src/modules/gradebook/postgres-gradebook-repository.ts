@@ -13,7 +13,7 @@ export class PostgresGradebookRecordRepository {
       `SELECT academic_period_id FROM academy_course_sections WHERE id = $1 AND tenant_id = $2`,
       [data.courseSectionId, this.tenantId]
     );
-    const periodId = sectionResult.rows[0]?.academic_period_id;
+    const periodId = sectionResult.rows[0]?.academic_period_id as string | undefined;
 
     if (!periodId) {
       throw new Error(`Course section '${data.courseSectionId}' not found.`);

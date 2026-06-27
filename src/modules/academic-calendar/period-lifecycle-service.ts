@@ -1,4 +1,4 @@
-import { withAcademyDatabaseContext, type AcademyDatabase } from "@/lib/academy-database-context";
+import { type AcademyDatabase } from "@/lib/academy-database-context";
 import { requireActor, type Actor } from "@/lib/require-actor";
 import { AuditService } from "@/modules/audit/service";
 import { InvalidStateTransitionError, PermanentRecordError } from "../academy-errors";

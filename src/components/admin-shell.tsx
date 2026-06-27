@@ -22,6 +22,7 @@ import {
   StudentContextProvider,
   useStudentContext,
 } from "@/contexts/student-context";
+import type { AcademicPeriod } from "@/modules/academic-calendar/types";
 
 export type AdminSection =
   | "admissions"
@@ -156,7 +157,7 @@ function AdminShellInner({
   const pathname = usePathname();
   const derivedSection = sectionForPath(pathname);
 
-  const [periods, setPeriods] = useState<any[]>([]);
+  const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
 
   useEffect(() => {

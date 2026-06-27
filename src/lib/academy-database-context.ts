@@ -2,7 +2,7 @@ import { getDatabasePool } from "@/lib/database";
 import { AcademyActor } from "@/modules/academy-auth/policy";
 
 export interface AcademyDatabase {
-  query(text: string, values?: unknown[]): Promise<{ rows: any[]; rowCount: number | null }>;
+  query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[]; rowCount: number | null }>;
 }
 
 export interface AcademyQueryClient {
