@@ -776,3 +776,105 @@ export async function archivePeriod(
 
   return { success: true };
 }
+
+export interface UpdateAcademicYearInput {
+  name?: string;
+  code?: string;
+  startsOn?: string;
+  endsOn?: string;
+}
+
+export async function updateAcademicYear(
+  actor: AcademyActor,
+  yearId: string,
+  input: UpdateAcademicYearInput,
+  client: Queryable,
+): Promise<AcademicYear> {
+  const existing = await client.query(
+    `select id from academy_academic_years where tenant_id = $1 and id = $2`,
+    [actor.tenantId, yearId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Academic year ${yearId} not found.`);
+  }
+
+  const sets: string[] = ["updated_at = now()"];
+  const values: unknown[] = [actor.tenantId, yearId];
+  let idx = 3;
+
+  if (input.name !== undefined) {
+    sets.push(`name = $${idx++}`);
+    values.push(input.name.trim());
+  }
+  if (input.code !== undefined) {
+    sets.push(`code = $${idx++}`);
+    values.push(input.code.trim().toUpperCase());
+  }
+  if (input.startsOn !== undefined) {
+    sets.push(`starts_on = $${idx++}`);
+    values.push(input.startsOn);
+  }
+  if (input.endsOn !== undefined) {
+    sets.push(`ends_on = $${idx++}`);
+    values.push(input.endsOn);
+  }
+
+  const result = await client.query(
+    `update academy_academic_years set ${sets.join(", ")} where tenant_id = $1 and id = $2 returning *`,
+    values,
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Academic year update failed.");
+  }
+
+  return mapAcademicYearRow(result.rows[0]);
+}
+
+export async function deleteAcademicYear(
+  actor: AcademyActor,
+  yearId: string,
+  client: Queryable,
+): Promise<void> {
+  const existing = await client.query(
+    `select id from academy_academic_years where tenant_id = $1 and id = $2`,
+    [actor.tenantId, yearId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Academic year ${yearId} not found.`);
+  }
+
+  const periods = await client.query(
+    `select id from academy_academic_periods where tenant_id = $1 and academic_year_id = $2 limit 1`,
+    [actor.tenantId, yearId],
+  );
+
+  if (periods.rowCount && periods.rowCount > 0) {
+    throw new Error("Cannot delete academic year containing academic periods. Delete all periods first.");
+  }
+
+  await client.query(
+    `delete from academy_academic_years where tenant_id = $1 and id = $2`,
+    [actor.tenantId, yearId],
+  );
+}
+
+export async function archiveAcademicYear(
+  actor: AcademyActor,
+  yearId: string,
+  client: Queryable,
+): Promise<AcademicYear> {
+  const result = await client.query(
+    `update academy_academic_years set status = 'archived', updated_at = now()
+     where tenant_id = $1 and id = $2 returning *`,
+    [actor.tenantId, yearId],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Academic year archive failed.");
+  }
+
+  return mapAcademicYearRow(result.rows[0]);
+}

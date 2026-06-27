@@ -9,6 +9,7 @@ import type { AcademicPeriod, AcademicYear } from "@/modules/academic-calendar/t
 import { CreatePeriodButton } from "./CreatePeriodButton";
 import { CreateYearButton } from "./CreateYearButton";
 import { PeriodActions } from "./PeriodActions";
+import { YearActions } from "./YearActions";
 
 interface CalendarClientProps {
   initialPeriods: AcademicPeriod[];
@@ -126,6 +127,7 @@ export function CalendarClient({ initialPeriods, initialYears }: CalendarClientP
                   <TableHead>Calendar System</TableHead>
                   <TableHead>Dates</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -139,6 +141,9 @@ export function CalendarClient({ initialPeriods, initialYears }: CalendarClientP
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{titleize(year.status)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <YearActions year={year} onSuccess={handleSuccess} />
                     </TableCell>
                   </TableRow>
                 ))}
