@@ -31,7 +31,8 @@ function periodStatusVariant(status: AcademicPeriod["status"]): "default" | "sec
   }
 }
 
-function titleize(s: string) {
+function titleize(s: string | undefined | null) {
+  if (!s) return "";
   return s.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
