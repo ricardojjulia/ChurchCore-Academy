@@ -55,6 +55,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
         id: `entry-${randomUUID()}`,
         tenantId: input.tenantId,
         studentPersonId: input.studentPersonId,
+        academicPeriodId: input.academicPeriodId,
         entryType: input.entryType,
         amountCents: input.amountCents,
         currency: input.currency,
@@ -76,6 +77,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
         id: `intent-${randomUUID()}`,
         tenantId: input.tenantId,
         studentPersonId: input.studentPersonId,
+        academicPeriodId: input.academicPeriodId,
         amountCents: input.amountCents,
         currency: input.currency,
         provider: input.provider,
@@ -94,6 +96,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
       return this.postLedgerEntry({
         tenantId: input.tenantId,
         studentPersonId: input.studentPersonId,
+        academicPeriodId: input.academicPeriodId,
         entryType: "payment",
         amountCents: -input.amountCents,
         currency: input.currency,
@@ -125,6 +128,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
         id: "intent-123",
         tenantId,
         studentPersonId: "person-student",
+        academicPeriodId: "semester-spring-2026",
         amountCents: 50000,
         currency: "USD",
         provider: "stripe",
@@ -138,6 +142,10 @@ function mockRepository(): BillingRepository & { calls: string[] } {
 
     async studentExistsInTenant(tenantId, studentPersonId) {
       return tenantId === "tenant-1" && studentPersonId === "person-student";
+    },
+
+    async getStudentActivePeriodId() {
+      return "semester-spring-2026";
     },
   };
 }

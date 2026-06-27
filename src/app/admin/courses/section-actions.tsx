@@ -32,11 +32,9 @@ export function NewSectionButton({ courses, periods, years, staff }: NewSectionB
 
     const formData = new FormData(e.currentTarget);
     const periodId = String(formData.get("periodId"));
-    const period = periods.find((p) => p.id === periodId);
 
     const payload = {
       courseId: formData.get("courseId"),
-      academicYearId: period?.academicYearId,
       academicPeriodId: periodId,
       sectionCode: formData.get("sectionCode"),
       deliveryMode: formData.get("deliveryMode"),

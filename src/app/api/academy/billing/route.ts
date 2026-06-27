@@ -100,6 +100,7 @@ export async function mutateBillingAccount(
     if (action === "charge") {
       return service.assessCharge(actor, {
         studentPersonId: text(body.studentPersonId, "studentPersonId"),
+        academicPeriodId: optionalText(body.academicPeriodId),
         amountCents: amount(body.amountCents),
         currency: optionalText(body.currency) ?? "USD",
         description: text(body.description, "description"),
@@ -111,6 +112,7 @@ export async function mutateBillingAccount(
     if (action === "credit") {
       return service.applyCredit(actor, {
         studentPersonId: text(body.studentPersonId, "studentPersonId"),
+        academicPeriodId: optionalText(body.academicPeriodId),
         amountCents: amount(body.amountCents),
         currency: optionalText(body.currency) ?? "USD",
         description: text(body.description, "description"),
@@ -122,6 +124,7 @@ export async function mutateBillingAccount(
     if (action === "payment_intent") {
       return service.createPaymentIntent(actor, {
         studentPersonId: optionalText(body.studentPersonId) ?? actor.userId,
+        academicPeriodId: optionalText(body.academicPeriodId),
         amountCents: amount(body.amountCents),
         currency: optionalText(body.currency) ?? "USD",
         provider: provider(body.provider ?? "manual"),
@@ -132,6 +135,7 @@ export async function mutateBillingAccount(
     if (action === "payment") {
       return service.postPayment(actor, {
         studentPersonId: text(body.studentPersonId, "studentPersonId"),
+        academicPeriodId: optionalText(body.academicPeriodId),
         amountCents: amount(body.amountCents),
         currency: optionalText(body.currency) ?? "USD",
         provider: provider(body.provider ?? "manual"),

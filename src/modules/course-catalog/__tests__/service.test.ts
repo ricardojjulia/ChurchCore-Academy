@@ -55,7 +55,6 @@ function section(overrides: Partial<CourseSection> = {}): CourseSection {
     id: "section-1",
     tenantId: "tenant-1",
     courseId: "course-1",
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -365,7 +364,6 @@ test("archiveCourse: rejection when active sections exist", async () => {
   await repo.createSection({
     tenantId: "tenant-1",
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -396,7 +394,6 @@ test("createSection: success", async () => {
 
   const createdSection = await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -426,7 +423,6 @@ test("createSection: duplicate section code rejection", async () => {
 
   await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -435,7 +431,6 @@ test("createSection: duplicate section code rejection", async () => {
   await assert.rejects(
     service.createSection(admin, {
       courseId: created.id,
-      academicYearId: "year-1",
       academicPeriodId: "period-1",
       sectionCode: "A",
       deliveryMode: "in_person",
@@ -461,7 +456,6 @@ test("updateSection: capacity reduction below enrollment blocked", async () => {
 
   const createdSection = await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -494,7 +488,6 @@ test("updateSection: instructor reassignment locked after enrollment_open", asyn
 
   const createdSection = await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",

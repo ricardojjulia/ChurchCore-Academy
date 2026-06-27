@@ -47,7 +47,6 @@ export async function POST(request: Request, { params }: Params) {
 
       const section = await service.createSection(actor, {
         courseId,
-        academicYearId: typeof body.academicYearId === "string" ? body.academicYearId : "",
         academicPeriodId: typeof body.academicPeriodId === "string" ? body.academicPeriodId : "",
         sectionCode: typeof body.sectionCode === "string" ? body.sectionCode : "",
         deliveryMode: typeof body.deliveryMode === "string" ? body.deliveryMode as DeliveryMode : "in_person",

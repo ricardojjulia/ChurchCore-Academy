@@ -42,12 +42,13 @@ function instructorLabel(people: { id: string; displayName: string }[], instruct
 }
 
 function periodLabel(
-  periods: { id: string; name: string }[],
+  periods: { id: string; name: string; academicYearId: string }[],
   years: { id: string; name: string }[],
   section: CourseSection,
 ) {
-  const period = periods.find((p) => p.id === section.academicPeriodId)?.name ?? "Unknown period";
-  const year = years.find((y) => y.id === section.academicYearId)?.name ?? "";
+  const periodObj = periods.find((p) => p.id === section.academicPeriodId);
+  const period = periodObj?.name ?? "Unknown period";
+  const year = periodObj ? (years.find((y) => y.id === periodObj.academicYearId)?.name ?? "") : "";
   return year ? `${period} · ${year}` : period;
 }
 

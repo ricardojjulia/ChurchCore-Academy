@@ -40,6 +40,7 @@ export interface StudentRecord {
   enrollmentStatus: EnrollmentStatus;
   applicationStartedAt?: string;
   admittedAt?: string;
+  activePeriodId?: string;
   activeTerm?: string;
   programId?: string;
   advisorUserId?: string;

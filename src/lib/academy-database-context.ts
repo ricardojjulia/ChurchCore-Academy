@@ -1,6 +1,10 @@
 import { getDatabasePool } from "@/lib/database";
 import { AcademyActor } from "@/modules/academy-auth/policy";
 
+export interface AcademyDatabase {
+  query(text: string, values?: unknown[]): Promise<{ rows: any[]; rowCount: number | null }>;
+}
+
 export interface AcademyQueryClient {
   query(text: string, values?: unknown[]): Promise<unknown>;
   release(): void;

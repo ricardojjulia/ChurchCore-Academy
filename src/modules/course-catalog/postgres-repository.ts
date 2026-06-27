@@ -144,7 +144,6 @@ function mapSectionRow(row: Record<string, unknown>): CourseSection {
     id: String(row.id),
     tenantId: String(row.tenant_id),
     courseId: String(row.course_id),
-    academicYearId: String(row.academic_year_id),
     academicPeriodId: String(row.academic_period_id),
     subdivisionId: optionalString(row.subdivision_id),
     sectionCode: String(row.section_code),
@@ -251,7 +250,6 @@ export interface CourseCatalogRepository {
   createSection(input: {
     tenantId: string;
     courseId: string;
-    academicYearId: string;
     academicPeriodId: string;
     sectionCode: string;
     deliveryMode: CourseSection["deliveryMode"];
@@ -507,15 +505,14 @@ export class AcademyCourseCatalogRepository implements CourseCatalogRepository {
   }): Promise<CourseSection> {
     const result = await this.pool.query(
       `insert into academy_course_sections (
-        tenant_id, course_id, academic_year_id, academic_period_id, section_code,
+        tenant_id, course_id, academic_period_id, section_code,
         delivery_mode, capacity, primary_instructor_role, primary_instructor_id,
         schedule_pattern, subdivision_id, assistant_instructor_ids, status
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       returning *`,
       [
         input.tenantId,
         input.courseId,
-        input.academicYearId,
         input.academicPeriodId,
         input.sectionCode,
         input.deliveryMode,

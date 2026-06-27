@@ -47,7 +47,6 @@ export interface UpdateCourseInput {
 
 export interface CreateSectionInput {
   courseId: string;
-  academicYearId: string;
   academicPeriodId: string;
   subdivisionId?: string;
   sectionCode: string;
@@ -116,7 +115,6 @@ function mapSectionRow(row: Record<string, unknown>): CourseSection {
     id: String(row.id),
     tenantId: String(row.tenant_id),
     courseId: String(row.course_id),
-    academicYearId: String(row.academic_year_id),
     academicPeriodId: String(row.academic_period_id),
     subdivisionId: optionalString(row.subdivision_id),
     sectionCode: String(row.section_code),
@@ -400,8 +398,8 @@ export async function createSection(
   if (!input.sectionCode || input.sectionCode.trim().length === 0) {
     throw new Error("Section code is required.");
   }
-  if (!input.courseId || !input.academicYearId || !input.academicPeriodId) {
-    throw new Error("Course, academic year, and academic period are required.");
+  if (!input.courseId || !input.academicPeriodId) {
+    throw new Error("Course and academic period are required.");
   }
 
   const course = await client.query(
@@ -434,17 +432,16 @@ export async function createSection(
 
   const result = await client.query(
     `insert into academy_course_sections (
-      id, tenant_id, course_id, academic_year_id, academic_period_id, subdivision_id,
+      id, tenant_id, course_id, academic_period_id, subdivision_id,
       section_code, title_override, delivery_mode, schedule_pattern, capacity, status,
       primary_instructor_role, primary_instructor_id, assistant_instructor_ids, created_at, updated_at
     ) values (
-      gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'draft',
-      $11, $12, '[]'::jsonb, now(), now()
+      gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft',
+      $10, $11, '[]'::jsonb, now(), now()
     ) returning *`,
     [
       actor.tenantId,
       input.courseId,
-      input.academicYearId,
       input.academicPeriodId,
       input.subdivisionId ?? null,
       input.sectionCode.trim().toUpperCase(),

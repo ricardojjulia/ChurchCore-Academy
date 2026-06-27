@@ -32,6 +32,7 @@ interface StudentBillingCheckoutDependencies {
     actor: AcademyActor,
     input: {
       studentPersonId: string;
+      academicPeriodId?: string;
       amountCents: number;
       currency: string;
       provider: "stripe";

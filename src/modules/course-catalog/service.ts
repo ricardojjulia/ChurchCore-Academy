@@ -229,7 +229,6 @@ export class CourseCatalogService {
     actor: AcademyActor,
     input: {
       courseId: string;
-      academicYearId: string;
       academicPeriodId: string;
       sectionCode: string;
       deliveryMode: CourseSection["deliveryMode"];
@@ -267,7 +266,6 @@ export class CourseCatalogService {
     return this.repository.createSection({
       tenantId: actor.tenantId,
       courseId: input.courseId,
-      academicYearId: input.academicYearId,
       academicPeriodId: input.academicPeriodId,
       sectionCode,
       deliveryMode: input.deliveryMode,

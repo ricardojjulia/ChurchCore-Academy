@@ -27,6 +27,7 @@ function mapLedgerEntry(row: Record<string, unknown>): BillingLedgerEntry {
     id: String(row.id),
     tenantId: String(row.tenant_id),
     studentPersonId: String(row.student_person_id),
+    academicPeriodId: String(row.academic_period_id),
     entryType: String(row.entry_type) as BillingLedgerEntry["entryType"],
     amountCents: Number(row.amount_cents),
     currency: String(row.currency),
@@ -44,6 +45,7 @@ function mapPaymentIntent(row: Record<string, unknown>): BillingPaymentIntent {
     id: String(row.id),
     tenantId: String(row.tenant_id),
     studentPersonId: String(row.student_person_id),
+    academicPeriodId: String(row.academic_period_id),
     amountCents: Number(row.amount_cents),
     currency: String(row.currency),
     provider: String(row.provider) as BillingPaymentIntent["provider"],
@@ -69,6 +71,7 @@ export class PostgresBillingRepository implements BillingRepository {
       `insert into academy_billing_ledger_entries (
          tenant_id,
          student_person_id,
+         academic_period_id,
          entry_type,
          amount_cents,
          currency,
@@ -77,15 +80,16 @@ export class PostgresBillingRepository implements BillingRepository {
          source_id,
          posted_by_person_id,
          idempotency_key
-       ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        on conflict (tenant_id, idempotency_key) do nothing
        returning
-         id, tenant_id, student_person_id, entry_type, amount_cents,
+         id, tenant_id, student_person_id, academic_period_id, entry_type, amount_cents,
          currency, description, source_type, source_id, posted_by_person_id,
          posted_at, idempotency_key`,
       [
         input.tenantId,
         input.studentPersonId,
+        input.academicPeriodId,
         input.entryType,
         input.amountCents,
         input.currency,
@@ -120,6 +124,7 @@ export class PostgresBillingRepository implements BillingRepository {
       `insert into academy_payment_intents (
          tenant_id,
          student_person_id,
+         academic_period_id,
          amount_cents,
          currency,
          provider,
@@ -127,15 +132,16 @@ export class PostgresBillingRepository implements BillingRepository {
          provider_reference,
          created_by_person_id,
          idempotency_key
-       ) values ($1, $2, $3, $4, $5, 'requires_action', $6, $7, $8)
+       ) values ($1, $2, $3, $4, $5, $6, 'requires_action', $7, $8, $9)
        on conflict (tenant_id, idempotency_key) do nothing
        returning
-         id, tenant_id, student_person_id, amount_cents, currency,
+         id, tenant_id, student_person_id, academic_period_id, amount_cents, currency,
          provider, status, provider_reference, created_by_person_id,
          created_at, idempotency_key`,
       [
         input.tenantId,
         input.studentPersonId,
+        input.academicPeriodId,
         input.amountCents,
         input.currency,
         input.provider,
@@ -161,6 +167,7 @@ export class PostgresBillingRepository implements BillingRepository {
     const entry = await this.postLedgerEntry({
       tenantId: input.tenantId,
       studentPersonId: input.studentPersonId,
+      academicPeriodId: input.academicPeriodId,
       entryType: "payment",
       amountCents: -input.amountCents,
       currency: input.currency,
@@ -195,7 +202,7 @@ export class PostgresBillingRepository implements BillingRepository {
     studentPersonId: string,
   ): Promise<StudentAccountStatement> {
     const result = await this.database.query(
-      `select id, tenant_id, student_person_id, entry_type, amount_cents,
+      `select id, tenant_id, student_person_id, academic_period_id, entry_type, amount_cents,
               currency, description, source_type, source_id, posted_by_person_id,
               posted_at, idempotency_key
          from academy_billing_ledger_entries
@@ -237,7 +244,7 @@ export class PostgresBillingRepository implements BillingRepository {
     idempotencyKey: string,
   ) {
     const result = await this.database.query(
-      `select id, tenant_id, student_person_id, entry_type, amount_cents,
+      `select id, tenant_id, student_person_id, academic_period_id, entry_type, amount_cents,
               currency, description, source_type, source_id, posted_by_person_id,
               posted_at, idempotency_key
          from academy_billing_ledger_entries
@@ -263,7 +270,7 @@ export class PostgresBillingRepository implements BillingRepository {
     stripeCheckoutSessionId: string,
   ): Promise<BillingPaymentIntent | undefined> {
     const result = await this.database.query(
-      `select id, tenant_id, student_person_id, amount_cents, currency,
+      `select id, tenant_id, student_person_id, academic_period_id, amount_cents, currency,
               provider, status, provider_reference, created_by_person_id,
               created_at, idempotency_key
          from academy_payment_intents
@@ -281,12 +288,32 @@ export class PostgresBillingRepository implements BillingRepository {
     return result.rows.length > 0;
   }
 
+  async getStudentActivePeriodId(tenantId: string, studentPersonId: string): Promise<string> {
+    const result = await this.database.query(
+      `select active_period_id from academy_student_profiles where tenant_id = $1 and person_id = $2`,
+      [tenantId, studentPersonId],
+    );
+    if (result.rows[0]?.active_period_id) {
+      return String(result.rows[0].active_period_id);
+    }
+
+    const fallback = await this.database.query(
+      `select id from academy_academic_periods where tenant_id = $1 and status = 'active' limit 1`,
+      [tenantId],
+    );
+    if (fallback.rows[0]?.id) {
+      return String(fallback.rows[0].id);
+    }
+
+    throw new Error("No active academic period found for the tenant.");
+  }
+
   private async findPaymentIntentByIdempotencyKey(
     tenantId: string,
     idempotencyKey: string,
   ) {
     const result = await this.database.query(
-      `select id, tenant_id, student_person_id, amount_cents, currency,
+      `select id, tenant_id, student_person_id, academic_period_id, amount_cents, currency,
               provider, status, provider_reference, created_by_person_id,
               created_at, idempotency_key
          from academy_payment_intents

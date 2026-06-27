@@ -50,7 +50,8 @@ function StatusContent() {
       }
 
       setStatusData(data.status);
-    } catch {
+    } catch (e) {
+      console.error("Failed to fetch application status:", e);
       setError("Unable to check status. Please try again.");
     } finally {
       setLoading(false);
@@ -61,18 +62,20 @@ function StatusContent() {
   useEffect(() => {
     if (tokenFromUrl && !didAutoLookup.current) {
       didAutoLookup.current = true;
-      fetchStatus(tokenFromUrl).catch(() => {
+      fetchStatus(tokenFromUrl).catch((e) => {
         setError("Unable to check status. Please try again.");
+        console.error("Failed to fetch application status on auto-lookup:", e);
         setLoading(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tokenFromUrl]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    fetchStatus(input).catch(() => {
+    fetchStatus(input).catch((e) => {
       setError("Unable to check status. Please try again.");
+      console.error("Failed to fetch application status on submit:", e);
       setLoading(false);
     });
   }
