@@ -103,7 +103,7 @@ export async function fetchSectionList(tenantId: string, client: AcademyQueryCli
   const result = await client.query(
     `select
        cs.id, cs.tenant_id, cs.section_code, cs.primary_instructor_id,
-       cs.capacity,
+       cs.capacity, cs.academic_period_id,
        coalesce(cs.title_override, c.title) as title,
        coalesce(
          (select count(*)::int
@@ -125,6 +125,7 @@ export async function fetchSectionList(tenantId: string, client: AcademyQueryCli
     code: String(row.section_code),
     title: String(row.title),
     programId: "",
+    academicPeriodId: row.academic_period_id != null ? String(row.academic_period_id) : undefined,
     instructorFacultyId: row.primary_instructor_id != null ? String(row.primary_instructor_id) : undefined,
     rosterCount: Number(row.roster_count),
     rosterCapacity: Number(row.capacity ?? 0),

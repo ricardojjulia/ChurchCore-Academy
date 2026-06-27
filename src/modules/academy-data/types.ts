@@ -74,6 +74,7 @@ export interface CourseSection {
   code: string;
   title: string;
   programId: string;
+  academicPeriodId?: string;
   instructorFacultyId?: string;
   rosterCount: number;
   rosterCapacity: number;

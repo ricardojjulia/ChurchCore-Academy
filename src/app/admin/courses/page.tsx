@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, BookOpenCheck, Clock, Layers3, Users } from "lucide-react";
+import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +69,9 @@ type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: num
 
 export default async function CoursesPage() {
   const actor = await requireActor();
+  const cookieStore = await cookies();
+  const selectedPeriodId = cookieStore.get("academic_period_id")?.value;
+
   const { catalog, people } = await withAcademyDatabaseContext(actor, async (client) => {
     const [courseCatalog, peopleResult] = await Promise.all([
       new AcademyCourseCatalogRepository(asAcademyDatabase<RepoPool>(client)).fetchCourseCatalogConfiguration(actor.tenantId),
@@ -81,7 +85,11 @@ export default async function CoursesPage() {
   const { courses, sections, subdivisions, academicPeriods, academicYears } = catalog;
 
   const activeCourses = courses.filter((c) => c.status === "active");
-  const scheduledSections = sections.filter((s) => s.status !== "cancelled" && s.status !== "archived");
+  const scheduledSections = sections.filter((s) => {
+    const isNotCancelledOrArchived = s.status !== "cancelled" && s.status !== "archived";
+    const matchesPeriod = selectedPeriodId ? s.academicPeriodId === selectedPeriodId : true;
+    return isNotCancelledOrArchived && matchesPeriod;
+  });
   const staffedSections = scheduledSections.filter((s) => s.primaryInstructorId);
   const courseById = new Map(courses.map((c) => [c.id, c]));
 

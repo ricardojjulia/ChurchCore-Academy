@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { CircleDollarSign, CreditCard, ReceiptText } from "lucide-react";
+import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin-shell";
 import { BillingActionForm } from "@/components/admin/billing-action-form";
 import { CardContent } from "@/components/ui/card";
@@ -42,6 +43,8 @@ function asDate(value: string | Date) {
 export default async function AdminBillingPage() {
   const actor = await requireActor();
   const user = await getCurrentUser();
+  const cookieStore = await cookies();
+  const selectedPeriodId = cookieStore.get("academic_period_id")?.value ?? null;
 
   async function signOutAction() {
     "use server";
@@ -64,10 +67,11 @@ export default async function AdminBillingPage() {
        left join academy_billing_ledger_entries ledger
          on ledger.tenant_id = sp.tenant_id
         and ledger.student_person_id = sp.person_id
+        and ($2::text is null or ledger.academic_period_id = $2)
        where sp.tenant_id = $1
        group by sp.person_id, p.display_name, sp.enrollment_status, sp.student_number
        order by sp.student_number asc`,
-      [actor.tenantId],
+      [actor.tenantId, selectedPeriodId],
     ) as { rows: BillingStudentRow[] };
 
     const ledgerResult = await client.query(
@@ -85,9 +89,10 @@ export default async function AdminBillingPage() {
          on p.tenant_id = ledger.tenant_id
         and p.id = ledger.student_person_id
        where ledger.tenant_id = $1
+         and ($2::text is null or ledger.academic_period_id = $2)
        order by ledger.posted_at desc
        limit 25`,
-      [actor.tenantId],
+      [actor.tenantId, selectedPeriodId],
     ) as { rows: BillingLedgerRow[] };
 
     return {
