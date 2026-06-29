@@ -57,7 +57,7 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
       onSuccess();
       setIsOpen(false);
       reset();
-    } catch (error) {
+    } catch (_error) {
       notifyAcademy({
         tone: "error",
         title: "Creation failed",

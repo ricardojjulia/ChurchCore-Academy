@@ -407,8 +407,8 @@ test("requires mode-scoped subdivision branches for mixed institutions", () => {
     tenantId: "tenant-mixed",
     institutionName: "Kingdom Learning Institute",
     legalName: "Kingdom Learning Institute",
-    primaryMode: "mixed",
-    supportedModes: ["mixed", "childrens_school", "seminary"],
+    primaryMode: "bible_school",
+    supportedModes: ["childrens_school", "bible_school"],
     now: "2026-06-01T00:00:00.000Z",
   });
 
@@ -433,12 +433,12 @@ test("requires mode-scoped subdivision branches for mixed institutions", () => {
         updatedAt: "2026-06-01T00:00:00.000Z",
       },
       {
-        id: "seminary-branch",
+        id: "bible-school-branch",
         tenantId: "tenant-mixed",
-        name: "Seminary Branch",
-        code: "SEM",
+        name: "Bible School Branch",
+        code: "BIBLE",
         subdivisionType: "school",
-        institutionMode: "seminary",
+        institutionMode: "bible_school",
         status: "active",
         createdAt: "2026-06-01T00:00:00.000Z",
         updatedAt: "2026-06-01T00:00:00.000Z",

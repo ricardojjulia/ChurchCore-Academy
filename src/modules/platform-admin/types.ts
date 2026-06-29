@@ -24,21 +24,8 @@ export interface PlatformTenantProvisioningInput {
   displayName: string;
   institutionName: string;
   legalName: string;
-  primaryMode:
-    | "bible_school"
-    | "childrens_school"
-    | "seminary"
-    | "college"
-    | "university"
-    | "mixed";
-  supportedModes?: Array<
-    | "bible_school"
-    | "childrens_school"
-    | "seminary"
-    | "college"
-    | "university"
-    | "mixed"
-  >;
+  primaryMode: ConcreteInstitutionMode;
+  supportedModes: ConcreteInstitutionMode[];
   lifecycleStatus: PlatformTenantLifecycleStatus;
   isDemo: boolean;
   initialInstitutionAdmin: PlatformTenantAdminSeed;
@@ -60,3 +47,4 @@ export interface PlatformAdminRepository {
   ): Promise<PlatformProvisionedTenant>;
   deleteTenant(tenantId: string): Promise<void>;
 }
+import type { ConcreteInstitutionMode } from "@/modules/academy-config/types";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -23,7 +23,7 @@ function StatusContent() {
   const didAutoLookup = useRef(false);
 
   // fetchStatus is a plain async function (not setState inside an effect body)
-  async function fetchStatus(lookupToken: string) {
+  const fetchStatus = useCallback(async (lookupToken: string) => {
     if (!lookupToken.trim()) {
       setError("Please enter your status token.");
       return;
@@ -56,7 +56,7 @@ function StatusContent() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   // Auto-lookup when a token arrives from the URL (runs at most once)
   useEffect(() => {
@@ -68,8 +68,7 @@ function StatusContent() {
         setLoading(false);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenFromUrl]);
+  }, [fetchStatus, tokenFromUrl]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

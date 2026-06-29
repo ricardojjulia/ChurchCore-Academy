@@ -259,6 +259,7 @@ Required ADRs:
 
 - institution type model
 - tenant isolation strategy for Academy configuration
+- concrete institution mode packs, accepted in ADR 0060: `mixed` is no longer selectable and multi-mode status is derived from selected concrete modes.
 
 ### Phase 2: Academic Calendar And Sub-Divisions
 

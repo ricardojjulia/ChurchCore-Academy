@@ -43,11 +43,15 @@ async function detectLastAppliedMigration(
   // Walk known "marker" tables in descending migration order to find the
   // latest migration that was already applied to the DB without tracking.
   const markers: Array<{ table: string; migration: string }> = [
+    { table: "academy_aid_letters",          migration: "20260623060000_aid_award_letter.sql" },
+    { table: "academy_communications",       migration: "20260621070000_notifications_communications.sql" },
+    { table: "academy_student_accounts",     migration: "20260621050000_billing_student_accounts.sql" },
     { table: "academy_academic_programs",    migration: "20260616220000_academic_programs.sql" },
     { table: "academy_transcript_issuances", migration: "20260616210000_transcript_issuances.sql" },
     { table: "academy_attendance_records",   migration: "20260616200000_attendance_records.sql" },
+    { table: "academy_student_profiles",     migration: "20260616093000_seed_demo_persona_accounts.sql" },
     { table: "academy_gradebook_entries",    migration: "20260616002351_gradebook_phase1.sql" },
-    { table: "academy_account_links",        migration: "20260615100000_seed_platform_admin_account.sql" },
+    { table: "academy_account_links",        migration: "20260616090000_seed_platform_admin_account.sql" },
     { table: "academy_institution_profiles", migration: "20260601010000_academy_institution_config.sql" },
   ];
 

@@ -1,5 +1,6 @@
 import { getDatabasePool } from "@/lib/database";
 import { createInstitutionProfileDefaults } from "@/modules/academy-config/defaults";
+import { normalizeSelectedInstitutionModes } from "@/modules/academy-config/mode-packs";
 import {
   PlatformAdminRepository,
   PlatformProvisionedTenant,
@@ -24,6 +25,9 @@ function inferTenantKind(primaryMode: PlatformTenantProvisioningInput["primaryMo
   }
   if (primaryMode === "university") {
     return "university";
+  }
+  if (primaryMode === "childrens_school" || primaryMode === "homeschool_hybrid") {
+    return "school";
   }
   return "academy";
 }
@@ -68,12 +72,13 @@ export class PostgresPlatformAdminRepository implements PlatformAdminRepository 
     input: PlatformTenantProvisioningInput,
   ): Promise<PlatformProvisionedTenant> {
     const now = new Date().toISOString();
+    const supportedModes = normalizeSelectedInstitutionModes(input.supportedModes ?? [input.primaryMode]);
     const profile = createInstitutionProfileDefaults({
       tenantId: input.tenantId,
       institutionName: input.institutionName,
       legalName: input.legalName,
       primaryMode: input.primaryMode,
-      supportedModes: input.supportedModes,
+      supportedModes,
       lmsProvider: "none",
       now,
     });
@@ -262,6 +267,35 @@ export class PostgresPlatformAdminRepository implements PlatformAdminRepository 
          ) values ($1, $2, null, 'Main Campus', 'MAIN', 'campus', $3, 'active', $4, $4)`,
         [rootSubdivisionId, input.tenantId, input.primaryMode, now],
       );
+
+      if (supportedModes.length > 1) {
+        for (const mode of supportedModes) {
+          await this.database.query(
+            `insert into public.academy_institution_subdivisions (
+               id,
+               tenant_id,
+               parent_subdivision_id,
+               name,
+               code,
+               subdivision_type,
+               institution_mode,
+               status,
+               created_at,
+               updated_at
+             ) values ($1, $2, $3, $4, $5, 'school', $6, 'active', $7, $7)
+             on conflict (id) do nothing`,
+            [
+              `subdivision-${input.tenantId}-${mode}`,
+              input.tenantId,
+              rootSubdivisionId,
+              mode.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+              mode.split("_").map((part) => part[0]).join("").toUpperCase().slice(0, 8),
+              mode,
+              now,
+            ],
+          );
+        }
+      }
 
       await this.database.query(
         `insert into public.academy_people (

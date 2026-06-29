@@ -12,11 +12,11 @@ async function readMigration() {
   return readFile(join(process.cwd(), "supabase/migrations", migrationName), "utf8");
 }
 
-test("local migration discovery includes gradebook phase 1 after platform admin seed", async () => {
+test("local migration discovery includes gradebook phase 1 after platform admin control plane", async () => {
   const migrations = await listMigrationFiles(process.cwd());
   const names = migrations.map((migration) => migration.name);
 
-  const previousIndex = names.indexOf("20260615100000_seed_platform_admin_account.sql");
+  const previousIndex = names.indexOf("20260615090000_platform_admin_tenant_control_plane.sql");
   const migrationIndex = names.indexOf(migrationName);
   const postingWorkflowIndex = names.indexOf(postingWorkflowMigrationName);
 

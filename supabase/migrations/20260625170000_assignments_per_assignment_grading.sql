@@ -23,14 +23,13 @@ comment on column public.academy_gradebook_assignments.locked is
 comment on column public.academy_gradebook_assignments.grading_type is
   'ADR-0054: Determines how assignment is graded - points, pass/fail, or rubric.';
 
--- Modify weight column constraint to enforce 0-100 integer percentage
--- First we need to update existing data if any
-update public.academy_gradebook_assignments
-  set weight = weight * 100
-  where weight <= 1.0;
-
 alter table public.academy_gradebook_assignments
-  alter column weight type integer using (weight::integer),
+  alter column weight type integer using (
+    case
+      when weight <= 1.0 then round(weight * 100)::integer
+      else round(weight)::integer
+    end
+  ),
   add constraint weight_range check (weight >= 0 and weight <= 100);
 
 comment on column public.academy_gradebook_assignments.weight is

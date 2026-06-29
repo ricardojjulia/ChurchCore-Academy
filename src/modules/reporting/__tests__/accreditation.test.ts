@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import {
   createAccreditationPackage,
   compileAccreditationPackage,
@@ -44,6 +46,16 @@ function createMockStorage(
 async function mockRenderPdf(data: AccreditationPackageData): Promise<Buffer> {
   return Buffer.from(JSON.stringify(data));
 }
+
+test("accreditation migration references the tenant profile table", async () => {
+  const migration = await readFile(
+    path.join(process.cwd(), "supabase/migrations/20260624100000_accreditation_packages.sql"),
+    "utf8",
+  );
+
+  assert.match(migration, /references public\.academy_institution_profiles\(tenant_id\)/);
+  assert.doesNotMatch(migration, /academy_institution_profile\(tenant_id\)/);
+});
 
 test("createAccreditationPackage — success", async () => {
   const actor: AcademyActor = {

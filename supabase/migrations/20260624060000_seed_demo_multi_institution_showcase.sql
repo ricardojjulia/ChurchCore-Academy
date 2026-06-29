@@ -18,10 +18,30 @@
 -- ==========================================================
 
 -- ==========================================================
+-- 0. RELAX LEGACY ADMISSIONS-CHAIN REQUIREMENTS
+--
+-- Multi-institution showcase rows are direct demo enrollments, not
+-- conversions from admission applications. The legacy text program_id column
+-- is removed later, but fresh migration replay reaches this seed first.
+-- ==========================================================
+alter table public.academy_program_enrollments
+  alter column program_id drop not null,
+  alter column source_application_id drop not null;
+
+alter table public.academy_period_registrations
+  alter column program_enrollment_id drop not null,
+  alter column source_application_id drop not null;
+
+alter table public.academy_course_section_registrations
+  alter column program_enrollment_id drop not null,
+  alter column source_application_id drop not null;
+
+-- ==========================================================
 -- 1. UPDATE INSTITUTION PROFILE — Multi-Institution Showcase
 -- ==========================================================
 update public.academy_institution_profiles
    set institution_name = 'ChurchCore Academy Demo — Faith, School & Seminary',
+       primary_mode     = 'bible_school',
        supported_modes  = '["bible_school", "seminary", "childrens_school"]'::jsonb,
        capabilities     = capabilities || '{"multiInstitutionDemo": true, "showBibleSchool": true, "showSeminary": true, "showK12": true}'::jsonb,
        updated_at       = now()

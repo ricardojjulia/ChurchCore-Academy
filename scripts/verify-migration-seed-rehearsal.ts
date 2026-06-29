@@ -48,10 +48,30 @@ async function collectSourceFiles(directory: string): Promise<string[]> {
 async function verifyMigrationTracking() {
   const pool = getDatabasePool();
   const migrationFiles = await listMigrationFiles();
-  const result = await pool.query<{ name: string }>(
-    "select name from public.schema_migrations order by name asc",
+  const applied = new Set<string>();
+
+  const customTable = await pool.query<{ exists: boolean }>(
+    "select to_regclass('public.schema_migrations') is not null as exists",
   );
-  const applied = new Set(result.rows.map((row) => row.name));
+  if (customTable.rows[0]?.exists) {
+    const result = await pool.query<{ name: string }>(
+      "select name from public.schema_migrations order by name asc",
+    );
+    for (const row of result.rows) applied.add(row.name);
+  }
+
+  const supabaseTable = await pool.query<{ exists: boolean }>(
+    "select to_regclass('supabase_migrations.schema_migrations') is not null as exists",
+  );
+  if (supabaseTable.rows[0]?.exists) {
+    const result = await pool.query<{ name: string }>(`
+      select version || '_' || name || '.sql' as name
+        from supabase_migrations.schema_migrations
+       where name is not null
+       order by version asc
+    `);
+    for (const row of result.rows) applied.add(row.name);
+  }
   const missing = migrationFiles
     .map((migration) => migration.name)
     .filter((name) => !applied.has(name));

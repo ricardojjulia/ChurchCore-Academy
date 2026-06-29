@@ -70,7 +70,7 @@ export function YearActions({ year, onSuccess }: YearActionsProps) {
       });
       onSuccess();
       setIsEditing(false);
-    } catch (error) {
+    } catch (_error) {
       notifyAcademy({
         tone: "error",
         title: "Update failed",
@@ -98,7 +98,7 @@ export function YearActions({ year, onSuccess }: YearActionsProps) {
       });
       onSuccess();
       setIsArchiving(false);
-    } catch (error) {
+    } catch (_error) {
       notifyAcademy({
         tone: "error",
         title: "Archive failed",

@@ -1,7 +1,7 @@
 -- Scheduled institutional reports for ADR-0058.
 create table if not exists public.academy_scheduled_reports (
   id uuid primary key default gen_random_uuid(),
-  tenant_id text not null references public.academy_tenants(id) on delete cascade,
+  tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete cascade,
   report_type text not null check (
     report_type in (
       'enrollment_summary',
@@ -38,11 +38,17 @@ create policy academy_scheduled_reports_staff_write
   for all
   using (
     tenant_id = any(academy_private.academy_current_tenant_ids())
-    and academy_private.academy_current_role() in ('institution_admin', 'registrar', 'academic_admin')
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin', 'registrar', 'academic_admin']
+    )
   )
   with check (
     tenant_id = any(academy_private.academy_current_tenant_ids())
-    and academy_private.academy_current_role() in ('institution_admin', 'registrar', 'academic_admin')
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin', 'registrar', 'academic_admin']
+    )
   );
 
 insert into storage.buckets (id, name, public)

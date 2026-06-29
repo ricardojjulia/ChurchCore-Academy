@@ -59,7 +59,7 @@ export function CreateYearButton({ onSuccess, variant = "default" }: CreateYearB
       onSuccess();
       setIsOpen(false);
       reset();
-    } catch (error) {
+    } catch (_error) {
       notifyAcademy({
         tone: "error",
         title: "Creation failed",

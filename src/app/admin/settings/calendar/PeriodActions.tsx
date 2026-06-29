@@ -53,7 +53,7 @@ export function PeriodActions({ period, onSuccess }: PeriodActionsProps) {
         message: "Period status successfully updated.",
       });
       onSuccess();
-    } catch (error) {
+    } catch (_error) {
       notifyAcademy({
         tone: "error",
         title: "Update failed",

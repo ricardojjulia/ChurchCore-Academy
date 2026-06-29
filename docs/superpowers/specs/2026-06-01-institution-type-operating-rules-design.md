@@ -21,7 +21,7 @@ Institution modes affected:
 - seminary
 - college
 - university
-- mixed institution
+- multi-mode institution
 
 Data touched in this sprint: documentation only.
 
@@ -167,18 +167,18 @@ Rules:
 
 ### InstitutionMode
 
-Allowed values:
+Allowed concrete values:
 
 - `bible_school`
 - `childrens_school`
 - `seminary`
 - `college`
 - `university`
-- `mixed`
 
 Rules:
 
-- `mixed` may be primary only when at least two other modes are supported.
+- ADR 0060 supersedes the earlier decision that allowed `mixed` as a selectable value.
+- Multi-mode status is derived when at least two concrete modes are supported.
 - `childrens_school` enables guardian-capable defaults.
 - `college`, `seminary`, and `university` enable transcript and credential defaults.
 - `bible_school` enables certificate and ministry-training defaults.

@@ -3,8 +3,8 @@
 ## Completed (Backend)
 
 ### Database Migrations
-- `supabase/migrations/20260625_academy_document_types.sql` - Document type registry
-- `supabase/migrations/20260625_academy_application_documents.sql` - Application documents with RLS
+- `supabase/migrations/20260625030000_academy_document_types.sql` - Document type registry
+- `supabase/migrations/20260625040000_academy_application_documents.sql` - Application documents with RLS
 
 ### Module Layer
 - Extended `src/modules/admissions/types.ts` with document types and application documents

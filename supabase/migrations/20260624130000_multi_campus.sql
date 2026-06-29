@@ -3,7 +3,7 @@
 
 create table if not exists academy_campuses (
   id          uuid primary key default gen_random_uuid(),
-  tenant_id   uuid not null,
+  tenant_id   text not null,
   code        text not null,
   name        text not null,
   address     text,
@@ -25,7 +25,7 @@ create index if not exists idx_campuses_tenant
 alter table academy_sections
   add column if not exists campus_id uuid references academy_campuses(id);
 
-alter table academy_staff_members
+alter table academy_staff_profiles
   add column if not exists campus_id uuid references academy_campuses(id);
 
 alter table academy_students
@@ -36,7 +36,7 @@ create index if not exists idx_sections_campus
   where campus_id is not null;
 
 create index if not exists idx_staff_campus
-  on academy_staff_members (campus_id)
+  on academy_staff_profiles (campus_id)
   where campus_id is not null;
 
 create index if not exists idx_students_campus
@@ -48,4 +48,4 @@ alter table academy_campuses force row level security;
 
 create policy campuses_tenant_isolation
   on academy_campuses
-  using (tenant_id = current_setting('app.academy_tenant_id', true)::uuid);
+  using (tenant_id = current_setting('app.academy_tenant_id', true));
