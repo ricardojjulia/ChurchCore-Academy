@@ -31,6 +31,13 @@ export default async function InstitutionSettingsPage() {
         <ReviewMetric label="Validation" value={model.validation.length === 0 ? "Clear" : model.validation.length} detail={model.validation.length === 0 ? "No warnings" : "Warnings found"} />
       </section>
 
+      <section className="mb-6">
+        <InstitutionModesEditor
+          currentModes={institutionProfile.supportedModes}
+          currentPrimaryMode={institutionProfile.primaryMode}
+        />
+      </section>
+
       <section className="ops-content-grid">
         <Card className="ops-panel">
           <CardHeader>
@@ -63,10 +70,6 @@ export default async function InstitutionSettingsPage() {
                 </Badge>
               ))}
             </div>
-            <InstitutionModesEditor
-              currentModes={institutionProfile.supportedModes}
-              currentPrimaryMode={institutionProfile.primaryMode}
-            />
           </CardContent>
         </Card>
 
