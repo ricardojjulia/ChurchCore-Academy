@@ -48,7 +48,7 @@ export interface AcademicPeriod {
   startsOn: string;
   endsOn: string;
   sequence: number;
-  status: AcademicStatus;
+  status: AcademicLifecycleState;
   createdAt: string;
   updatedAt: string;
 }

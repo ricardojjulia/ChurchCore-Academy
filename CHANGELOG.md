@@ -8,6 +8,67 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Council Review XIII MVP and competitive stance evaluation at `docs/reviews/2026-06-26-council-review-13-mvp-competitive-stance.md`, including council-role findings, wildcard adversarial review, updated scorecard, competitor stance, and recommended next factory moves.
+
+### Changed
+
+- Updated `docs/project-status.md` to reference Council Review XIII and clarify that controlled-pilot/design-partner positioning is approved while production/GA parity claims remain deferred.
+
+## [0.8.0] - 2026-06-26
+
+### Added (Controlled-pilot and full LMS closeout)
+
+- Council Review XII full Moodle and Canvas integration MVP closeout at `docs/reviews/2026-06-26-council-review-12-full-lms-integration-mvp.md`.
+- Full LMS integration readiness package at `docs/releases/2026-06-26-full-lms-integration-readiness.md`.
+- Moodle and Canvas provider activation boundary, including tenant-scoped non-secret provider configuration, secret-reference storage, validation evidence, and cross-tenant rejection tests.
+- Live Moodle Web Services HTTP client behavior, including REST request construction, exception-in-200 handling, retry/permanent failure classification, and provider-secret redaction.
+- Live Canvas REST/OAuth client behavior, including bearer-token request handling, token refresh boundary coverage, and safe provider output.
+- Canvas SIS import guardrails, including explicit safety treatment for destructive batch-mode behavior.
+- Durable LMS operation job queue with tenant/provider/operation-family/idempotency-key replay suppression.
+- LMS worker handling for retryable failures, retry exhaustion, circuit-open blocking, circuit reset after success, admin notifications, audit events, and operational-event emission.
+- Student PWA Moodle and Canvas launch parity with safe launch responses and scoped guardian support.
+- Moodle and Canvas reviewed grade/progress return boundaries that create reviewed imports rather than official-record auto-posts.
+- Moodle and Canvas reconciliation parity for course shells, sections, instructors, students, launch mappings, grade return mappings, progress return mappings, provider capabilities, and credential health.
+- LMS readiness surface at `/admin/settings/lms` showing provider status, validation posture, circuit state, sync/failure status, sandbox evidence, pause state, and resume state.
+- LMS readiness API at `/api/academy/lms/readiness` with role-gated read/manage behavior.
+- LMS execution worker runbook at `docs/runbooks/lms-execution-workers.md`.
+- Updated provider activation runbook coverage for Moodle and Canvas live HTTP activation and rollback.
+- Authenticated role walkthrough harness, seeded acceptance personas, and acceptance evidence template for pilot onboarding.
+- Production observability foundation for authentication, authorization, workflow, migration, and LMS provider-worker failures.
+- Controlled-pilot release closeout documentation that separates code-complete implementation from live environment activation gates.
+- Root `HOWTO.md` with local setup, safe reset, verification, migration, provider activation, role walkthrough, data-safety, troubleshooting, and release checklist guidance.
+- Root `VERSIONING.md` with pre-GA semantic versioning rules, release classes, status language, changelog rules, tag guidance, and verification gates.
+
+### Changed
+
+- Bumped package metadata from `0.7.1` to `0.8.0`.
+- Rewrote `README.md` around the current controlled-pilot candidate posture, `0.8.0` version, port `3200`, product boundaries, architecture rules, route surface, audit gates, and latest LMS implementation closeout.
+- Rewrote `docs/project-status.md` to reflect the current `0.8.0` state, implemented capabilities, external release gates, product safety position, and canonical references.
+- Expanded `docs/README.md` with links to HOWTO, CHANGELOG, VERSIONING, release notes, and the newer operations runbooks.
+- Reclassified Moodle/Canvas sandbox proof, deployment observability, pilot browser walkthroughs, and regulated/federal aid as external release/governance gates rather than open repository implementation tasks.
+- Updated `docs/product/factory-roadmap.md` and Council Review IX addendum language to distinguish closed implementation from external evidence gates.
+- Clarified that code-complete Moodle/Canvas integration does not equal production provider activation.
+
+### Fixed
+
+- Corrected README local URL from `http://localhost:3000` to `http://localhost:3200`, matching the package scripts.
+- Corrected stale project status version from `0.1.0` to `0.8.0`.
+- Removed local macOS `.DS_Store` metadata files from the repository working tree.
+
+### Security
+
+- Documented that provider secrets, payment secrets, webhook signatures, raw provider payloads, service-role keys, and real student/financial/aid/counseling records must not be committed or exposed in browser payloads.
+- Documented that provider secrets must stay out of Student PWA models, guardian models, audit metadata, official records, ShepherdAI inputs, LLIS payloads, reporting exports, logs, and ordinary Academy domain tables.
+- Preserved the release rule that model-generated learner predictions and autonomous academic/pastoral interventions require separate governance approval.
+
+### External Gates
+
+- Moodle production activation still requires sandbox or tenant test-instance evidence for credential validation, course shell sync, roster sync, Student PWA launch, reviewed grade/progress return, reconciliation, rollback, and secret redaction.
+- Canvas production activation still requires sandbox or tenant test-instance evidence for OAuth/token refresh, course shell sync, roster sync, Student PWA launch, reviewed grade/progress return, SIS import guardrails, reconciliation, rollback, and secret redaction.
+- Live payment checkout, live email/SMS delivery, regulated/federal aid, deployment-specific observability wiring, and per-tenant browser walkthrough evidence remain external activation or pilot-expansion gates.
+
+### Added (Repository documentation and GitHub hygiene)
+
 - Professional repository documentation and community health files.
 - AGPL-3.0 open-source license and explicit package metadata.
 - Technology, project-status, contribution, security, support, and conduct documentation.
@@ -15,7 +76,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - GitHub Actions quality gate and Dependabot configuration.
 - Safe `.env.example` for local configuration.
 
-### Changed
+### Changed (Repository documentation baseline)
 
 - Reworked the README to distinguish implemented foundations, working vertical slices, and planned capabilities.
 
@@ -120,5 +181,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Added tenant-aware composite foreign keys and database role-matrix verification.
 - Added append-only audit and learner-intelligence evidence storage.
 
-[Unreleased]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/9c41beb...HEAD
+[Unreleased]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ricardojjulia/ChurchCore-Academy/releases/tag/v0.8.0
+[0.7.1]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ricardojjulia/ChurchCore-Academy/tree/9c41beb

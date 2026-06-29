@@ -65,6 +65,7 @@ export interface BillingCheckoutDependencies {
     actor: AcademyActor,
     input: {
       studentPersonId: string;
+      academicPeriodId?: string;
       amountCents: number;
       currency: string;
       provider: "stripe";
@@ -87,6 +88,12 @@ function text(value: unknown, field: string) {
     throw new Error(`${field} is required.`);
   }
   return value.trim();
+}
+
+function optionalText(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
 }
 
 function positiveAmount(value: unknown) {
@@ -211,10 +218,12 @@ export async function createBillingCheckoutSessionRequest(
   }
 
   let studentPersonId: string;
+  let academicPeriodId: string | undefined;
   let amountCents: number;
   let description: string;
   try {
     studentPersonId = text(body.studentPersonId, "studentPersonId");
+    academicPeriodId = optionalText(body.academicPeriodId);
     amountCents = positiveAmount(body.amountCents);
     description = text(body.description, "description");
   } catch (error) {
@@ -233,6 +242,7 @@ export async function createBillingCheckoutSessionRequest(
 
     const intent = await createPaymentIntent(actor, {
       studentPersonId,
+      academicPeriodId,
       amountCents,
       currency: "USD",
       provider: "stripe",

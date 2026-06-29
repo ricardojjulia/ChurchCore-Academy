@@ -21,7 +21,7 @@ describe("Academic Calendar Lifecycle State Management", () => {
   describe("createPeriod", () => {
     it("creates a period successfully within a term", async () => {
       const db = {
-        query: async (sql: string, params: unknown[]) => {
+        query: async (sql: string, _params: unknown[]) => {
           if (sql.includes("select id, academic_year_id")) {
             return {
               rowCount: 1,
@@ -156,7 +156,7 @@ describe("Academic Calendar Lifecycle State Management", () => {
   describe("updatePeriod", () => {
     it("updates period name while in active state", async () => {
       const db = {
-        query: async (sql: string, params: unknown[]) => {
+        query: async (sql: string, _params: unknown[]) => {
           if (sql.includes("select id, parent_period_id, status")) {
             return {
               rowCount: 1,

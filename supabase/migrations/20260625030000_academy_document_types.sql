@@ -3,7 +3,7 @@
 
 create table academy_document_types (
   id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null,
+  tenant_id text not null,
   name text not null,
   slug text not null,
   required boolean not null default false,
@@ -16,16 +16,16 @@ create table academy_document_types (
 
 -- RLS for academy_document_types
 alter table academy_document_types enable row level security;
+alter table academy_document_types force row level security;
 
 -- Staff with admissions or admin role can read active document types
 create policy "Admissions staff can read document types"
   on academy_document_types for select
   using (
-    exists (
-      select 1 from academy_staff_roles
-      where academy_staff_roles.tenant_id = academy_document_types.tenant_id
-        and academy_staff_roles.person_id = auth.uid()
-        and academy_staff_roles.role in ('institution_admin', 'dean', 'registrar', 'admissions')
+    tenant_id = any(academy_private.academy_current_tenant_ids())
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin', 'dean', 'registrar', 'admissions']
     )
   );
 
@@ -33,11 +33,17 @@ create policy "Admissions staff can read document types"
 create policy "Institution admin can manage document types"
   on academy_document_types for all
   using (
-    exists (
-      select 1 from academy_staff_roles
-      where academy_staff_roles.tenant_id = academy_document_types.tenant_id
-        and academy_staff_roles.person_id = auth.uid()
-        and academy_staff_roles.role = 'institution_admin'
+    tenant_id = any(academy_private.academy_current_tenant_ids())
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin']
+    )
+  )
+  with check (
+    tenant_id = any(academy_private.academy_current_tenant_ids())
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin']
     )
   );
 

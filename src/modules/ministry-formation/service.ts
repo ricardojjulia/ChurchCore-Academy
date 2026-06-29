@@ -12,7 +12,6 @@ import type {
   StudentFormationRecordStaffView,
   FormationEvaluationStudentView,
 } from "@/modules/ministry-formation/types";
-import type { StudentProfile } from "@/modules/people/types";
 import { PermanentRecordError } from "@/modules/ministry-formation/errors";
 
 const practicumRecorderRoles = new Set<AcademyRole>([

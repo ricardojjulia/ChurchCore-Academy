@@ -2,13 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   checkGuardianNotification,
-  type GuardianNotificationResult,
 } from "@/modules/attendance/guardian-notifier";
 import type { AttendanceThresholdDatabase } from "@/modules/attendance/threshold-evaluator";
 import type { CommunicationsService } from "@/modules/communications/service";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import type { CreateCommunicationInput, CommunicationMessage } from "@/modules/communications/types";
-import type { SessionType } from "@/modules/attendance/types";
 
 const systemActor: AcademyActor = {
   tenantId: "tenant-1",

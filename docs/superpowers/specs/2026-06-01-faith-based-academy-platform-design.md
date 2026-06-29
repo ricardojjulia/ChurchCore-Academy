@@ -65,13 +65,15 @@ No feature may expose student, guardian, grade, transcript, or LMS sync data wit
 
 Each tenant configures:
 
-- institution type: Bible school, children's school, seminary, college, university, or mixed
+- concrete institution modes: Bible school, children's school, seminary, college, university, and other supported mode packs
 - campuses and locations
 - divisions, departments, schools, or grade bands
 - academic calendars and operating rules
 - program and credential types
 - student lifecycle states
 - supported LMS provider
+
+ADR 0060 supersedes the earlier wording that treated `mixed` as a selectable institution type. Multi-mode status is derived from two or more concrete selected modes.
 
 ## Academic Calendar Model
 

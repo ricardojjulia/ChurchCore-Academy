@@ -23,7 +23,7 @@ export class SupabaseStorageProvider {
   async generateUploadUrl(
     path: string,
     _mimeType: string,
-    expiresInSeconds: number,
+    _expiresInSeconds: number,
   ): Promise<string> {
     const { data, error } = await this.client.storage
       .from(this.bucket)

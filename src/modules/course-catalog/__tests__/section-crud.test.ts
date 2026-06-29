@@ -26,8 +26,8 @@ class MockDatabase {
     if (lowerSql.includes("insert into academy_course_sections")) {
       const tenantId = String(params[0]);
       const courseId = String(params[1]);
-      const periodId = String(params[3]);
-      const sectionCode = String(params[5]);
+      const periodId = String(params[2]);
+      const sectionCode = String(params[4]);
 
       const existing = Array.from(this.sections.values()).find(
         (s) =>
@@ -46,17 +46,16 @@ class MockDatabase {
         id,
         tenant_id: params[0],
         course_id: params[1],
-        academic_year_id: params[2],
-        academic_period_id: params[3],
-        subdivision_id: params[4],
-        section_code: params[5],
-        title_override: params[6],
-        delivery_mode: params[7],
-        schedule_pattern: params[8],
-        capacity: params[9],
+        academic_period_id: params[2],
+        subdivision_id: params[3],
+        section_code: params[4],
+        title_override: params[5],
+        delivery_mode: params[6],
+        schedule_pattern: params[7],
+        capacity: params[8],
         status: "draft",
-        primary_instructor_role: params[10],
-        primary_instructor_id: params[11],
+        primary_instructor_role: params[9],
+        primary_instructor_id: params[10],
         assistant_instructor_ids: "[]",
         created_at: new Date(),
         updated_at: new Date(),
@@ -210,7 +209,6 @@ const otherTenantActor: AcademyActor = {
 
 const baseSectionInput: CreateSectionInput = {
   courseId: "course-1",
-  academicYearId: "year-1",
   academicPeriodId: "period-1",
   sectionCode: "BIB101-01",
   deliveryMode: "in_person",

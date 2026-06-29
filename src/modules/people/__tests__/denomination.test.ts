@@ -9,9 +9,6 @@ import {
   updateOrdinationStatus,
   getOrdinationRecords,
   getDenominationRoster,
-  DenominationMembershipRecord,
-  OrdinationRecord,
-  DenominationRosterEntry,
 } from "@/modules/people/denomination";
 import { AcademyQueryClient } from "@/lib/academy-database-context";
 

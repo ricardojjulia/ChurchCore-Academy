@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, CheckCircle2, ClipboardCheck, School } from "lucide-react";
+import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -92,6 +93,8 @@ async function loadPostingQueue(
 
 export default async function AdminGradebookPage() {
   const actor = await requireActor();
+  const cookieStore = await cookies();
+  const selectedPeriodId = cookieStore.get("academic_period_id")?.value;
 
   async function postGradeFormAction(formData: FormData) {
     "use server";
@@ -103,7 +106,7 @@ export default async function AdminGradebookPage() {
     });
   }
 
-  const { sections, people, gradedCounts, postingQueue } = await withAcademyDatabaseContext(
+  const { sections: rawSections, people, gradedCounts, postingQueue } = await withAcademyDatabaseContext(
     actor,
     async (client) => {
       const sectionRows = await fetchSectionList(actor.tenantId, client);
@@ -123,6 +126,9 @@ export default async function AdminGradebookPage() {
   );
 
   const personById = new Map(people.map((p) => [p.id, p]));
+  const sections = selectedPeriodId
+    ? rawSections.filter((s) => s.academicPeriodId === selectedPeriodId)
+    : rawSections;
   const totalSections = sections.length;
   const sectionsWithGrades = sections.filter(
     (s) => (gradedCounts.get(s.id) ?? 0) > 0,

@@ -50,12 +50,6 @@ const student: AcademyActor = {
   roles: ["student"],
 };
 
-const otherStudent: AcademyActor = {
-  userId: "person-other-student",
-  tenantId: "tenant-1",
-  roles: ["student"],
-};
-
 const crossTenantAdmin: AcademyActor = {
   userId: "person-cross",
   tenantId: "tenant-2",

@@ -47,25 +47,71 @@ test("creates postsecondary defaults with transcript and credit support", () => 
   assert.deepEqual(validateInstitutionProfile(profile), []);
 });
 
-test("supports mixed institutions only when concrete modes are present", () => {
+test("derives multi-mode institutions from concrete selected modes", () => {
   const validProfile = createInstitutionProfileDefaults({
     tenantId: "tenant-mixed",
     institutionName: "Kingdom Learning Institute",
     legalName: "Kingdom Learning Institute",
+    primaryMode: "college",
+    supportedModes: ["childrens_school", "college"],
+  });
+
+  assert.equal(validProfile.primaryMode, "college");
+  assert.deepEqual(validProfile.supportedModes, ["childrens_school", "college"]);
+  assert.equal(validProfile.operatingRules.usesGuardians, true);
+  assert.equal(validProfile.operatingRules.usesTranscripts, true);
+  assert.equal(validProfile.capabilities.guardianPortal, true);
+  assert.equal(validProfile.capabilities.transcriptWorkflows, true);
+  assert.deepEqual(validateInstitutionProfile(validProfile), []);
+});
+
+test("normalizes legacy mixed profiles while rejecting selectable mixed support", () => {
+  const legacyProfile = createInstitutionProfileDefaults({
+    tenantId: "tenant-legacy-mixed",
+    institutionName: "Legacy Institute",
+    legalName: "Legacy Institute",
     primaryMode: "mixed",
     supportedModes: ["mixed", "childrens_school", "college"],
   });
 
-  assert.deepEqual(validateInstitutionProfile(validProfile), []);
+  assert.equal(legacyProfile.primaryMode, "childrens_school");
+  assert.deepEqual(legacyProfile.supportedModes, ["childrens_school", "college"]);
 
   const invalidProfile = {
-    ...validProfile,
-    supportedModes: ["mixed"] as InstitutionMode[],
+    ...legacyProfile,
+    primaryMode: "college" as const,
+    supportedModes: ["mixed", "college"] as InstitutionMode[],
   };
 
   assert.deepEqual(validateInstitutionProfile(invalidProfile), [
-    "Mixed institutions must include at least two concrete institution modes.",
+    "Supported institution modes must be concrete modes; mixed is derived from multiple selected modes.",
   ]);
+});
+
+test("creates mode-pack defaults for youth and continuing education modes", () => {
+  const youthProfile = createInstitutionProfileDefaults({
+    tenantId: "tenant-youth",
+    institutionName: "Youth Seminary",
+    legalName: "Youth Seminary",
+    primaryMode: "youth_seminary",
+  });
+
+  assert.equal(youthProfile.operatingRules.usesGuardians, true);
+  assert.equal(youthProfile.operatingRules.allowsMinors, true);
+  assert.equal(youthProfile.operatingRules.officialRecordName, "progress_record");
+  assert.equal(youthProfile.capabilities.guardianPortal, true);
+
+  const continuingEducationProfile = createInstitutionProfileDefaults({
+    tenantId: "tenant-continuing",
+    institutionName: "Continuing Education Institute",
+    legalName: "Continuing Education Institute",
+    primaryMode: "continuing_education",
+  });
+
+  assert.equal(continuingEducationProfile.operatingRules.defaultCalendarSystem, "rolling_enrollment");
+  assert.equal(continuingEducationProfile.operatingRules.defaultTermStructure, "module");
+  assert.equal(continuingEducationProfile.operatingRules.usesGpa, false);
+  assert.equal(continuingEducationProfile.operatingRules.officialRecordName, "completion_record");
 });
 
 test("rejects incompatible operating rule and LMS capability combinations", () => {

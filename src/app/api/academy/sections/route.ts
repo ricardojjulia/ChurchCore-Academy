@@ -18,9 +18,6 @@ export async function POST(request: Request) {
     if (typeof body.courseId !== "string" || !body.courseId) {
       throw new Error("Course ID is required.");
     }
-    if (typeof body.academicYearId !== "string" || !body.academicYearId) {
-      throw new Error("Academic year ID is required.");
-    }
     if (typeof body.academicPeriodId !== "string" || !body.academicPeriodId) {
       throw new Error("Academic period ID is required.");
     }
@@ -36,7 +33,6 @@ export async function POST(request: Request) {
 
     const input: CreateSectionInput = {
       courseId: body.courseId,
-      academicYearId: body.academicYearId,
       academicPeriodId: body.academicPeriodId,
       sectionCode: body.sectionCode,
       deliveryMode: body.deliveryMode as never,

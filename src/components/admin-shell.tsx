@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Activity,
   BarChart3,
@@ -22,6 +22,7 @@ import {
   StudentContextProvider,
   useStudentContext,
 } from "@/contexts/student-context";
+import type { AcademicPeriod } from "@/modules/academic-calendar/types";
 
 export type AdminSection =
   | "admissions"
@@ -155,6 +156,40 @@ function AdminShellInner({
 }: AdminShellInnerProps) {
   const pathname = usePathname();
   const derivedSection = sectionForPath(pathname);
+
+  const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getCookie = (name: string) => {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]*)'));
+      return match ? match[2] : null;
+    };
+
+    fetch("/api/academy/calendar/periods")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load periods");
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setPeriods(data);
+          const savedCookie = getCookie("academic_period_id");
+          const exists = data.some((p) => p.id === savedCookie);
+          if (savedCookie && exists) {
+            setSelectedPeriodId(savedCookie);
+          } else if (data.length > 0) {
+            const activePeriod = data.find((p) => p.status === "active") || data[0];
+            setSelectedPeriodId(activePeriod.id);
+            document.cookie = `academic_period_id=${activePeriod.id}; path=/; max-age=31536000; SameSite=Lax`;
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading periods in AdminShell:", err);
+      });
+  }, []);
+
   const [expanded, setExpanded] = useState<AdminSection | null>(
     activeSectionProp ?? derivedSection,
   );
@@ -304,6 +339,43 @@ function AdminShellInner({
           </div>
 
           <div className="admin-topbar-right">
+            {/* Academic Period Selector */}
+            {periods.length > 0 && (
+              <div className="admin-period-selector-wrapper">
+                <select
+                  id="topbar-period-select"
+                  aria-label="Select Academic Period"
+                  value={selectedPeriodId || ""}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setSelectedPeriodId(nextId);
+                    document.cookie = `academic_period_id=${nextId}; path=/; max-age=31536000; SameSite=Lax`;
+                    window.dispatchEvent(new CustomEvent("academic-period-changed", { detail: nextId }));
+                    window.location.reload();
+                  }}
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm font-semibold text-foreground shadow-sm hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+                  style={{
+                    height: "2.25rem",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border-subtle)",
+                    backgroundColor: "white",
+                    padding: "0 1.5rem 0 0.75rem",
+                    fontSize: "0.85rem",
+                    fontWeight: "600",
+                    color: "var(--text-primary)",
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  {periods.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Search */}
             <div className="admin-search-wrapper">
               <div className="admin-search">

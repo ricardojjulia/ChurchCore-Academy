@@ -65,7 +65,7 @@ Then execute:
 ## Known Risks
 
 - Provider activation remains a separate gate.
-- Production observability needs implementation beyond runbook coverage.
+- Production observability foundation is implemented; deployment-specific log drains, alert routing, and dashboards remain an external expansion gate.
 - Authenticated browser walkthrough screenshots and console-error checks should be repeated per pilot tenant using `docs/acceptance/authenticated-role-walkthrough-evidence.md`.
 - Deployment-specific log drains, alert routing, and dashboards should be connected to the structured event boundary before expanding beyond controlled pilot.
 - Regulated aid requires legal/compliance owner approval.

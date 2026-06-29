@@ -24,6 +24,7 @@ export interface BillingLedgerEntry {
   id: string;
   tenantId: string;
   studentPersonId: string;
+  academicPeriodId: string;
   entryType: BillingLedgerEntryType;
   amountCents: number;
   currency: string;
@@ -39,6 +40,7 @@ export interface BillingPaymentIntent {
   id: string;
   tenantId: string;
   studentPersonId: string;
+  academicPeriodId: string;
   amountCents: number;
   currency: string;
   provider: BillingPaymentProvider;
@@ -61,6 +63,7 @@ export interface StudentAccountStatement {
 export interface PostLedgerEntryInput {
   tenantId: string;
   studentPersonId: string;
+  academicPeriodId: string;
   entryType: BillingLedgerEntryType;
   amountCents: number;
   currency: string;
@@ -74,6 +77,7 @@ export interface PostLedgerEntryInput {
 export interface CreatePaymentIntentInput {
   tenantId: string;
   studentPersonId: string;
+  academicPeriodId: string;
   amountCents: number;
   currency: string;
   provider: BillingPaymentProvider;
@@ -84,6 +88,7 @@ export interface CreatePaymentIntentInput {
 export interface MarkPaymentPostedInput {
   tenantId: string;
   studentPersonId: string;
+  academicPeriodId: string;
   amountCents: number;
   currency: string;
   provider: BillingPaymentProvider;
@@ -111,4 +116,5 @@ export interface BillingRepository {
     stripeCheckoutSessionId: string
   ): Promise<BillingPaymentIntent | undefined>;
   studentExistsInTenant(tenantId: string, studentPersonId: string): Promise<boolean>;
+  getStudentActivePeriodId(tenantId: string, studentPersonId: string): Promise<string>;
 }

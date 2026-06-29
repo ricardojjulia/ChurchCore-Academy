@@ -47,7 +47,7 @@ export function NewYearButton() {
 
       setOpen(false);
       window.location.reload();
-    } catch (error) {
+    } catch {
       alert("Network error creating academic year");
     } finally {
       setLoading(false);
@@ -191,7 +191,7 @@ export function NewTermButton({ years }: NewTermButtonProps) {
 
       setOpen(false);
       window.location.reload();
-    } catch (error) {
+    } catch {
       alert("Network error creating term");
     } finally {
       setLoading(false);

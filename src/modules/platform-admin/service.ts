@@ -6,6 +6,8 @@ import {
   PlatformTenantSelection,
 } from "@/modules/platform-admin/types";
 import { PlatformRole } from "@/modules/academy-auth/policy";
+import { isConcreteInstitutionMode, normalizeSelectedInstitutionModes } from "@/modules/academy-config/mode-packs";
+import type { ConcreteInstitutionMode, InstitutionMode } from "@/modules/academy-config/types";
 
 export interface CreatePlatformTenantInput {
   externalSubject: string;
@@ -14,21 +16,9 @@ export interface CreatePlatformTenantInput {
   displayName: string;
   institutionName?: string;
   legalName?: string;
-  primaryMode:
-    | "bible_school"
-    | "childrens_school"
-    | "seminary"
-    | "college"
-    | "university"
-    | "mixed";
-  supportedModes?: Array<
-    | "bible_school"
-    | "childrens_school"
-    | "seminary"
-    | "college"
-    | "university"
-    | "mixed"
-  >;
+  primaryMode?: InstitutionMode;
+  selectedModes?: InstitutionMode[];
+  supportedModes?: InstitutionMode[];
   lifecycleStatus?: PlatformTenantLifecycleStatus;
   isDemo?: boolean;
   initialInstitutionAdmin: {
@@ -59,6 +49,24 @@ function normalizeLifecycleStatus(
   return requested ?? "development";
 }
 
+function normalizeProvisioningModes(input: CreatePlatformTenantInput): {
+  primaryMode: ConcreteInstitutionMode;
+  supportedModes: ConcreteInstitutionMode[];
+} {
+  const requestedModes = input.selectedModes ?? input.supportedModes ?? (input.primaryMode ? [input.primaryMode] : undefined);
+  if (requestedModes?.includes("mixed")) {
+    throw new Error("Invalid institution mode selection: mixed is derived from selected concrete modes.");
+  }
+
+  const supportedModes = normalizeSelectedInstitutionModes(requestedModes);
+  const requestedPrimary = input.primaryMode && isConcreteInstitutionMode(input.primaryMode)
+    ? input.primaryMode
+    : supportedModes[0];
+  const primaryMode = supportedModes.includes(requestedPrimary) ? requestedPrimary : supportedModes[0];
+
+  return { primaryMode, supportedModes };
+}
+
 export class PlatformAdminService {
   constructor(private readonly repository: PlatformAdminRepository) {}
 
@@ -85,6 +93,7 @@ export class PlatformAdminService {
     );
     const isDemo = Boolean(input.isDemo);
     const lifecycleStatus = normalizeLifecycleStatus(input.lifecycleStatus, isDemo);
+    const modes = normalizeProvisioningModes(input);
 
     const provisioningInput: PlatformTenantProvisioningInput = {
       externalSubject: input.externalSubject,
@@ -92,8 +101,8 @@ export class PlatformAdminService {
       displayName,
       institutionName,
       legalName,
-      primaryMode: input.primaryMode,
-      supportedModes: input.supportedModes,
+      primaryMode: modes.primaryMode,
+      supportedModes: modes.supportedModes,
       lifecycleStatus,
       isDemo,
       initialInstitutionAdmin: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -23,7 +23,7 @@ function StatusContent() {
   const didAutoLookup = useRef(false);
 
   // fetchStatus is a plain async function (not setState inside an effect body)
-  async function fetchStatus(lookupToken: string) {
+  const fetchStatus = useCallback(async (lookupToken: string) => {
     if (!lookupToken.trim()) {
       setError("Please enter your status token.");
       return;
@@ -50,29 +50,31 @@ function StatusContent() {
       }
 
       setStatusData(data.status);
-    } catch {
+    } catch (e) {
+      console.error("Failed to fetch application status:", e);
       setError("Unable to check status. Please try again.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   // Auto-lookup when a token arrives from the URL (runs at most once)
   useEffect(() => {
     if (tokenFromUrl && !didAutoLookup.current) {
       didAutoLookup.current = true;
-      fetchStatus(tokenFromUrl).catch(() => {
+      fetchStatus(tokenFromUrl).catch((e) => {
         setError("Unable to check status. Please try again.");
+        console.error("Failed to fetch application status on auto-lookup:", e);
         setLoading(false);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchStatus, tokenFromUrl]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    fetchStatus(input).catch(() => {
+    fetchStatus(input).catch((e) => {
       setError("Unable to check status. Please try again.");
+      console.error("Failed to fetch application status on submit:", e);
       setLoading(false);
     });
   }

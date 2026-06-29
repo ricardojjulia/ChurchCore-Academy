@@ -5,6 +5,7 @@ import {
   AcademicYear,
   InstitutionSubdivision,
 } from "@/modules/academic-calendar/types";
+import { normalizeSelectedInstitutionModes, resolveInstitutionModel } from "@/modules/academy-config/mode-packs";
 import { InstitutionMode } from "@/modules/academy-config/types";
 
 export type { AcademicCalendarConfiguration } from "@/modules/academic-calendar/types";
@@ -32,7 +33,7 @@ function activeYearScope(year: AcademicYear) {
 }
 
 function concreteModes(modes: InstitutionMode[]) {
-  return modes.filter((mode) => mode !== "mixed");
+  return normalizeSelectedInstitutionModes(modes);
 }
 
 function findPeriod(periods: AcademicPeriod[], id: string) {
@@ -200,7 +201,8 @@ function validateSubdivisions(config: AcademicCalendarConfiguration, errors: str
 }
 
 function validateMixedInstitutionBranches(config: AcademicCalendarConfiguration, errors: string[]) {
-  if (config.institutionProfile.primaryMode !== "mixed") {
+  const selectedModes = concreteModes(config.institutionProfile.supportedModes);
+  if (resolveInstitutionModel(selectedModes) !== "multi_mode") {
     return;
   }
 
@@ -211,7 +213,7 @@ function validateMixedInstitutionBranches(config: AcademicCalendarConfiguration,
       .map((subdivision) => subdivision.institutionMode),
   );
 
-  for (const mode of concreteModes(config.institutionProfile.supportedModes)) {
+  for (const mode of selectedModes) {
     if (!activeModes.has(mode)) {
       errors.push(`Mixed institutions must include an active subdivision branch for ${mode} mode.`);
     }

@@ -111,11 +111,11 @@ on conflict (id) do update
       allowed_mime_types = excluded.allowed_mime_types;
 
 -- add award_letter_ready template to communications constraint
-alter table public.academy_communications
-  drop constraint if exists academy_communications_template_key_check;
+alter table public.academy_communication_messages
+  drop constraint if exists academy_communication_messages_template_key_check;
 
-alter table public.academy_communications
-  add constraint academy_communications_template_key_check
+alter table public.academy_communication_messages
+  add constraint academy_communication_messages_template_key_check
   check (template_key in (
     'admissions_decision',
     'registration_confirmation',
@@ -125,5 +125,6 @@ alter table public.academy_communications
     'attendance_concern',
     'workflow_assignment',
     'application_received',
-    'award_letter_ready'
+    'award_letter_ready',
+    'award_letter_updated'
   ));

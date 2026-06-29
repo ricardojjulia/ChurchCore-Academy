@@ -115,6 +115,13 @@ export class AcademyDataRepository {
             where aa.tenant_id = sp.tenant_id
               and aa.applicant_person_id = sp.person_id
               and aa.status = 'accepted') as admitted_at,
+         (select pr.academic_period_id
+            from academy_period_registrations pr
+            where pr.tenant_id = sp.tenant_id
+              and pr.student_profile_id = sp.id
+              and pr.status = 'registered'
+            order by pr.registered_at desc
+            limit 1) as active_period_id,
          (select ap.name
             from academy_period_registrations pr
             join academy_academic_periods ap on ap.tenant_id = pr.tenant_id and ap.id = pr.academic_period_id
@@ -306,6 +313,7 @@ export class AcademyDataRepository {
           enrollmentStatus: mapEnrollmentStatus(String(row.enrollment_status)),
           applicationStartedAt: row.application_started_at ? (row.application_started_at as Date).toISOString() : undefined,
           admittedAt: row.admitted_at ? (row.admitted_at as Date).toISOString() : undefined,
+          activePeriodId: row.active_period_id ? String(row.active_period_id) : undefined,
           activeTerm: row.active_term ? String(row.active_term) : undefined,
           programId: row.program_id ? String(row.program_id) : undefined,
           advisorUserId: row.advisor_person_id ? String(row.advisor_person_id) : undefined,
@@ -686,15 +694,14 @@ export class AcademyDataRepository {
       for (const section of dataset.courseCatalog.sections) {
         await pool.query(
           `insert into academy_course_sections (
-             id, tenant_id, course_id, academic_year_id, academic_period_id, subdivision_id, section_code,
+             id, tenant_id, course_id, academic_period_id, subdivision_id, section_code,
              title_override, delivery_mode, schedule_pattern, capacity, status, primary_instructor_role,
              primary_instructor_id, assistant_instructor_ids, lms_mapping_id, created_at, updated_at
            )
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17, $18)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17)
            on conflict (id) do update
            set tenant_id = excluded.tenant_id,
                course_id = excluded.course_id,
-               academic_year_id = excluded.academic_year_id,
                academic_period_id = excluded.academic_period_id,
                subdivision_id = excluded.subdivision_id,
                section_code = excluded.section_code,
@@ -712,7 +719,6 @@ export class AcademyDataRepository {
             section.id,
             section.tenantId,
             section.courseId,
-            section.academicYearId,
             section.academicPeriodId,
             section.subdivisionId ?? null,
             section.sectionCode,
@@ -1363,7 +1369,7 @@ export class AcademyDataRepository {
       for (const student of dataset.students) {
         await pool.query(
           `insert into academy_students (
-             id, tenant_id, full_name, email, enrollment_status, application_started_at, admitted_at, active_term,
+             id, tenant_id, full_name, email, enrollment_status, application_started_at, admitted_at, active_period_id,
              program_id, advisor_user_id, missing_enrollment_steps, missing_documents, documentation_notes,
              credits_earned, expected_credits_by_now, transcript_credits, gpa, status_flag,
              all_program_courses_completed, graduation_administrative_holds, expected_next_term_registered,
@@ -1383,7 +1389,7 @@ export class AcademyDataRepository {
                enrollment_status = excluded.enrollment_status,
                application_started_at = excluded.application_started_at,
                admitted_at = excluded.admitted_at,
-               active_term = excluded.active_term,
+               active_period_id = excluded.active_period_id,
                program_id = excluded.program_id,
                advisor_user_id = excluded.advisor_user_id,
                missing_enrollment_steps = excluded.missing_enrollment_steps,
@@ -1407,7 +1413,7 @@ export class AcademyDataRepository {
             student.enrollmentStatus,
             student.applicationStartedAt ?? null,
             student.admittedAt ?? null,
-            student.activeTerm ?? null,
+            student.activePeriodId ?? null,
             student.programId ?? null,
             student.advisorUserId ?? null,
             JSON.stringify(student.missingEnrollmentSteps),

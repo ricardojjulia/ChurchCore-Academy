@@ -5,7 +5,6 @@ import type {
   ApplicantCrmDatabase,
   Inquiry,
   InquiryStatus,
-  DripTriggerEvent,
   CreateInquiryInput,
   CreateDripSequenceInput,
 } from "@/modules/admissions/applicant-crm";

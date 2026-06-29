@@ -10,7 +10,7 @@ create type academy_application_document_status as enum (
 
 create table academy_application_documents (
   id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null,
+  tenant_id text not null,
   application_id uuid not null,
   document_type_id uuid not null references academy_document_types(id) on delete restrict,
   status academy_application_document_status not null default 'pending',
@@ -35,16 +35,16 @@ create table academy_application_documents (
 
 -- RLS for academy_application_documents
 alter table academy_application_documents enable row level security;
+alter table academy_application_documents force row level security;
 
 -- Admissions staff can read all documents for their tenant
 create policy "Admissions staff can read application documents"
   on academy_application_documents for select
   using (
-    exists (
-      select 1 from academy_staff_roles
-      where academy_staff_roles.tenant_id = academy_application_documents.tenant_id
-        and academy_staff_roles.person_id = auth.uid()
-        and academy_staff_roles.role in ('institution_admin', 'dean', 'registrar', 'admissions')
+    tenant_id = any(academy_private.academy_current_tenant_ids())
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin', 'dean', 'registrar', 'admissions']
     )
   );
 
@@ -56,7 +56,7 @@ create policy "Applicants can read own application documents"
       select 1 from academy_admission_applications
       where academy_admission_applications.id = academy_application_documents.application_id
         and academy_admission_applications.tenant_id = academy_application_documents.tenant_id
-        and academy_admission_applications.applicant_person_id = auth.uid()
+        and academy_admission_applications.applicant_person_id = academy_private.academy_current_person_id()
     )
   );
 
@@ -64,11 +64,17 @@ create policy "Applicants can read own application documents"
 create policy "Admissions staff can manage application documents"
   on academy_application_documents for all
   using (
-    exists (
-      select 1 from academy_staff_roles
-      where academy_staff_roles.tenant_id = academy_application_documents.tenant_id
-        and academy_staff_roles.person_id = auth.uid()
-        and academy_staff_roles.role in ('institution_admin', 'dean', 'registrar', 'admissions')
+    tenant_id = any(academy_private.academy_current_tenant_ids())
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin', 'dean', 'registrar', 'admissions']
+    )
+  )
+  with check (
+    tenant_id = any(academy_private.academy_current_tenant_ids())
+    and academy_private.academy_has_active_role(
+      tenant_id,
+      array['institution_admin', 'dean', 'registrar', 'admissions']
     )
   );
 

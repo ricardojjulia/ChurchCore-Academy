@@ -1,4 +1,4 @@
-import { AcademicPeriod, AcademicYear, InstitutionSubdivision } from "@/modules/academic-calendar/types";
+import { AcademicPeriod, InstitutionSubdivision } from "@/modules/academic-calendar/types";
 import {
   Course,
   CourseCatalogConfiguration,
@@ -145,16 +145,12 @@ function validateCourses(config: CourseCatalogConfiguration, errors: string[]) {
 function validateSectionReferenceTenants(
   section: CourseSection,
   course: Course | undefined,
-  year: AcademicYear | undefined,
   period: AcademicPeriod | undefined,
   subdivision: InstitutionSubdivision | undefined,
   errors: string[],
 ) {
   if (course && course.tenantId !== section.tenantId) {
     errors.push(`Section ${section.id} course must belong to the same tenant.`);
-  }
-  if (year && year.tenantId !== section.tenantId) {
-    errors.push(`Section ${section.id} academic year must belong to the same tenant.`);
   }
   if (period && period.tenantId !== section.tenantId) {
     errors.push(`Section ${section.id} academic period must belong to the same tenant.`);
@@ -166,21 +162,16 @@ function validateSectionReferenceTenants(
 
 function validateSections(config: CourseCatalogConfiguration, errors: string[]) {
   const coursesById = mapById(config.courses);
-  const yearsById = mapById(config.academicYears);
   const periodsById = mapById(config.academicPeriods);
   const subdivisionsById = mapById(config.subdivisions);
 
   for (const section of config.sections) {
     const course = coursesById.get(section.courseId);
-    const year = yearsById.get(section.academicYearId);
     const period = periodsById.get(section.academicPeriodId);
     const subdivision = section.subdivisionId ? subdivisionsById.get(section.subdivisionId) : undefined;
 
     if (!course) {
       errors.push(`Section ${section.id} must reference an existing course.`);
-    }
-    if (!year) {
-      errors.push(`Section ${section.id} must reference an academic year.`);
     }
     if (!period) {
       errors.push(`Section ${section.id} must reference an academic period.`);
@@ -189,7 +180,7 @@ function validateSections(config: CourseCatalogConfiguration, errors: string[]) 
       errors.push(`Section ${section.id} must reference an existing subdivision.`);
     }
 
-    validateSectionReferenceTenants(section, course, year, period, subdivision, errors);
+    validateSectionReferenceTenants(section, course, period, subdivision, errors);
 
     if (section.capacity !== undefined && section.capacity <= 0) {
       errors.push(`Section ${section.id} capacity must be positive when configured.`);

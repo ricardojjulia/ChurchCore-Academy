@@ -47,6 +47,7 @@ function entry(overrides: Partial<BillingLedgerEntry> = {}): BillingLedgerEntry 
     id: "entry-1",
     tenantId: "tenant-1",
     studentPersonId: "person-student",
+    academicPeriodId: "semester-spring-2026",
     entryType: "charge",
     amountCents: 120000,
     currency: "USD",
@@ -86,6 +87,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
     async postLedgerEntry(input) {
       calls.push(`${input.entryType}:${input.studentPersonId}:${input.amountCents}:${input.idempotencyKey}`);
       return entry({
+        academicPeriodId: input.academicPeriodId,
         entryType: input.entryType,
         amountCents: input.amountCents,
         description: input.description,
@@ -99,6 +101,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
         id: "intent-1",
         tenantId: input.tenantId,
         studentPersonId: input.studentPersonId,
+        academicPeriodId: input.academicPeriodId,
         amountCents: input.amountCents,
         currency: input.currency,
         provider: input.provider,
@@ -113,6 +116,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
     async markPaymentPosted(input) {
       calls.push(`payment:${input.studentPersonId}:${input.amountCents}:${input.providerReference}:${input.idempotencyKey}`);
       return entry({
+        academicPeriodId: input.academicPeriodId,
         entryType: "payment",
         amountCents: -input.amountCents,
         sourceType: "payment",
@@ -128,6 +132,7 @@ function mockRepository(): BillingRepository & { calls: string[] } {
     async updateCheckoutSession() {},
     async findPaymentIntentByStripeSession() { return undefined; },
     async studentExistsInTenant() { return true; },
+    async getStudentActivePeriodId() { return "semester-spring-2026"; },
   };
 }
 

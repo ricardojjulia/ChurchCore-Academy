@@ -73,6 +73,7 @@ export class BillingService {
     actor: AcademyActor,
     input: {
       studentPersonId: string;
+      academicPeriodId?: string;
       amountCents: number;
       currency: string;
       description: string;
@@ -83,9 +84,12 @@ export class BillingService {
     assertBillingAdmin(actor);
     assertPositiveAmount(input.amountCents);
 
+    const periodId = input.academicPeriodId || await this.repository.getStudentActivePeriodId(actor.tenantId, input.studentPersonId);
+
     return this.repository.postLedgerEntry({
       tenantId: actor.tenantId,
       studentPersonId: requireText(input.studentPersonId, "studentPersonId"),
+      academicPeriodId: periodId,
       entryType: "charge",
       amountCents: input.amountCents,
       currency: normalizeCurrency(input.currency),
@@ -101,6 +105,7 @@ export class BillingService {
     actor: AcademyActor,
     input: {
       studentPersonId: string;
+      academicPeriodId?: string;
       amountCents: number;
       currency: string;
       description: string;
@@ -111,9 +116,12 @@ export class BillingService {
     assertBillingAdmin(actor);
     assertPositiveAmount(input.amountCents);
 
+    const periodId = input.academicPeriodId || await this.repository.getStudentActivePeriodId(actor.tenantId, input.studentPersonId);
+
     return this.repository.postLedgerEntry({
       tenantId: actor.tenantId,
       studentPersonId: requireText(input.studentPersonId, "studentPersonId"),
+      academicPeriodId: periodId,
       entryType: "credit",
       amountCents: -input.amountCents,
       currency: normalizeCurrency(input.currency),
@@ -129,6 +137,7 @@ export class BillingService {
     actor: AcademyActor,
     input: {
       studentPersonId: string;
+      academicPeriodId?: string;
       amountCents: number;
       currency: string;
       provider: BillingPaymentProvider;
@@ -152,9 +161,12 @@ export class BillingService {
       );
     }
 
+    const periodId = input.academicPeriodId || await this.repository.getStudentActivePeriodId(actor.tenantId, input.studentPersonId);
+
     return this.repository.createPaymentIntent({
       tenantId: actor.tenantId,
       studentPersonId: requireText(input.studentPersonId, "studentPersonId"),
+      academicPeriodId: periodId,
       amountCents: input.amountCents,
       currency: normalizeCurrency(input.currency),
       provider: input.provider,
@@ -167,6 +179,7 @@ export class BillingService {
     actor: AcademyActor,
     input: {
       studentPersonId: string;
+      academicPeriodId?: string;
       amountCents: number;
       currency: string;
       provider: BillingPaymentProvider;
@@ -178,9 +191,12 @@ export class BillingService {
     assertBillingAdmin(actor);
     assertPositiveAmount(input.amountCents);
 
+    const periodId = input.academicPeriodId || await this.repository.getStudentActivePeriodId(actor.tenantId, input.studentPersonId);
+
     return this.repository.markPaymentPosted({
       tenantId: actor.tenantId,
       studentPersonId: requireText(input.studentPersonId, "studentPersonId"),
+      academicPeriodId: periodId,
       amountCents: input.amountCents,
       currency: normalizeCurrency(input.currency),
       provider: input.provider,

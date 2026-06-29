@@ -62,7 +62,7 @@ Recent verified gates across ADR-0038:
 - Live payment checkout and settlement are not activated.
 - Live email/SMS provider delivery workers are not activated.
 - Moodle and Canvas live HTTP clients are not activated for tenant credentials.
-- Regulated/federal aid remains blocked pending compliance review.
+- Regulated/federal aid remains an external compliance gate.
 - Production observability instrumentation is documented but not fully automated.
 - Authenticated browser role-matrix walkthroughs should be repeated for each pilot tenant.
 
@@ -99,8 +99,8 @@ ChurchCore Academy is now a controlled-pilot candidate for core SIS workflows. I
 
 Authenticated role walkthrough harness status: implemented after closeout as `docs/acceptance/authenticated-role-walkthrough-evidence.md`, `scripts/generate-authenticated-role-walkthrough.ts`, and `supabase/migrations/20260621193000_seed_acceptance_role_walkthrough_accounts.sql`.
 
-Remaining evidence: run the generated browser commands against each pilot tenant, capture screenshots and console-error output, and attach observed pass/fail results to the tenant onboarding record.
+External pilot evidence gate: run the generated browser commands against each pilot tenant, capture screenshots and console-error output, and attach observed pass/fail results to the tenant onboarding record before expanding beyond controlled pilot. No additional repository implementation task is open for the walkthrough harness.
 
 Production observability foundation status: implemented after closeout as `src/modules/observability/operational-events.ts` and `docs/runbooks/observability.md`.
 
-Remaining observability evidence: connect deployment-specific log drains, dashboards, and alert routing to the structured event boundary before expanding beyond controlled pilot.
+External observability gate: connect deployment-specific log drains, dashboards, and alert routing to the structured event boundary before expanding beyond controlled pilot. No additional repository implementation task is open for the observability foundation.

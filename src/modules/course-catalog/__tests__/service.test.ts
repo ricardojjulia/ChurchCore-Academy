@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AcademyActor } from "@/modules/academy-auth/policy";
-import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import { CourseCatalogService, validatePrerequisites } from "@/modules/course-catalog/service";
 import type {
   Course,
@@ -14,12 +13,6 @@ const admin: AcademyActor = {
   userId: "person-admin",
   tenantId: "tenant-1",
   roles: ["institution_admin"],
-};
-
-const registrar: AcademyActor = {
-  userId: "person-registrar",
-  tenantId: "tenant-1",
-  roles: ["registrar"],
 };
 
 const student: AcademyActor = {
@@ -62,7 +55,6 @@ function section(overrides: Partial<CourseSection> = {}): CourseSection {
     id: "section-1",
     tenantId: "tenant-1",
     courseId: "course-1",
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -372,7 +364,6 @@ test("archiveCourse: rejection when active sections exist", async () => {
   await repo.createSection({
     tenantId: "tenant-1",
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -403,7 +394,6 @@ test("createSection: success", async () => {
 
   const createdSection = await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -433,7 +423,6 @@ test("createSection: duplicate section code rejection", async () => {
 
   await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -442,7 +431,6 @@ test("createSection: duplicate section code rejection", async () => {
   await assert.rejects(
     service.createSection(admin, {
       courseId: created.id,
-      academicYearId: "year-1",
       academicPeriodId: "period-1",
       sectionCode: "A",
       deliveryMode: "in_person",
@@ -468,7 +456,6 @@ test("updateSection: capacity reduction below enrollment blocked", async () => {
 
   const createdSection = await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",
@@ -501,7 +488,6 @@ test("updateSection: instructor reassignment locked after enrollment_open", asyn
 
   const createdSection = await service.createSection(admin, {
     courseId: created.id,
-    academicYearId: "year-1",
     academicPeriodId: "period-1",
     sectionCode: "A",
     deliveryMode: "in_person",

@@ -24,7 +24,7 @@ export default async function InstitutionSettingsPage() {
       subtitle="Tenant-level setup for supported school modes, academic operating rules, portals, LMS posture, and Academy validation."
     >
       <section className="ops-stats-grid">
-        <ReviewMetric label="Primary mode" value={model.identity.primaryMode} detail={`${model.identity.supportedModes.length} supported modes`} />
+        <ReviewMetric label="Institution model" value={model.identity.institutionModel} detail={`${model.identity.supportedModes.length} selected modes`} />
         <ReviewMetric label="Institution" value={model.identity.institutionName} detail={model.identity.legalName} />
         <ReviewMetric label="LMS provider" value={model.lms.provider} detail={model.lms.selectionStatus} />
         <ReviewMetric label="Validation" value={model.validation.length === 0 ? "Clear" : model.validation.length} detail={model.validation.length === 0 ? "No warnings" : "Warnings found"} />
@@ -46,11 +46,19 @@ export default async function InstitutionSettingsPage() {
           <CardContent className="ops-list">
             <ReviewRow label="Tenant" value={model.identity.tenantId} />
             <ReviewRow label="Legal name" value={model.identity.legalName} />
-            <ReviewRow label="Primary mode" value={model.identity.primaryMode} />
+            <ReviewRow label="Institution model" value={model.identity.institutionModel} />
+            <ReviewRow label="Default mode" value={model.identity.primaryMode} />
             <div className="institution-chip-list" aria-label="Supported institution modes">
               {model.identity.supportedModes.map((mode) => (
                 <Badge key={mode} variant="secondary">
                   {mode}
+                </Badge>
+              ))}
+            </div>
+            <div className="institution-chip-list" aria-label="Applied institution mode packs">
+              {model.identity.modePacks.map((modePack) => (
+                <Badge key={modePack} variant="outline">
+                  {modePack} pack
                 </Badge>
               ))}
             </div>

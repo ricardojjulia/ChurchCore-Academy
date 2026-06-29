@@ -299,7 +299,7 @@ export async function checkAttendanceThreshold(
             essential: false,
           });
           guardianEmailEnqueued = true;
-        } catch (error) {
+        } catch {
           // Guardian notification failure should not fail the attendance record
           // Log error but continue (could be no guardian on file, opted out, etc.)
         }

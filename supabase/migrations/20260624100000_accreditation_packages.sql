@@ -1,7 +1,7 @@
 -- Create accreditation packages table
 create table if not exists public.academy_accreditation_packages (
   id text primary key default gen_random_uuid()::text,
-  tenant_id text not null references public.academy_institution_profile(tenant_id) on delete cascade,
+  tenant_id text not null references public.academy_institution_profiles(tenant_id) on delete cascade,
   accreditor_name text not null,
   report_cycle text not null,
   package_type text not null check (package_type in ('self_study','annual_report','site_visit_prep','focused_evaluation')),

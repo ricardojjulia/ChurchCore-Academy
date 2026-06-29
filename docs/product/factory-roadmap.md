@@ -32,7 +32,7 @@ Current delivery sequence:
 5. Learner mirror and social intelligence only after separate Council review.
 
 Deterministic identity snapshot work may begin. Model-generated prediction and
-autonomous intervention remain blocked pending separate Council approval.
+autonomous intervention are external governance gates requiring separate Council approval.
 
 ## Current Position
 
@@ -95,17 +95,14 @@ Completed:
 - Post-closeout production observability foundation for controlled-pilot failures
 - ADR-0059 full Moodle and Canvas integration implementation through activation boundary, live Moodle transport, live Canvas transport, durable worker, Student PWA launch parity, reviewed-import parity, reconciliation parity, and readiness surface
 
-In progress:
+Implementation status: closed.
 
-- Controlled-pilot browser screenshot and console-error evidence by tenant
-- Moodle and Canvas sandbox validation evidence for live provider activation
+External release gates:
 
-Next:
-
-- attach Moodle and Canvas sandbox evidence to `docs/releases/2026-06-26-full-lms-integration-readiness.md` before production activation
-- execute provider production activation only after sandbox evidence, tenant owner approval, and rollback review
-- attach deployment-specific observability export, dashboards, and alert routing to the structured event boundary
-- run the generated authenticated role walkthrough against each pilot tenant and attach screenshots/console evidence to the tenant onboarding record
+- Attach Moodle and Canvas sandbox evidence to `docs/releases/2026-06-26-full-lms-integration-readiness.md` before production activation.
+- Execute provider production activation only after sandbox evidence, tenant owner approval, and rollback review.
+- Attach deployment-specific observability export, dashboards, and alert routing to the structured event boundary before expanding beyond controlled pilot.
+- Run the generated authenticated role walkthrough against each pilot tenant and attach screenshots/console evidence to the tenant onboarding record.
 
 ## Full SIS Competitive MVP Program
 
@@ -262,6 +259,7 @@ Required ADRs:
 
 - institution type model
 - tenant isolation strategy for Academy configuration
+- concrete institution mode packs, accepted in ADR 0060: `mixed` is no longer selectable and multi-mode status is derived from selected concrete modes.
 
 ### Phase 2: Academic Calendar And Sub-Divisions
 

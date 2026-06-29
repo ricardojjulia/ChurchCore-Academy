@@ -34,7 +34,7 @@ test("builds a grading setup review model for the seeded grading configuration",
       ["Promotion", "Enabled"],
       ["Graduation audit", "Enabled"],
       ["Release policy", "Registrar release"],
-      ["Guardian visibility", "Not applicable"],
+      ["Guardian visibility", "Guardian relationship required"],
     ],
   );
 

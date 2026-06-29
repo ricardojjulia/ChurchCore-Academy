@@ -111,6 +111,7 @@ test("billing route dispatches payment intent for the student actor", async () =
   assert.deepEqual(seen, [
     {
       studentPersonId: "person-student",
+      academicPeriodId: undefined,
       amountCents: 10000,
       currency: "USD",
       provider: "manual",

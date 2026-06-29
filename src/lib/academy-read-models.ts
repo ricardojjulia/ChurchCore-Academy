@@ -35,14 +35,21 @@ export async function fetchStudentRecords(tenantId: string, client: AcademyQuery
           where aa.tenant_id = sp.tenant_id
             and aa.applicant_person_id = sp.person_id
             and aa.status = 'accepted') as admitted_at,
-       (select ap.name
-          from academy_period_registrations pr
-          join academy_academic_periods ap on ap.tenant_id = pr.tenant_id and ap.id = pr.academic_period_id
-          where pr.tenant_id = sp.tenant_id
-            and pr.student_profile_id = sp.id
-            and pr.status = 'registered'
-          order by pr.registered_at desc
-          limit 1) as active_term
+        (select pr.academic_period_id
+           from academy_period_registrations pr
+           where pr.tenant_id = sp.tenant_id
+             and pr.student_profile_id = sp.id
+             and pr.status = 'registered'
+           order by pr.registered_at desc
+           limit 1) as active_period_id,
+        (select ap.name
+           from academy_period_registrations pr
+           join academy_academic_periods ap on ap.tenant_id = pr.tenant_id and ap.id = pr.academic_period_id
+           where pr.tenant_id = sp.tenant_id
+             and pr.student_profile_id = sp.id
+             and pr.status = 'registered'
+           order by pr.registered_at desc
+           limit 1) as active_term
      from academy_student_profiles sp
      join academy_people p on p.tenant_id = sp.tenant_id and p.id = sp.person_id
      where sp.tenant_id = $1
@@ -57,6 +64,7 @@ export async function fetchStudentRecords(tenantId: string, client: AcademyQuery
     enrollmentStatus: row.enrollment_status as StudentRecord["enrollmentStatus"],
     applicationStartedAt: row.application_started_at != null ? String(row.application_started_at) : undefined,
     admittedAt: row.admitted_at != null ? String(row.admitted_at) : undefined,
+    activePeriodId: row.active_period_id != null ? String(row.active_period_id) : undefined,
     activeTerm: row.active_term != null ? String(row.active_term) : undefined,
     programId: row.program_id != null ? String(row.program_id) : undefined,
     advisorUserId: row.advisor_person_id != null ? String(row.advisor_person_id) : undefined,
@@ -95,7 +103,7 @@ export async function fetchSectionList(tenantId: string, client: AcademyQueryCli
   const result = await client.query(
     `select
        cs.id, cs.tenant_id, cs.section_code, cs.primary_instructor_id,
-       cs.capacity,
+       cs.capacity, cs.academic_period_id,
        coalesce(cs.title_override, c.title) as title,
        coalesce(
          (select count(*)::int
@@ -117,6 +125,7 @@ export async function fetchSectionList(tenantId: string, client: AcademyQueryCli
     code: String(row.section_code),
     title: String(row.title),
     programId: "",
+    academicPeriodId: row.academic_period_id != null ? String(row.academic_period_id) : undefined,
     instructorFacultyId: row.primary_instructor_id != null ? String(row.primary_instructor_id) : undefined,
     rosterCount: Number(row.roster_count),
     rosterCapacity: Number(row.capacity ?? 0),

@@ -3,6 +3,8 @@
 Date: 2026-06-01
 Status: accepted
 
+Superseded in part by: `docs/adr/0060-concrete-institution-modes-and-mode-packs.md`
+
 ## Context
 
 ChurchCore Academy must support Bible schools, children's schools, seminaries, colleges, and universities without separate products.
@@ -31,6 +33,8 @@ The accepted institution modes are:
 - `mixed`
 
 The `mixed` mode is valid only when multiple concrete modes are supported.
+
+Later decision note: ADR 0060 supersedes this line for future implementation. `mixed` must be treated as a derived multi-mode summary, not as a selectable institution mode.
 
 ## Consequences
 

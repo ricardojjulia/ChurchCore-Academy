@@ -40,6 +40,7 @@ export interface StudentRecord {
   enrollmentStatus: EnrollmentStatus;
   applicationStartedAt?: string;
   admittedAt?: string;
+  activePeriodId?: string;
   activeTerm?: string;
   programId?: string;
   advisorUserId?: string;
@@ -73,6 +74,7 @@ export interface CourseSection {
   code: string;
   title: string;
   programId: string;
+  academicPeriodId?: string;
   instructorFacultyId?: string;
   rosterCount: number;
   rosterCapacity: number;

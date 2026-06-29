@@ -72,7 +72,6 @@ export interface CourseSection {
   id: string;
   tenantId: string;
   courseId: string;
-  academicYearId: string;
   academicPeriodId: string;
   subdivisionId?: string;
   sectionCode: string;

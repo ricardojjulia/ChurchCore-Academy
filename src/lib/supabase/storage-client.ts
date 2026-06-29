@@ -18,7 +18,7 @@ export function createStorageClient(): DocumentStorageClient {
   return {
     async generateSignedUploadUrl(
       path: string,
-      expiresInSeconds: number,
+      _expiresInSeconds: number,
     ): Promise<string> {
       const { data, error } = await supabase.storage
         .from("academy-documents")
