@@ -6,6 +6,7 @@ import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import { InstitutionCapabilityReviewItem, InstitutionReviewItem, buildInstitutionReviewModel } from "@/modules/academy-config/review-view";
+import { InstitutionModesEditor } from "@/app/admin/settings/institution/InstitutionModesEditor";
 
 type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
 
@@ -62,6 +63,10 @@ export default async function InstitutionSettingsPage() {
                 </Badge>
               ))}
             </div>
+            <InstitutionModesEditor
+              currentModes={institutionProfile.supportedModes}
+              currentPrimaryMode={institutionProfile.primaryMode}
+            />
           </CardContent>
         </Card>
 

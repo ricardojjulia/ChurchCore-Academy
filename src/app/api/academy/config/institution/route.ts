@@ -3,17 +3,40 @@ import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-dat
 import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
-import { InstitutionProfile } from "@/modules/academy-config/types";
+import { InstitutionMode, InstitutionProfile } from "@/modules/academy-config/types";
 import { validateInstitutionProfile } from "@/modules/academy-config/validation";
 
 interface InstitutionConfigReader {
   fetchInstitutionProfile(tenantId: string): Promise<InstitutionProfile>;
 }
 
+interface InstitutionModeUpdater {
+  updateInstitutionModes(
+    tenantId: string,
+    input: { selectedModes: InstitutionMode[]; primaryMode?: InstitutionMode },
+  ): Promise<InstitutionProfile>;
+}
+
 export async function buildInstitutionConfigPayload(repository: InstitutionConfigReader, actor: AcademyActor, tenantId: string) {
   assertInstitutionConfigAccess(actor, tenantId, "read");
 
   const institutionProfile = await repository.fetchInstitutionProfile(tenantId);
+
+  return {
+    institutionProfile,
+    validation: validateInstitutionProfile(institutionProfile),
+  };
+}
+
+export async function buildUpdateInstitutionModesPayload(
+  repository: InstitutionModeUpdater,
+  actor: AcademyActor,
+  tenantId: string,
+  input: { selectedModes: InstitutionMode[]; primaryMode?: InstitutionMode },
+) {
+  assertInstitutionConfigAccess(actor, tenantId, "write");
+
+  const institutionProfile = await repository.updateInstitutionModes(tenantId, input);
 
   return {
     institutionProfile,
@@ -29,6 +52,33 @@ export async function GET(request: Request) {
         new AcademyConfigRepository(asAcademyDatabase(client)),
         actor,
         actor.tenantId,
+      ),
+    );
+  });
+}
+
+function asModeArray(value: unknown): InstitutionMode[] {
+  return Array.isArray(value) ? value.filter((item): item is InstitutionMode => typeof item === "string") : [];
+}
+
+function asMode(value: unknown): InstitutionMode | undefined {
+  return typeof value === "string" ? (value as InstitutionMode) : undefined;
+}
+
+export async function PATCH(request: Request) {
+  return handleApi(async () => {
+    const { actor } = await resolveAcademyActorFromSession(request);
+    const payload = (await request.json()) as Record<string, unknown>;
+
+    return withAcademyDatabaseContext(actor, (client) =>
+      buildUpdateInstitutionModesPayload(
+        new AcademyConfigRepository(asAcademyDatabase(client)),
+        actor,
+        actor.tenantId,
+        {
+          selectedModes: asModeArray(payload.selectedModes),
+          primaryMode: asMode(payload.primaryMode),
+        },
       ),
     );
   });
