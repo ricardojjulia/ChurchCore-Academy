@@ -133,6 +133,18 @@ export interface StudentSearchEntry {
   status: string;
 }
 
+const GLOBAL_PERIOD_EXCLUDED_TYPES = new Set([
+  "module",
+  "intensive",
+  "grading_period",
+  "reporting_period",
+  "break",
+]);
+
+function isGlobalPeriodOption(period: AcademicPeriod) {
+  return !GLOBAL_PERIOD_EXCLUDED_TYPES.has(String(period.periodType));
+}
+
 interface AdminShellInnerProps {
   activeSection?: AdminSection;
   title: string;
@@ -173,13 +185,14 @@ function AdminShellInner({
       })
       .then((data) => {
         if (Array.isArray(data)) {
-          setPeriods(data);
+          const globalPeriods = data.filter(isGlobalPeriodOption);
+          setPeriods(globalPeriods);
           const savedCookie = getCookie("academic_period_id");
-          const exists = data.some((p) => p.id === savedCookie);
+          const exists = globalPeriods.some((p) => p.id === savedCookie);
           if (savedCookie && exists) {
             setSelectedPeriodId(savedCookie);
-          } else if (data.length > 0) {
-            const activePeriod = data.find((p) => p.status === "active") || data[0];
+          } else if (globalPeriods.length > 0) {
+            const activePeriod = globalPeriods.find((p) => p.status === "active") || globalPeriods[0];
             setSelectedPeriodId(activePeriod.id);
             document.cookie = `academic_period_id=${activePeriod.id}; path=/; max-age=31536000; SameSite=Lax`;
           }
