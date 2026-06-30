@@ -1,8 +1,9 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
   asAcademyDatabase,
-  withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
 import { triggerDripSequence } from "@/modules/admissions/applicant-crm";
@@ -33,7 +34,8 @@ export async function POST(
       throw new Error(`Invalid triggerEvent. Must be one of: ${validTriggers.join(", ")}`);
     }
 
-    const result = await withAcademyDatabaseContext(actor, (client) => {
+    const result = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
       const repo = new PostgresCommunicationsRepository(
         asAcademyDatabase<CommunicationsDatabase>(client),
       );

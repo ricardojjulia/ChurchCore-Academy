@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { fetchGuardianStudentSummary } from "@/modules/people/guardian-access";
 
@@ -13,9 +14,10 @@ export async function GET(request: Request, context: RouteContext) {
       throw new AcademyAuthorizationError("Guardian role required.");
     }
     const { studentId } = await context.params;
-    const summary = await withAcademyDatabaseContext(actor, (client) =>
-      fetchGuardianStudentSummary(actor.userId, studentId, actor.tenantId, client),
-    );
+    const summary = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "guardianPortal");
+      return fetchGuardianStudentSummary(actor.userId, studentId, actor.tenantId, client);
+    });
     if (summary === null || summary.grades === null) {
       return { ferpaRestricted: summary === null, grades: null };
     }

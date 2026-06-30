@@ -58,10 +58,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: "records",
-    label: "Records",
+    label: "Registrar",
     Icon: FolderOpen,
     items: [
-      { label: "Student Index", href: "/admin/students" },
+      { label: "Student Center", href: "/admin/students" },
       { label: "Transcripts", href: "/admin/transcripts" },
       { label: "Graduation", href: "/admin/graduation" },
     ],

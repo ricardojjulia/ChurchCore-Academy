@@ -3,10 +3,10 @@ import { handleApi, jsonError } from "@/app/api/academy/api-utils";
 import { requireIdempotencyKey } from "@/app/api/academy/admissions/request-utils";
 import {
   asAcademyDatabase,
-  withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
-import { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyActor, assertCapability } from "@/modules/academy-auth/policy";
 import {
   CourseRegistrationDatabase,
   PostgresCourseRegistrationRepository,
@@ -34,8 +34,9 @@ const confirmationDependencies: EnrollmentConfirmationDependencies = {
   resolveActor: async (request) =>
     (await resolveAcademyActorFromSession(request)).actor,
   confirm: async (actor, input) =>
-    withAcademyDatabaseContext(actor, (client) =>
-      new CourseRegistrationService(
+    withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return new CourseRegistrationService(
         new PostgresCourseRegistrationRepository(
           asAcademyDatabase<CourseRegistrationDatabase>(client),
         ),
@@ -46,8 +47,8 @@ const confirmationDependencies: EnrollmentConfirmationDependencies = {
         confirmationNote: input.confirmationNote,
         idempotencyKey: input.idempotencyKey,
         correlationId: input.correlationId,
-      }),
-    ),
+      });
+    }),
 };
 
 export async function POST(request: Request, context: RouteContext) {

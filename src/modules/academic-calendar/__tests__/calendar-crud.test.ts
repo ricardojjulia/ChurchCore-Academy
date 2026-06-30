@@ -6,6 +6,7 @@ import {
   updateTerm,
   closeTerm,
   deleteTerm,
+  deletePeriod,
   getActiveTerm,
   type CreateAcademicYearInput,
   type CreateTermInput,
@@ -407,7 +408,13 @@ describe("academic-calendar/mutations", () => {
 
   test("getActiveTerm() returns correct active term", async () => {
     const db = new MockDatabase();
-    const year = await createAcademicYear(mockActor, baseYearInput, db);
+    // Use a wide-spanning year so yesterday/tomorrow always fall within bounds
+    // regardless of when CI runs.
+    const year = await createAcademicYear(
+      mockActor,
+      { name: "Wide Year", code: "WIDE", startsOn: "2020-01-01", endsOn: "2099-12-31", calendarSystem: "semester" },
+      db,
+    );
 
     const today = new Date();
     const yesterday = new Date(today);
@@ -443,6 +450,67 @@ describe("academic-calendar/mutations", () => {
     );
 
     assert.strictEqual(otherYear.tenantId, "tenant-2");
+  });
+
+  test("deletePeriod() success: removes period", async () => {
+    const db = new MockDatabase();
+    const year = await createAcademicYear(mockActor, baseYearInput, db);
+    const term = await createTerm(
+      mockActor,
+      { ...baseTermInput, academicYearId: year.id },
+      db,
+    );
+
+    await deletePeriod(mockActor, term.id, db);
+
+    await assert.rejects(
+      async () => deletePeriod(mockActor, term.id, db),
+      /not found/,
+    );
+  });
+
+  test("deletePeriod() with enrollments: blocked", async () => {
+    const db = new MockDatabase();
+    const year = await createAcademicYear(mockActor, baseYearInput, db);
+    const term = await createTerm(
+      mockActor,
+      { ...baseTermInput, academicYearId: year.id },
+      db,
+    );
+
+    db.addSection({
+      id: "section-1",
+      tenant_id: "tenant-1",
+      academic_period_id: term.id,
+      course_id: "course-1",
+      section_code: "BIB101-01",
+    });
+    db.addEnrollment({
+      id: "enrollment-1",
+      tenant_id: "tenant-1",
+      section_id: "section-1",
+      student_id: "student-1",
+    });
+
+    await assert.rejects(
+      async () => deletePeriod(mockActor, term.id, db),
+      /Cannot delete period with existing student enrollments/,
+    );
+  });
+
+  test("deletePeriod() cross-tenant rejection: not found", async () => {
+    const db = new MockDatabase();
+    const year = await createAcademicYear(mockActor, baseYearInput, db);
+    const term = await createTerm(
+      mockActor,
+      { ...baseTermInput, academicYearId: year.id },
+      db,
+    );
+
+    await assert.rejects(
+      async () => deletePeriod(otherTenantActor, term.id, db),
+      /not found/,
+    );
   });
 
   test("updateTerm() cross-tenant: not found", async () => {

@@ -2,7 +2,7 @@
 
 ChurchCore Academy uses semantic versioning for development milestones while the product is pre-GA.
 
-Current version: `0.8.0`
+Current version: `0.9.0`
 
 ## Version Format
 

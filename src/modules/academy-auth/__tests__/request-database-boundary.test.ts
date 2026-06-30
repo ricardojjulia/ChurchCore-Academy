@@ -40,7 +40,7 @@ test("request-facing Academy repositories use verified database context", async 
 
   for (const relativePath of requestRepositoryRoutes) {
     const source = await readFile(path.join(process.cwd(), relativePath), "utf8");
-    if (!source.includes("withAcademyDatabaseContext")) {
+    if (!source.includes("withAcademyDatabaseContext") && !source.includes("withCapabilityContext")) {
       violations.push(relativePath);
     }
   }

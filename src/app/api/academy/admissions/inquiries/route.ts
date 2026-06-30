@@ -3,13 +3,14 @@ import {
   asAcademyDatabase,
   withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
 import {
   createInquiry,
   listInquiries,
 } from "@/modules/admissions/applicant-crm";
-import { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyActor, assertCapability } from "@/modules/academy-auth/policy";
 
 export async function POST(request: Request) {
   return handleApi(async () => {
@@ -63,16 +64,17 @@ export async function GET(request: Request) {
     const status = url.searchParams.get("status") ?? undefined;
     const assignedToPersonId = url.searchParams.get("assignedToPersonId") ?? undefined;
 
-    const inquiries = await withAcademyDatabaseContext(actor, (client) =>
-      listInquiries(
+    const inquiries = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return listInquiries(
         actor,
         {
           status: status as Parameters<typeof listInquiries>[1]["status"],
           assignedToPersonId,
         },
         asAcademyDatabase<ApplicantCrmDatabase>(client),
-      ),
-    );
+      );
+    });
 
     return { inquiries, count: inquiries.length };
   });

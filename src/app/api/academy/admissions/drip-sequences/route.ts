@@ -1,9 +1,10 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
   asAcademyDatabase,
-  withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
 import { createDripSequence } from "@/modules/admissions/applicant-crm";
 import type { CommunicationTemplateKey, CommunicationChannel } from "@/modules/communications/types";
@@ -68,9 +69,10 @@ export async function POST(request: Request) {
       })),
     };
 
-    const result = await withAcademyDatabaseContext(actor, (client) =>
-      createDripSequence(actor, input, asAcademyDatabase<ApplicantCrmDatabase>(client)),
-    );
+    const result = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return createDripSequence(actor, input, asAcademyDatabase<ApplicantCrmDatabase>(client));
+    });
 
     return result;
   });

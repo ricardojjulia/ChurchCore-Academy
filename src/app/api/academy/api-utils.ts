@@ -4,6 +4,7 @@ import {
   AcademyAuthorizationError,
   AcademyConflictError,
 } from "@/modules/academy-auth/errors";
+import { CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import {
   emitOperationalEvent,
   type OperationalEventCategory,
@@ -47,6 +48,13 @@ export async function handleApi<T>(handler: () => Promise<T>, observability: Api
     ) {
       emitApiFailure("authorization_failure", 403, message, observability);
       return jsonError(message, 403);
+    }
+
+    if (error instanceof CapabilityDisabledError) {
+      return NextResponse.json(
+        { available: false, capability: error.capability, reason: "Not enabled for this institution." },
+        { status: 451 },
+      );
     }
 
     if (error instanceof AcademyConflictError) {

@@ -1,8 +1,9 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
   asAcademyDatabase,
-  withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import {
   CreateProgramRequirementInput,
@@ -19,7 +20,8 @@ export async function GET(request: Request, context: RouteContext) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
     const { programId } = await context.params;
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
       const repository = new PostgresDocumentChecklistRepository(
         asAcademyDatabase<DocumentChecklistDatabase>(client),
       );
@@ -57,7 +59,8 @@ export async function POST(request: Request, context: RouteContext) {
       throw new Error("Requirement label is required.");
     }
 
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
       const repository = new PostgresDocumentChecklistRepository(
         asAcademyDatabase<DocumentChecklistDatabase>(client),
       );

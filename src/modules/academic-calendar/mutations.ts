@@ -777,6 +777,37 @@ export async function archivePeriod(
   return { success: true };
 }
 
+export async function deletePeriod(
+  actor: AcademyActor,
+  periodId: string,
+  client: Queryable,
+): Promise<void> {
+  const existing = await client.query(
+    `select id from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, periodId],
+  );
+
+  if (!existing.rowCount || existing.rowCount === 0) {
+    throw new Error(`Period ${periodId} not found.`);
+  }
+
+  const enrollments = await client.query(
+    `select id from academy_student_enrollments ase
+     join academy_course_sections acs on ase.section_id = acs.id
+     where acs.tenant_id = $1 and acs.academic_period_id = $2 limit 1`,
+    [actor.tenantId, periodId],
+  );
+
+  if (enrollments.rowCount && enrollments.rowCount > 0) {
+    throw new Error("Cannot delete period with existing student enrollments.");
+  }
+
+  await client.query(
+    `delete from academy_academic_periods where tenant_id = $1 and id = $2`,
+    [actor.tenantId, periodId],
+  );
+}
+
 export interface UpdateAcademicYearInput {
   name?: string;
   code?: string;
