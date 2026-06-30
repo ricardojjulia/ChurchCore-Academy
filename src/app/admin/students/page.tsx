@@ -53,7 +53,7 @@ export default async function StudentsPage() {
 
       <Card className="ops-panel">
         <CardHeader>
-          <CardTitle>Student Index</CardTitle>
+          <CardTitle>Student Center</CardTitle>
           <CardDescription>
             Open a student profile for academic record details, administrative signals, and human-reviewed ShepherdAI workflow context.
           </CardDescription>

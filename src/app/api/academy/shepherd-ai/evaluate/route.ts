@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
-import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { AcademyActor, assertShepherdAiAccess, assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import {
   AcademyDataRepository,
@@ -45,7 +46,8 @@ export async function buildShepherdEvaluationPayload(actor: AcademyActor, runner
 export async function POST(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "shepherdAiRecommendations");
       const dataset = await new AcademyDataRepository(
         asAcademyDatabase<AcademyDatasetDatabase>(client),
       ).loadDataset(actor.tenantId);

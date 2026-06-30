@@ -6,13 +6,49 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-### Added
+## [0.9.0] - 2026-06-30
 
-- Council Review XIII MVP and competitive stance evaluation at `docs/reviews/2026-06-26-council-review-13-mvp-competitive-stance.md`, including council-role findings, wildcard adversarial review, updated scorecard, competitor stance, and recommended next factory moves.
+### Added (Capability enforcement and institution settings)
+
+- Council Review III capability enforcement audit and design at `docs/reviews/council-review-3-capability-enforcement.md`, including Product/SIS Domain, Domain Architect, Security/Privacy, and Wildcard (Ghost Mode) councilor findings.
+- ADR 0061 institution capability enforcement at `docs/adr/0061-institution-capability-enforcement.md`, recording the `withCapabilityContext` pattern, Ghost Mode UX, and HTTP 451 for disabled capabilities.
+- `withCapabilityContext(actor, handler)` in `src/lib/capability-context.ts` — wraps `withAcademyDatabaseContext`, fetches the institution capability set once per request, and injects it alongside the database client. All capability enforcement runs through this function.
+- `assertCapability(capabilities, key)` and `CapabilityDisabledError` (HTTP 451) in `src/modules/academy-auth/policy.ts` — centralized capability gate that throws a structured 451 error when a capability flag is false.
+- `handleApi` extended to catch `CapabilityDisabledError` and return `{ available: false, capability, reason }` with HTTP 451.
+- `CapabilityGhostPage` React component for admin pages surfacing a graceful "not available for your institution" screen with a link back to Institution settings.
+- Ghost Mode CSS classes (`.ops-ghost-page`, `.ops-ghost-icon`, `.ops-ghost-title`, `.ops-ghost-detail`, `.ops-ghost-link`) in `src/styles/admin.css`.
+- Capability enforcement wired to 35+ API routes across `studentPwa`, `guardianPortal`, `admissionsWorkflows`, `transcriptWorkflows`, `lmsLaunch`, `lmsRosterSync`, `lmsGradeReturn`, and `shepherdAiRecommendations`.
+- `assertStudentPortalAccess` extended to accept an optional `capabilities` parameter and check `studentPwa`.
+- Institution settings page redesigned as four fully clickable metric tiles (`InstitutionModelMetric`, `InstitutionTile`, `LmsProviderTile`, `ValidationTile`), each opening a focused dialog. All content cards removed from the page surface.
+- Institution tile displays `legalName` (the actual configured name) instead of the `institutionName` field.
+- Legal name editable inline in the Institution dialog via PATCH to `/api/academy/config/institution`.
+- `updateIdentity` repository method in `AcademyConfigRepository` supporting dynamic `institutionName` and `legalName` updates.
+- Capability badges in the Validation tile now show "Off — enforced" to communicate runtime enforcement.
+- Academic period hard delete with enrollment guard — `deletePeriod` in `src/modules/academic-calendar/mutations.ts` and `DELETE /api/academy/calendar/periods/[id]` route. Blocked when student enrollments reference the period via course sections.
+- Delete action and confirmation dialog in `PeriodActions.tsx` on the calendar settings page.
+- Council Review XIII MVP and competitive stance evaluation at `docs/reviews/2026-06-26-council-review-13-mvp-competitive-stance.md`.
+- Capability enforcement design spec at `docs/superpowers/specs/2026-06-29-capability-enforcement-design.md`.
+- Capability enforcement implementation plan at `docs/superpowers/plans/2026-06-29-capability-enforcement.md`.
+- Capability enforcement AI prompts at `docs/prompts/2026-06-29-capability-enforcement-ai-prompts.md`.
+- Release notes at `docs/releases/2026-06-30-capability-enforcement-release-notes.md`.
 
 ### Changed
 
+- Bumped package metadata from `0.8.0` to `0.9.0`.
+- Updated `docs/project-status.md` to reflect `0.9.0` state and capability enforcement in the Implemented list.
+- Updated `README.md` version reference to `0.9.0`.
+- Updated `VERSIONING.md` current version to `0.9.0`.
 - Updated `docs/project-status.md` to reference Council Review XIII and clarify that controlled-pilot/design-partner positioning is approved while production/GA parity claims remain deferred.
+
+### Security
+
+- Institution capability flags now gate API route access at runtime. A tenant with `lmsLaunch: false` cannot reach LMS launch endpoints. A tenant with `graduationWorkflows: false` cannot reach graduation endpoints. Role checks remain unchanged; capabilities are a second additive gate.
+- Capability enforcement is always tenant-scoped: the capability set is fetched within `withAcademyDatabaseContext` using the authenticated actor's `tenantId`.
+
+### External Gates — Unchanged
+
+- All external activation gates from 0.8.0 remain in effect.
+- `facultyPortal`, `registrarWorkflows`, and `graduationWorkflows` capability gates are wired but have no routes to protect yet; they will activate automatically when those route groups are built.
 
 ## [0.8.0] - 2026-06-26
 
@@ -181,7 +217,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Added tenant-aware composite foreign keys and database role-matrix verification.
 - Added append-only audit and learner-intelligence evidence storage.
 
-[Unreleased]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ricardojjulia/ChurchCore-Academy/releases/tag/v0.8.0
 [0.7.1]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.6.0...v0.7.0

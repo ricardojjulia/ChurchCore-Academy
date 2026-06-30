@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { handleApi, jsonError } from "@/app/api/academy/api-utils";
-import { AcademyActor, assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
+import { AcademyActor, assertInstitutionConfigAccess, assertCapability } from "@/modules/academy-auth/policy";
 import { resolveLocalBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import { InstitutionProfile } from "@/modules/academy-config/types";
 import {
@@ -707,7 +708,10 @@ export async function GET(request: Request) {
     const actor = resolveLocalBootstrapAcademyActor(request);
     const requestCorrelationId = correlationId(request.headers);
 
-    return buildLmsContractDescriptorPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId);
+    return withCapabilityContext(actor, async (_client, capabilities) => {
+      assertCapability(capabilities, "lmsLaunch");
+      return buildLmsContractDescriptorPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId);
+    });
   });
 }
 
@@ -737,7 +741,10 @@ export async function POST(request: Request) {
       const input = parseCourseShellPlanInput(payload);
       const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
-        buildLmsCourseShellPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
+        withCapabilityContext(actor, async (_client, capabilities) => {
+          assertCapability(capabilities, "lmsRosterSync");
+          return buildLmsCourseShellPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
+        }),
       );
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);
@@ -749,7 +756,10 @@ export async function POST(request: Request) {
       const input = parseRosterSyncPlanInput(payload);
       const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
-        buildLmsRosterSyncPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
+        withCapabilityContext(actor, async (_client, capabilities) => {
+          assertCapability(capabilities, "lmsRosterSync");
+          return buildLmsRosterSyncPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
+        }),
       );
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);
@@ -761,7 +771,10 @@ export async function POST(request: Request) {
       const input = parseGradeReturnPlanInput(payload);
       const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
-        buildLmsGradeReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
+        withCapabilityContext(actor, async (_client, capabilities) => {
+          assertCapability(capabilities, "lmsGradeReturn");
+          return buildLmsGradeReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
+        }),
       );
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);
@@ -773,7 +786,10 @@ export async function POST(request: Request) {
       const input = parseProgressReturnPlanInput(payload);
       const actor = resolveLocalBootstrapAcademyActor(request);
       return handleApi(async () =>
-        buildLmsProgressReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input),
+        withCapabilityContext(actor, async (_client, capabilities) => {
+          assertCapability(capabilities, "lmsGradeReturn");
+          return buildLmsProgressReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
+        }),
       );
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);

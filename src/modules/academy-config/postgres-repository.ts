@@ -95,4 +95,39 @@ export class AcademyConfigRepository {
 
     return mapInstitutionProfileRow(result.rows[0]);
   }
+
+  async updateIdentity(tenantId: string, input: { institutionName?: string; legalName?: string }): Promise<InstitutionProfile> {
+    const sets: string[] = ["updated_at = now()"];
+    const values: unknown[] = [tenantId];
+    let idx = 2;
+
+    if (input.institutionName !== undefined) {
+      const trimmed = input.institutionName.trim();
+      if (!trimmed) throw new Error("Institution name cannot be empty.");
+      sets.push(`institution_name = $${idx++}`);
+      values.push(trimmed);
+    }
+
+    if (input.legalName !== undefined) {
+      const trimmed = input.legalName.trim();
+      if (!trimmed) throw new Error("Legal name cannot be empty.");
+      sets.push(`legal_name = $${idx++}`);
+      values.push(trimmed);
+    }
+
+    const result = await this.pool.query(
+      `update academy_institution_profiles
+          set ${sets.join(", ")}
+        where tenant_id = $1
+        returning tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
+                  capabilities, lms_preference, created_at, updated_at`,
+      values,
+    );
+
+    if (result.rowCount === 0) {
+      throw new Error(`Institution profile for tenant ${tenantId} was not found.`);
+    }
+
+    return mapInstitutionProfileRow(result.rows[0]);
+  }
 }

@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 
 type RouteContext = { params: Promise<{ studentId: string }> };
@@ -14,7 +15,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { studentId } = await context.params;
     const body = await request.json().catch(() => ({})) as { absenceAlertsEnabled?: boolean };
 
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "guardianPortal");
       const relationship = await client.query(
         `select id
            from academy_student_relationships

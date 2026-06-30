@@ -1,7 +1,9 @@
 import { jsonError, jsonOk } from "@/app/api/academy/api-utils";
-import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import type { InstitutionProfile } from "@/modules/academy-config/types";
 import {
@@ -35,9 +37,10 @@ export async function loadLmsReadinessRequest(
     assertLmsProviderReadinessAccess(actor, actor.tenantId, "read");
     const profile = repository
       ? await repository.fetchInstitutionProfile(actor.tenantId)
-      : await withAcademyDatabaseContext(actor, async (client) =>
-          new AcademyConfigRepository(asAcademyDatabase<RepoPool>(client)).fetchInstitutionProfile(actor.tenantId),
-        );
+      : await withCapabilityContext(actor, async (client, capabilities) => {
+          assertCapability(capabilities, "lmsLaunch");
+          return new AcademyConfigRepository(asAcademyDatabase<RepoPool>(client)).fetchInstitutionProfile(actor.tenantId);
+        });
 
     return jsonOk({
       readiness: buildLmsProviderReadinessModel(profile, actor),

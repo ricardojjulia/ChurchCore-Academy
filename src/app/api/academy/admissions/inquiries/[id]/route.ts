@@ -1,8 +1,9 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
   asAcademyDatabase,
-  withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
 import { updateInquiryStatus } from "@/modules/admissions/applicant-crm";
@@ -28,14 +29,15 @@ export async function PATCH(
       throw new Error(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
     }
 
-    const inquiry = await withAcademyDatabaseContext(actor, (client) =>
-      updateInquiryStatus(
+    const inquiry = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return updateInquiryStatus(
         actor,
         id,
         status as Parameters<typeof updateInquiryStatus>[2],
         asAcademyDatabase<ApplicantCrmDatabase>(client),
-      ),
-    );
+      );
+    });
 
     return { inquiry };
   });

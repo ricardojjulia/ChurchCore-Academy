@@ -1,7 +1,9 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import {
   PostgresTranscriptRepository,
@@ -66,7 +68,8 @@ function stringField(value: unknown) {
 }
 
 async function defaultServiceForActor(actor: AcademyActor) {
-  return withAcademyDatabaseContext(actor, async (client) => {
+  return withCapabilityContext(actor, async (client, capabilities) => {
+    assertCapability(capabilities, "transcriptWorkflows");
     const repository = new PostgresTranscriptRepository(
       asAcademyDatabase<TranscriptDatabase>(client),
     );
@@ -75,7 +78,8 @@ async function defaultServiceForActor(actor: AcademyActor) {
 }
 
 async function defaultFindByStudent(actor: AcademyActor, studentPersonId: string) {
-  return withAcademyDatabaseContext(actor, async (client) => {
+  return withCapabilityContext(actor, async (client, capabilities) => {
+    assertCapability(capabilities, "transcriptWorkflows");
     const repository = new PostgresTranscriptRepository(
       asAcademyDatabase<TranscriptDatabase>(client),
     );
@@ -172,7 +176,8 @@ export async function createTranscriptRequest(
       } else {
         // Default PDF generation behavior
         try {
-          const pdfData = await withAcademyDatabaseContext(actor, async (client) => {
+          const pdfData = await withCapabilityContext(actor, async (client, capabilities) => {
+            assertCapability(capabilities, "transcriptWorkflows");
             return buildTranscriptPdfData({
               tenantId: actor.tenantId,
               studentPersonId: transcript.studentPersonId,
@@ -186,7 +191,8 @@ export async function createTranscriptRequest(
           const { path } = await generateTranscriptPdf(pdfData, transcript.id, storage);
 
           // Update transcript record with storage path
-          await withAcademyDatabaseContext(actor, async (client) => {
+          await withCapabilityContext(actor, async (client, capabilities) => {
+            assertCapability(capabilities, "transcriptWorkflows");
             const repository = new PostgresTranscriptRepository(
               asAcademyDatabase<TranscriptDatabase>(client),
             );

@@ -1,7 +1,8 @@
 import {
-  withAcademyDatabaseContext,
   asAcademyDatabase,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import {
@@ -89,9 +90,10 @@ function makeStorageClient(): TranscriptStorageClient {
 }
 
 async function defaultFindById(actor: AcademyActor, transcriptId: string) {
-  return withAcademyDatabaseContext(
+  return withCapabilityContext(
     actor,
-    async (client) => {
+    async (client, capabilities) => {
+      assertCapability(capabilities, "transcriptWorkflows");
       const repository = new PostgresTranscriptRepository(
         asAcademyDatabase<TranscriptDatabase>(client),
       );
@@ -104,8 +106,9 @@ async function defaultBuildPdfData(
   actor: AcademyActor,
   transcript: TranscriptRecord,
 ) {
-  return withAcademyDatabaseContext(actor, async (client) =>
-    buildTranscriptPdfData({
+  return withCapabilityContext(actor, async (client, capabilities) => {
+    assertCapability(capabilities, "transcriptWorkflows");
+    return buildTranscriptPdfData({
       tenantId: actor.tenantId,
       studentPersonId: transcript.studentPersonId,
       issuanceId: transcript.id,
@@ -113,8 +116,8 @@ async function defaultBuildPdfData(
         .toISOString()
         .split("T")[0],
       client: asAcademyDatabase(client),
-    }),
-  );
+    });
+  });
 }
 
 async function defaultUpdateStorageUrl(
@@ -122,7 +125,8 @@ async function defaultUpdateStorageUrl(
   transcriptId: string,
   storagePath: string,
 ) {
-  await withAcademyDatabaseContext(actor, async (client) => {
+  await withCapabilityContext(actor, async (client, capabilities) => {
+    assertCapability(capabilities, "transcriptWorkflows");
     const repository = new PostgresTranscriptRepository(
       asAcademyDatabase<TranscriptDatabase>(client),
     );

@@ -1,9 +1,8 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import {
-  asAcademyDatabase,
-  withAcademyDatabaseContext,
-} from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import {
   fetchWatchlist,
   WatchlistDatabase,
@@ -24,7 +23,8 @@ export async function GET(request: Request) {
       pageSize: url.searchParams.get("pageSize") ? Number(url.searchParams.get("pageSize")) : 50,
     };
 
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "shepherdAiRecommendations");
       const result = await fetchWatchlist(
         actor,
         filters,

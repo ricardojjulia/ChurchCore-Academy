@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { handleApi } from "@/app/api/academy/api-utils";
 import { requireIdempotencyKey } from "@/app/api/academy/admissions/request-utils";
 import { createEnrollmentConversionService } from "@/app/api/academy/admissions/service-factory";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
-import { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyActor, assertCapability } from "@/modules/academy-auth/policy";
 import { EnrollmentConversionResult } from "@/modules/enrollment-conversion/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -28,14 +28,15 @@ const conversionDependencies: ConvertAdmissionApplicationDependencies = {
     correlationId,
     idempotencyKey,
   ) =>
-    withAcademyDatabaseContext(actor, (client) =>
-      createEnrollmentConversionService(client).convert(
+    withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return createEnrollmentConversionService(client).convert(
         actor,
         applicationId,
         correlationId,
         idempotencyKey,
-      ),
-    ),
+      );
+    }),
 };
 
 export async function POST(request: Request, context: RouteContext) {

@@ -43,7 +43,7 @@ export default async function TranscriptsPage() {
 
   return (
     <AdminShell
-      eyebrow="Records"
+      eyebrow="Registrar"
       title="Transcript Issuance"
       subtitle="Issue official transcripts to students and recipients. All issuances are logged and tenant-scoped."
       activeSection="records"

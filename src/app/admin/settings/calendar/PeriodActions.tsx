@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { notifyAcademy } from "@/lib/ui/notifications";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,6 +34,7 @@ interface PeriodActionsProps {
 export function PeriodActions({ period, onSuccess }: PeriodActionsProps) {
   const [isConfirmingComplete, setIsConfirmingComplete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   async function handleTransition(action: "open_enrollment" | "activate" | "complete") {
     try {
@@ -58,6 +59,33 @@ export function PeriodActions({ period, onSuccess }: PeriodActionsProps) {
         tone: "error",
         title: "Update failed",
         message: "Failed to update status.",
+      });
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      const res = await fetch(`/api/academy/calendar/periods/${period.id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json() as Record<string, unknown>;
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to delete period.");
+      }
+
+      notifyAcademy({
+        tone: "success",
+        title: "Period deleted",
+        message: "Academic period successfully deleted.",
+      });
+      onSuccess();
+      setIsDeleting(false);
+    } catch (error) {
+      notifyAcademy({
+        tone: "error",
+        title: "Delete failed",
+        message: error instanceof Error ? error.message : "Failed to delete period.",
       });
     }
   }
@@ -87,6 +115,11 @@ export function PeriodActions({ period, onSuccess }: PeriodActionsProps) {
           <DropdownMenuItem onClick={() => setIsConfirmingComplete(true)} disabled={!canComplete} className="text-destructive focus:text-destructive">
             Complete Period
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setIsDeleting(true)} className="text-destructive focus:text-destructive">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Period
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -114,6 +147,28 @@ export function PeriodActions({ period, onSuccess }: PeriodActionsProps) {
               disabled={confirmText !== period.name}
             >
               Complete Period
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Academic Period?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &quot;{period.name}&quot;. This action cannot be undone.
+              <br /><br />
+              Note: Periods with existing student enrollments cannot be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Period
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

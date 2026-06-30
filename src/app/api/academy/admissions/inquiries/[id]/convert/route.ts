@@ -1,8 +1,9 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
   asAcademyDatabase,
-  withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
 import { convertInquiryToApplication } from "@/modules/admissions/applicant-crm";
@@ -23,14 +24,15 @@ export async function POST(
       throw new Error("applicationId is required.");
     }
 
-    const inquiry = await withAcademyDatabaseContext(actor, (client) =>
-      convertInquiryToApplication(
+    const inquiry = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return convertInquiryToApplication(
         actor,
         id,
         applicationId,
         asAcademyDatabase<ApplicantCrmDatabase>(client),
-      ),
-    );
+      );
+    });
 
     return { inquiry };
   });

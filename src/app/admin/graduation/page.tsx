@@ -58,7 +58,7 @@ export default async function GraduationPage() {
   return (
     <AdminShell
       activeSection="records"
-      eyebrow="Records"
+      eyebrow="Registrar"
       title="Graduation Audit"
       subtitle="Academic readiness, credit completion, holds, and registrar review entry points for graduation candidates."
     >

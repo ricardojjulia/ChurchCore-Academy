@@ -70,16 +70,25 @@ export async function PATCH(request: Request) {
     const { actor } = await resolveAcademyActorFromSession(request);
     const payload = (await request.json()) as Record<string, unknown>;
 
-    return withAcademyDatabaseContext(actor, (client) =>
-      buildUpdateInstitutionModesPayload(
-        new AcademyConfigRepository(asAcademyDatabase(client)),
-        actor,
-        actor.tenantId,
-        {
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const repo = new AcademyConfigRepository(asAcademyDatabase(client));
+      assertInstitutionConfigAccess(actor, actor.tenantId, "write");
+
+      if (typeof payload.institutionName === "string" || typeof payload.legalName === "string") {
+        await repo.updateIdentity(actor.tenantId, {
+          institutionName: typeof payload.institutionName === "string" ? payload.institutionName : undefined,
+          legalName: typeof payload.legalName === "string" ? payload.legalName : undefined,
+        });
+      }
+
+      if (Array.isArray(payload.selectedModes)) {
+        return buildUpdateInstitutionModesPayload(repo, actor, actor.tenantId, {
           selectedModes: asModeArray(payload.selectedModes),
           primaryMode: asMode(payload.primaryMode),
-        },
-      ),
-    );
+        });
+      }
+
+      return buildInstitutionConfigPayload(repo, actor, actor.tenantId);
+    });
   });
 }

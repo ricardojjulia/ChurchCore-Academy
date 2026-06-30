@@ -17,7 +17,7 @@
 </div>
 
 > [!IMPORTANT]
-> Current version: `0.8.0`. ChurchCore Academy is a controlled-pilot candidate for core SIS workflows. The codebase has the Academy-owned implementation for Moodle and Canvas integration, but production provider activation remains an external release gate requiring sandbox evidence, tenant approval, rollback review, and provider owner signoff.
+> Current version: `0.9.0`. ChurchCore Academy is a controlled-pilot candidate for core SIS workflows. Institution capability flags are now enforced at the API layer — mode-pack configuration has runtime effect. The codebase has the Academy-owned implementation for Moodle and Canvas integration, but production provider activation remains an external release gate requiring sandbox evidence, tenant approval, rollback review, and provider owner signoff.
 
 ## What This Software Does
 

@@ -17,6 +17,7 @@ This directory contains the durable product, architecture, delivery, operations,
 - [Council System AI Coder Prompt](prompts/2026-06-26-council-system-ai-coder-prompt.md)
 - [Software Factory AI Coder Prompt](prompts/2026-06-26-software-factory-ai-coder-prompt.md)
 - [Testing and Code Health AI Coder Prompt](prompts/2026-06-26-testing-code-health-ai-coder-prompt.md)
+- [Capability Enforcement AI Prompts](prompts/2026-06-29-capability-enforcement-ai-prompts.md)
 
 ## Architecture and Decisions
 
@@ -52,7 +53,9 @@ This directory contains the durable product, architecture, delivery, operations,
 
 ## Delivery Artifacts
 
-- `docs/releases/`: release notes and readiness packages
+- [0.9.0 Release Notes — Capability Enforcement](releases/2026-06-30-capability-enforcement-release-notes.md)
+- [0.8.0 Release Notes — Full LMS Integration](releases/2026-06-26-full-lms-integration-readiness.md)
+- `docs/releases/`: all release notes and readiness packages
 - `docs/superpowers/specs/`: approved designs
 - `docs/superpowers/plans/`: implementation plans
 - `docs/prompts/`: reusable AI-coder prompt packs

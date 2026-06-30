@@ -1,5 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import {
@@ -14,7 +16,8 @@ interface TranscriptTransitionDependencies {
 }
 
 async function defaultServiceForActor(actor: AcademyActor) {
-  return withAcademyDatabaseContext(actor, async (client) => {
+  return withCapabilityContext(actor, async (client, capabilities) => {
+    assertCapability(capabilities, "transcriptWorkflows");
     const repository = new PostgresTranscriptRepository(
       asAcademyDatabase<TranscriptDatabase>(client),
     );

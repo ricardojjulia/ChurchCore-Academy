@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { jsonError, jsonOk } from "@/app/api/academy/api-utils";
-import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveStudentAcademyActorFromSession } from "@/modules/academy-auth/request-context";
-import { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyActor, assertStudentPortalAccess, assertCapability } from "@/modules/academy-auth/policy";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { PeopleConfiguration } from "@/modules/people/types";
 import {
@@ -107,11 +108,13 @@ export async function launchStudentLmsRequest(
       return await createResponse(repository);
     }
 
-    return await withAcademyDatabaseContext(actor, (client) =>
-      createResponse(
+    return await withCapabilityContext(actor, async (client, capabilities) => {
+      assertStudentPortalAccess(actor, capabilities);
+      assertCapability(capabilities, "lmsLaunch");
+      return createResponse(
         new AcademyPeopleRepository(asAcademyDatabase(client)),
-      ),
-    );
+      );
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to resolve student LMS launch.";
 

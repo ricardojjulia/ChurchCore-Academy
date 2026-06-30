@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
-  withAcademyDatabaseContext,
   asAcademyDatabase,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import {
@@ -82,7 +83,8 @@ export async function POST(request: Request) {
     const mailingAddress = stringField(body.mailingAddress);
     const note = stringField(body.note) ?? (mailingAddress ? `Mailing address: ${mailingAddress}` : undefined);
 
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "transcriptWorkflows");
       const db = asAcademyDatabase<TranscriptDatabase>(client);
       const rawClient = client as unknown as {
         query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;

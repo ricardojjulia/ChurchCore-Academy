@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { handleApi } from "@/app/api/academy/api-utils";
-import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { scoreStudentRisk, type ScoreStudentRiskInput } from "@/modules/shepherd-ai/retention-risk";
 
 export async function POST(request: NextRequest) {
@@ -21,8 +23,9 @@ export async function POST(request: NextRequest) {
       scoringPeriod: body.scoringPeriod,
     };
 
-    return withAcademyDatabaseContext(actor, (client) =>
-      scoreStudentRisk(actor, input, asAcademyDatabase(client)),
-    );
+    return withCapabilityContext(actor, (client, capabilities) => {
+      assertCapability(capabilities, "shepherdAiRecommendations");
+      return scoreStudentRisk(actor, input, asAcademyDatabase(client));
+    });
   }, { operation: "shepherd_ai.score_student_risk" });
 }

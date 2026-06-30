@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
-import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { AcademyActor, assertShepherdAiAccess, assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademicWorkflowsPostgresService } from "@/modules/academic-workflows/postgres-service";
 import { ShepherdAiSuggestion } from "@/modules/shepherd-ai/types";
@@ -30,7 +31,8 @@ export async function POST(request: Request, context: RouteContext) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
     const { id } = await context.params;
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "shepherdAiRecommendations");
       const suggestion = await dismissSuggestionForActor(
         new AcademicWorkflowsPostgresService(
           asAcademyDatabase(client),

@@ -1,15 +1,14 @@
 # Project Status
 
-- Version: `0.8.0`
+- Version: `0.9.0`
 - Stage: controlled-pilot candidate
-- Updated: 2026-06-26
+- Updated: 2026-06-30
 
 ## Current Assessment
 
-ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, and the ADR-0059 full Moodle/Canvas LMS implementation closeout.
+ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, the ADR-0059 full Moodle/Canvas LMS implementation closeout, and the ADR-0061 institution capability enforcement closeout.
 
-Council Review IX approved a split release decision for controlled-pilot core SIS workflows with provider activation disabled unless separately approved. Council Review XII closed the Academy-owned Moodle and Canvas implementation work while preserving the external sandbox-evidence gate for production LMS activation.
-Council Review XIII revalidated the current MVP and competitive stance: ChurchCore Academy is strong enough for controlled-pilot and design-partner positioning, but not approved for production/GA parity claims against mature SIS vendors.
+Council Review IX approved a split release decision for controlled-pilot core SIS workflows with provider activation disabled unless separately approved. Council Review XII closed the Academy-owned Moodle and Canvas implementation work while preserving the external sandbox-evidence gate for production LMS activation. Council Review XIII revalidated the current MVP and competitive stance: ChurchCore Academy is strong enough for controlled-pilot and design-partner positioning, but not approved for production/GA parity claims against mature SIS vendors. Council Review III (capability enforcement) confirmed that all 11 institution capability flags are now enforced at the API layer, closing the gap between mode-pack configuration and runtime behavior.
 
 Current posture:
 
@@ -53,6 +52,10 @@ Current posture:
 - Production observability foundation for authentication, authorization, workflow, migration, and LMS provider-worker failures.
 - Council Review XII full LMS integration MVP closeout.
 - Council Review XIII MVP and competitive stance evaluation.
+- Council Review III capability enforcement audit, ADR 0061, Ghost Mode (HTTP 451), and centralized `withCapabilityContext` / `assertCapability` enforcement infrastructure.
+- Institution capability flags (`studentPwa`, `guardianPortal`, `admissionsWorkflows`, `transcriptWorkflows`, `lmsLaunch`, `lmsRosterSync`, `lmsGradeReturn`, `shepherdAiRecommendations`) enforced at runtime on 35+ API routes. Mode-pack configuration has actual runtime effect.
+- Institution settings page redesigned as four fully clickable metric tiles with focused dialogs; legal name editable; legalName used as institution display name.
+- Academic period hard delete with enrollment guard.
 - README, HOWTO, CHANGELOG, and VERSIONING documentation refresh.
 
 ## External Release Gates
@@ -87,6 +90,9 @@ These are not open implementation tasks in the repository. They are live-environ
 - [CHANGELOG](../CHANGELOG.md)
 - [Versioning](../VERSIONING.md)
 - [Factory Roadmap](product/factory-roadmap.md)
+- [ADR-0061 Institution Capability Enforcement](adr/0061-institution-capability-enforcement.md)
+- [Council Review III Capability Enforcement](reviews/council-review-3-capability-enforcement.md)
+- [0.9.0 Release Notes](releases/2026-06-30-capability-enforcement-release-notes.md)
 - [ADR-0033 Full SIS Competitive MVP Release Program](adr/0033-full-sis-competitive-mvp-release-program.md)
 - [ADR-0038 Competitive Acceptance And Deployment Readiness](adr/0038-competitive-acceptance-and-deployment-readiness.md)
 - [ADR-0059 Full Moodle And Canvas Live Integration](adr/0059-full-moodle-canvas-live-integration.md)
