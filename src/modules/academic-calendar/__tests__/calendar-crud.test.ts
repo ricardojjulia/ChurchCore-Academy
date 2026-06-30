@@ -408,7 +408,13 @@ describe("academic-calendar/mutations", () => {
 
   test("getActiveTerm() returns correct active term", async () => {
     const db = new MockDatabase();
-    const year = await createAcademicYear(mockActor, baseYearInput, db);
+    // Use a wide-spanning year so yesterday/tomorrow always fall within bounds
+    // regardless of when CI runs.
+    const year = await createAcademicYear(
+      mockActor,
+      { name: "Wide Year", code: "WIDE", startsOn: "2020-01-01", endsOn: "2099-12-31", calendarSystem: "semester" },
+      db,
+    );
 
     const today = new Date();
     const yesterday = new Date(today);
