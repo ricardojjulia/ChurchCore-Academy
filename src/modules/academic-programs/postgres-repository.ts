@@ -1,4 +1,5 @@
 import { getDatabasePool } from "@/lib/database";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 import type {
   AcademicProgram,
   AcademicProgramRepository,
@@ -164,5 +165,45 @@ export class PostgresAcademicProgramRepository implements AcademicProgramReposit
 
     if (!result.rows[0]) throw new Error(`Program ${id} was not found.`);
     return mapRow(result.rows[0]);
+  }
+
+  async archive(tenantId: string, id: string): Promise<AcademicProgram> {
+    const result = await this.database.query(
+      `update academy_academic_programs
+          set status = 'archived', updated_at = now()
+        where tenant_id = $1 and id = $2
+       returning ${SELECT_COLS}`,
+      [tenantId, id],
+    );
+
+    if (!result.rows[0]) throw new Error(`Program ${id} was not found.`);
+    return mapRow(result.rows[0]);
+  }
+
+  async delete(tenantId: string, id: string): Promise<void> {
+    // Check for student program memberships
+    const enrollments = await this.database.query(
+      `select count(*) as cnt
+         from academy_student_program_memberships
+        where tenant_id = $1 and program_id = $2`,
+      [tenantId, id],
+    );
+
+    const count = enrollments.rows[0] ? Number(enrollments.rows[0].cnt) : 0;
+    if (count > 0) {
+      throw new AcademyConflictError(
+        `Cannot delete program with ${count} active student program membership(s).`,
+      );
+    }
+
+    const result = await this.database.query(
+      `delete from academy_academic_programs
+        where tenant_id = $1 and id = $2`,
+      [tenantId, id],
+    );
+
+    if (!result.rowCount || result.rowCount === 0) {
+      throw new Error(`Program ${id} was not found.`);
+    }
   }
 }

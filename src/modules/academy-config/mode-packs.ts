@@ -33,6 +33,7 @@ const baseCapabilities: InstitutionCapabilitySet = {
   lmsRosterSync: false,
   lmsGradeReturn: false,
   shepherdAiRecommendations: true,
+  covenantRecords: false,
 };
 
 const collegeOperatingRules: InstitutionOperatingRules = {
@@ -339,6 +340,7 @@ export function aggregateModePackCapabilities(selectedModes: readonly Institutio
     registrarWorkflows: false,
     admissionsWorkflows: false,
     shepherdAiRecommendations: false,
+    covenantRecords: false,
   };
 
   return packs.reduce<InstitutionCapabilitySet>(
@@ -354,6 +356,7 @@ export function aggregateModePackCapabilities(selectedModes: readonly Institutio
       lmsRosterSync: capabilities.lmsRosterSync || pack.capabilities.lmsRosterSync,
       lmsGradeReturn: capabilities.lmsGradeReturn || pack.capabilities.lmsGradeReturn,
       shepherdAiRecommendations: capabilities.shepherdAiRecommendations || pack.capabilities.shepherdAiRecommendations,
+      covenantRecords: capabilities.covenantRecords || pack.capabilities.covenantRecords,
     }),
     initialCapabilities,
   );

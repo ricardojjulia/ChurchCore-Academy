@@ -22,7 +22,7 @@
     "build": "next build",
     "start": "next start --port 3200",
     "lint": "eslint",
-    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test": "node --env-file=.env.local --import tsx --test \"src/**/*.test.ts\"",
     "verify:admissions-rls": "node --env-file=.env.local --import tsx scripts/verify-admissions-rls.ts",
     "verify:enrollment-conversion-rls": "node --env-file=.env.local --import tsx scripts/verify-enrollment-conversion-rls.ts",
     "verify:llis-consent-rls": "node --env-file=.env.local --import tsx scripts/verify-llis-consent-rls.ts",

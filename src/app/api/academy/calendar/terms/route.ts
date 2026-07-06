@@ -5,6 +5,7 @@ import {
   createTerm,
   type CreateTermInput,
 } from "@/modules/academic-calendar/mutations";
+import type { AcademicPeriodType } from "@/modules/academic-calendar/types";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
       academicYearId: body.academicYearId,
       name: body.name,
       code: body.code,
+      periodType: (typeof body.periodType === "string" ? body.periodType : "term") as AcademicPeriodType,
       startsOn: body.startsOn,
       endsOn: body.endsOn,
       sequence: body.sequence,

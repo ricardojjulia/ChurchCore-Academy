@@ -11,10 +11,12 @@ export default async function AcademicCalendarSettingsPage() {
 
   const { periods, years } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new PostgresAcademicPeriodRepository(asAcademyDatabase<AcademyDatabase>(client), actor.tenantId);
+
     const [periods, years] = await Promise.all([
       repo.listPeriods(actor.tenantId),
       repo.listYears(actor.tenantId),
     ]);
+
     return { periods, years };
   });
 

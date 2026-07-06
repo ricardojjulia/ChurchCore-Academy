@@ -11,6 +11,7 @@ import {
   ListChecks,
   ShieldCheck,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
@@ -19,18 +20,31 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WithdrawRegistrationButton } from "@/components/withdraw-registration-button";
+import { CovenantRecordTab } from "@/components/covenant-record-tab";
+import { PersonEditTrigger } from "@/app/admin/people/students/[id]/PersonEditTrigger";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { fetchStudentRecords, fetchProgramList, fetchAdministrators, fetchSectionList } from "@/lib/academy-read-models";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
+import { CovenantRecord } from "@/modules/people/types";
 
 interface RegistrationRow {
   id: string;
   course_section_id: string;
   status: string;
   registered_at: string;
+}
+
+interface RelationshipRow {
+  id: string;
+  relationshipType: string;
+  authority: string;
+  visibility: string;
+  status: string;
+  relatedPersonId: string;
+  relatedPersonName: string;
 }
 
 function formatCode(value: string) {
@@ -55,24 +69,76 @@ export default async function StudentPage({
   const { id } = await params;
   const actor = await requireActor();
 
-  const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations } =
+  const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations, person, personId, relationships, covenantEnabled, covenantRecord } =
     await withAcademyDatabaseContext(actor, async (client) => {
       const shepherdRepo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));
-      const [s, p, a, sec, sugg, wflow, regs] = await Promise.all([
-        fetchStudentRecords(actor.tenantId, client),
-        fetchProgramList(actor.tenantId, client),
-        fetchAdministrators(actor.tenantId, client),
-        fetchSectionList(actor.tenantId, client),
-        shepherdRepo.fetchSuggestions(actor.tenantId),
-        shepherdRepo.fetchWorkflows(actor.tenantId),
-        client.query(
-          `select id, course_section_id, status, registered_at
-             from academy_course_section_registrations
-            where tenant_id = $1 and student_person_id = $2
-            order by registered_at desc`,
-          [actor.tenantId, id],
-        ) as Promise<{ rows: RegistrationRow[] }>,
-      ]);
+      const s = await fetchStudentRecords(actor.tenantId, client);
+      const p = await fetchProgramList(actor.tenantId, client);
+      const a = await fetchAdministrators(actor.tenantId, client);
+      const sec = await fetchSectionList(actor.tenantId, client);
+      const sugg = await shepherdRepo.fetchSuggestions(actor.tenantId);
+      const wflow = await shepherdRepo.fetchWorkflows(actor.tenantId);
+      const regs = await client.query(
+        `select id, course_section_id, status, registered_at
+           from academy_course_section_registrations
+          where tenant_id = $1 and student_person_id = $2
+          order by registered_at desc`,
+        [actor.tenantId, id],
+      ) as { rows: RegistrationRow[] };
+
+      // id param is the student profile id (sp.id); join to get the person record
+      const personResult = await client.query(
+        `SELECT p.id, p.display_name, p.given_name, p.family_name, p.preferred_name, p.email, p.phone, p.date_of_birth, p.person_status
+         FROM academy_people p
+         JOIN academy_student_profiles sp ON sp.person_id = p.id AND sp.tenant_id = p.tenant_id
+         WHERE sp.tenant_id = $1 AND sp.id = $2`,
+        [actor.tenantId, id]
+      ) as { rows: Record<string, unknown>[] };
+      const personRow = personResult.rows[0];
+      const personId = personRow ? String(personRow.id) : null;
+
+      const relationshipsResult = personId ? await client.query(
+        `SELECT r.id, r.relationship_type, r.authority, r.visibility, r.status,
+                p.id as related_person_id, p.display_name as related_person_name
+         FROM academy_student_relationships r
+         JOIN academy_people p ON p.id = r.related_person_id AND p.tenant_id = r.tenant_id
+         WHERE r.tenant_id = $1 AND r.student_person_id = $2
+         ORDER BY r.created_at DESC`,
+        [actor.tenantId, personId]
+      ) as { rows: Record<string, unknown>[] } : { rows: [] };
+
+      let covenantEnabled = false;
+      let covenantRecord: CovenantRecord | null = null;
+      try {
+        const profileResult = await client.query(
+          `SELECT capabilities FROM academy_institution_profiles WHERE tenant_id = $1`,
+          [actor.tenantId]
+        ) as { rows: Record<string, unknown>[] };
+        if (profileResult.rows[0]) {
+          const caps = profileResult.rows[0].capabilities as Record<string, boolean>;
+          covenantEnabled = caps.covenantRecords === true;
+        }
+        if (covenantEnabled && personId) {
+          const cr = await client.query(
+            `SELECT id, tenant_id, person_id, covenant_fields, created_at, updated_at FROM academy_covenant_records WHERE tenant_id = $1 AND person_id = $2`,
+            [actor.tenantId, personId]
+          ) as { rows: Record<string, unknown>[] };
+          if (cr.rows[0]) {
+            const row = cr.rows[0];
+            covenantRecord = {
+              id: String(row.id),
+              tenantId: String(row.tenant_id),
+              personId: String(row.person_id),
+              covenantFields: (row.covenant_fields ?? {}) as CovenantRecord['covenantFields'],
+              createdAt: String(row.created_at),
+              updatedAt: String(row.updated_at),
+            };
+          }
+        }
+      } catch {
+        /* covenant not available */
+      }
+
       return {
         students: s,
         programs: p,
@@ -81,11 +147,34 @@ export default async function StudentPage({
         allSuggestions: sugg,
         allWorkflows: wflow,
         registrations: regs.rows,
+        person: personRow ? {
+          displayName: String(personRow.display_name ?? ""),
+          givenName: personRow.given_name ? String(personRow.given_name) : null,
+          familyName: personRow.family_name ? String(personRow.family_name) : null,
+          preferredName: personRow.preferred_name ? String(personRow.preferred_name) : null,
+          email: personRow.email ? String(personRow.email) : null,
+          phone: personRow.phone ? String(personRow.phone) : null,
+          dateOfBirth: personRow.date_of_birth ? String(personRow.date_of_birth) : null,
+        } : null,
+        personId,
+        relationships: relationshipsResult.rows.map((r) => ({
+          id: String(r.id),
+          relationshipType: String(r.relationship_type),
+          authority: String(r.authority),
+          visibility: String(r.visibility),
+          status: String(r.status),
+          relatedPersonId: String(r.related_person_id),
+          relatedPersonName: String(r.related_person_name),
+        })),
+        covenantEnabled,
+        covenantRecord,
       };
     });
 
   const student = students.find((item) => item.id === id);
-  if (!student) notFound();
+  if (!student || !person || !personId) notFound();
+
+  const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
 
   const program = programs.find((item) => item.id === student.programId);
   const advisor = administrators.find((item) => item.id === student.advisorUserId);
@@ -127,6 +216,7 @@ export default async function StudentPage({
               </div>
             </div>
             <div className="student-identity-actions">
+              <PersonEditTrigger personId={personId} person={person} />
               <Link href="/workflows" className="academy-action-link">
                 Open workflow queue
                 <ArrowRight />
@@ -148,6 +238,8 @@ export default async function StudentPage({
           <TabsTrigger value="insights">ShepherdAI Insights</TabsTrigger>
           <TabsTrigger value="record">Academic Record</TabsTrigger>
           <TabsTrigger value="sections">Sections</TabsTrigger>
+          <TabsTrigger value="relationships">Relationships</TabsTrigger>
+          {covenantEnabled && <TabsTrigger value="covenant">Covenant Record</TabsTrigger>}
           <TabsTrigger value="signals">Administrative Signals</TabsTrigger>
           <TabsTrigger value="workflows">Workflows</TabsTrigger>
         </TabsList>
@@ -298,6 +390,72 @@ export default async function StudentPage({
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="relationships">
+          <Card className="ops-panel">
+            <CardHeader>
+              <div className="ops-heading">
+                <div className="ops-icon"><Users /></div>
+                <div>
+                  <CardTitle>Student Relationships</CardTitle>
+                  <CardDescription>
+                    Guardians, parents, emergency contacts, and other relationships linked to this student.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {relationships.length === 0 ? (
+                <div className="student-empty-state">
+                  <Users />
+                  <span>No relationships on record for this student.</span>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Relationship</TableHead>
+                      <TableHead>Authority</TableHead>
+                      <TableHead>Visibility</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {relationships.map((rel) => (
+                      <TableRow key={rel.id}>
+                        <TableCell className="font-medium">{rel.relatedPersonName}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {formatCode(rel.relationshipType)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{formatCode(rel.authority)}</TableCell>
+                        <TableCell className="text-sm">{formatCode(rel.visibility)}</TableCell>
+                        <TableCell>
+                          <Badge variant={rel.status === "active" ? "secondary" : "outline"} className="capitalize">
+                            {rel.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {covenantEnabled && (
+          <TabsContent value="covenant">
+            <CovenantRecordTab
+              covenantEnabled={covenantEnabled}
+              record={covenantRecord}
+              canEditNotes={canEditNotes}
+              personId={id}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="signals">
           <Card className="ops-panel">

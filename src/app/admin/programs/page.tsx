@@ -5,10 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
-import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import {
+  PostgresAcademicProgramRepository,
+  type AcademicProgramDatabase,
+} from "@/modules/academic-programs/postgres-repository";
+import { ProgramRowActions } from "./ProgramRowActions";
 
 export const dynamic = "force-dynamic";
+
+interface Queryable {
+  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+}
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -16,22 +24,42 @@ function formatCode(value: string) {
 
 export default async function ProgramsPage() {
   const actor = await requireActor();
-  const { students, programs } = await withAcademyDatabaseContext(actor, async (client) => {
-    const [s, p] = await Promise.all([
-      fetchStudentRecords(actor.tenantId, client),
-      fetchProgramList(actor.tenantId, client),
-    ]);
-    return { students: s, programs: p };
+  const { programs, enrollmentCounts } = await withAcademyDatabaseContext(actor, async (client) => {
+    const repo = new PostgresAcademicProgramRepository(asAcademyDatabase<AcademicProgramDatabase>(client));
+    const programs = await repo.list(actor.tenantId, {});
+
+    const enrollmentRows = await (asAcademyDatabase<Queryable>(client)).query(
+      `select academic_program_id, status, count(*) as count
+         from academy_program_enrollments
+        where tenant_id = $1 and academic_program_id is not null
+        group by academic_program_id, status`,
+      [actor.tenantId],
+    );
+
+    const counts = new Map<string, { active: number; total: number }>();
+    for (const row of enrollmentRows.rows) {
+      const programId = String(row.academic_program_id);
+      const entry = counts.get(programId) ?? { active: 0, total: 0 };
+      const rowCount = Number(row.count);
+      entry.total += rowCount;
+      if (row.status === "active") entry.active += rowCount;
+      counts.set(programId, entry);
+    }
+
+    return { programs, enrollmentCounts: counts };
   });
-  const activeStudents = students.filter((student) => student.enrollmentStatus === "active");
-  const assignedStudents = students.filter((student) => Boolean(student.programId));
+
+  const totals = [...enrollmentCounts.values()].reduce(
+    (acc, entry) => ({ active: acc.active + entry.active, total: acc.total + entry.total }),
+    { active: 0, total: 0 },
+  );
 
   return (
     <AdminShell
       activeSection="academics"
       eyebrow="Programs"
       title="Program Index"
-      subtitle="Program, cohort, credit requirement, and student-progress entry points for registrar and academic review."
+      subtitle="Program, credential, credit requirement, and student-progress entry points for registrar and academic review."
     >
       <p className="ops-page-action-link">
         <Link href="/admin/programs/new" className="underline">Create new program →</Link>
@@ -39,8 +67,8 @@ export default async function ProgramsPage() {
 
       <section className="ops-stats-grid">
         <ProgramIndexMetric label="Programs" value={programs.length} detail="Tracked academic programs" icon={<GraduationCap />} />
-        <ProgramIndexMetric label="Assigned students" value={assignedStudents.length} detail="Students with program ownership" icon={<UsersRound />} />
-        <ProgramIndexMetric label="Active students" value={activeStudents.length} detail="Current academic records" icon={<BookOpenCheck />} />
+        <ProgramIndexMetric label="Assigned students" value={totals.total} detail="Students with program enrollments" icon={<UsersRound />} />
+        <ProgramIndexMetric label="Active students" value={totals.active} detail="Current academic records" icon={<BookOpenCheck />} />
       </section>
 
       <Card className="ops-panel">
@@ -66,38 +94,43 @@ export default async function ProgramsPage() {
                 <TableRow>
                   <TableHead>Program</TableHead>
                   <TableHead>Credential</TableHead>
-                  <TableHead>Cohort</TableHead>
+                  <TableHead>Institution Mode</TableHead>
                   <TableHead>Required credits</TableHead>
                   <TableHead>Students</TableHead>
                   <TableHead>Review</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {programs.map((program) => {
-                  const programStudents = students.filter((student) => student.programId === program.id);
-                  const activeProgramStudents = programStudents.filter((student) => student.enrollmentStatus === "active");
+                  const counts = enrollmentCounts.get(program.id) ?? { active: 0, total: 0 };
 
                   return (
                     <TableRow key={program.id}>
                       <TableCell className="whitespace-normal">
-                        <div className="font-medium">{program.name}</div>
+                        <Link href={`/admin/programs/${program.id}`} className="hover:underline">
+                          <div className="font-medium">{program.title}</div>
+                        </Link>
                         <div className="text-sm text-muted-foreground">{program.id}</div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
-                          {formatCode(program.credential)}
+                          {formatCode(program.credentialType)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{program.cohortLabel}</TableCell>
+                      <TableCell>{formatCode(program.institutionMode)}</TableCell>
                       <TableCell>{program.requiredCredits}</TableCell>
                       <TableCell>
-                        {activeProgramStudents.length} active / {programStudents.length} assigned
+                        {counts.active} active / {counts.total} assigned
                       </TableCell>
                       <TableCell>
                         <Link href={`/admin/programs/${program.id}`} className="academy-action-link">
                           Open program
                           <ArrowRight />
                         </Link>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ProgramRowActions program={{ id: program.id, name: program.title }} />
                       </TableCell>
                     </TableRow>
                   );

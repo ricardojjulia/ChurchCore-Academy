@@ -19,7 +19,7 @@ test("admin programs index renders protected records instead of redirecting", as
   const page = await source("src/app/admin/programs/page.tsx");
 
   assert.match(page, /requireActor/);
-  assert.match(page, /fetchProgramList/);
+  assert.match(page, /PostgresAcademicProgramRepository/);
   assert.match(page, /\/admin\/programs\/\$\{program\.id\}/);
 });
 

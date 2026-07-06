@@ -8,6 +8,7 @@ import {
   deleteTerm,
   deletePeriod,
   getActiveTerm,
+  transitionTermState,
   type CreateAcademicYearInput,
   type CreateTermInput,
 } from "../mutations";
@@ -80,11 +81,11 @@ class MockDatabase {
         academic_year_id: params[1],
         name: params[2],
         code: params[3],
-        period_type: "term",
-        starts_on: params[4],
-        ends_on: params[5],
-        sequence: params[6],
-        status: "active",
+        period_type: params[4] ?? "term",
+        starts_on: params[5],
+        ends_on: params[6],
+        sequence: params[7],
+        status: "planned",
         parent_period_id: null,
         subdivision_id: null,
         created_at: new Date(),
@@ -233,7 +234,7 @@ class MockDatabase {
       return { rowCount: results.length, rows: results };
     }
 
-    if (lowerSql.includes("academy_student_enrollments")) {
+    if (lowerSql.includes("academy_course_section_registrations")) {
       const tenantId = String(params[0]);
       const periodId = params[1] ? String(params[1]) : null;
 
@@ -307,7 +308,7 @@ describe("academic-calendar/mutations", () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
 
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       {
         ...baseTermInput,
@@ -320,7 +321,7 @@ describe("academic-calendar/mutations", () => {
 
     assert.strictEqual(term.name, "Fall 2025");
     assert.strictEqual(term.code, "FALL2025");
-    assert.strictEqual(term.status, "active");
+    assert.strictEqual(term.status, "planned");
   });
 
   test("createTerm() dates outside year: validation error", async () => {
@@ -346,13 +347,13 @@ describe("academic-calendar/mutations", () => {
   test("updateTerm() success", async () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       { ...baseTermInput, academicYearId: year.id },
       db,
     );
 
-    const updated = await updateTerm(
+    const { period: updated } = await updateTerm(
       mockActor,
       term.id,
       { name: "Autumn 2025" },
@@ -366,7 +367,7 @@ describe("academic-calendar/mutations", () => {
   test("closeTerm() success: status closed", async () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       { ...baseTermInput, academicYearId: year.id },
       db,
@@ -380,7 +381,7 @@ describe("academic-calendar/mutations", () => {
   test("deleteTerm() with enrollments: blocked", async () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       { ...baseTermInput, academicYearId: year.id },
       db,
@@ -422,7 +423,7 @@ describe("academic-calendar/mutations", () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       {
         ...baseTermInput,
@@ -432,6 +433,10 @@ describe("academic-calendar/mutations", () => {
       },
       db,
     );
+
+    // New terms start out "planned" and must be transitioned to "active" explicitly.
+    await transitionTermState(mockActor, term.id, "enrollment_open", db);
+    await transitionTermState(mockActor, term.id, "active", db);
 
     const activeTerm = await getActiveTerm("tenant-1", db);
 
@@ -455,7 +460,7 @@ describe("academic-calendar/mutations", () => {
   test("deletePeriod() success: removes period", async () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       { ...baseTermInput, academicYearId: year.id },
       db,
@@ -472,7 +477,7 @@ describe("academic-calendar/mutations", () => {
   test("deletePeriod() with enrollments: blocked", async () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       { ...baseTermInput, academicYearId: year.id },
       db,
@@ -501,7 +506,7 @@ describe("academic-calendar/mutations", () => {
   test("deletePeriod() cross-tenant rejection: not found", async () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       { ...baseTermInput, academicYearId: year.id },
       db,
@@ -516,7 +521,7 @@ describe("academic-calendar/mutations", () => {
   test("updateTerm() cross-tenant: not found", async () => {
     const db = new MockDatabase();
     const year = await createAcademicYear(mockActor, baseYearInput, db);
-    const term = await createTerm(
+    const { period: term } = await createTerm(
       mockActor,
       { ...baseTermInput, academicYearId: year.id },
       db,

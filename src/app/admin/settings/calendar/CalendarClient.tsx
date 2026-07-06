@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -133,7 +134,11 @@ export function CalendarClient({ initialPeriods, initialYears }: CalendarClientP
               <TableBody>
                 {initialYears.map((year) => (
                   <TableRow key={year.id}>
-                    <TableCell className="font-medium">{year.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/admin/settings/calendar/years/${year.id}`} className="hover:underline">
+                        {year.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="font-mono">{year.code}</TableCell>
                     <TableCell>{titleize(year.calendarSystem)}</TableCell>
                     <TableCell>
