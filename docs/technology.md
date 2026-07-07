@@ -2,7 +2,7 @@
 
 ## Application Runtime
 
-ChurchCore Academy is a TypeScript application built with Next.js App Router and React. Server Components provide protected page composition; route handlers expose Academy APIs. The interface uses repository-owned Tailwind CSS primitives, Radix UI foundations, and Lucide icons for product-specific presentation.
+ChurchCore Academy is a TypeScript application built with Next.js App Router and React. Server Components provide protected page composition; route handlers expose Academy APIs. The interface uses repository-owned Tailwind CSS primitives, Radix UI foundations, and Lucide icons for product-specific presentation. ADR-0068 establishes `src/styles/tokens.css` as the normalized design-token bridge for Tailwind semantics and shared UI primitives; new UI work should extend the token and `src/components/ui/*` primitive path instead of adding a parallel styling library.
 
 ## Data and Identity
 

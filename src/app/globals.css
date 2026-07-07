@@ -8,8 +8,8 @@ html {
 
 body {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  background-color: hsl(210 40% 98%);
-  color: hsl(220 20% 10%);
+  background-color: var(--sis-bg-canvas);
+  color: var(--sis-text-primary);
 }
 
 main {
@@ -29,9 +29,9 @@ a {
   z-index: 60;
   transform: translateY(-120%);
   border-bottom-right-radius: 0.5rem;
-  border: 1px solid #9dc2ea;
+  border: 1px solid color-mix(in srgb, var(--sis-primary) 36%, var(--sis-surface));
   color: #ffffff;
-  background: #13385f;
+  background: var(--sis-primary-dark);
   padding: 0.5rem 0.9rem;
   font-size: 0.85rem;
   font-weight: 700;
@@ -41,7 +41,7 @@ a {
 
 .skip-nav:focus-visible {
   transform: translateY(0);
-  outline: 2px solid #9dc2ea;
+  outline: 2px solid var(--sis-warning);
   outline-offset: 1px;
 }
 
