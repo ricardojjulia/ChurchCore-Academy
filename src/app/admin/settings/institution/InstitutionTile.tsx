@@ -36,7 +36,7 @@ export function InstitutionTile({
   const [selectedMode, setSelectedMode] = useState(defaultMode);
   const [saving, setSaving] = useState(false);
 
-  const isDirty = legalNameValue !== legalName || selectedMode !== defaultMode;
+  const isDirty = legalNameValue !== legalName || (supportedModes.length > 1 && selectedMode !== defaultMode);
 
   async function handleSave() {
     setSaving(true);
@@ -113,13 +113,17 @@ export function InstitutionTile({
               />
             </div>
             <div className="ops-readiness-row">
-              <span>Default mode</span>
-              <Select
-                value={selectedMode}
-                onChange={setSelectedMode}
-                data={supportedModes.map((mode) => ({ value: mode, label: mode }))}
-                className="w-48"
-              />
+              <span>Primary mode</span>
+              {supportedModes.length > 1 ? (
+                <Select
+                  value={selectedMode}
+                  onChange={setSelectedMode}
+                  data={supportedModes.map((mode) => ({ value: mode, label: mode }))}
+                  className="w-48"
+                />
+              ) : (
+                <strong>{selectedMode}</strong>
+              )}
             </div>
           </div>
           <DialogFooter>

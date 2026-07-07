@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, BookOpenCheck, Clock, Layers3, Users } from "lucide-react";
-import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,12 +7,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
+import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 import type { Course, CourseSection } from "@/modules/course-catalog/types";
 import type { InstitutionSubdivision } from "@/modules/academic-calendar/types";
 import { NewCourseButton } from "./course-actions";
 import { NewSectionButton } from "./section-actions";
+import { CourseRowActions } from "./CourseRowActions";
 
 export const dynamic = "force-dynamic";
+
+interface Queryable {
+  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+}
 
 function titleize(s: string) {
   return s.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -69,18 +74,22 @@ type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: num
 
 export default async function CoursesPage() {
   const actor = await requireActor();
-  const cookieStore = await cookies();
-  const selectedPeriodId = cookieStore.get("academic_period_id")?.value;
 
-  const { catalog, people } = await withAcademyDatabaseContext(actor, async (client) => {
-    const [courseCatalog, peopleResult] = await Promise.all([
-      new AcademyCourseCatalogRepository(asAcademyDatabase<RepoPool>(client)).fetchCourseCatalogConfiguration(actor.tenantId),
-      client.query(
-        `select id::text, display_name as "displayName" from academy_people where tenant_id = $1`,
-        [actor.tenantId],
-      ) as Promise<{ rows: { id: string; displayName: string }[] }>,
-    ]);
-    return { catalog: courseCatalog, people: peopleResult.rows };
+  const { catalog, people, selectedPeriodId } = await withAcademyDatabaseContext(actor, async (client) => {
+    const db = asAcademyDatabase<Queryable>(client);
+
+    const courseCatalog = await new AcademyCourseCatalogRepository(asAcademyDatabase<RepoPool>(client)).fetchCourseCatalogConfiguration(actor.tenantId);
+    const peopleResult = await client.query(
+      `select id::text, display_name as "displayName" from academy_people where tenant_id = $1`,
+      [actor.tenantId],
+    ) as { rows: { id: string; displayName: string }[] };
+    const contextResult = await resolveAcademicContext(actor.userId, actor.tenantId, db);
+
+    return {
+      catalog: courseCatalog,
+      people: peopleResult.rows,
+      selectedPeriodId: contextResult.context.periodId,
+    };
   });
   const { courses, sections, subdivisions, academicPeriods, academicYears } = catalog;
 
@@ -145,6 +154,7 @@ export default async function CoursesPage() {
                   <TableHead>Duration</TableHead>
                   <TableHead>Subdivision</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -163,6 +173,9 @@ export default async function CoursesPage() {
                     <TableCell>{subdivisionLabel(subdivisions, course.owningSubdivisionId)}</TableCell>
                     <TableCell>
                       <Badge variant={courseTypeVariant(course.status)}>{titleize(course.status)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <CourseRowActions course={course} />
                     </TableCell>
                   </TableRow>
                 ))}

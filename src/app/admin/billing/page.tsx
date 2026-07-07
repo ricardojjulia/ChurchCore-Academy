@@ -1,15 +1,19 @@
 import { redirect } from "next/navigation";
 import { CircleDollarSign, CreditCard, ReceiptText } from "lucide-react";
-import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin-shell";
 import { BillingActionForm } from "@/components/admin/billing-action-form";
 import { CardContent } from "@/components/ui/card";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 
 export const dynamic = "force-dynamic";
+
+interface Queryable {
+  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+}
 
 interface BillingStudentRow {
   id: string;
@@ -43,8 +47,6 @@ function asDate(value: string | Date) {
 export default async function AdminBillingPage() {
   const actor = await requireActor();
   const user = await getCurrentUser();
-  const cookieStore = await cookies();
-  const selectedPeriodId = cookieStore.get("academic_period_id")?.value ?? null;
 
   async function signOutAction() {
     "use server";
@@ -53,9 +55,17 @@ export default async function AdminBillingPage() {
     redirect("/login");
   }
 
-  const { students, recentEntries } = await withAcademyDatabaseContext(actor, async (client) => {
-    const studentResult = await client.query(
-      `select
+  const { students, recentEntries } = await withAcademyDatabaseContext(
+    actor,
+    async (client) => {
+      const db = asAcademyDatabase<Queryable>(client);
+
+      // Fetch context first
+      const contextResult = await resolveAcademicContext(actor.userId, actor.tenantId, db);
+
+      // Then use the period ID in subsequent queries
+      const studentResult = await client.query(
+        `select
          sp.person_id as id,
          p.display_name as full_name,
          sp.enrollment_status,
@@ -71,11 +81,10 @@ export default async function AdminBillingPage() {
        where sp.tenant_id = $1
        group by sp.person_id, p.display_name, sp.enrollment_status, sp.student_number
        order by sp.student_number asc`,
-      [actor.tenantId, selectedPeriodId],
-    ) as { rows: BillingStudentRow[] };
-
-    const ledgerResult = await client.query(
-      `select
+        [actor.tenantId, contextResult.context.periodId],
+      ) as { rows: BillingStudentRow[] };
+      const ledgerResult = await client.query(
+        `select
          ledger.id,
          ledger.student_person_id,
          p.display_name as student_name,
@@ -92,14 +101,15 @@ export default async function AdminBillingPage() {
          and ($2::text is null or ledger.academic_period_id = $2)
        order by ledger.posted_at desc
        limit 25`,
-      [actor.tenantId, selectedPeriodId],
-    ) as { rows: BillingLedgerRow[] };
+        [actor.tenantId, contextResult.context.periodId],
+      ) as { rows: BillingLedgerRow[] };
 
-    return {
-      students: studentResult.rows,
-      recentEntries: ledgerResult.rows,
-    };
-  });
+      return {
+        students: studentResult.rows,
+        recentEntries: ledgerResult.rows,
+      };
+    }
+  );
 
   const totalBalance = students.reduce(
     (sum, student) => sum + Number(student.balance_cents ?? 0),

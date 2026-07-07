@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, CheckCircle2, ClipboardCheck, School } from "lucide-react";
-import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { withAcademyDatabaseContext, type AcademyQueryClient } from "@/lib/academy-database-context";
+import { withAcademyDatabaseContext, type AcademyQueryClient, asAcademyDatabase } from "@/lib/academy-database-context";
 import { requireActor } from "@/lib/require-actor";
 import { fetchSectionList } from "@/lib/academy-read-models";
 import { postGradeAction } from "@/lib/actions/gradebook/postGradeAction";
+import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 
 export const dynamic = "force-dynamic";
+
+interface Queryable {
+  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+}
 
 interface PostingQueueRow {
   id: string;
@@ -93,8 +97,6 @@ async function loadPostingQueue(
 
 export default async function AdminGradebookPage() {
   const actor = await requireActor();
-  const cookieStore = await cookies();
-  const selectedPeriodId = cookieStore.get("academic_period_id")?.value;
 
   async function postGradeFormAction(formData: FormData) {
     "use server";
@@ -106,24 +108,27 @@ export default async function AdminGradebookPage() {
     });
   }
 
-  const { sections: rawSections, people, gradedCounts, postingQueue } = await withAcademyDatabaseContext(
-    actor,
-    async (client) => {
+  const { sections: rawSections, people, gradedCounts, postingQueue, selectedPeriodId } =
+    await withAcademyDatabaseContext(actor, async (client) => {
+      const db = asAcademyDatabase<Queryable>(client);
+
       const sectionRows = await fetchSectionList(actor.tenantId, client);
-      const result = await client.query(
+      const peopleResult = await client.query(
         `select id::text, display_name as "displayName" from academy_people where tenant_id = $1`,
         [actor.tenantId],
       ) as { rows: { id: string; displayName: string }[] };
       const graded = await loadGradedCounts(actor.tenantId, client);
       const queue = await loadPostingQueue(actor.tenantId, client);
+      const contextResult = await resolveAcademicContext(actor.userId, actor.tenantId, db);
+
       return {
         sections: sectionRows,
-        people: result.rows,
+        people: peopleResult.rows,
         gradedCounts: graded,
         postingQueue: queue,
+        selectedPeriodId: contextResult.context.periodId,
       };
-    },
-  );
+    });
 
   const personById = new Map(people.map((p) => [p.id, p]));
   const sections = selectedPeriodId

@@ -84,28 +84,26 @@ async function collectReportData(
   const yearParts = reportingYear.split("-");
   const startYear = yearParts[0] ?? reportingYear;
 
-  const [enrollmentResult, staffResult, programResult] = await Promise.all([
-    db.query(
-      `select count(*) as total_students,
-              sum(case when gender = 'male' then 1 else 0 end) as male_count,
-              sum(case when gender = 'female' then 1 else 0 end) as female_count
-       from academy_students
-       where tenant_id = $1 and status = 'active'`,
-      [actor.tenantId],
-    ),
-    db.query(
-      `select count(*) as total_staff
-       from academy_staff_members
-       where tenant_id = $1 and status = 'active'`,
-      [actor.tenantId],
-    ),
-    db.query(
-      `select count(*) as total_programs
-       from academy_programs
-       where tenant_id = $1 and active = true`,
-      [actor.tenantId],
-    ),
-  ]);
+  const enrollmentResult = await db.query(
+    `select count(*) as total_students,
+            sum(case when gender = 'male' then 1 else 0 end) as male_count,
+            sum(case when gender = 'female' then 1 else 0 end) as female_count
+     from academy_students
+     where tenant_id = $1 and status = 'active'`,
+    [actor.tenantId],
+  );
+  const staffResult = await db.query(
+    `select count(*) as total_staff
+     from academy_staff_members
+     where tenant_id = $1 and status = 'active'`,
+    [actor.tenantId],
+  );
+  const programResult = await db.query(
+    `select count(*) as total_programs
+     from academy_programs
+     where tenant_id = $1 and active = true`,
+    [actor.tenantId],
+  );
 
   const snapshot: Record<string, unknown> = {
     reportType,

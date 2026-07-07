@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, IdCard, Link2, ShieldCheck, UserRoundCheck, UsersRound } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
@@ -12,13 +13,12 @@ import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import {
   AccountLinkReviewItem,
   PeopleCoverageReviewItem,
-  PeopleReviewItem,
-  PeopleReviewMetric,
   PeopleReviewModel,
   RelationshipReviewItem,
   StaffReviewItem,
   StudentReviewItem,
 } from "@/modules/people/review-view";
+import { PeopleMetricTiles } from "@/app/admin/settings/people/PeopleMetricTiles";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,8 @@ interface PersonRow {
 }
 
 export default async function PeopleSettingsPage() {
+  redirect("/admin/people");
+
   const actor = await requireActor();
   const [model, people] = await Promise.all([
     loadPeopleReviewModel(new AcademyPeopleRepository(), actor.tenantId),
@@ -55,31 +57,10 @@ export default async function PeopleSettingsPage() {
       </p>
 
       <section className="ops-stats-grid">
-        {model.metrics.map((metric) => (
-          <PeopleMetric key={metric.label} metric={metric} />
-        ))}
+        <PeopleMetricTiles model={model} />
       </section>
 
       <section className="ops-content-grid people-review-primary">
-        <Card className="ops-panel">
-          <CardHeader>
-            <div className="ops-heading">
-              <div className="ops-icon">
-                <UsersRound />
-              </div>
-              <div>
-                <CardTitle>People Profile</CardTitle>
-                <CardDescription>Tenant-level people rules, portals, and guardian posture.</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="ops-list">
-            {model.profile.map((item) => (
-              <ReviewRow key={item.label} item={item} />
-            ))}
-          </CardContent>
-        </Card>
-
         <Card className="ops-panel">
           <CardHeader>
             <div className="ops-heading">
@@ -205,26 +186,7 @@ export default async function PeopleSettingsPage() {
   );
 }
 
-function PeopleMetric({ metric }: { metric: PeopleReviewMetric }) {
-  return (
-    <Card className="ops-metric">
-      <CardContent>
-        <div className="ops-metric-label">{metric.label}</div>
-        <div className="ops-metric-value institution-metric-value">{metric.value}</div>
-        <div className="ops-metric-detail">{metric.detail}</div>
-      </CardContent>
-    </Card>
-  );
-}
 
-function ReviewRow({ item }: { item: PeopleReviewItem }) {
-  return (
-    <div className="ops-readiness-row">
-      <span>{item.label}</span>
-      <strong>{item.value}</strong>
-    </div>
-  );
-}
 
 function CoverageGroup({ title, items }: { title: string; items: PeopleCoverageReviewItem[] }) {
   return (

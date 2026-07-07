@@ -48,6 +48,7 @@ export interface InstitutionCapabilitySet {
   lmsRosterSync: boolean;
   lmsGradeReturn: boolean;
   shepherdAiRecommendations: boolean;
+  covenantRecords: boolean;
 }
 
 export interface InstitutionModePack {

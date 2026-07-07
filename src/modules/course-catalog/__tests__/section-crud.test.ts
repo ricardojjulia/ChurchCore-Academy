@@ -151,7 +151,7 @@ class MockDatabase {
       return { rowCount: results.length, rows: results };
     }
 
-    if (lowerSql.includes("academy_student_enrollments")) {
+    if (lowerSql.includes("academy_course_section_registrations")) {
       const tenantId = String(params[0]);
       const sectionId = params[1] ? String(params[1]) : null;
 
@@ -165,7 +165,7 @@ class MockDatabase {
 
       if (lowerSql.includes("status not in")) {
         results = results.filter(
-          (e) => e.status !== "dropped" && e.status !== "withdrawn",
+          (e) => e.status !== "withdrawn",
         );
       }
 

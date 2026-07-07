@@ -496,8 +496,8 @@ export async function updateSection(
   if (input.capacity !== undefined) {
     const enrollments = await client.query(
       `select count(*) as enrollment_count
-       from academy_student_enrollments
-       where tenant_id = $1 and section_id = $2 and status not in ('dropped', 'withdrawn')`,
+       from academy_course_section_registrations
+       where tenant_id = $1 and course_section_id = $2 and status not in ('withdrawn')`,
       [actor.tenantId, sectionId],
     );
     const enrollmentCount = Number(enrollments.rows[0]?.enrollment_count ?? 0);
@@ -595,7 +595,7 @@ export async function deleteSection(
   }
 
   const enrollments = await client.query(
-    `select id from academy_student_enrollments where tenant_id = $1 and section_id = $2 limit 1`,
+    `select id from academy_course_section_registrations where tenant_id = $1 and course_section_id = $2 limit 1`,
     [actor.tenantId, sectionId],
   );
 

@@ -7,6 +7,7 @@ import {
   type CourseCatalogRepository,
 } from "@/modules/course-catalog/postgres-repository";
 import type { CourseStatus } from "@/modules/course-catalog/types";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 
 type Queryable = {
   query(sql: string, params: unknown[]): Promise<{
@@ -59,6 +60,47 @@ export async function PATCH(request: Request, { params }: Params) {
       });
 
       return { course };
+    });
+  });
+}
+
+export async function DELETE(request: Request, { params }: Params) {
+  return handleApi(async () => {
+    const { id } = await params;
+    const { actor } = await resolveAcademyActorFromSession(request);
+
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const db = asAcademyDatabase<Queryable>(client);
+
+      // Only draft courses with no sections can be deleted
+      const course = await db.query(
+        `select status from academy_courses where tenant_id = $1 and id = $2`,
+        [actor.tenantId, id],
+      );
+
+      if (!course.rowCount || course.rowCount === 0) {
+        throw new Error("Course not found.");
+      }
+
+      if (course.rows[0].status !== "draft") {
+        throw new Error("Only draft courses can be deleted. Archive active courses instead.");
+      }
+
+      const sections = await db.query(
+        `select count(*) as cnt from academy_course_sections where tenant_id = $1 and course_id = $2`,
+        [actor.tenantId, id],
+      );
+
+      if (Number(sections.rows[0]?.cnt) > 0) {
+        throw new AcademyConflictError("Course has sections and cannot be deleted. Archive it instead.");
+      }
+
+      await db.query(
+        `delete from academy_courses where tenant_id = $1 and id = $2`,
+        [actor.tenantId, id],
+      );
+
+      return { ok: true };
     });
   });
 }

@@ -52,11 +52,21 @@ export default async function StudentsPage() {
       </section>
 
       <Card className="ops-panel">
-        <CardHeader>
-          <CardTitle>Student Center</CardTitle>
-          <CardDescription>
-            Open a student profile for academic record details, administrative signals, and human-reviewed ShepherdAI workflow context.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Student Center</CardTitle>
+            <CardDescription>
+              Open a student profile for academic record details, administrative signals, and human-reviewed ShepherdAI workflow context.
+            </CardDescription>
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+            disabled
+            title="Coming soon"
+          >
+            + New Student
+          </button>
         </CardHeader>
         <CardContent>
           {students.length === 0 ? (

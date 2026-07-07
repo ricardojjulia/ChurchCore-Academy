@@ -3,7 +3,18 @@ import { CalendarSystem, InstitutionMode, InstitutionProfile, OfficialRecordName
 export type WeekStart = "monday" | "sunday";
 export type AcademicStatus = "draft" | "active" | "archived";
 export type AcademicLifecycleState = "planned" | "enrollment_open" | "active" | "completed" | "archived";
-export type AcademicPeriodType = "term" | "session" | "module" | "intensive" | "grading_period" | "reporting_period" | "break";
+export type AcademicPeriodType =
+  | "semester"
+  | "quarter"
+  | "trimester"
+  | "block"
+  | "module"
+  | "intensive"
+  | "term"
+  | "session"
+  | "grading_period"
+  | "reporting_period"
+  | "break";
 export type EnrollmentWindowType = "application" | "enrollment" | "registration" | "add_drop" | "withdrawal";
 export type GradePostingPolicy = "manual_review" | "auto_post_after_close" | "registrar_posting";
 export type SubdivisionType = "campus" | "school" | "department" | "division" | "grade_band" | "cohort";

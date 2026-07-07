@@ -64,6 +64,7 @@ supabase/migrations/ # Postgres migrations (SQL)
 - Use `node:test` + `node:assert/strict`. No Jest, no Vitest.
 - Secret field names must never appear in test output (verify with `doesNotMatch`).
 - Run `npm test && npm run lint && npm run build` before marking any task complete.
+- **Full dependency testing is required.** If the feature under test depends on prior data (student, year, period, section, program), the test must create that data through the real module functions — not stubs, not raw inserts, not mock data. Testing enrollment requires creating the student, the year, the period, the course, and the section first. No workarounds. No schema shortcuts. No PII/PHI in test output. The longest road that makes everything work correctly, or do not ship.
 
 ## Don't do
 
@@ -104,6 +105,10 @@ Before guessing, consult:
 - It must support Bible schools, children's schools, seminaries, colleges, and universities through configurable academic structures rather than hardcoded college-only assumptions.
 - This repository is **not** the LMS and must not contain Moodle runtime code.
 - ChurchCore Learning and any LMS runtime belong outside this repository.
+
+## Product context
+
+**Every agent must read `docs/product/product-context.md` before writing any code or producing any plan.** It defines what ChurchCore Academy is, what actually works today, the priority build order, and what "done" means. A passing build is not done. A working workflow in the browser is done.
 
 ## Non-negotiable rules
 

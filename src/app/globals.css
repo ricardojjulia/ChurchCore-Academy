@@ -337,6 +337,68 @@ textarea:focus-visible {
   font-size: 0.78rem;
 }
 
+/* Period overlap warning banner */
+.period-overlap-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: hsl(45 100% 95%);
+  border: 1px solid hsl(45 100% 70%);
+  border-radius: 0.375rem;
+  color: hsl(30 70% 30%);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* Academic context picker */
+.admin-context-picker {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.admin-context-picker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-context-picker-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: hsl(220 15% 55%);
+}
+
+.admin-context-picker-select {
+  height: 2.25rem;
+  border-radius: 6px;
+  border: 1px solid hsl(220 13% 88%);
+  background: white;
+  padding: 0 1.5rem 0 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: hsl(220 20% 10%);
+  cursor: pointer;
+  outline: none;
+}
+
+.admin-context-picker-select:hover {
+  background: hsl(210 40% 98%);
+}
+
+.admin-context-picker-select:focus-visible {
+  outline: 2px solid hsl(215 90% 60%);
+  outline-offset: 1px;
+}
+
+.admin-context-picker-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .demo-triage-filter-grid {
     grid-template-columns: 1fr;

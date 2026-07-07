@@ -457,7 +457,7 @@ describe("Academic Calendar Lifecycle State Management", () => {
               rows: [{ id: "term-123", status: "completed" }],
             };
           }
-          if (sql.includes("select count(*) as count from academy_student_enrollments")) {
+          if (sql.includes("select count(*) as count from academy_course_section_registrations")) {
             return {
               rowCount: 1,
               rows: [{ count: 0 }],
@@ -483,7 +483,7 @@ describe("Academic Calendar Lifecycle State Management", () => {
               rows: [{ id: "term-123", status: "completed" }],
             };
           }
-          if (sql.includes("select count(*) as count from academy_student_enrollments")) {
+          if (sql.includes("select count(*) as count from academy_course_section_registrations")) {
             return {
               rowCount: 1,
               rows: [{ count: 15 }],
@@ -509,7 +509,7 @@ describe("Academic Calendar Lifecycle State Management", () => {
               rows: [{ id: "period-789", status: "completed" }],
             };
           }
-          if (sql.includes("select count(*) as count from academy_student_enrollments")) {
+          if (sql.includes("select count(*) as count from academy_course_section_registrations")) {
             return {
               rowCount: 1,
               rows: [{ count: 0 }],
@@ -535,7 +535,7 @@ describe("Academic Calendar Lifecycle State Management", () => {
               rows: [{ id: "period-789", status: "completed" }],
             };
           }
-          if (sql.includes("select count(*) as count from academy_student_enrollments")) {
+          if (sql.includes("select count(*) as count from academy_course_section_registrations")) {
             return {
               rowCount: 1,
               rows: [{ count: 8 }],

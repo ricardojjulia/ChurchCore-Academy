@@ -1,7 +1,7 @@
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import { AcademyConflictError } from "@/modules/academy-auth/errors";
 import { CalendarSystem } from "@/modules/academy-config/types";
-import type { AcademicYear, AcademicPeriod } from "./types";
+import type { AcademicYear, AcademicPeriod, AcademicPeriodType } from "./types";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -20,6 +20,7 @@ export interface CreateTermInput {
   academicYearId: string;
   name: string;
   code: string;
+  periodType: AcademicPeriodType;
   startsOn: string;
   endsOn: string;
   sequence: number;
@@ -31,9 +32,22 @@ export interface CreateTermInput {
 export interface UpdateTermInput {
   name?: string;
   code?: string;
+  periodType?: AcademicPeriodType;
   startsOn?: string;
   endsOn?: string;
   sequence?: number;
+}
+
+export interface OverlapWarning {
+  type: "date_overlap";
+  conflictingPeriodId: string;
+  conflictingPeriodName: string;
+  message: string;
+}
+
+export interface TermMutationResult {
+  period: AcademicPeriod;
+  warnings: OverlapWarning[];
 }
 
 function toIsoString(value: unknown) {
@@ -144,7 +158,7 @@ export async function createTerm(
   actor: AcademyActor,
   input: CreateTermInput,
   client: Queryable,
-): Promise<AcademicPeriod> {
+): Promise<TermMutationResult> {
   if (!input.name || input.name.trim().length === 0) {
     throw new Error("Term name is required.");
   }
@@ -156,6 +170,9 @@ export async function createTerm(
   }
   if (new Date(input.startsOn) >= new Date(input.endsOn)) {
     throw new Error("Start date must be before end date.");
+  }
+  if (!Number.isInteger(input.sequence) || input.sequence < 1) {
+    throw new Error("Sequence must be a positive integer.");
   }
 
   const year = await client.query(
@@ -186,17 +203,51 @@ export async function createTerm(
     throw new AcademyConflictError(`Term with code ${input.code} already exists in this academic year.`);
   }
 
+  // Check for sequence conflict
+  const seqConflict = await client.query(
+    `select id from academy_academic_periods
+     where tenant_id = $1 and academic_year_id = $2 and sequence = $3`,
+    [actor.tenantId, input.academicYearId, input.sequence],
+  );
+
+  if (seqConflict.rowCount && seqConflict.rowCount > 0) {
+    throw new AcademyConflictError(
+      `Sequence number ${input.sequence} is already in use for this academic year.`,
+    );
+  }
+
+  // Check for date overlap (warning only, not blocking)
+  const overlaps = await client.query(
+    `select id, name from academy_academic_periods
+     where tenant_id = $1 and academic_year_id = $2
+       and starts_on < $3 and ends_on > $4`,
+    [actor.tenantId, input.academicYearId, input.endsOn, input.startsOn],
+  );
+
+  const warnings: OverlapWarning[] = [];
+  if (overlaps.rowCount && overlaps.rowCount > 0) {
+    for (const row of overlaps.rows) {
+      warnings.push({
+        type: "date_overlap",
+        conflictingPeriodId: String(row.id),
+        conflictingPeriodName: String(row.name),
+        message: `This period's dates overlap with ${String(row.name)}.`,
+      });
+    }
+  }
+
   const result = await client.query(
     `insert into academy_academic_periods (
       id, tenant_id, academic_year_id, name, code, period_type, starts_on, ends_on, sequence, status, created_at, updated_at
     ) values (
-      gen_random_uuid()::text, $1, $2, $3, $4, 'term', $5, $6, $7, 'active', now(), now()
+      gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, 'planned', now(), now()
     ) returning *`,
     [
       actor.tenantId,
       input.academicYearId,
       input.name.trim(),
       input.code.trim().toUpperCase(),
+      input.periodType ?? 'term',
       input.startsOn,
       input.endsOn,
       input.sequence,
@@ -235,7 +286,7 @@ export async function createTerm(
     );
   }
 
-  return term;
+  return { period: term, warnings };
 }
 
 export async function updateTerm(
@@ -244,7 +295,7 @@ export async function updateTerm(
   input: UpdateTermInput,
   forceUpdate: boolean,
   client: Queryable,
-): Promise<AcademicPeriod> {
+): Promise<TermMutationResult> {
   const existing = await client.query(
     `select id, academic_year_id from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, termId],
@@ -254,10 +305,12 @@ export async function updateTerm(
     throw new Error(`Term ${termId} not found.`);
   }
 
+  const yearRow = existing.rows[0];
+
   if (!forceUpdate) {
     const enrollments = await client.query(
-      `select id from academy_student_enrollments ase
-       join academy_course_sections acs on ase.section_id = acs.id
+      `select ase.id from academy_course_section_registrations ase
+       join academy_course_sections acs on ase.course_section_id = acs.id
        where acs.tenant_id = $1 and acs.academic_period_id = $2 limit 1`,
       [actor.tenantId, termId],
     );
@@ -267,8 +320,26 @@ export async function updateTerm(
     }
   }
 
+  // Check sequence conflict if updating sequence
+  if (input.sequence !== undefined) {
+    if (!Number.isInteger(input.sequence) || input.sequence < 1) {
+      throw new Error("Sequence must be a positive integer.");
+    }
+
+    const seqConflict = await client.query(
+      `select id from academy_academic_periods
+       where tenant_id = $1 and academic_year_id = $2 and sequence = $3 and id != $4`,
+      [actor.tenantId, String(yearRow.academic_year_id), input.sequence, termId],
+    );
+
+    if (seqConflict.rowCount && seqConflict.rowCount > 0) {
+      throw new AcademyConflictError(
+        `Sequence number ${input.sequence} is already in use for this academic year.`,
+      );
+    }
+  }
+
   if (input.startsOn || input.endsOn) {
-    const yearRow = existing.rows[0];
     const year = await client.query(
       `select starts_on, ends_on from academy_academic_years where tenant_id = $1 and id = $2`,
       [actor.tenantId, String(yearRow.academic_year_id)],
@@ -307,6 +378,10 @@ export async function updateTerm(
     sets.push(`code = $${idx++}`);
     values.push(input.code.trim().toUpperCase());
   }
+  if (input.periodType !== undefined) {
+    sets.push(`period_type = $${idx++}`);
+    values.push(input.periodType);
+  }
   if (input.startsOn !== undefined) {
     sets.push(`starts_on = $${idx++}`);
     values.push(input.startsOn);
@@ -329,7 +404,31 @@ export async function updateTerm(
     throw new Error("Term update failed.");
   }
 
-  return mapAcademicPeriodRow(result.rows[0]);
+  const term = mapAcademicPeriodRow(result.rows[0]);
+
+  // Check for date overlap (warning only) if dates were changed
+  const warnings: OverlapWarning[] = [];
+  if (input.startsOn || input.endsOn) {
+    const overlaps = await client.query(
+      `select id, name from academy_academic_periods
+       where tenant_id = $1 and academic_year_id = $2 and id != $3
+         and starts_on < $4 and ends_on > $5`,
+      [actor.tenantId, String(yearRow.academic_year_id), termId, term.endsOn, term.startsOn],
+    );
+
+    if (overlaps.rowCount && overlaps.rowCount > 0) {
+      for (const row of overlaps.rows) {
+        warnings.push({
+          type: "date_overlap",
+          conflictingPeriodId: String(row.id),
+          conflictingPeriodName: String(row.name),
+          message: `This period's dates overlap with ${String(row.name)}.`,
+        });
+      }
+    }
+  }
+
+  return { period: term, warnings };
 }
 
 export async function closeTerm(
@@ -398,8 +497,8 @@ export async function deleteTerm(
   }
 
   const enrollments = await client.query(
-    `select id from academy_student_enrollments ase
-     join academy_course_sections acs on ase.section_id = acs.id
+    `select ase.id from academy_course_section_registrations ase
+     join academy_course_sections acs on ase.course_section_id = acs.id
      where acs.tenant_id = $1 and acs.academic_period_id = $2 limit 1`,
     [actor.tenantId, termId],
   );
@@ -720,8 +819,8 @@ export async function archiveTerm(
   }
 
   const enrollments = await client.query(
-    `select count(*) as count from academy_student_enrollments ase
-     join academy_course_sections acs on ase.section_id = acs.id
+    `select count(*) as count from academy_course_section_registrations ase
+     join academy_course_sections acs on ase.course_section_id = acs.id
      where acs.tenant_id = $1 and acs.academic_period_id = $2`,
     [actor.tenantId, termId],
   );
@@ -756,8 +855,8 @@ export async function archivePeriod(
   }
 
   const enrollments = await client.query(
-    `select count(*) as count from academy_student_enrollments ase
-     join academy_course_sections acs on ase.section_id = acs.id
+    `select count(*) as count from academy_course_section_registrations ase
+     join academy_course_sections acs on ase.course_section_id = acs.id
      where acs.tenant_id = $1 and acs.academic_period_id = $2`,
     [actor.tenantId, periodId],
   );
@@ -792,8 +891,8 @@ export async function deletePeriod(
   }
 
   const enrollments = await client.query(
-    `select id from academy_student_enrollments ase
-     join academy_course_sections acs on ase.section_id = acs.id
+    `select ase.id from academy_course_section_registrations ase
+     join academy_course_sections acs on ase.course_section_id = acs.id
      where acs.tenant_id = $1 and acs.academic_period_id = $2 limit 1`,
     [actor.tenantId, periodId],
   );

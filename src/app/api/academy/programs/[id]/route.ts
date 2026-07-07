@@ -37,6 +37,12 @@ export async function PATCH(
       const repo = new PostgresAcademicProgramRepository(
         asAcademyDatabase<AcademicProgramDatabase>(client),
       );
+
+      // Handle archive action
+      if (body.action === "archive") {
+        return repo.archive(actor.tenantId, id);
+      }
+
       return repo.update(actor.tenantId, id, {
         title: typeof body.title === "string" ? body.title : undefined,
         shortTitle: typeof body.shortTitle === "string" ? body.shortTitle : undefined,
@@ -51,6 +57,24 @@ export async function PATCH(
         effectiveFrom: typeof body.effectiveFrom === "string" ? body.effectiveFrom : undefined,
         effectiveTo: typeof body.effectiveTo === "string" ? body.effectiveTo : undefined,
       });
+    });
+  });
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  return handleApi(async () => {
+    const { id } = await params;
+    const { actor } = await resolveAcademyActorFromSession(request);
+
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const repo = new PostgresAcademicProgramRepository(
+        asAcademyDatabase<AcademicProgramDatabase>(client),
+      );
+      await repo.delete(actor.tenantId, id);
+      return { ok: true };
     });
   });
 }

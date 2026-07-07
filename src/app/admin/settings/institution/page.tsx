@@ -7,6 +7,7 @@ import { InstitutionModelMetric } from "@/app/admin/settings/institution/Institu
 import { InstitutionTile } from "@/app/admin/settings/institution/InstitutionTile";
 import { LmsProviderTile } from "@/app/admin/settings/institution/LmsProviderTile";
 import { ValidationTile } from "@/app/admin/settings/institution/ValidationTile";
+import { PeopleProfileTile } from "@/app/admin/settings/institution/PeopleProfileTile";
 
 type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
 
@@ -21,8 +22,6 @@ export default async function InstitutionSettingsPage() {
     <AdminShell
       activeSection="system"
       eyebrow="Institution Configuration"
-      title="Institution configuration review"
-      subtitle="Tenant-level setup for supported school modes, academic operating rules, portals, LMS posture, and Academy validation."
     >
       <section className="ops-stats-grid">
         <InstitutionModelMetric
@@ -48,6 +47,12 @@ export default async function InstitutionSettingsPage() {
           operatingRules={model.operatingRules}
           capabilities={model.capabilities}
           validation={model.validation}
+        />
+        <PeopleProfileTile
+          tenantId={model.identity.tenantId}
+          primaryMode={model.identity.primaryMode}
+          operatingRules={model.operatingRules}
+          capabilities={model.capabilities}
         />
       </section>
     </AdminShell>

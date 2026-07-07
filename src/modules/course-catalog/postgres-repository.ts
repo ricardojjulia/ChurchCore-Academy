@@ -362,9 +362,10 @@ export class AcademyCourseCatalogRepository implements CourseCatalogRepository {
   }): Promise<Course> {
     const result = await this.pool.query(
       `insert into academy_courses (
-        tenant_id, code, title, description, course_type, course_level, record_type,
-        default_duration, default_credits, default_clock_hours, owning_subdivision_id, status
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        id, tenant_id, code, title, description, course_type, course_level, record_type,
+        default_duration, default_credits, default_clock_hours, owning_subdivision_id, status,
+        created_at, updated_at
+      ) values (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), now())
       returning *`,
       [
         input.tenantId,
@@ -394,8 +395,8 @@ export class AcademyCourseCatalogRepository implements CourseCatalogRepository {
       for (const prereqId of input.prerequisiteIds) {
         await this.pool.query(
           `insert into academy_course_prerequisites (
-            tenant_id, course_id, required_course_id, requirement_type
-          ) values ($1, $2, $3, $4)`,
+            id, tenant_id, course_id, required_course_id, requirement_type, created_at, updated_at
+          ) values (gen_random_uuid()::text, $1, $2, $3, $4, now(), now())`,
           [input.tenantId, course.id, prereqId, "required_before_registration"],
         );
       }
@@ -471,8 +472,8 @@ export class AcademyCourseCatalogRepository implements CourseCatalogRepository {
       for (const prereqId of updates.prerequisiteIds) {
         await this.pool.query(
           `insert into academy_course_prerequisites (
-            tenant_id, course_id, required_course_id, requirement_type
-          ) values ($1, $2, $3, $4)`,
+            id, tenant_id, course_id, required_course_id, requirement_type, created_at, updated_at
+          ) values (gen_random_uuid()::text, $1, $2, $3, $4, now(), now())`,
           [course.tenantId, courseId, prereqId, "required_before_registration"],
         );
       }
@@ -505,10 +506,11 @@ export class AcademyCourseCatalogRepository implements CourseCatalogRepository {
   }): Promise<CourseSection> {
     const result = await this.pool.query(
       `insert into academy_course_sections (
-        tenant_id, course_id, academic_period_id, section_code,
+        id, tenant_id, course_id, academic_period_id, section_code,
         delivery_mode, capacity, primary_instructor_role, primary_instructor_id,
-        schedule_pattern, subdivision_id, assistant_instructor_ids, status
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        schedule_pattern, subdivision_id, assistant_instructor_ids, status,
+        created_at, updated_at
+      ) values (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), now())
       returning *`,
       [
         input.tenantId,
