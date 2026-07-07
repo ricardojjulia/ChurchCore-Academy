@@ -7,45 +7,58 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: "hsl(220 13% 91%)",
-        input: "hsl(220 13% 91%)",
-        ring: "hsl(220 65% 32%)",
-        background: "hsl(210 40% 98%)",
-        foreground: "hsl(220 20% 10%)",
+        border: "hsl(var(--sis-border-hsl) / <alpha-value>)",
+        input: "hsl(var(--sis-border-hsl) / <alpha-value>)",
+        ring: "hsl(var(--sis-primary-hsl) / <alpha-value>)",
+        background: "hsl(var(--sis-bg-canvas-hsl) / <alpha-value>)",
+        foreground: "hsl(var(--sis-text-primary-hsl) / <alpha-value>)",
         primary: {
-          DEFAULT: "hsl(220 65% 32%)",
-          foreground: "hsl(0 0% 98%)",
+          DEFAULT: "hsl(var(--sis-primary-hsl) / <alpha-value>)",
+          foreground: "hsl(var(--sis-surface-hsl) / <alpha-value>)",
         },
         secondary: {
-          DEFAULT: "hsl(220 14% 95%)",
-          foreground: "hsl(220 20% 10%)",
+          DEFAULT: "hsl(var(--sis-secondary-light-hsl) / <alpha-value>)",
+          foreground: "hsl(var(--sis-text-primary-hsl) / <alpha-value>)",
         },
         muted: {
-          DEFAULT: "hsl(220 14% 95%)",
-          foreground: "hsl(220 10% 46%)",
+          DEFAULT: "hsl(var(--sis-secondary-light-hsl) / <alpha-value>)",
+          foreground: "hsl(var(--sis-text-secondary-hsl) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "hsl(220 65% 32%)",
-          foreground: "hsl(0 0% 98%)",
+          DEFAULT: "hsl(var(--sis-primary-hsl) / <alpha-value>)",
+          foreground: "hsl(var(--sis-surface-hsl) / <alpha-value>)",
         },
         destructive: {
-          DEFAULT: "hsl(0 72% 51%)",
-          foreground: "hsl(0 0% 98%)",
+          DEFAULT: "hsl(var(--sis-error-hsl) / <alpha-value>)",
+          foreground: "hsl(var(--sis-surface-hsl) / <alpha-value>)",
         },
         card: {
-          DEFAULT: "hsl(0 0% 100%)",
-          foreground: "hsl(220 20% 10%)",
+          DEFAULT: "hsl(var(--sis-surface-hsl) / <alpha-value>)",
+          foreground: "hsl(var(--sis-text-primary-hsl) / <alpha-value>)",
         },
         popover: {
-          DEFAULT: "hsl(0 0% 100%)",
-          foreground: "hsl(220 20% 10%)",
+          DEFAULT: "hsl(var(--sis-surface-hsl) / <alpha-value>)",
+          foreground: "hsl(var(--sis-text-primary-hsl) / <alpha-value>)",
+        },
+        sis: {
+          primary: "var(--sis-primary)",
+          "primary-dark": "var(--sis-primary-dark)",
+          secondary: "var(--sis-secondary)",
+          warning: "var(--sis-warning)",
+          error: "var(--sis-error)",
+          canvas: "var(--sis-bg-canvas)",
+          surface: "var(--sis-surface)",
+          border: "var(--sis-border)",
+          "text-primary": "var(--sis-text-primary)",
+          "text-secondary": "var(--sis-text-secondary)",
         },
       },
       borderRadius: {
-        "2xl": "1rem",
-        "xl": "0.75rem",
-        "lg": "0.625rem",
-        "md": "0.375rem",
+        "2xl": "calc(var(--sis-radius-md) * 2)",
+        "xl": "calc(var(--sis-radius-md) * 1.5)",
+        "lg": "calc(var(--sis-radius-md) * 1.25)",
+        "md": "var(--sis-radius-md)",
+        "sm": "var(--sis-radius-sm)",
       },
       fontFamily: {
         sans: ["'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
@@ -60,7 +73,8 @@ const config: Config = {
         "xs": ["12px", { lineHeight: "1.4", fontWeight: "400" }],
       },
       boxShadow: {
-        sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        sm: "var(--sis-shadow-elev)",
+        academy: "var(--shadow-card)",
       },
       keyframes: {
         "accordion-down": {

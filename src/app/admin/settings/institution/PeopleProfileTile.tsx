@@ -50,7 +50,7 @@ export function PeopleProfileTile({ tenantId, primaryMode, operatingRules, capab
             <div className="ops-metric-inner">
               <div className="ops-metric-label">People Profile</div>
               <div className="ops-metric-value institution-metric-value">
-                <Users className="inline-block" style={{ width: "1.5rem", height: "1.5rem" }} />
+                <Users className="institution-people-icon inline-block" />
               </div>
               <div className="ops-metric-detail">{primaryMode} · {tenantId}</div>
             </div>

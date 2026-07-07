@@ -3,6 +3,37 @@
  * Import this file before any component CSS.
  */
 :root {
+  /* SIS design-system bridge */
+  --sis-primary: #1B4F8A;
+  --sis-primary-dark: #143B68;
+  --sis-secondary: #3E8F56;
+  --sis-secondary-light: #E7F3EC;
+  --sis-warning: #D97706;
+  --sis-error: #DC2626;
+  --sis-bg-canvas: #F5F7FA;
+  --sis-surface: #FFFFFF;
+  --sis-border: #E0E7F0;
+  --sis-text-primary: #1A2433;
+  --sis-text-secondary: #526173;
+  --sis-text-disabled: #9EA7B3;
+  --sis-radius-sm: 0.25rem;
+  --sis-radius-md: 0.5rem;
+  --sis-shadow-elev: 0 2px 4px rgba(10, 30, 60, 0.06);
+
+  /* HSL channels let Tailwind opacity modifiers keep working. */
+  --sis-primary-hsl: 211 67% 32%;
+  --sis-primary-dark-hsl: 211 68% 24%;
+  --sis-secondary-hsl: 137 40% 40%;
+  --sis-secondary-light-hsl: 138 32% 93%;
+  --sis-warning-hsl: 32 95% 45%;
+  --sis-error-hsl: 0 72% 51%;
+  --sis-bg-canvas-hsl: 216 24% 97%;
+  --sis-surface-hsl: 0 0% 100%;
+  --sis-border-hsl: 214 39% 91%;
+  --sis-text-primary-hsl: 217 32% 15%;
+  --sis-text-secondary-hsl: 212 17% 39%;
+  --sis-text-disabled-hsl: 214 11% 66%;
+
   /* Brand */
   --brand-primary: #1B4F8A;
   --brand-accent: #3B7DD8;
