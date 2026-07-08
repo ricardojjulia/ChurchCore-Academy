@@ -61,17 +61,17 @@ export default async function ProgramsPage() {
       title="Program Index"
       subtitle="Program, credential, credit requirement, and student-progress entry points for registrar and academic review."
     >
-      <p className="ops-page-action-link">
+      <p className="sis-route-page-action">
         <Link href="/admin/programs/new" className="underline">Create new program →</Link>
       </p>
 
-      <section className="ops-stats-grid">
+      <section className="sis-route-stats-grid">
         <ProgramIndexMetric label="Programs" value={programs.length} detail="Tracked academic programs" icon={<GraduationCap />} />
         <ProgramIndexMetric label="Assigned students" value={totals.total} detail="Students with program enrollments" icon={<UsersRound />} />
         <ProgramIndexMetric label="Active students" value={totals.active} detail="Current academic records" icon={<BookOpenCheck />} />
       </section>
 
-      <Card className="ops-panel">
+      <Card className="sis-route-card">
         <CardHeader>
           <CardTitle>Program Readiness</CardTitle>
           <CardDescription>
@@ -80,10 +80,10 @@ export default async function ProgramsPage() {
         </CardHeader>
         <CardContent>
           {programs.length === 0 ? (
-            <div className="student-empty-state">
+            <div className="sis-route-empty">
               <ShieldCheck />
               <span>No programs exist for this tenant yet. Configure courses and programs before reviewing progress.</span>
-              <Link href="/admin/settings/courses" className="academy-action-link">
+              <Link href="/admin/settings/courses" className="sis-route-action-link">
                 Open course settings
                 <ArrowRight />
               </Link>
@@ -124,7 +124,7 @@ export default async function ProgramsPage() {
                         {counts.active} active / {counts.total} assigned
                       </TableCell>
                       <TableCell>
-                        <Link href={`/admin/programs/${program.id}`} className="academy-action-link">
+                        <Link href={`/admin/programs/${program.id}`} className="sis-route-action-link">
                           Open program
                           <ArrowRight />
                         </Link>
@@ -156,11 +156,11 @@ function ProgramIndexMetric({
   icon: React.ReactNode;
 }) {
   return (
-    <Card className="ops-metric">
+    <Card className="sis-route-metric">
       <CardContent>
-        <div className="ops-metric-label">{label}</div>
-        <div className="ops-metric-value">{value}</div>
-        <div className="ops-metric-detail">
+        <div className="sis-route-metric-label">{label}</div>
+        <div className="sis-route-metric-value">{value}</div>
+        <div className="sis-route-metric-detail">
           <span>{icon}</span>
           {detail}
         </div>

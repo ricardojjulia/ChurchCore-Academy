@@ -65,9 +65,9 @@ export function ProgramDetailClient({ program }: ProgramDetailClientProps) {
 
   return (
     <>
-      <Card className="ops-panel">
+      <Card className="sis-route-card">
         <CardHeader>
-          <div className="ops-heading">
+          <div className="sis-route-heading">
             <div>
               <CardTitle>Program Details</CardTitle>
               <CardDescription>Academic program configuration and requirements.</CardDescription>

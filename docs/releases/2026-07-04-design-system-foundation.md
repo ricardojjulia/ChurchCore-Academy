@@ -76,6 +76,17 @@ UI verification should also include browser smoke checks for:
 
 ---
 
+## Route Group Follow-Up
+
+The first follow-up slice migrated the admin Programs and Courses route families to token-backed `sis-route-*` classes:
+
+- `/admin/programs`
+- `/admin/programs/new`
+- `/admin/programs/[id]`
+- `/admin/courses`
+
+---
+
 ## Remaining Route Groups
 
 The following route groups are not fully migrated by this slice:
@@ -83,8 +94,6 @@ The following route groups are not fully migrated by this slice:
 - `/admin/settings/calendar`
 - `/admin/people`
 - `/admin/students`
-- `/admin/programs`
-- `/admin/courses`
 - faculty routes
 - student PWA routes
 - guardian routes

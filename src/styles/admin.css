@@ -1804,18 +1804,22 @@
   text-transform: uppercase;
 }
 
+.sis-route-stats-grid,
 .ops-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1.5rem;
 }
 
+.sis-route-content-grid,
 .ops-content-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
 }
 
+.sis-route-card,
+.sis-route-metric,
 .ops-panel,
 .ops-metric {
   border-color: var(--sis-border);
@@ -1824,6 +1828,7 @@
   background: var(--sis-surface);
 }
 
+.sis-route-metric,
 .ops-metric {
   min-height: 10.5rem;
 }
@@ -1857,6 +1862,7 @@
   border-radius: var(--sis-radius-md);
 }
 
+.sis-route-metric [data-slot="card-content"],
 .ops-metric [data-slot="card-content"] {
   height: 100%;
   padding: 1.65rem 1.75rem;
@@ -1869,6 +1875,7 @@
   text-align: center;
 }
 
+.sis-route-metric-label,
 .ops-metric-label {
   color: var(--sis-text-secondary);
   font-size: 0.78rem;
@@ -1877,6 +1884,7 @@
   text-transform: uppercase;
 }
 
+.sis-route-metric-value,
 .ops-metric-value {
   margin-top: 0.75rem;
   color: var(--sis-text-primary);
@@ -1886,6 +1894,7 @@
   letter-spacing: -0.02em;
 }
 
+.sis-route-metric-detail,
 .ops-metric-detail {
   display: flex;
   align-items: center;
@@ -1997,17 +2006,20 @@
   margin-top: 1.1rem;
 }
 
+.sis-route-metric-detail svg,
 .ops-metric-detail svg,
 .ops-list-icon svg {
   width: 1rem;
   height: 1rem;
 }
 
+.sis-route-card-header,
 .ops-card-header {
   align-items: center;
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.sis-route-action-link,
 .academy-action-link {
   display: inline-flex;
   min-height: 2.25rem;
@@ -2024,22 +2036,26 @@
   transition: border-color 160ms ease, background 160ms ease;
 }
 
+.sis-route-action-link:hover,
 .academy-action-link:hover {
   border-color: var(--sis-primary);
   background: var(--sis-secondary-light);
 }
 
+.sis-route-action-link svg,
 .academy-action-link svg {
   width: 1rem;
   height: 1rem;
 }
 
+.sis-route-heading,
 .ops-heading {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
+.sis-route-icon,
 .ops-icon,
 .ops-list-icon {
   display: grid;
@@ -2701,6 +2717,7 @@
 }
 
 .student-field-row,
+.sis-route-empty,
 .student-empty-state {
   display: flex;
   align-items: center;
@@ -2715,6 +2732,7 @@
 }
 
 .student-field-row span,
+.sis-route-empty,
 .student-empty-state {
   color: #7c8797;
 }
@@ -2724,15 +2742,17 @@
   text-align: right;
 }
 
+.sis-route-empty,
 .student-empty-state {
   justify-content: flex-start;
   border-bottom: 0;
 }
 
+.sis-route-empty svg,
 .student-empty-state svg {
   width: 1.1rem;
   height: 1.1rem;
-  color: #203f89;
+  color: var(--sis-primary);
 }
 
 .button-row,
@@ -2899,6 +2919,7 @@
   color: #991b1b;
 }
 
+.sis-route-page-action,
 .ops-page-action-link {
   font-size: 0.875rem;
   margin-bottom: 1rem;

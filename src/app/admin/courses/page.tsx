@@ -109,7 +109,7 @@ export default async function CoursesPage() {
       title="Course Catalog"
       subtitle="Active courses, scheduled sections, instructor assignments, and catalog readiness."
     >
-      <section className="ops-stats-grid">
+      <section className="sis-route-stats-grid">
         <MetricCard label="Courses" value={activeCourses.length} detail="Active in catalog" icon={<BookOpen />} />
         <MetricCard label="Sections" value={scheduledSections.length} detail="Scheduled this term" icon={<Layers3 />} />
         <MetricCard label="Staffed" value={staffedSections.length} detail="Sections with instructors" icon={<Users />} />
@@ -121,10 +121,10 @@ export default async function CoursesPage() {
         />
       </section>
 
-      <Card className="ops-panel">
+      <Card className="sis-route-card">
         <CardHeader>
-          <div className="ops-heading">
-            <div className="ops-icon">
+          <div className="sis-route-heading">
+            <div className="sis-route-icon">
               <BookOpenCheck />
             </div>
             <div>
@@ -136,10 +136,10 @@ export default async function CoursesPage() {
         </CardHeader>
         <CardContent>
           {courses.length === 0 ? (
-            <div className="student-empty-state">
+            <div className="sis-route-empty">
               <BookOpen />
               <span>No courses configured for this tenant.</span>
-              <Link href="/admin/settings/courses" className="academy-action-link">
+              <Link href="/admin/settings/courses" className="sis-route-action-link">
                 Open course settings <ArrowRight />
               </Link>
             </div>
@@ -185,10 +185,10 @@ export default async function CoursesPage() {
         </CardContent>
       </Card>
 
-      <Card className="ops-panel">
+      <Card className="sis-route-card">
         <CardHeader>
-          <div className="ops-heading">
-            <div className="ops-icon">
+          <div className="sis-route-heading">
+            <div className="sis-route-icon">
               <Layers3 />
             </div>
             <div>
@@ -205,10 +205,10 @@ export default async function CoursesPage() {
         </CardHeader>
         <CardContent>
           {sections.length === 0 ? (
-            <div className="student-empty-state">
+            <div className="sis-route-empty">
               <Layers3 />
               <span>No sections scheduled for this tenant.</span>
-              <Link href="/admin/settings/courses" className="academy-action-link">
+              <Link href="/admin/settings/courses" className="sis-route-action-link">
                 Open course settings <ArrowRight />
               </Link>
             </div>
@@ -260,10 +260,10 @@ export default async function CoursesPage() {
       </Card>
 
       <div className="ops-action-row">
-        <Link href="/admin/sections" className="academy-action-link">
+        <Link href="/admin/sections" className="sis-route-action-link">
           Roster view <ArrowRight />
         </Link>
-        <Link href="/admin/settings/courses" className="academy-action-link">
+        <Link href="/admin/settings/courses" className="sis-route-action-link">
           Full catalog review <ArrowRight />
         </Link>
       </div>
@@ -273,11 +273,11 @@ export default async function CoursesPage() {
 
 function MetricCard({ label, value, detail, icon }: { label: string; value: number; detail: string; icon: React.ReactNode }) {
   return (
-    <Card className="ops-metric">
+    <Card className="sis-route-metric">
       <CardContent>
-        <div className="ops-metric-label">{label}</div>
-        <div className="ops-metric-value">{value}</div>
-        <div className="ops-metric-detail">
+        <div className="sis-route-metric-label">{label}</div>
+        <div className="sis-route-metric-value">{value}</div>
+        <div className="sis-route-metric-detail">
           <span>{icon}</span>
           {detail}
         </div>
