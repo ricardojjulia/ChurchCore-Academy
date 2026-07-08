@@ -51,6 +51,53 @@ const SELECT_COLS = `
   created_at, created_by_person_id, updated_at
 `;
 
+async function syncLegacyProgram(
+  database: AcademicProgramDatabase,
+  program: AcademicProgram,
+): Promise<void> {
+  await database.query(
+    `insert into academy_programs (
+       id, tenant_id, name, credential, required_credits, cohort_label,
+       program_code, title, description, status, active, program_type,
+       credit_hours, clock_hours, academic_program_id
+     ) values (
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+     )
+     on conflict (id) do update set
+       tenant_id = excluded.tenant_id,
+       name = excluded.name,
+       credential = excluded.credential,
+       required_credits = excluded.required_credits,
+       cohort_label = excluded.cohort_label,
+       program_code = excluded.program_code,
+       title = excluded.title,
+       description = excluded.description,
+       status = excluded.status,
+       active = excluded.active,
+       program_type = excluded.program_type,
+       credit_hours = excluded.credit_hours,
+       clock_hours = excluded.clock_hours,
+       academic_program_id = excluded.academic_program_id`,
+    [
+      program.id,
+      program.tenantId,
+      program.title,
+      program.credentialType,
+      Math.round(program.requiredCredits),
+      program.institutionMode,
+      program.programCode,
+      program.title,
+      program.description ?? null,
+      program.status,
+      program.status === "active",
+      program.credentialType,
+      program.requiredCredits,
+      program.requiredClockHours,
+      program.id,
+    ],
+  );
+}
+
 export class PostgresAcademicProgramRepository implements AcademicProgramRepository {
   constructor(
     private readonly database: AcademicProgramDatabase = getDatabasePool() as AcademicProgramDatabase,
@@ -134,7 +181,9 @@ export class PostgresAcademicProgramRepository implements AcademicProgramReposit
     );
 
     if (!result.rows[0]) throw new Error("Program creation failed.");
-    return mapRow(result.rows[0]);
+    const program = mapRow(result.rows[0]);
+    await syncLegacyProgram(this.database, program);
+    return program;
   }
 
   async update(tenantId: string, id: string, input: UpdateAcademicProgramInput): Promise<AcademicProgram> {
@@ -164,7 +213,9 @@ export class PostgresAcademicProgramRepository implements AcademicProgramReposit
     );
 
     if (!result.rows[0]) throw new Error(`Program ${id} was not found.`);
-    return mapRow(result.rows[0]);
+    const program = mapRow(result.rows[0]);
+    await syncLegacyProgram(this.database, program);
+    return program;
   }
 
   async archive(tenantId: string, id: string): Promise<AcademicProgram> {
@@ -177,7 +228,9 @@ export class PostgresAcademicProgramRepository implements AcademicProgramReposit
     );
 
     if (!result.rows[0]) throw new Error(`Program ${id} was not found.`);
-    return mapRow(result.rows[0]);
+    const program = mapRow(result.rows[0]);
+    await syncLegacyProgram(this.database, program);
+    return program;
   }
 
   async delete(tenantId: string, id: string): Promise<void> {
