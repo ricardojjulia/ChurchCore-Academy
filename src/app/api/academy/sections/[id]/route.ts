@@ -27,6 +27,7 @@ export async function PATCH(
     if (typeof body.schedulePattern === "string") input.schedulePattern = body.schedulePattern;
     if (typeof body.capacity === "number") input.capacity = body.capacity;
     if (typeof body.primaryInstructorRole === "string") input.primaryInstructorRole = body.primaryInstructorRole as never;
+    if (typeof body.primaryInstructorId === "string") input.primaryInstructorId = body.primaryInstructorId;
 
     return withAcademyDatabaseContext(actor, async (client) => {
       return updateSection(actor, id, input, asAcademyDatabase<Queryable>(client));
