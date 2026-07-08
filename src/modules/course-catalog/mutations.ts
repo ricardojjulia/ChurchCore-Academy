@@ -64,6 +64,7 @@ export interface UpdateSectionInput {
   schedulePattern?: string;
   capacity?: number;
   primaryInstructorRole?: InstructionalRoleLabel;
+  primaryInstructorId?: string;
 }
 
 function toIsoString(value: unknown) {
@@ -529,6 +530,19 @@ export async function updateSection(
   if (input.primaryInstructorRole !== undefined) {
     sets.push(`primary_instructor_role = $${idx++}`);
     values.push(input.primaryInstructorRole);
+  }
+  if (input.primaryInstructorId !== undefined) {
+    if (input.primaryInstructorId) {
+      const instructor = await client.query(
+        `select id from academy_staff_profiles where tenant_id = $1 and person_id = $2`,
+        [actor.tenantId, input.primaryInstructorId],
+      );
+      if (!instructor.rowCount || instructor.rowCount === 0) {
+        throw new Error(`Instructor ${input.primaryInstructorId} not found in staff profiles.`);
+      }
+    }
+    sets.push(`primary_instructor_id = $${idx++}`);
+    values.push(input.primaryInstructorId || null);
   }
 
   const result = await client.query(

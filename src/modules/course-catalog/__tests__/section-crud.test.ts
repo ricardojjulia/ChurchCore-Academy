@@ -333,6 +333,38 @@ describe("course-catalog/section-mutations", () => {
     assert.strictEqual(updated.primaryInstructorId, "instructor-2");
   });
 
+  test("updateSection() can change primary instructor from the edit payload", async () => {
+    const db = new MockDatabase();
+    db.addCourse({
+      id: "course-1",
+      tenant_id: "tenant-1",
+      code: "BIB101",
+      title: "Biblical Studies",
+    });
+    db.addStaff({
+      id: "staff-1",
+      tenant_id: "tenant-1",
+      person_id: "instructor-1",
+      staff_number: "F001",
+    });
+    db.addStaff({
+      id: "staff-2",
+      tenant_id: "tenant-1",
+      person_id: "instructor-2",
+      staff_number: "F002",
+    });
+
+    const section = await createSection(mockActor, baseSectionInput, db);
+    const updated = await updateSection(
+      mockActor,
+      section.id,
+      { primaryInstructorId: "instructor-2" },
+      db,
+    );
+
+    assert.strictEqual(updated.primaryInstructorId, "instructor-2");
+  });
+
   test("updateSection() capacity below enrollment: blocked", async () => {
     const db = new MockDatabase();
     db.addCourse({
