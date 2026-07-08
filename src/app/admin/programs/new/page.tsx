@@ -12,14 +12,14 @@ export default function NewProgramPage() {
       title="Create Program"
       subtitle="Add a new academic program to this institution's catalog."
     >
-      <p className="ops-page-action-link">
+      <p className="sis-route-page-action">
         <Link href="/admin/programs" className="underline">← Back to Programs</Link>
       </p>
 
-      <Card className="ops-panel">
-        <CardHeader className="ops-card-header">
-          <div className="ops-heading">
-            <div className="ops-icon"><BookOpen /></div>
+      <Card className="sis-route-card">
+        <CardHeader className="sis-route-card-header">
+          <div className="sis-route-heading">
+            <div className="sis-route-icon"><BookOpen /></div>
             <div>
               <CardTitle>New Academic Program</CardTitle>
               <CardDescription>Fill in the required fields to create a new program. Program code and title are required.</CardDescription>

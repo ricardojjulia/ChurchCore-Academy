@@ -37,16 +37,6 @@ interface RegistrationRow {
   registered_at: string;
 }
 
-interface RelationshipRow {
-  id: string;
-  relationshipType: string;
-  authority: string;
-  visibility: string;
-  status: string;
-  relatedPersonId: string;
-  relatedPersonName: string;
-}
-
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
 }
