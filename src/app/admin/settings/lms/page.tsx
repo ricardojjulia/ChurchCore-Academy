@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireActor } from "@/lib/require-actor";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
+import { LmsSandboxEvidenceForm } from "./LmsSandboxEvidenceForm";
 import { LmsRosterPreviewClient } from "./LmsRosterPreviewClient";
 import {
   PostgresLmsRosterSourceRepository,
@@ -14,24 +15,35 @@ import {
 import {
   assertLmsProviderReadinessAccess,
   buildLmsProviderReadinessModel,
+  canAccessLmsProviderReadiness,
   type LmsProviderReadinessItem,
 } from "@/modules/lms-contract/provider-readiness";
+import {
+  PostgresLmsSandboxEvidenceRepository,
+  groupLmsSandboxEvidenceForReadiness,
+  type LmsSandboxEvidenceDatabase,
+} from "@/modules/lms-contract/sandbox-evidence";
 
 type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
 
 export default async function LmsSettingsPage() {
   const actor = await requireActor();
   assertLmsProviderReadinessAccess(actor, actor.tenantId, "read");
-  const { institutionProfile, rosterSections } = await withAcademyDatabaseContext(actor, async (client) => {
-    const institutionProfile = await new AcademyConfigRepository(
-      asAcademyDatabase<RepoPool>(client),
-    ).fetchInstitutionProfile(actor.tenantId);
+  const canManageEvidence = canAccessLmsProviderReadiness(actor, actor.tenantId, "manage");
+  const { institutionProfile, rosterSections, sandboxEvidence } = await withAcademyDatabaseContext(actor, async (client) => {
+    const database = asAcademyDatabase<RepoPool>(client);
+    const institutionProfile = await new AcademyConfigRepository(database).fetchInstitutionProfile(actor.tenantId);
+    const sandboxEvidence = await new PostgresLmsSandboxEvidenceRepository(
+      asAcademyDatabase<LmsSandboxEvidenceDatabase>(client),
+    ).listEvidence(actor.tenantId);
     const rosterSections = await new PostgresLmsRosterSourceRepository(
       asAcademyDatabase<LmsRosterSourceDatabase>(client),
     ).listRosterEligibleSections(actor.tenantId);
-    return { institutionProfile, rosterSections };
+    return { institutionProfile, rosterSections, sandboxEvidence };
   });
-  const model = buildLmsProviderReadinessModel(institutionProfile, actor);
+  const model = buildLmsProviderReadinessModel(institutionProfile, actor, {
+    recordedSandboxEvidence: groupLmsSandboxEvidenceForReadiness(sandboxEvidence),
+  });
 
   return (
     <AdminShell
@@ -49,7 +61,7 @@ export default async function LmsSettingsPage() {
 
       <section className="ops-content-grid">
         {model.providers.map((provider) => (
-          <ProviderReadinessCard key={provider.providerId} provider={provider} />
+          <ProviderReadinessCard key={provider.providerId} provider={provider} canManageEvidence={canManageEvidence} />
         ))}
 
         <Card className="ops-panel">
@@ -89,8 +101,15 @@ function ReadinessMetric({ label, value, detail }: { label: string; value: strin
   );
 }
 
-function ProviderReadinessCard({ provider }: { provider: LmsProviderReadinessItem }) {
+function ProviderReadinessCard({
+  provider,
+  canManageEvidence,
+}: {
+  provider: LmsProviderReadinessItem;
+  canManageEvidence: boolean;
+}) {
   const ready = provider.validationStatus === "validated";
+  const defaultEvidenceLabel = `${provider.displayName} sandbox validation`;
 
   return (
     <Card className="ops-panel">
@@ -113,11 +132,18 @@ function ProviderReadinessCard({ provider }: { provider: LmsProviderReadinessIte
         <ReadinessRow label="Last failed sync" value={provider.lastFailedSync} />
 
         {provider.sandboxEvidence.map((item) => (
-          <div key={item.label} className="ops-readiness-row">
-            <span>{item.label}</span>
-            <Badge variant={item.status === "recorded" ? "secondary" : "outline"}>{item.status}</Badge>
+          <div key={item.label} className="grid gap-1 rounded-md border border-border/70 p-3">
+            <div className="ops-readiness-row">
+              <span>{item.label}</span>
+              <Badge variant={item.status === "recorded" ? "secondary" : "outline"}>{item.status}</Badge>
+            </div>
+            <div className="break-all text-sm text-muted-foreground">{item.reference}</div>
           </div>
         ))}
+
+        {canManageEvidence ? (
+          <LmsSandboxEvidenceForm providerId={provider.providerId} evidenceLabel={defaultEvidenceLabel} />
+        ) : null}
 
         <div className="ops-readiness-row">
           <span>Pause</span>
