@@ -15,6 +15,7 @@ import { FacultyShell } from "@/components/faculty-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AssignmentGradeEntryForm } from "./AssignmentGradeEntryForm";
 import {
   getAssignments,
   getAssignmentGrades,
@@ -108,56 +109,12 @@ export default async function FacultyAssignmentGradePage({ params }: PageProps) 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {grades.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No students enrolled in this section.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  {grades.filter((g) => g.gradePoints !== undefined).length} of{" "}
-                  {grades.length} students graded
-                </div>
-                <div className="border rounded-md">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="text-left p-3 font-medium">Student</th>
-                        <th className="text-left p-3 font-medium">Grade</th>
-                        <th className="text-left p-3 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {grades.map((grade, index) => (
-                        <tr key={grade.id} className={index % 2 === 0 ? "bg-muted/20" : ""}>
-                          <td className="p-3">{grade.learnerPersonId}</td>
-                          <td className="p-3">
-                            {grade.gradePoints !== undefined ? (
-                              <span className="font-medium">
-                                {grade.gradePoints} / {assignment.maxPoints}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            {grade.gradedAt ? (
-                              <Badge variant="secondary">Graded</Badge>
-                            ) : (
-                              <Badge variant="outline">Pending</Badge>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Note: Interactive grade entry form will be added in frontend phase.
-                  Use API endpoint for now: POST /api/academy/sections/{sectionId}/assignments/{assignmentId}/grades
-                </div>
-              </div>
-            )}
+            <AssignmentGradeEntryForm
+              sectionId={sectionId}
+              assignmentId={assignmentId}
+              assignment={assignment}
+              grades={grades}
+            />
           </CardContent>
         </Card>
 

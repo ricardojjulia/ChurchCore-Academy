@@ -361,9 +361,9 @@ export async function bulkGradeAssignment(
   for (const grade of grades) {
     // Find the learner_person_id from the registration
     const registrationCheck = await db.query(
-      `select r.person_id, r.section_id
+      `select r.student_person_id, r.course_section_id
          from public.academy_course_section_registrations r
-        where r.tenant_id = $1 and r.id = $2 and r.section_id = $3`,
+        where r.tenant_id = $1 and r.id = $2 and r.course_section_id = $3`,
       [actor.tenantId, grade.studentRegistrationId, sectionId],
     );
 
@@ -373,14 +373,15 @@ export async function bulkGradeAssignment(
       );
     }
 
-    const learnerPersonId = String(registrationCheck.rows[0].person_id);
+    const learnerPersonId = String(registrationCheck.rows[0].student_person_id);
 
     await db.query(
       `insert into public.academy_gradebook_submissions
-         (tenant_id, assignment_id, learner_person_id, grade_points, pass_fail_result, graded_at, graded_by)
-       values ($1, $2, $3, $4, $5, now(), $6)
+         (tenant_id, assignment_id, learner_person_id, status, grade_points, pass_fail_result, graded_at, graded_by)
+       values ($1, $2, $3, 'graded', $4, $5, now(), $6)
        on conflict (tenant_id, assignment_id, learner_person_id)
        do update set
+         status = 'graded',
          grade_points = excluded.grade_points,
          pass_fail_result = excluded.pass_fail_result,
          graded_at = now(),
@@ -444,7 +445,7 @@ export async function computeSectionGrades(
   const result = await db.query(
     `select
        r.id as student_registration_id,
-       r.person_id as learner_person_id,
+       r.student_person_id as learner_person_id,
        sum(
          case
            when s.grade_points is not null and a.max_points > 0
@@ -464,12 +465,13 @@ export async function computeSectionGrades(
      left join public.academy_gradebook_submissions s
        on s.tenant_id = r.tenant_id
        and s.assignment_id = a.id
-       and s.learner_person_id = r.person_id
+       and s.learner_person_id = r.student_person_id
      where r.tenant_id = $1
-       and r.section_id = $2
+       and r.course_section_id = $2
+       and r.status in ('registered', 'completed')
        and a.tenant_id = r.tenant_id
-       and a.section_id = r.section_id
-     group by r.id, r.person_id`,
+       and a.section_id = r.course_section_id
+     group by r.id, r.student_person_id`,
     [actor.tenantId, sectionId],
   );
 
@@ -556,24 +558,30 @@ export async function getAssignmentGrades(
     );
   }
 
+  const sectionId = String(assignmentCheck.rows[0].section_id);
+
   const result = await db.query(
     `select
-       s.id, s.tenant_id, s.assignment_id, s.learner_person_id,
-       s.grade_points, s.pass_fail_result, s.submitted_at,
-       s.graded_at, s.graded_by,
+       coalesce(s.id::text, r.id::text) as id,
+       r.tenant_id,
+       $2::uuid as assignment_id,
+       r.student_person_id as learner_person_id,
+       s.grade_points,
+       s.pass_fail_result,
+       s.submitted_at,
+       s.graded_at,
+       s.graded_by,
        r.id as student_registration_id
-     from public.academy_gradebook_submissions s
-     left join public.academy_course_section_registrations r
-       on r.tenant_id = s.tenant_id
-       and r.person_id = s.learner_person_id
-       and r.section_id = (
-         select section_id
-         from public.academy_gradebook_assignments
-         where tenant_id = s.tenant_id and id = s.assignment_id
-       )
-     where s.tenant_id = $1 and s.assignment_id = $2
-     order by s.learner_person_id`,
-    [actor.tenantId, assignmentId],
+     from public.academy_course_section_registrations r
+     left join public.academy_gradebook_submissions s
+       on s.tenant_id = r.tenant_id
+       and s.assignment_id = $2
+       and s.learner_person_id = r.student_person_id
+     where r.tenant_id = $1
+       and r.course_section_id = $3
+       and r.status in ('registered', 'completed')
+     order by r.student_person_id`,
+    [actor.tenantId, assignmentId, sectionId],
   );
 
   return result.rows.map((row) => ({

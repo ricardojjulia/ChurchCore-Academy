@@ -118,7 +118,7 @@ The following has code and mutations but **no working UI**:
 | Student progress against program requirements | Does not exist |
 | Grade entry | Does not exist |
 | Transcript entries | Does not exist |
-| Student Groups (cohorts) | Does not exist |
+| Student Groups (cohorts) | Working (browser-verified 2026-07-09) |
 
 ---
 
@@ -216,7 +216,7 @@ The Academy ↔ ChurchCore LMS integration contract covers:
 - Grade and progress sync (LMS reports back to Academy)
 - Webhook/event callbacks for completion, attendance, and assessment results
 
-**The integration cannot be built until Academy has data to push.** This is why LMS roster sync is deferred — the SIS must have academic years, periods, courses, sections, and enrollments before it can feed the LMS.
+**The first roster-source bridge now exists.** Academy can derive a Moodle/Canvas roster-sync preview from real course sections and course-section registrations from `/admin/settings/lms` (browser verification pending for the current slice). Live provider activation remains evidence-gated; previewing a roster plan is not the same as pushing to Moodle or Canvas.
 
 ---
 
@@ -225,7 +225,7 @@ The Academy ↔ ChurchCore LMS integration contract covers:
 The following are explicitly out of scope until the Core Academic Loop (steps 1–10 above) works completely:
 
 - Bulk import of students, courses, or programs
-- ChurchCore LMS roster sync (Academy must have enrollment data before it can push to LMS)
+- Live ChurchCore LMS roster sync execution against production providers (sandbox evidence and operator approval are still required)
 - ShepherdAI recommendations for academic progress (needs grade and progress data first)
 - Guardian portal (needs working enrollment data first)
 - Student PWA (needs working academic record first)

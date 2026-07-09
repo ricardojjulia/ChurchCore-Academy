@@ -35,6 +35,20 @@ function createMockDb(queryResponses: Record<string, unknown>[]): AssignmentGrad
   };
 }
 
+function createRecordingDb(queryResponses: Record<string, unknown>[]) {
+  let callCount = 0;
+  const calls: { sql: string; params?: unknown[] }[] = [];
+  const db: AssignmentGradingDatabase = {
+    query: mock.fn(async (sql: string, params?: unknown[]) => {
+      calls.push({ sql, params });
+      const response = queryResponses[callCount] ?? { rows: [] };
+      callCount++;
+      return response as { rows: Record<string, unknown>[] };
+    }),
+  };
+  return { db, calls };
+}
+
 // ---------------------------------------------------------------------------
 // Mock actor
 // ---------------------------------------------------------------------------
@@ -329,6 +343,36 @@ void describe("bulkGradeAssignment", () => {
 
     // No error means success
     assert.ok(true);
+  });
+
+  void it("uses current registration and submission schema for bulk grade entry", async () => {
+    const { db, calls } = createRecordingDb([
+      // assignment check
+      { rows: [{ section_id: "section-1" }] },
+      // instructor check
+      { rows: [{ id: "1" }] },
+      // registration check
+      { rows: [{ student_person_id: "student-1", course_section_id: "section-1" }] },
+      // upsert submission
+      { rows: [] },
+      // lock assignment
+      { rows: [] },
+    ]);
+
+    await bulkGradeAssignment(db, mockFacultyActor, "assignment-1", [
+      { studentRegistrationId: "reg-1", gradePoints: 88 },
+    ]);
+
+    const registrationSql = calls.find((call) => call.sql.includes("academy_course_section_registrations"))?.sql ?? "";
+    assert.match(registrationSql, /student_person_id/);
+    assert.match(registrationSql, /course_section_id/);
+    assert.doesNotMatch(registrationSql, /r\.person_id/);
+    assert.doesNotMatch(registrationSql, /r\.section_id/);
+
+    const submissionSql = calls.find((call) => call.sql.includes("academy_gradebook_submissions"))?.sql ?? "";
+    assert.match(submissionSql, /status = 'graded'/);
+    assert.match(submissionSql, /grade_points/);
+    assert.match(submissionSql, /graded_by/);
   });
 
   void it("rejection: student registration not in section", async () => {
