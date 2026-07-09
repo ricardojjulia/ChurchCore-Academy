@@ -272,18 +272,9 @@ export class PostgresTranscriptRepository implements TranscriptRepository {
   ): Promise<boolean> {
     const result = await this.database.query(
       `select true as has_records
-         from public.academy_gradebook_records record
-         join public.academy_gradebook_assignments assignment
-           on assignment.tenant_id = record.tenant_id
-          and assignment.id = record.assignment_id
-         join public.academy_courses course
-           on course.tenant_id = assignment.tenant_id
-          and course.id = assignment.course_id
-        where record.tenant_id = $1
-          and record.learner_person_id = $2
-          and record.posting_status = 'posted'
-          and record.released_to_student_at is not null
-          and course.record_type = 'transcript'
+         from public.academy_transcript_entries entry
+        where entry.tenant_id = $1
+          and entry.student_person_id = $2
         limit 1`,
       [tenantId, studentPersonId],
     );

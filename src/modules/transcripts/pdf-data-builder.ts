@@ -1,5 +1,4 @@
 import type { TranscriptPdfData, TranscriptGradeRow } from "./pdf-generator";
-import { computeStudentGpa, type GpaQueryClient } from "@/modules/grading-records/gpa-calculator";
 
 interface TranscriptDataQueryClient {
   query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
@@ -59,39 +58,19 @@ export async function buildTranscriptPdfData(
   const studentId = String(student.student_number ?? studentPersonId);
   const programName = String(student.program_name ?? "General Studies");
 
-  // Fetch grade records (only posted, released-to-student records for transcript courses)
+  // Fetch immutable transcript snapshots.
   const gradeResult = await client.query(
-    `select distinct on (course.id, r.id)
-       term.name as term_name,
-       course.code as course_code,
-       course.title as course_title,
-       coalesce(course.default_credits, 0) as credit_hours,
-       r.letter_grade as grade,
-       e.gpa_points as quality_points
-     from public.academy_gradebook_records r
-     join public.academy_gradebook_assignments a
-       on a.tenant_id = r.tenant_id
-      and a.id = r.assignment_id
-     join public.academy_courses course
-       on course.tenant_id = a.tenant_id
-      and course.id = a.course_id
-     left join public.academy_terms term
-       on term.tenant_id = course.tenant_id
-      and term.id = course.term_id
-     left join public.academy_gradebook_scales scale
-       on scale.tenant_id = a.tenant_id
-      and scale.id = a.grading_scale_id
-     left join public.academy_gradebook_scale_entries e
-       on e.tenant_id = scale.tenant_id
-      and e.scale_id = scale.id
-      and e.letter_grade = r.letter_grade
-     where r.tenant_id = $1
-       and r.learner_person_id = $2
-       and r.posting_status = 'posted'
-       and r.released_to_student_at is not null
-       and course.record_type = 'transcript'
-       and r.letter_grade is not null
-     order by course.id, r.id, r.graded_at desc`,
+    `select academic_period_name as term_name,
+            course_code,
+            course_title,
+            credits_earned as credit_hours,
+            final_letter_grade as grade,
+            gpa_points as quality_points,
+            is_passing
+       from public.academy_transcript_entries
+      where tenant_id = $1
+        and student_person_id = $2
+      order by posted_at asc, course_code asc`,
     [tenantId, studentPersonId],
   );
 
@@ -104,20 +83,27 @@ export async function buildTranscriptPdfData(
     qualityPoints: row.quality_points !== null ? Number(row.quality_points) : null,
   }));
 
-  // Compute GPA using the existing calculator
-  const gpaResult = await computeStudentGpa(
-    tenantId,
-    studentPersonId,
-    client as GpaQueryClient,
-  );
+  const gpaRows = gradeResult.rows.filter((row) => row.quality_points != null);
+  const qualityCredits = gpaRows.reduce((total, row) => total + Number(row.credit_hours ?? 0), 0);
+  const cumulativeGpa = qualityCredits > 0
+    ? Math.round(
+      (gpaRows.reduce(
+        (total, row) => total + Number(row.quality_points) * Number(row.credit_hours ?? 0),
+        0,
+      ) / qualityCredits) * 100,
+    ) / 100
+    : null;
+  const creditsEarned = gradeResult.rows
+    .filter((row) => Boolean(row.is_passing))
+    .reduce((total, row) => total + Number(row.credit_hours ?? 0), 0);
 
   return {
     institution,
     studentName,
     studentId,
     programName,
-    cumulativeGpa: gpaResult.gpa,
-    creditsEarned: gpaResult.creditsEarned,
+    cumulativeGpa,
+    creditsEarned,
     issuanceId,
     issuanceDate,
     gradeRows,

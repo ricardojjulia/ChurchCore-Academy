@@ -5,6 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireActor } from "@/lib/require-actor";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
+import { LmsRosterPreviewClient } from "./LmsRosterPreviewClient";
+import {
+  PostgresLmsRosterSourceRepository,
+  type LmsRosterEligibleSection,
+  type LmsRosterSourceDatabase,
+} from "@/modules/lms-roster-source";
 import {
   assertLmsProviderReadinessAccess,
   buildLmsProviderReadinessModel,
@@ -16,9 +22,15 @@ type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: num
 export default async function LmsSettingsPage() {
   const actor = await requireActor();
   assertLmsProviderReadinessAccess(actor, actor.tenantId, "read");
-  const institutionProfile = await withAcademyDatabaseContext(actor, async (client) =>
-    new AcademyConfigRepository(asAcademyDatabase<RepoPool>(client)).fetchInstitutionProfile(actor.tenantId),
-  );
+  const { institutionProfile, rosterSections } = await withAcademyDatabaseContext(actor, async (client) => {
+    const institutionProfile = await new AcademyConfigRepository(
+      asAcademyDatabase<RepoPool>(client),
+    ).fetchInstitutionProfile(actor.tenantId);
+    const rosterSections = await new PostgresLmsRosterSourceRepository(
+      asAcademyDatabase<LmsRosterSourceDatabase>(client),
+    ).listRosterEligibleSections(actor.tenantId);
+    return { institutionProfile, rosterSections };
+  });
   const model = buildLmsProviderReadinessModel(institutionProfile, actor);
 
   return (
@@ -58,6 +70,8 @@ export default async function LmsSettingsPage() {
             <ReadinessRow label="Activation decision" value={model.overallStatus === "production_ready" ? "Eligible for approval" : "Defer production activation"} />
           </CardContent>
         </Card>
+
+        <RosterPreviewCard sections={rosterSections} />
       </section>
     </AdminShell>
   );
@@ -135,5 +149,26 @@ function ReadinessRow({ label, value }: { label: string; value: string | number 
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function RosterPreviewCard({ sections }: { sections: LmsRosterEligibleSection[] }) {
+  return (
+    <Card className="ops-panel">
+      <CardHeader>
+        <div className="ops-heading">
+          <div className="ops-icon">
+            <ShieldCheck />
+          </div>
+          <div>
+            <CardTitle>Section Roster Preview</CardTitle>
+            <CardDescription>Build a provider-safe roster plan from Academy enrollments.</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <LmsRosterPreviewClient sections={sections} />
+      </CardContent>
+    </Card>
   );
 }

@@ -75,6 +75,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Programs", href: "/admin/programs" },
       { label: "Course Catalog", href: "/admin/courses" },
       { label: "Sections & Schedule", href: "/admin/sections" },
+      { label: "Student Groups", href: "/admin/groups" },
     ],
   },
   {

@@ -27,8 +27,39 @@ import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-dat
 import { fetchStudentRecords, fetchProgramList, fetchAdministrators, fetchSectionList } from "@/lib/academy-read-models";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
+import {
+  PostgresStudentProgramMembershipRepository,
+  type StudentProgramMembershipDatabase,
+} from "@/modules/student-program-memberships/postgres-repository";
+import type { StudentProgramMembership } from "@/modules/student-program-memberships/types";
+import {
+  PostgresStudentSectionEnrollmentRepository,
+  type StudentSectionEnrollmentDatabase,
+} from "@/modules/student-section-enrollments/postgres-repository";
+import type { AvailableStudentSection } from "@/modules/student-section-enrollments/types";
+import {
+  PostgresStudentProgramProgressRepository,
+  type StudentProgramProgressDatabase,
+} from "@/modules/student-program-progress/postgres-repository";
+import {
+  PostgresTranscriptEntryRepository,
+  type TranscriptEntryDatabase,
+} from "@/modules/transcript-entries/postgres-repository";
+import {
+  PostgresStudentGroupRepository,
+  type StudentGroupDatabase,
+} from "@/modules/student-groups/postgres-repository";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
 import { CovenantRecord } from "@/modules/people/types";
+import {
+  StudentProgramMembershipDialog,
+  type StudentAcademicYearOption,
+  type StudentProgramOption,
+} from "./StudentProgramMembershipDialog";
+import { StudentSectionEnrollmentDialog } from "./StudentSectionEnrollmentDialog";
+import { StudentProgramProgressCard } from "./StudentProgramProgressCard";
+import { StudentTranscriptEntriesCard } from "./StudentTranscriptEntriesCard";
+import { StudentGroupsCard } from "./StudentGroupsCard";
 
 interface RegistrationRow {
   id: string;
@@ -36,6 +67,14 @@ interface RegistrationRow {
   status: string;
   registered_at: string;
 }
+
+type StudentPageDatabase =
+  ShepherdAiDatabase &
+  StudentProgramMembershipDatabase &
+  StudentSectionEnrollmentDatabase &
+  StudentProgramProgressDatabase &
+  TranscriptEntryDatabase &
+  StudentGroupDatabase;
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -59,22 +98,21 @@ export default async function StudentPage({
   const { id } = await params;
   const actor = await requireActor();
 
-  const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations, person, personId, relationships, covenantEnabled, covenantRecord } =
+  const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations, person, personId, relationships, covenantEnabled, covenantRecord, programMemberships, programProgress, transcriptEntries, transcriptEntryCandidates, studentGroupMemberships, academicProgramOptions, academicYearOptions, availableSectionOptions } =
     await withAcademyDatabaseContext(actor, async (client) => {
-      const shepherdRepo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));
+      const database = asAcademyDatabase<StudentPageDatabase>(client);
+      const shepherdRepo = new ShepherdAiPostgresRepository(database);
+      const membershipRepo = new PostgresStudentProgramMembershipRepository(database);
+      const sectionEnrollmentRepo = new PostgresStudentSectionEnrollmentRepository(database);
+      const progressRepo = new PostgresStudentProgramProgressRepository(database);
+      const transcriptEntryRepo = new PostgresTranscriptEntryRepository(database);
+      const studentGroupRepo = new PostgresStudentGroupRepository(database);
       const s = await fetchStudentRecords(actor.tenantId, client);
       const p = await fetchProgramList(actor.tenantId, client);
       const a = await fetchAdministrators(actor.tenantId, client);
       const sec = await fetchSectionList(actor.tenantId, client);
       const sugg = await shepherdRepo.fetchSuggestions(actor.tenantId);
       const wflow = await shepherdRepo.fetchWorkflows(actor.tenantId);
-      const regs = await client.query(
-        `select id, course_section_id, status, registered_at
-           from academy_course_section_registrations
-          where tenant_id = $1 and student_person_id = $2
-          order by registered_at desc`,
-        [actor.tenantId, id],
-      ) as { rows: RegistrationRow[] };
 
       // id param is the student profile id (sp.id); join to get the person record
       const personResult = await client.query(
@@ -87,6 +125,14 @@ export default async function StudentPage({
       const personRow = personResult.rows[0];
       const personId = personRow ? String(personRow.id) : null;
 
+      const regs = personId ? await client.query(
+        `select id, course_section_id, status, registered_at
+           from academy_course_section_registrations
+          where tenant_id = $1 and student_person_id = $2
+          order by registered_at desc`,
+        [actor.tenantId, personId],
+      ) as { rows: RegistrationRow[] } : { rows: [] };
+
       const relationshipsResult = personId ? await client.query(
         `SELECT r.id, r.relationship_type, r.authority, r.visibility, r.status,
                 p.id as related_person_id, p.display_name as related_person_name
@@ -96,6 +142,27 @@ export default async function StudentPage({
          ORDER BY r.created_at DESC`,
         [actor.tenantId, personId]
       ) as { rows: Record<string, unknown>[] } : { rows: [] };
+
+      const programOptionResult = await client.query(
+        `select id, program_code, title, status
+           from academy_academic_programs
+          where tenant_id = $1 and status != 'archived'
+          order by program_code asc, title asc`,
+        [actor.tenantId],
+      ) as { rows: Record<string, unknown>[] };
+      const yearOptionResult = await client.query(
+        `select id, name, code, status
+           from academy_academic_years
+          where tenant_id = $1
+          order by starts_on desc, name asc`,
+        [actor.tenantId],
+      ) as { rows: Record<string, unknown>[] };
+      const programMemberships = await membershipRepo.listByStudent(actor.tenantId, id);
+      const availableSectionOptions = await sectionEnrollmentRepo.listAvailableSections(actor.tenantId, id);
+      const programProgress = await progressRepo.getProgress(actor.tenantId, id);
+      const transcriptEntries = await transcriptEntryRepo.listByStudent(actor.tenantId, id);
+      const transcriptEntryCandidates = await transcriptEntryRepo.listCandidates(actor.tenantId, id);
+      const studentGroupMemberships = await studentGroupRepo.listByStudent(actor.tenantId, id);
 
       let covenantEnabled = false;
       let covenantRecord: CovenantRecord | null = null;
@@ -156,6 +223,24 @@ export default async function StudentPage({
           relatedPersonId: String(r.related_person_id),
           relatedPersonName: String(r.related_person_name),
         })),
+        programMemberships,
+        programProgress,
+        transcriptEntries,
+        transcriptEntryCandidates,
+        studentGroupMemberships,
+        academicProgramOptions: programOptionResult.rows.map((row) => ({
+          id: String(row.id),
+          programCode: String(row.program_code),
+          title: String(row.title),
+          status: String(row.status),
+        })) satisfies StudentProgramOption[],
+        academicYearOptions: yearOptionResult.rows.map((row) => ({
+          id: String(row.id),
+          name: String(row.name),
+          code: String(row.code),
+          status: String(row.status),
+        })) satisfies StudentAcademicYearOption[],
+        availableSectionOptions,
         covenantEnabled,
         covenantRecord,
       };
@@ -166,7 +251,9 @@ export default async function StudentPage({
 
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
 
+  const activeMembership = programMemberships.find((item: StudentProgramMembership) => item.status === "active");
   const program = programs.find((item) => item.id === student.programId);
+  const programDisplayName = activeMembership?.programTitle ?? program?.name ?? "Pending program assignment";
   const advisor = administrators.find((item) => item.id === student.advisorUserId);
   const suggestions = allSuggestions.filter((s) => s.entityType === "student" && s.entityId === id);
   const suggestionIds = new Set(suggestions.map((s) => s.id));
@@ -185,7 +272,7 @@ export default async function StudentPage({
     <AdminShell
       eyebrow="Student Profile"
       title={student.fullName}
-      subtitle={`${program?.name ?? "Pending program assignment"} · ShepherdAI Insights use Academy SIS and academic-record data only.`}
+      subtitle={`${programDisplayName} · ShepherdAI Insights use Academy SIS and academic-record data only.`}
     >
       <Card className="ops-panel student-identity-card">
         <CardContent>
@@ -202,7 +289,7 @@ export default async function StudentPage({
                 <Badge variant="outline" className="capitalize">
                   {formatCode(student.enrollmentStatus)}
                 </Badge>
-                <Badge variant="outline">{program?.name ?? "Program pending"}</Badge>
+                <Badge variant="outline">{programDisplayName}</Badge>
               </div>
             </div>
             <div className="student-identity-actions">
@@ -266,7 +353,7 @@ export default async function StudentPage({
               </CardHeader>
               <CardContent className="student-field-list">
                 <FieldRow label="Enrollment status" value={formatCode(student.enrollmentStatus)} />
-                <FieldRow label="Program" value={program?.name ?? "Pending assignment"} />
+                <FieldRow label="Program" value={programDisplayName} />
                 <FieldRow label="Advisor" value={advisor?.name ?? "Pending assignment"} />
                 <FieldRow label="Active term" value={student.activeTerm ?? "Not active"} />
               </CardContent>
@@ -274,16 +361,37 @@ export default async function StudentPage({
 
             <Card className="ops-panel">
               <CardHeader>
-                <CardTitle>Academic Progress</CardTitle>
-                <CardDescription>Credit pace and academic standing fields.</CardDescription>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>Program Membership</CardTitle>
+                    <CardDescription>Canonical academic program and catalog year for this student.</CardDescription>
+                  </div>
+                  <StudentProgramMembershipDialog
+                    studentProfileId={student.id}
+                    currentAcademicProgramId={activeMembership?.academicProgramId}
+                    currentAcademicYearId={activeMembership?.catalogAcademicYearId}
+                    academicProgramOptions={academicProgramOptions}
+                    academicYearOptions={academicYearOptions}
+                  />
+                </div>
               </CardHeader>
               <CardContent className="student-field-list">
-                <FieldRow label="Credits earned" value={student.creditsEarned} />
-                <FieldRow label="Transcript credits" value={student.transcriptCredits} />
-                <FieldRow label="Required credits" value={program?.requiredCredits ?? "n/a"} />
-                <FieldRow label="GPA" value={student.gpa ?? "Not tracked"} />
+                <FieldRow label="Active program" value={activeMembership?.programTitle ?? "Pending assignment"} />
+                <FieldRow label="Program code" value={activeMembership?.programCode ?? "n/a"} />
+                <FieldRow label="Catalog year" value={activeMembership?.catalogAcademicYearName ?? "Pending assignment"} />
+                <FieldRow label="Started" value={activeMembership?.startedOn ?? "Not started"} />
               </CardContent>
             </Card>
+
+            <StudentProgramProgressCard progress={programProgress} />
+
+            <StudentGroupsCard memberships={studentGroupMemberships} />
+
+            <StudentTranscriptEntriesCard
+              studentProfileId={student.id}
+              entries={transcriptEntries}
+              candidates={transcriptEntryCandidates}
+            />
 
             <Card className="ops-panel">
               <CardHeader>
@@ -313,13 +421,22 @@ export default async function StudentPage({
         <TabsContent value="sections">
           <Card className="ops-panel">
             <CardHeader>
-              <div className="ops-heading">
-                <div className="ops-icon"><BookOpen /></div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="ops-heading">
+                  <div className="ops-icon"><BookOpen /></div>
+                  <div>
+                    <CardTitle>Section Registrations</CardTitle>
+                    <CardDescription>
+                      All course section registrations for this student. Use Withdraw to drop a section.
+                    </CardDescription>
+                  </div>
+                </div>
                 <div>
-                  <CardTitle>Section Registrations</CardTitle>
-                  <CardDescription>
-                    All course section registrations for this student. Use Withdraw to drop a section.
-                  </CardDescription>
+                  <StudentSectionEnrollmentDialog
+                    studentProfileId={student.id}
+                    availableSectionOptions={availableSectionOptions as AvailableStudentSection[]}
+                    hasActiveProgramMembership={Boolean(activeMembership)}
+                  />
                 </div>
               </div>
             </CardHeader>
