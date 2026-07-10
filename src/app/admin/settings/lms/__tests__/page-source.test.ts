@@ -38,3 +38,18 @@ test("LMS settings page runs sandbox checks without provider secrets", () => {
   assert.match(runner, /\/api\/academy\/lms\/readiness/);
   assert.doesNotMatch(runner, /accessToken|clientSecret|rawProviderPayload/i);
 });
+
+test("LMS settings page manages activation approval requests without provider secrets", () => {
+  const page = readFileSync("src/app/admin/settings/lms/page.tsx", "utf8");
+  const actions = readFileSync("src/app/admin/settings/lms/LmsActivationRequestActions.tsx", "utf8");
+
+  assert.match(page, /LmsActivationRequestActions/);
+  assert.match(page, /PostgresLmsActivationRequestRepository/);
+  assert.match(page, /groupLmsActivationRequestsForReadiness/);
+  assert.match(page, /activationRequest/);
+  assert.match(actions, /request_activation/);
+  assert.match(actions, /approve_activation/);
+  assert.match(actions, /reject_activation/);
+  assert.match(actions, /\/api\/academy\/lms\/readiness/);
+  assert.doesNotMatch(actions, /accessToken|clientSecret|rawProviderPayload/i);
+});

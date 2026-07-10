@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireActor } from "@/lib/require-actor";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
+import { LmsActivationRequestActions } from "./LmsActivationRequestActions";
 import { LmsSandboxCheckRunner } from "./LmsSandboxCheckRunner";
 import { LmsSandboxEvidenceForm } from "./LmsSandboxEvidenceForm";
 import { LmsRosterPreviewClient } from "./LmsRosterPreviewClient";
@@ -29,6 +30,10 @@ import {
   groupLmsSandboxCheckResultsForReadiness,
   type LmsSandboxCheckResultDatabase,
 } from "@/modules/lms-contract/sandbox-check-results";
+import {
+  PostgresLmsActivationRequestRepository,
+  groupLmsActivationRequestsForReadiness,
+} from "@/modules/lms-contract/activation-requests";
 
 type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
 
@@ -36,7 +41,7 @@ export default async function LmsSettingsPage() {
   const actor = await requireActor();
   assertLmsProviderReadinessAccess(actor, actor.tenantId, "read");
   const canManageEvidence = canAccessLmsProviderReadiness(actor, actor.tenantId, "manage");
-  const { institutionProfile, rosterSections, sandboxEvidence, sandboxCheckResults } = await withAcademyDatabaseContext(actor, async (client) => {
+  const { institutionProfile, rosterSections, sandboxEvidence, sandboxCheckResults, activationRequests } = await withAcademyDatabaseContext(actor, async (client) => {
     const database = asAcademyDatabase<RepoPool>(client);
     const institutionProfile = await new AcademyConfigRepository(database).fetchInstitutionProfile(actor.tenantId);
     const sandboxEvidence = await new PostgresLmsSandboxEvidenceRepository(
@@ -48,11 +53,13 @@ export default async function LmsSettingsPage() {
     const rosterSections = await new PostgresLmsRosterSourceRepository(
       asAcademyDatabase<LmsRosterSourceDatabase>(client),
     ).listRosterEligibleSections(actor.tenantId);
-    return { institutionProfile, rosterSections, sandboxEvidence, sandboxCheckResults };
+    const activationRequests = await new PostgresLmsActivationRequestRepository(database).listLatestRequests(actor.tenantId);
+    return { institutionProfile, rosterSections, sandboxEvidence, sandboxCheckResults, activationRequests };
   });
   const model = buildLmsProviderReadinessModel(institutionProfile, actor, {
     recordedSandboxEvidence: groupLmsSandboxEvidenceForReadiness(sandboxEvidence),
     sandboxCheckResults: groupLmsSandboxCheckResultsForReadiness(sandboxCheckResults),
+    activationRequests: groupLmsActivationRequestsForReadiness(activationRequests),
   });
 
   return (
@@ -141,6 +148,24 @@ function ProviderReadinessCard({
         <ReadinessRow label="Last successful sync" value={provider.lastSuccessfulSync} />
         <ReadinessRow label="Last failed sync" value={provider.lastFailedSync} />
 
+        {provider.activationRequest ? (
+          <div className="grid gap-1 rounded-md border border-border/70 p-3">
+            <div className="ops-readiness-row">
+              <span>Activation request</span>
+              <Badge variant={provider.activationRequest.status === "approved" ? "secondary" : "outline"}>
+                {provider.activationRequest.status}
+              </Badge>
+            </div>
+            <div className="text-sm text-muted-foreground">{provider.activationRequest.safeSummary}</div>
+            <div className="break-all text-xs text-muted-foreground">
+              {provider.activationRequest.evidenceSnapshot.join(", ")}
+            </div>
+            {provider.activationRequest.decisionNote ? (
+              <div className="text-xs text-muted-foreground">{provider.activationRequest.decisionNote}</div>
+            ) : null}
+          </div>
+        ) : null}
+
         {provider.sandboxEvidence.map((item) => (
           <div key={item.label} className="grid gap-1 rounded-md border border-border/70 p-3">
             <div className="ops-readiness-row">
@@ -155,6 +180,11 @@ function ProviderReadinessCard({
           <>
             <LmsSandboxEvidenceForm providerId={provider.providerId} evidenceLabel={defaultEvidenceLabel} />
             <LmsSandboxCheckRunner providerId={provider.providerId} />
+            <LmsActivationRequestActions
+              providerId={provider.providerId}
+              hasOpenRequest={provider.activationRequest?.status === "requested"}
+              canDecide={canManageEvidence}
+            />
           </>
         ) : null}
 
