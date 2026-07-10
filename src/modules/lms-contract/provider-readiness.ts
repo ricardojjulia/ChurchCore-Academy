@@ -1,6 +1,7 @@
 import type { InstitutionProfile, LmsProvider, LmsSelectionStatus } from "@/modules/academy-config/types";
 import type { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 import type { LmsReadinessSandboxCheckItem } from "@/modules/lms-contract/sandbox-check-results";
+import type { LmsActivationRequestRecord } from "@/modules/lms-contract/activation-requests";
 
 export type LmsReadinessAccess = "read" | "manage";
 export type LmsProviderReadinessStatus =
@@ -40,6 +41,7 @@ export interface LmsProviderReadinessItem {
   lastFailedSync: string;
   sandboxEvidence: LmsReadinessEvidenceItem[];
   sandboxCheckResults: LmsReadinessSandboxCheckItem[];
+  activationRequest?: LmsActivationRequestRecord;
   actions: {
     pause: LmsReadinessActionState;
     resume: LmsReadinessActionState;
@@ -67,6 +69,7 @@ export interface BuildLmsProviderReadinessModelOptions {
   lastFailedSync?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, string>>;
   circuitState?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, LmsProviderCircuitState>>;
   sandboxCheckResults?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, LmsReadinessSandboxCheckItem[]>>;
+  activationRequests?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, LmsActivationRequestRecord>>;
 }
 
 const readRoles = new Set<AcademyRole>(["institution_admin", "dean", "registrar", "academic_admin"]);
@@ -167,6 +170,7 @@ export function buildLmsProviderReadinessModel(
       lastFailedSync: options.lastFailedSync?.[provider.providerId] ?? "No live failure recorded",
       sandboxEvidence,
       sandboxCheckResults: options.sandboxCheckResults?.[provider.providerId] ?? [],
+      activationRequest: options.activationRequests?.[provider.providerId],
       actions: {
         pause: actionState(activationStatus === "active" || activationStatus === "production_ready", adminCanManage, `Pause ${provider.displayName} worker execution.`),
         resume: actionState(activationStatus === "paused", adminCanManage, `Resume ${provider.displayName} after validation.`),

@@ -152,6 +152,45 @@ test("GET readiness includes persisted sandbox check results", async () => {
   assert.doesNotMatch(JSON.stringify(body), /token|secret|rawProviderPayload|password/i);
 });
 
+test("GET readiness includes latest activation request status", async () => {
+  const response = await loadLmsReadinessRequest(
+    new Request("http://localhost/api/academy/lms/readiness"),
+    {
+      fetchInstitutionProfile: async () => profile(),
+      listActivationRequests: async () => [
+        {
+          id: "activation-1",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          status: "requested",
+          safeSummary: "Canvas activation requested after sandbox checks passed.",
+          evidenceSnapshot: ["docs/releases/canvas-sandbox.md"],
+          requestedByPersonId: "institution_admin-1",
+          requestedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    },
+    async () => ({ actor: actor(["registrar"]) }),
+  );
+  const body = (await response.json()) as {
+    readiness: {
+      providers: Array<{
+        providerId: string;
+        activationRequest?: { status: string; safeSummary: string; evidenceSnapshot: string[] };
+      }>;
+    };
+  };
+  const canvas = body.readiness.providers.find((provider) => provider.providerId === "canvas");
+
+  assert.equal(response.status, 200);
+  assert.equal(canvas?.activationRequest?.status, "requested");
+  assert.equal(canvas?.activationRequest?.safeSummary, "Canvas activation requested after sandbox checks passed.");
+  assert.deepEqual(canvas?.activationRequest?.evidenceSnapshot, ["docs/releases/canvas-sandbox.md"]);
+  assert.doesNotMatch(JSON.stringify(body), /token|secret|rawProviderPayload|password/i);
+});
+
 test("GET readiness rejects students before loading provider state", async () => {
   let loaded = false;
   const response = await loadLmsReadinessRequest(
@@ -310,6 +349,289 @@ test("POST readiness runs sandbox checks and records results for institution adm
   ]);
   assert.equal(body.checkResults.length, 3);
   assert.doesNotMatch(JSON.stringify(body), /token|secret|rawProviderPayload|password/i);
+});
+
+test("POST readiness requests activation only after evidence and sandbox checks pass", async () => {
+  const writes: Array<{ tenantId: string; personId: string; providerId: string; snapshot: string[] }> = [];
+  const response = await handleLmsReadinessAction(
+    new Request("http://localhost/api/academy/lms/readiness", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "request_activation",
+        providerId: "canvas",
+      }),
+    }),
+    async () => ({ actor: actor(["institution_admin"]) }),
+    {
+      fetchInstitutionProfile: async () => profile(),
+      listEvidence: async () => [
+        {
+          id: "evidence-1",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          evidenceLabel: "Canvas sandbox validation",
+          status: "recorded",
+          reference: "docs/releases/canvas-sandbox.md",
+          recordedByPersonId: "institution_admin-1",
+          recordedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      listCheckResults: async () => [
+        {
+          id: "configuration-review",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          checkKey: "configuration_review",
+          checkLabel: "Canvas configuration review",
+          status: "passed",
+          safeSummary: "Configuration reviewed.",
+          reference: "docs/releases/canvas-sandbox.md",
+          durationMs: 1,
+          runByPersonId: "institution_admin-1",
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "roster-preview",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          checkKey: "roster_preview",
+          checkLabel: "Canvas roster preview",
+          status: "passed",
+          safeSummary: "Roster preview generated.",
+          reference: "docs/releases/canvas-sandbox.md",
+          durationMs: 1,
+          runByPersonId: "institution_admin-1",
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "launch-smoke",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          checkKey: "launch_smoke",
+          checkLabel: "Canvas launch smoke",
+          status: "passed",
+          safeSummary: "Launch smoke passed.",
+          reference: "docs/releases/canvas-sandbox.md",
+          durationMs: 1,
+          runByPersonId: "institution_admin-1",
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      requestActivation: async (tenantId, personId, input) => {
+        writes.push({ tenantId, personId, providerId: input.providerId, snapshot: input.evidenceSnapshot });
+        return {
+          id: "activation-1",
+          tenantId,
+          providerId: input.providerId,
+          status: "requested",
+          safeSummary: input.safeSummary,
+          evidenceSnapshot: input.evidenceSnapshot,
+          requestedByPersonId: personId,
+          requestedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        };
+      },
+    },
+  );
+  const body = (await response.json()) as {
+    activationRequest: { providerId: string; status: string; safeSummary: string; evidenceSnapshot: string[] };
+  };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(writes, [
+    {
+      tenantId: "tenant-readiness",
+      personId: "institution_admin-1",
+      providerId: "canvas",
+      snapshot: ["docs/releases/canvas-sandbox.md"],
+    },
+  ]);
+  assert.equal(body.activationRequest.status, "requested");
+  assert.match(body.activationRequest.safeSummary, /Canvas activation requested/);
+  assert.doesNotMatch(JSON.stringify(body), /token|secret|rawProviderPayload|password/i);
+});
+
+test("POST readiness blocks activation requests when launch smoke is not passed", async () => {
+  const response = await handleLmsReadinessAction(
+    new Request("http://localhost/api/academy/lms/readiness", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "request_activation",
+        providerId: "canvas",
+      }),
+    }),
+    async () => ({ actor: actor(["institution_admin"]) }),
+    {
+      fetchInstitutionProfile: async () => profile(),
+      listEvidence: async () => [
+        {
+          id: "evidence-1",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          evidenceLabel: "Canvas sandbox validation",
+          status: "recorded",
+          reference: "docs/releases/canvas-sandbox.md",
+          recordedByPersonId: "institution_admin-1",
+          recordedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      listCheckResults: async () => [
+        {
+          id: "configuration-review",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          checkKey: "configuration_review",
+          checkLabel: "Canvas configuration review",
+          status: "passed",
+          safeSummary: "Configuration reviewed.",
+          reference: "docs/releases/canvas-sandbox.md",
+          durationMs: 1,
+          runByPersonId: "institution_admin-1",
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "roster-preview",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          checkKey: "roster_preview",
+          checkLabel: "Canvas roster preview",
+          status: "passed",
+          safeSummary: "Roster preview generated.",
+          reference: "docs/releases/canvas-sandbox.md",
+          durationMs: 1,
+          runByPersonId: "institution_admin-1",
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "launch-smoke",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          checkKey: "launch_smoke",
+          checkLabel: "Canvas launch smoke",
+          status: "skipped",
+          safeSummary: "Launch smoke was skipped.",
+          reference: "docs/releases/canvas-sandbox.md",
+          durationMs: 1,
+          runByPersonId: "institution_admin-1",
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    },
+  );
+  const body = (await response.json()) as { error: string };
+
+  assert.equal(response.status, 400);
+  assert.match(body.error, /launch_smoke must pass/);
+});
+
+test("POST readiness approves and rejects pending activation requests", async () => {
+  const decisions: Array<{ action: string; tenantId: string; personId: string; providerId: string; note: string }> = [];
+
+  const approveResponse = await handleLmsReadinessAction(
+    new Request("http://localhost/api/academy/lms/readiness", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "approve_activation",
+        providerId: "canvas",
+        decisionNote: "Approved for operator activation.",
+      }),
+    }),
+    async () => ({ actor: actor(["institution_admin"]) }),
+    {
+      fetchInstitutionProfile: async () => profile(),
+      approveActivation: async (tenantId, providerId, personId, note) => {
+        decisions.push({ action: "approve", tenantId, personId, providerId, note });
+        return {
+          id: "activation-1",
+          tenantId,
+          providerId,
+          status: "approved",
+          safeSummary: "Canvas activation requested after sandbox checks passed.",
+          evidenceSnapshot: ["docs/releases/canvas-sandbox.md"],
+          requestedByPersonId: "institution_admin-1",
+          requestedAt: now,
+          decidedByPersonId: personId,
+          decidedAt: now,
+          decisionNote: note,
+          createdAt: now,
+          updatedAt: now,
+        };
+      },
+    },
+  );
+  const approveBody = (await approveResponse.json()) as { activationRequest: { status: string } };
+
+  const rejectResponse = await handleLmsReadinessAction(
+    new Request("http://localhost/api/academy/lms/readiness", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "reject_activation",
+        providerId: "canvas",
+        decisionNote: "Needs fresh launch smoke evidence.",
+      }),
+    }),
+    async () => ({ actor: actor(["institution_admin"]) }),
+    {
+      fetchInstitutionProfile: async () => profile(),
+      rejectActivation: async (tenantId, providerId, personId, note) => {
+        decisions.push({ action: "reject", tenantId, personId, providerId, note });
+        return {
+          id: "activation-2",
+          tenantId,
+          providerId,
+          status: "rejected",
+          safeSummary: "Canvas activation requested after sandbox checks passed.",
+          evidenceSnapshot: ["docs/releases/canvas-sandbox.md"],
+          requestedByPersonId: "institution_admin-1",
+          requestedAt: now,
+          decidedByPersonId: personId,
+          decidedAt: now,
+          decisionNote: note,
+          createdAt: now,
+          updatedAt: now,
+        };
+      },
+    },
+  );
+  const rejectBody = (await rejectResponse.json()) as { activationRequest: { status: string } };
+
+  assert.equal(approveResponse.status, 200);
+  assert.equal(approveBody.activationRequest.status, "approved");
+  assert.equal(rejectResponse.status, 200);
+  assert.equal(rejectBody.activationRequest.status, "rejected");
+  assert.deepEqual(decisions, [
+    {
+      action: "approve",
+      tenantId: "tenant-readiness",
+      personId: "institution_admin-1",
+      providerId: "canvas",
+      note: "Approved for operator activation.",
+    },
+    {
+      action: "reject",
+      tenantId: "tenant-readiness",
+      personId: "institution_admin-1",
+      providerId: "canvas",
+      note: "Needs fresh launch smoke evidence.",
+    },
+  ]);
 });
 
 test("POST readiness rejects malformed provider actions", async () => {
