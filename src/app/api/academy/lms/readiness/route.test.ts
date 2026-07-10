@@ -102,6 +102,56 @@ test("GET readiness includes persisted sandbox evidence", async () => {
   ]);
 });
 
+test("GET readiness includes persisted sandbox check results", async () => {
+  const response = await loadLmsReadinessRequest(
+    new Request("http://localhost/api/academy/lms/readiness"),
+    {
+      fetchInstitutionProfile: async () => profile(),
+      listCheckResults: async () => [
+        {
+          id: "result-1",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          checkKey: "configuration_review",
+          checkLabel: "Canvas configuration review",
+          status: "passed",
+          safeSummary: "Recorded sandbox evidence is present.",
+          reference: "docs/releases/canvas-sandbox.md",
+          durationMs: 7,
+          runByPersonId: "institution_admin-1",
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    },
+    async () => ({ actor: actor(["registrar"]) }),
+  );
+  const body = (await response.json()) as {
+    readiness: {
+      providers: Array<{
+        providerId: string;
+        sandboxCheckResults: Array<{ checkKey: string; status: string; summary: string; reference: string }>;
+      }>;
+    };
+  };
+  const canvas = body.readiness.providers.find((provider) => provider.providerId === "canvas");
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(canvas?.sandboxCheckResults, [
+    {
+      checkKey: "configuration_review",
+      label: "Canvas configuration review",
+      status: "passed",
+      summary: "Recorded sandbox evidence is present.",
+      reference: "docs/releases/canvas-sandbox.md",
+      runAt: now,
+      durationMs: 7,
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(body), /token|secret|rawProviderPayload|password/i);
+});
+
 test("GET readiness rejects students before loading provider state", async () => {
   let loaded = false;
   const response = await loadLmsReadinessRequest(
@@ -196,6 +246,70 @@ test("POST readiness records sandbox evidence for institution administrators", a
   assert.deepEqual(writes, [{ tenantId: "tenant-readiness", personId: "institution_admin-1", providerId: "canvas" }]);
   assert.equal(body.evidence.status, "recorded");
   assert.equal(body.evidence.reference, "docs/releases/canvas-sandbox.md");
+});
+
+test("POST readiness runs sandbox checks and records results for institution administrators", async () => {
+  const writes: Array<{ providerId: string; checkKey: string; status: string }> = [];
+  const response = await handleLmsReadinessAction(
+    new Request("http://localhost/api/academy/lms/readiness", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "run_sandbox_checks",
+        providerId: "canvas",
+      }),
+    }),
+    async () => ({ actor: actor(["institution_admin"]) }),
+    {
+      fetchInstitutionProfile: async () => profile(),
+      listEvidence: async () => [
+        {
+          id: "evidence-1",
+          tenantId: "tenant-readiness",
+          providerId: "canvas",
+          evidenceLabel: "Canvas sandbox validation",
+          status: "recorded",
+          reference: "docs/releases/canvas-sandbox.md",
+          recordedByPersonId: "institution_admin-1",
+          recordedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      countRosterEligibleSections: async () => 2,
+      recordCheckResult: async (tenantId, personId, input) => {
+        assert.equal(tenantId, "tenant-readiness");
+        assert.equal(personId, "institution_admin-1");
+        writes.push({ providerId: input.providerId, checkKey: input.checkKey, status: input.status });
+        return {
+          id: `result-${input.checkKey}`,
+          tenantId,
+          providerId: input.providerId,
+          checkKey: input.checkKey,
+          checkLabel: input.checkLabel,
+          status: input.status,
+          safeSummary: input.safeSummary,
+          reference: input.reference,
+          durationMs: input.durationMs,
+          runByPersonId: personId,
+          runAt: now,
+          createdAt: now,
+          updatedAt: now,
+        };
+      },
+    },
+  );
+  const body = (await response.json()) as {
+    checkResults: Array<{ providerId: string; checkKey: string; status: string }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(writes.map((write) => [write.checkKey, write.status]), [
+    ["configuration_review", "passed"],
+    ["roster_preview", "passed"],
+    ["launch_smoke", "skipped"],
+  ]);
+  assert.equal(body.checkResults.length, 3);
+  assert.doesNotMatch(JSON.stringify(body), /token|secret|rawProviderPayload|password/i);
 });
 
 test("POST readiness rejects malformed provider actions", async () => {
