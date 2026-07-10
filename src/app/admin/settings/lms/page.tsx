@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireActor } from "@/lib/require-actor";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
+import { LmsSandboxCheckRunner } from "./LmsSandboxCheckRunner";
 import { LmsSandboxEvidenceForm } from "./LmsSandboxEvidenceForm";
 import { LmsRosterPreviewClient } from "./LmsRosterPreviewClient";
 import {
@@ -23,6 +24,11 @@ import {
   groupLmsSandboxEvidenceForReadiness,
   type LmsSandboxEvidenceDatabase,
 } from "@/modules/lms-contract/sandbox-evidence";
+import {
+  PostgresLmsSandboxCheckResultRepository,
+  groupLmsSandboxCheckResultsForReadiness,
+  type LmsSandboxCheckResultDatabase,
+} from "@/modules/lms-contract/sandbox-check-results";
 
 type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
 
@@ -30,19 +36,23 @@ export default async function LmsSettingsPage() {
   const actor = await requireActor();
   assertLmsProviderReadinessAccess(actor, actor.tenantId, "read");
   const canManageEvidence = canAccessLmsProviderReadiness(actor, actor.tenantId, "manage");
-  const { institutionProfile, rosterSections, sandboxEvidence } = await withAcademyDatabaseContext(actor, async (client) => {
+  const { institutionProfile, rosterSections, sandboxEvidence, sandboxCheckResults } = await withAcademyDatabaseContext(actor, async (client) => {
     const database = asAcademyDatabase<RepoPool>(client);
     const institutionProfile = await new AcademyConfigRepository(database).fetchInstitutionProfile(actor.tenantId);
     const sandboxEvidence = await new PostgresLmsSandboxEvidenceRepository(
       asAcademyDatabase<LmsSandboxEvidenceDatabase>(client),
     ).listEvidence(actor.tenantId);
+    const sandboxCheckResults = await new PostgresLmsSandboxCheckResultRepository(
+      asAcademyDatabase<LmsSandboxCheckResultDatabase>(client),
+    ).listLatestResults(actor.tenantId);
     const rosterSections = await new PostgresLmsRosterSourceRepository(
       asAcademyDatabase<LmsRosterSourceDatabase>(client),
     ).listRosterEligibleSections(actor.tenantId);
-    return { institutionProfile, rosterSections, sandboxEvidence };
+    return { institutionProfile, rosterSections, sandboxEvidence, sandboxCheckResults };
   });
   const model = buildLmsProviderReadinessModel(institutionProfile, actor, {
     recordedSandboxEvidence: groupLmsSandboxEvidenceForReadiness(sandboxEvidence),
+    sandboxCheckResults: groupLmsSandboxCheckResultsForReadiness(sandboxCheckResults),
   });
 
   return (
@@ -142,7 +152,26 @@ function ProviderReadinessCard({
         ))}
 
         {canManageEvidence ? (
-          <LmsSandboxEvidenceForm providerId={provider.providerId} evidenceLabel={defaultEvidenceLabel} />
+          <>
+            <LmsSandboxEvidenceForm providerId={provider.providerId} evidenceLabel={defaultEvidenceLabel} />
+            <LmsSandboxCheckRunner providerId={provider.providerId} />
+          </>
+        ) : null}
+
+        {provider.sandboxCheckResults.length > 0 ? (
+          <div className="grid gap-2">
+            {provider.sandboxCheckResults.map((result) => (
+              <div key={result.checkKey} className="grid gap-1 rounded-md border border-border/70 p-3">
+                <div className="ops-readiness-row">
+                  <span>{result.label}</span>
+                  <Badge variant={result.status === "passed" ? "secondary" : "outline"}>{result.status}</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">{result.summary}</div>
+                <div className="break-all text-xs text-muted-foreground">{result.reference}</div>
+                <div className="text-xs text-muted-foreground">{result.runAt}</div>
+              </div>
+            ))}
+          </div>
         ) : null}
 
         <div className="ops-readiness-row">

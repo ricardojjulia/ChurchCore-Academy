@@ -1,5 +1,6 @@
 import type { InstitutionProfile, LmsProvider, LmsSelectionStatus } from "@/modules/academy-config/types";
 import type { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
+import type { LmsReadinessSandboxCheckItem } from "@/modules/lms-contract/sandbox-check-results";
 
 export type LmsReadinessAccess = "read" | "manage";
 export type LmsProviderReadinessStatus =
@@ -38,6 +39,7 @@ export interface LmsProviderReadinessItem {
   lastSuccessfulSync: string;
   lastFailedSync: string;
   sandboxEvidence: LmsReadinessEvidenceItem[];
+  sandboxCheckResults: LmsReadinessSandboxCheckItem[];
   actions: {
     pause: LmsReadinessActionState;
     resume: LmsReadinessActionState;
@@ -64,6 +66,7 @@ export interface BuildLmsProviderReadinessModelOptions {
   lastSuccessfulSync?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, string>>;
   lastFailedSync?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, string>>;
   circuitState?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, LmsProviderCircuitState>>;
+  sandboxCheckResults?: Partial<Record<Extract<LmsProvider, "moodle" | "canvas">, LmsReadinessSandboxCheckItem[]>>;
 }
 
 const readRoles = new Set<AcademyRole>(["institution_admin", "dean", "registrar", "academic_admin"]);
@@ -163,6 +166,7 @@ export function buildLmsProviderReadinessModel(
       lastSuccessfulSync: options.lastSuccessfulSync?.[provider.providerId] ?? "No live sync recorded",
       lastFailedSync: options.lastFailedSync?.[provider.providerId] ?? "No live failure recorded",
       sandboxEvidence,
+      sandboxCheckResults: options.sandboxCheckResults?.[provider.providerId] ?? [],
       actions: {
         pause: actionState(activationStatus === "active" || activationStatus === "production_ready", adminCanManage, `Pause ${provider.displayName} worker execution.`),
         resume: actionState(activationStatus === "paused", adminCanManage, `Resume ${provider.displayName} after validation.`),

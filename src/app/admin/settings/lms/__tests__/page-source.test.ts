@@ -25,3 +25,16 @@ test("LMS settings page records sandbox evidence without provider secrets", () =
   assert.match(form, /\/api\/academy\/lms\/readiness/);
   assert.doesNotMatch(form, /accessToken|clientSecret|rawProviderPayload/i);
 });
+
+test("LMS settings page runs sandbox checks without provider secrets", () => {
+  const page = readFileSync("src/app/admin/settings/lms/page.tsx", "utf8");
+  const runner = readFileSync("src/app/admin/settings/lms/LmsSandboxCheckRunner.tsx", "utf8");
+
+  assert.match(page, /LmsSandboxCheckRunner/);
+  assert.match(page, /PostgresLmsSandboxCheckResultRepository/);
+  assert.match(page, /groupLmsSandboxCheckResultsForReadiness/);
+  assert.match(page, /sandboxCheckResults/);
+  assert.match(runner, /run_sandbox_checks/);
+  assert.match(runner, /\/api\/academy\/lms\/readiness/);
+  assert.doesNotMatch(runner, /accessToken|clientSecret|rawProviderPayload/i);
+});
