@@ -49,7 +49,7 @@ export default async function WorkflowQueuePage() {
       signOutAction={signOutAction}
     >
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem", gap: "1rem", alignItems: "center" }}>
-        <a href="/admin/workflows/watchlist" style={{ fontSize: "0.875rem", color: "#2e86c1" }}>
+        <a href="/admin/workflows/watchlist" style={{ fontSize: "0.875rem", color: "var(--color-accent)" }}>
           Academic Standing Watchlist
         </a>
         <ReEvaluateButton endpoint="/api/academy/shepherd-ai/evaluate" label="Re-evaluate signals" />

@@ -1120,7 +1120,7 @@ export default function HQPage() {
           .hq-root{display:flex;min-height:calc(100vh - 68px);background:#090a0f;color:#e8edf7}
           .hq-rail{width:260px;flex:0 0 260px;background:#090a0f;border-right:1px solid rgba(148,163,184,.16);display:flex;flex-direction:column;padding:26px 14px 18px;gap:26px}
           .hq-brand{font-size:22px;font-weight:900;letter-spacing:-.05em;color:#fff;padding:0 8px}
-          .hq-brand span{color:#7177ff}
+          .hq-brand span{color:#9184d9}
           .hq-nav{display:flex;flex-direction:column;gap:8px}
           .hq-nav-item{height:50px;display:flex;gap:12px;align-items:center;padding:0 14px;border:1px solid transparent;background:transparent;color:#a7adba;border-radius:10px;cursor:pointer;text-align:left;font-weight:760}
           .hq-nav-item.is-active{border-color:rgba(148,163,184,.25);background:#1b1b26;color:#fff}
@@ -1133,7 +1133,7 @@ export default function HQPage() {
           .hq-topbar p{margin:8px 0 0;color:#777884}
           .hq-review-runner{display:flex;gap:12px;align-items:center;min-width:min(740px,48vw)}
           .hq-review-runner input{flex:1;border:1px solid rgba(148,163,184,.18);background:#121219;color:#e7ebf3;border-radius:10px;padding:16px;font-weight:700;font-size:18px;min-width:0}
-          .hq-review-runner button{border:0;background:#6661f4;color:white;padding:17px 18px;border-radius:10px;cursor:pointer;font-size:18px;font-weight:900;white-space:nowrap;box-shadow:0 18px 40px -24px rgba(102,97,244,.95)}
+          .hq-review-runner button{border:0;background:#796cbf;color:white;padding:17px 18px;border-radius:10px;cursor:pointer;font-size:18px;font-weight:900;white-space:nowrap;box-shadow:0 18px 40px -24px rgba(121,108,191,.95)}
           .hq-review-runner button:disabled{opacity:.7;cursor:not-allowed}
           .hq-error{margin:0 28px;padding:12px 14px;border-radius:12px;border:1px solid rgba(248,113,113,.45);background:rgba(127,29,29,.32);color:#fecaca}
           .hq-panel{border:1px solid rgba(148,163,184,.18);background:#111116;border-radius:18px;padding:24px;box-shadow:0 28px 80px -48px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.03)}
@@ -1183,9 +1183,9 @@ export default function HQPage() {
           .msg.assistant{background:#0b0c11}
           .composer{display:flex;gap:8px;margin-top:12px}
           .composer textarea{flex:1;min-height:88px;border:1px solid rgba(148,163,184,.18);background:#0b0c11;color:#e5e7eb;border-radius:10px;padding:10px}
-          .composer button{align-self:end;border:0;background:#6661f4;color:#fff;border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:800}
+          .composer button{align-self:end;border:0;background:#796cbf;color:#fff;border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:800}
           .docs-list button{width:100%;display:flex;gap:8px;align-items:center;text-align:left;border:1px solid rgba(148,163,184,.18);background:#0b0c11;color:#dce3ee;padding:10px;border-radius:10px;margin-bottom:8px;cursor:pointer}
-          .docs-list button.is-active{border-color:#6661f4;background:#151621}
+          .docs-list button.is-active{border-color:#796cbf;background:#151621}
           .doc-body pre,.history-detail pre{background:#0b0c11;border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:12px;white-space:pre-wrap;font-family:'JetBrains Mono',Menlo,monospace;font-size:12px;max-height:50vh;overflow:auto;color:#dce3ee}
           .doc-header,.detail-block>div{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
           .history-list select{width:100%;margin-bottom:10px;background:#0b0c11;color:#dce3ee;border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:8px}
@@ -1195,7 +1195,7 @@ export default function HQPage() {
           .task-header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
           .task-add{display:flex;gap:8px;min-width:380px}
           .task-add input{flex:1;border:1px solid rgba(148,163,184,.18);background:#0b0c11;color:#e5e7eb;border-radius:10px;padding:8px}
-          .task-add button{border:0;background:#6661f4;color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:800}
+          .task-add button{border:0;background:#796cbf;color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:800}
           .kanban-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
           .kanban-col{border:1px solid rgba(148,163,184,.18);border-radius:12px;background:#0b0c11;padding:8px;min-height:220px}
           .kanban-col h4{margin:0 0 8px;font-size:13px;color:#aab2c0}
@@ -1207,7 +1207,7 @@ export default function HQPage() {
           .list-grid{display:flex;flex-direction:column;gap:8px}
           .list-row,.risk-row{display:grid;grid-template-columns:1.8fr .8fr .8fr .7fr;gap:8px;align-items:center;border:1px solid rgba(148,163,184,.18);background:#0b0c11;border-radius:10px;padding:10px}
           .risk-row p{margin:4px 0 0;color:#8b92a0;font-size:12px}
-          .risk-row button{border:0;background:#6661f4;color:#fff;border-radius:8px;padding:6px 8px;cursor:pointer;font-weight:800}
+          .risk-row button{border:0;background:#796cbf;color:#fff;border-radius:8px;padding:6px 8px;cursor:pointer;font-weight:800}
           .release-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px}
           .release-list,.env-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
           .release-list li,.env-list li{display:flex;gap:8px;align-items:center;border:1px solid rgba(148,163,184,.18);background:#0b0c11;border-radius:10px;padding:8px}
