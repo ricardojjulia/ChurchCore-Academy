@@ -10,37 +10,19 @@ export type AcademySectionRegistrationStatus =
 export interface LmsRosterSourceRegistration {
   studentPersonId: string;
   status: AcademySectionRegistrationStatus | string;
-  registeredOn?: string;
-}
-
-export interface LmsRosterSourcePerson {
-  id: string;
-  displayName: string;
-  givenName?: string;
-  familyName?: string;
-  email?: string;
-  phone?: string;
-  status: string;
 }
 
 export interface LmsRosterSourceSection {
   id: string;
   tenantId: string;
-  institutionName?: string;
   courseId: string;
   sectionCode: string;
   courseCode: string;
   courseTitle: string;
-  sectionTitle?: string;
   academicPeriodId: string;
   academicPeriodName?: string;
-  academicPeriodType?: string;
-  academicPeriodStartsOn?: string;
-  academicPeriodEndsOn?: string;
-  academicYearCode?: string;
   primaryInstructorId?: string;
   registrations: LmsRosterSourceRegistration[];
-  people?: LmsRosterSourcePerson[];
 }
 
 export interface LmsRosterEligibleSection {

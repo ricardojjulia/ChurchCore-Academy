@@ -23,15 +23,13 @@
     "start": "next start --port 3200",
     "lint": "eslint",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "oneroster:fixture": "node --import tsx scripts/generate-oneroster-fixture.ts",
     "verify:admissions-rls": "node --env-file=.env.local --import tsx scripts/verify-admissions-rls.ts",
     "verify:enrollment-conversion-rls": "node --env-file=.env.local --import tsx scripts/verify-enrollment-conversion-rls.ts",
     "verify:llis-consent-rls": "node --env-file=.env.local --import tsx scripts/verify-llis-consent-rls.ts",
     "verify:migration-seed-rehearsal": "node --env-file=.env.local --import tsx scripts/verify-migration-seed-rehearsal.ts",
     "verify:role-walkthrough": "node --env-file=.env.local --import tsx scripts/generate-authenticated-role-walkthrough.ts",
     "db:migrate:local": "node --env-file=.env.local --import tsx scripts/db-migrate-local.ts",
-    "db:seed:local": "node --env-file=.env.local --import tsx scripts/db-seed-local.ts",
-    "fixtures:oneroster": "node --import tsx scripts/generate-oneroster-shared-fixture.ts"
+    "db:seed:local": "node --env-file=.env.local --import tsx scripts/db-seed-local.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.2.2",
@@ -46,7 +44,6 @@
     "@supabase/supabase-js": "2.108.1",
     "class-variance-authority": "0.7.1",
     "clsx": "^2.1.1",
-    "jszip": "^3.10.2",
     "lucide-react": "1.18.0",
     "next": "16.2.9",
     "pg": "8.21.0",
