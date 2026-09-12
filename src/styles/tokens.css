@@ -1,75 +1,82 @@
 /* ChurchCore Academy — Design Tokens
  * Central source of truth for brand colors, spacing, shadows, and layout.
  * Import this file before any component CSS.
+ *
+ * Palette: Nocturne — a dark, compact design system. Single accent
+ * (#9184d9, a blurple) on a near-neutral blue-grey ground. No second
+ * accent hue: anywhere a distinct "brand-warm" or "info" color used to
+ * live, it now reuses a step of the accent or neutral ramp instead of
+ * introducing a second saturated color.
  */
 :root {
   /* SIS design-system bridge */
-  --sis-primary: #1B4F8A;
-  --sis-primary-dark: #143B68;
-  --sis-secondary: #3E8F56;
-  --sis-secondary-light: #E7F3EC;
-  --sis-warning: #D97706;
-  --sis-error: #DC2626;
-  --sis-bg-canvas: #F5F7FA;
-  --sis-surface: #FFFFFF;
-  --sis-border: #E0E7F0;
-  --sis-text-primary: #1A2433;
-  --sis-text-secondary: #526173;
-  --sis-text-disabled: #9EA7B3;
+  --sis-primary: #9184d9;
+  --sis-primary-dark: #5d5294;
+  --sis-secondary: #595d6c;
+  --sis-secondary-light: #3f424d;
+  --sis-warning: #fbbf24;
+  --sis-error: #f87171;
+  --sis-bg-canvas: #161826;
+  --sis-surface: #232532;
+  --sis-border: #383946;
+  --sis-text-primary: #e9e9ed;
+  --sis-text-secondary: #b2b6ca;
+  --sis-text-disabled: #75798c;
   --sis-radius-sm: 0.25rem;
   --sis-radius-md: 0.5rem;
-  --sis-shadow-elev: 0 2px 4px rgba(10, 30, 60, 0.06);
+  --sis-shadow-elev: 0 0 0 1px #3f424d;
 
   /* HSL channels let Tailwind opacity modifiers keep working. */
-  --sis-primary-hsl: 211 67% 32%;
-  --sis-primary-dark-hsl: 211 68% 24%;
-  --sis-secondary-hsl: 137 40% 40%;
-  --sis-secondary-light-hsl: 138 32% 93%;
-  --sis-warning-hsl: 32 95% 45%;
-  --sis-error-hsl: 0 72% 51%;
-  --sis-bg-canvas-hsl: 216 24% 97%;
-  --sis-surface-hsl: 0 0% 100%;
-  --sis-border-hsl: 214 39% 91%;
-  --sis-text-primary-hsl: 217 32% 15%;
-  --sis-text-secondary-hsl: 212 17% 39%;
-  --sis-text-disabled-hsl: 214 11% 66%;
+  --sis-primary-hsl: 249 53% 68%;
+  --sis-primary-dark-hsl: 250 29% 45%;
+  --sis-secondary-hsl: 227 10% 39%;
+  --sis-secondary-light-hsl: 227 10% 27%;
+  --sis-warning-hsl: 43 96% 56%;
+  --sis-error-hsl: 0 91% 71%;
+  --sis-bg-canvas-hsl: 232 27% 12%;
+  --sis-surface-hsl: 232 18% 17%;
+  --sis-border-hsl: 236 11% 25%;
+  --sis-text-primary-hsl: 240 10% 92%;
+  --sis-text-secondary-hsl: 230 18% 75%;
+  --sis-text-disabled-hsl: 230 9% 50%;
 
   /* Brand */
-  --brand-primary: #1B4F8A;
-  --brand-accent: #3B7DD8;
-  --brand-warm: #7C5C3E;
+  --brand-primary: #9184d9;
+  --brand-accent: #968ae0;
+  --brand-warm: #796cbf; /* was a second warm hue; Nocturne is mono, so this
+    now reuses an accent-ramp step rather than introduce a second color. */
 
   /* Surfaces */
-  --surface-base: #FAFBFD;
-  --surface-card: #FFFFFF;
-  --surface-sidebar: #0F2744;
-  --surface-sidebar-active: #1A3D6B;
-  --surface-sidebar-hover: #162F5A;
-  --surface-topbar: #0D2340;
+  --surface-base: #161826;
+  --surface-card: #232532;
+  --surface-sidebar: #1b1d2c;
+  --surface-sidebar-active: #423a6a;
+  --surface-sidebar-hover: #3f424d;
+  --surface-topbar: #161826;
 
   /* Text */
-  --text-primary: #1A2433;
-  --text-muted: #64748B;
-  --text-inverse: #F0F6FF;
-  --text-sidebar: #B8CEED;
-  --text-sidebar-active: #F0F7FF;
+  --text-primary: #e9e9ed;
+  --text-muted: #b2b6ca;
+  --text-inverse: #e9e9ed;
+  --text-sidebar: #cfd3e5;
+  --text-sidebar-active: #e7e5fe;
 
   /* Borders */
-  --border-subtle: #E2E8F0;
-  --border-card: rgba(30, 60, 100, 0.12);
-  --border-sidebar: rgba(100, 150, 210, 0.2);
+  --border-subtle: #383946;
+  --border-card: #383946;
+  --border-sidebar: #383946;
 
-  /* Shadows */
-  --shadow-card: 0 4px 24px -8px rgba(10, 30, 60, 0.14);
-  --shadow-panel: 0 8px 40px -16px rgba(10, 30, 60, 0.18);
-  --shadow-popover: 0 16px 48px -12px rgba(10, 30, 60, 0.24);
+  /* Shadows — hairline edge + ambient darkness, tuned for a dark ground. */
+  --shadow-card: 0 0 0 1px #3f424d;
+  --shadow-panel: 0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-popover: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 
   /* Radii */
-  --radius-card: 1.25rem;
-  --radius-chip: 999px;
-  --radius-input: 0.6rem;
-  --radius-button: 0.6rem;
-  --radius-panel: 1.5rem;
+  --radius-card: 0.875rem;
+  --radius-chip: 0.375rem;
+  --radius-input: 0.5rem;
+  --radius-button: 0.5rem;
+  --radius-panel: 1rem;
 
   /* Sidebar layout */
   --sidebar-width-collapsed: 4rem;
@@ -77,24 +84,78 @@
   --sidebar-transition: 200ms ease;
 
   /* Legacy alias tokens (referenced by admin.css legacy block and student-pwa.css) */
-  --primary: #2563eb;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --background: #ffffff;
-  --foreground: #1a2433;
-  --muted-foreground: #6b7280;
-  --panel-border: #e2e8f0;
-  --surface-gradient: linear-gradient(146deg, rgba(241, 248, 255, 0.96), rgba(218, 232, 250, 0.94));
-  --surface-soft-gradient: linear-gradient(180deg, rgba(250, 253, 255, 0.94), rgba(230, 242, 255, 0.9));
+  --primary: #9184d9;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --background: #161826;
+  --foreground: #e9e9ed;
+  --muted-foreground: #b2b6ca;
+  --panel-border: #383946;
+  --surface-gradient: linear-gradient(146deg, rgba(35, 37, 50, 0.96), rgba(22, 24, 38, 0.94));
+  --surface-soft-gradient: linear-gradient(180deg, rgba(27, 29, 44, 0.94), rgba(22, 24, 38, 0.9));
 
-  /* Status colors */
-  --status-success: #16a34a;
-  --status-success-bg: #f0fdf4;
-  --status-warning: #d97706;
-  --status-warning-bg: #fffbeb;
-  --status-danger: #dc2626;
-  --status-danger-bg: #fef2f2;
-  --status-info: #2563eb;
-  --status-info-bg: #eff6ff;
+  /* Status colors — dark-ground pattern: saturated foreground + a low-alpha
+     tint of the same hue as background, mirroring Nocturne's tag ramps. */
+  --status-success: #4ade80;
+  --status-success-bg: color-mix(in srgb, #4ade80 16%, transparent);
+  --status-warning: #fbbf24;
+  --status-warning-bg: color-mix(in srgb, #fbbf24 16%, transparent);
+  --status-danger: #f87171;
+  --status-danger-bg: color-mix(in srgb, #f87171 16%, transparent);
+  --status-info: #9184d9;
+  --status-info-bg: color-mix(in srgb, #9184d9 16%, transparent);
+
+  /* Nocturne tonal ramps — generated in OKLCH on one shared lightness scale
+     in the source system; consumed here as hex for direct use by shared
+     primitives and shells (tags, hovers, pressed states, focus rings). */
+  --color-bg: #161826;
+  --color-surface: #232532;
+  --color-text: #e9e9ed;
+  --color-accent: #9184d9;
+  --color-accent-2: #a7a1db;
+  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+
+  --color-neutral-100: #f3f5fe;
+  --color-neutral-200: #e4e7f5;
+  --color-neutral-300: #cfd3e5;
+  --color-neutral-400: #b2b6ca;
+  --color-neutral-500: #9397ab;
+  --color-neutral-600: #75798c;
+  --color-neutral-700: #595d6c;
+  --color-neutral-800: #3f424d;
+  --color-neutral-900: #292b31;
+
+  --color-accent-100: #f5f4ff;
+  --color-accent-200: #e7e5fe;
+  --color-accent-300: #d2cefd;
+  --color-accent-400: #b5abfc;
+  --color-accent-500: #968ae0;
+  --color-accent-600: #796cbf;
+  --color-accent-700: #5d5294;
+  --color-accent-800: #423a6a;
+  --color-accent-900: #2b2741;
+
+  --color-accent-2-100: #f5f4ff;
+  --color-accent-2-200: #e7e5fe;
+  --color-accent-2-300: #d2cefd;
+  --color-accent-2-400: #b5afe8;
+  --color-accent-2-500: #9690c9;
+  --color-accent-2-600: #7972a9;
+  --color-accent-2-700: #5c5783;
+  --color-accent-2-800: #423e5d;
+  --color-accent-2-900: #2b293a;
+
+  /* Aliases for custom properties admin.css/student-pwa.css reference with
+     a light-theme fallback but never actually define — without these, the
+     fallback hex (not the token) was the color in effect. */
+  --border: #383946;
+  --color-text-muted: #b2b6ca;
+  --surface-card-muted: #292b31;
+  --ops-accent: #9184d9; /* Nocturne is mono — reuse the single accent rather
+    than the ops console's own indigo. */
+  --ops-border: #383946;
+  --ops-surface-2: #292b31;
+  --ops-text: #e9e9ed;
+  --ops-text-secondary: #b2b6ca;
 }

@@ -74,7 +74,7 @@ const config: Config = {
       },
       boxShadow: {
         sm: "var(--sis-shadow-elev)",
-        academy: "var(--shadow-card)",
+        academy: "var(--shadow-panel)",
       },
       keyframes: {
         "accordion-down": {

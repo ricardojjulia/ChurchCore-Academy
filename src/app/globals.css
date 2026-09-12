@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
@@ -30,7 +30,7 @@ a {
   transform: translateY(-120%);
   border-bottom-right-radius: 0.5rem;
   border: 1px solid color-mix(in srgb, var(--sis-primary) 36%, var(--sis-surface));
-  color: #ffffff;
+  color: var(--color-accent-100);
   background: var(--sis-primary-dark);
   padding: 0.5rem 0.9rem;
   font-size: 0.85rem;
@@ -60,82 +60,6 @@ textarea:focus-visible {
 }
 
 /* See src/styles/ for admin, student-pwa, and shared CSS */
-@theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-.dark {
-  --background: oklch(0.2 0.008 252);
-  --foreground: oklch(0.95 0.004 248);
-  --card: oklch(0.25 0.012 252);
-  --card-foreground: oklch(0.95 0.004 248);
-  --popover: oklch(0.25 0.012 252);
-  --popover-foreground: oklch(0.95 0.004 248);
-  --primary: oklch(0.76 0.02 250);
-  --primary-foreground: oklch(0.2 0.008 252);
-  --secondary: oklch(0.3 0.012 252);
-  --secondary-foreground: oklch(0.95 0.004 248);
-  --muted: oklch(0.3 0.012 252);
-  --muted-foreground: oklch(0.78 0.01 250);
-  --accent: oklch(0.35 0.02 252);
-  --accent-foreground: oklch(0.96 0.004 248);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.36 0.015 252 / 72%);
-  --input: oklch(0.33 0.018 252 / 76%);
-  --ring: oklch(0.74 0.026 252);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
 
 @layer base {
   * {
@@ -149,12 +73,42 @@ textarea:focus-visible {
   }
 }
 
+/* Nocturne: table row rules fade to transparent over 48px at each edge
+   instead of a flat border, painted as the row's own background so the
+   fade spans the full row rather than each cell. */
+.table-row-rule {
+  background: linear-gradient(
+      to right,
+      transparent,
+      var(--color-divider) 48px,
+      var(--color-divider) calc(100% - 48px),
+      transparent
+    )
+    no-repeat bottom / 100% 1px;
+}
+.table-row-rule-hover:hover {
+  background:
+    linear-gradient(
+        color-mix(in srgb, var(--color-text) 4%, transparent),
+        color-mix(in srgb, var(--color-text) 4%, transparent)
+      )
+      no-repeat 0 0 / 100% 100%,
+    linear-gradient(
+        to right,
+        transparent,
+        color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+        color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px),
+        transparent
+      )
+      no-repeat bottom / 100% 1px;
+}
+
 .demo-feedback-button {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
   z-index: 80;
-  box-shadow: 0 8px 24px rgba(10, 26, 52, 0.24);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .demo-feedback-form {
@@ -176,9 +130,9 @@ textarea:focus-visible {
 .demo-error-fallback {
   margin: 2rem auto;
   max-width: 42rem;
-  border: 1px solid #d8dee8;
+  border: 1px solid var(--border-subtle);
   border-radius: 1rem;
-  background: #fff;
+  background: var(--color-surface);
   padding: 1.25rem;
 }
 
@@ -189,7 +143,7 @@ textarea:focus-visible {
 
 .demo-error-fallback p {
   margin: 0.65rem 0 0.95rem;
-  color: #5d6d85;
+  color: var(--color-text-muted);
 }
 
 .demo-triage-shell {
@@ -210,10 +164,10 @@ textarea:focus-visible {
 }
 
 .demo-triage-empty {
-  border: 1px dashed #c8d3e1;
+  border: 1px dashed var(--border-subtle);
   border-radius: 0.85rem;
-  color: #5d6d85;
-  background: #fcfdff;
+  color: var(--color-text-muted);
+  background: var(--surface-card-muted);
   padding: 1rem;
   text-align: center;
 }
@@ -225,9 +179,9 @@ textarea:focus-visible {
 
 .demo-triage-row {
   width: 100%;
-  border: 1px solid #d8dee8;
+  border: 1px solid var(--border-subtle);
   border-radius: 0.9rem;
-  background: #fff;
+  background: var(--color-surface);
   padding: 0.85rem;
   text-align: left;
 }
@@ -252,7 +206,7 @@ textarea:focus-visible {
 
 .demo-triage-row-main span {
   margin-top: 0.2rem;
-  color: #6c7b90;
+  color: var(--color-text-muted);
   font-size: 0.78rem;
 }
 
@@ -265,7 +219,7 @@ textarea:focus-visible {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 0.6rem;
-  color: #5d6d85;
+  color: var(--color-text-muted);
   font-size: 0.82rem;
 }
 
@@ -281,9 +235,9 @@ textarea:focus-visible {
 
 .demo-triage-detail-item {
   min-width: 12rem;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--border-subtle);
   border-radius: 0.75rem;
-  background: #f9fbff;
+  background: var(--surface-card-muted);
   padding: 0.6rem;
 }
 
@@ -295,7 +249,7 @@ textarea:focus-visible {
 }
 
 .demo-triage-detail-item span {
-  color: #5d6d85;
+  color: var(--color-text-muted);
   font-size: 0.75rem;
 }
 
@@ -305,9 +259,9 @@ textarea:focus-visible {
 }
 
 .demo-triage-panel {
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--border-subtle);
   border-radius: 0.75rem;
-  background: #f9fbff;
+  background: var(--surface-card-muted);
   padding: 0.75rem;
 }
 
@@ -317,7 +271,7 @@ textarea:focus-visible {
 
 .demo-triage-panel span {
   margin-top: 0.3rem;
-  color: #44566f;
+  color: var(--color-text-muted);
   font-size: 0.84rem;
 }
 
@@ -330,9 +284,9 @@ textarea:focus-visible {
   overflow: auto;
   max-height: 18rem;
   margin-top: 0.65rem;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--border-subtle);
   border-radius: 0.75rem;
-  background: #fff;
+  background: var(--color-surface);
   padding: 0.65rem;
   font-size: 0.78rem;
 }
@@ -343,10 +297,10 @@ textarea:focus-visible {
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: hsl(45 100% 95%);
-  border: 1px solid hsl(45 100% 70%);
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning);
   border-radius: 0.375rem;
-  color: hsl(30 70% 30%);
+  color: var(--status-warning);
   font-size: 0.875rem;
   margin-bottom: 1rem;
 }
@@ -369,28 +323,28 @@ textarea:focus-visible {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.025em;
-  color: hsl(220 15% 55%);
+  color: var(--color-text-muted);
 }
 
 .admin-context-picker-select {
   height: 2.25rem;
   border-radius: 6px;
-  border: 1px solid hsl(220 13% 88%);
-  background: white;
+  border: 1px solid var(--border-subtle);
+  background: var(--color-surface);
   padding: 0 1.5rem 0 0.75rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: hsl(220 20% 10%);
+  color: var(--color-text);
   cursor: pointer;
   outline: none;
 }
 
 .admin-context-picker-select:hover {
-  background: hsl(210 40% 98%);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
 }
 
 .admin-context-picker-select:focus-visible {
-  outline: 2px solid hsl(215 90% 60%);
+  outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
