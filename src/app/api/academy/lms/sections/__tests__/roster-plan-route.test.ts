@@ -20,3 +20,44 @@ test("roster-plan route uses session auth and capability context without requiri
   assert.doesNotMatch(source, /resolveLocalBootstrapAcademyActor/);
   assert.doesNotMatch(source, /assertCapability\(capabilities,\s*"lmsRosterSync"\)/);
 });
+
+test("OneRoster package route exports canonical CSV package files from Academy roster source", () => {
+  const source = readFileSync("src/app/api/academy/lms/sections/[sectionId]/oneroster-package/route.ts", "utf8");
+
+  assert.match(source, /resolveAcademyActorFromSession/);
+  assert.match(source, /assertInstitutionConfigAccess\(actor, actor\.tenantId, "admin"\)/);
+  assert.match(source, /withCapabilityContext/);
+  assert.match(source, /fetchSectionRosterSource/);
+  assert.match(source, /buildOneRosterDatasetFromRosterSource/);
+  assert.match(source, /buildOneRosterCsvPackage/);
+  assert.match(source, /OneRoster/);
+  assert.doesNotMatch(source, /resolveLocalBootstrapAcademyActor/);
+  assert.doesNotMatch(source, /password|credentialSecret|accessToken|refreshToken|clientSecret|webhookSecret/i);
+});
+
+test("tenant OneRoster package route supports admin JSON preview and ZIP download", () => {
+  const source = readFileSync("src/app/api/academy/lms/oneroster-package/route.ts", "utf8");
+
+  assert.match(source, /assertInstitutionConfigAccess\(actor, actor\.tenantId, "admin"\)/);
+  assert.match(source, /buildAcademyOneRosterExportPackage/);
+  assert.match(source, /buildOneRosterZipPackage/);
+  assert.match(source, /application\/zip/);
+  assert.match(source, /content-disposition/);
+  assert.match(source, /fileCount/);
+  assert.match(source, /rowCount/);
+  assert.doesNotMatch(source, /password|credentialSecret|accessToken|refreshToken|clientSecret|webhookSecret/i);
+});
+
+test("tenant OneRoster package route exports the repository-backed shared provider package", () => {
+  const source = readFileSync("src/app/api/academy/lms/oneroster-package/route.ts", "utf8");
+
+  assert.match(source, /resolveAcademyActorFromSession/);
+  assert.match(source, /withCapabilityContext/);
+  assert.match(source, /buildAcademyOneRosterExportPackage/);
+  assert.match(source, /AcademyPeopleRepository/);
+  assert.match(source, /AcademyCourseCatalogRepository/);
+  assert.match(source, /PostgresOneRosterRegistrationRepository/);
+  assert.match(source, /churchcore-oneroster-rostering-csv-provider/);
+  assert.doesNotMatch(source, /resolveLocalBootstrapAcademyActor/);
+  assert.doesNotMatch(source, /password|credentialSecret|accessToken|refreshToken|clientSecret|webhookSecret/i);
+});

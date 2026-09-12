@@ -33,7 +33,11 @@ export interface ApiObservabilityOptions {
 
 export async function handleApi<T>(handler: () => Promise<T>, observability: ApiObservabilityOptions = {}) {
   try {
-    return jsonOk(await handler());
+    const result = await handler();
+    if (result instanceof Response) {
+      return result;
+    }
+    return jsonOk(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected API error.";
 
