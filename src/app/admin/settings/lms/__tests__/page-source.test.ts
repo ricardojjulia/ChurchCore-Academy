@@ -10,7 +10,11 @@ test("LMS settings page renders roster preview from real Academy sections", () =
   assert.match(page, /listRosterEligibleSections/);
   assert.doesNotMatch(page, /Promise\.all/);
   assert.match(client, /\/api\/academy\/lms\/sections\/\$\{selectedSectionId\}\/roster-plan/);
+  assert.match(client, /\/api\/academy\/lms\/oneroster-package/);
+  assert.match(client, /\/api\/academy\/lms\/oneroster-package\?format=zip/);
   assert.match(client, /Preview roster plan/);
+  assert.match(client, /Preview OneRoster/);
+  assert.match(client, /Download ZIP/);
   assert.doesNotMatch(client, /accessToken|clientSecret|rawProviderPayload/i);
 });
 
