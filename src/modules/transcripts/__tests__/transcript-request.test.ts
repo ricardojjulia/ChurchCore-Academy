@@ -94,6 +94,12 @@ function makeRepository(options: MockRepoOptions = {}): TranscriptRepository {
         }),
       ];
     },
+    async findById(tenantId: string, transcriptId: string) {
+      return makeTranscriptRecord({ tenantId, id: transcriptId, status: "requested" });
+    },
+    async updateStorageUrl(tenantId: string, transcriptId: string, storageUrl: string) {
+      return makeTranscriptRecord({ tenantId, id: transcriptId, status: "released", storageUrl });
+    },
     async hold(tenantId, transcriptId, actorPersonId, reason) {
       return makeTranscriptRecord({
         tenantId,

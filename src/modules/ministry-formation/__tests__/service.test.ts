@@ -12,7 +12,7 @@ import {
 import { PermanentRecordError } from "@/modules/ministry-formation/errors";
 
 function createMockDb(): AcademyQueryClient {
-  const store = new Map<string, unknown[]>();
+  const store = new Map<string, unknown>();
   let idCounter = 0;
 
   return {

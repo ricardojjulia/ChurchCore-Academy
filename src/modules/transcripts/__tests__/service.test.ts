@@ -68,6 +68,13 @@ function repository(options: {
     async findByStudent() {
       return [];
     },
+    async findById() {
+      return null;
+    },
+    async updateStorageUrl(tenantId, transcriptId, storageUrl) {
+      calls.push(`updateStorageUrl:${transcriptId}:${storageUrl}`);
+      return transcript({ tenantId, id: transcriptId, storageUrl });
+    },
     async hold(tenantId, transcriptId, actorPersonId, reason) {
       calls.push(`hold:${transcriptId}:${actorPersonId}:${reason}`);
       return transcript({ tenantId, id: transcriptId, status: "held" });

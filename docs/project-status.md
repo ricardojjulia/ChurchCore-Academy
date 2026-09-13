@@ -1,10 +1,12 @@
 # Project Status
 
-- Version: `0.9.0`
+- Version: `0.10.0`
 - Stage: controlled-pilot candidate
-- Updated: 2026-06-30
+- Updated: 2026-09-12
 
 ## Current Assessment
+
+**The authoritative, code-verified feature completeness reference is now [`docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md`](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md).** It confirms the Core Academic Loop (academic years/periods, course catalog, programs, program curriculum, course sections, student program membership, section enrollment, student progress, grade entry, transcript entries, student groups) is fully built end-to-end with real Postgres-backed logic, admin UI, and tests — correcting an earlier `docs/product/product-context.md` table that had gone stale and claimed several of these did not exist. It also confirms billing, financial aid, communications, and LMS provider activation are functionally complete but deliberately gated behind external approval/compliance evidence, consistent with the controlled-pilot posture below — that gating is a release-management decision, not a missing-code gap. Read that audit before assuming either this document or `product-context.md` is current; both are point-in-time claims and code is the tiebreaker.
 
 ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, the ADR-0059 full Moodle/Canvas LMS implementation closeout, and the ADR-0061 institution capability enforcement closeout.
 
@@ -57,6 +59,8 @@ Current posture:
 - Institution settings page redesigned as four fully clickable metric tiles with focused dialogs; legal name editable; legalName used as institution display name.
 - Academic period hard delete with enrollment guard.
 - README, HOWTO, CHANGELOG, and VERSIONING documentation refresh.
+- Full Core Academic Loop: program curriculum (versioned by entry year), student program membership, section enrollment, student progress tracking, grade entry/gradebook, and immutable transcript entries — all code-verified 2026-09-12 after `docs/product/product-context.md` had gone stale claiming these did not exist. See the feature inventory audit.
+- Nocturne dark design system adopted app-wide, replacing the light SIS palette across shared UI primitives, all four shells (admin/student/faculty/guardian), and the login/error pages.
 
 ## External Release Gates
 
@@ -90,7 +94,10 @@ These are not open implementation tasks in the repository. They are live-environ
 - [CHANGELOG](../CHANGELOG.md)
 - [Versioning](../VERSIONING.md)
 - [Factory Roadmap](product/factory-roadmap.md)
+- [2026-09-12 Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current authoritative feature-completeness reference
+- [ADR-0060 Concrete Institution Modes And Mode Packs](adr/0060-concrete-institution-modes-and-mode-packs.md)
 - [ADR-0061 Institution Capability Enforcement](adr/0061-institution-capability-enforcement.md)
+- [Council Review XV Institution Mode Pack Closeout](reviews/2026-07-21-council-review-15-institution-mode-pack-closeout.md)
 - [Council Review III Capability Enforcement](reviews/council-review-3-capability-enforcement.md)
 - [0.9.0 Release Notes](releases/2026-06-30-capability-enforcement-release-notes.md)
 - [ADR-0033 Full SIS Competitive MVP Release Program](adr/0033-full-sis-competitive-mvp-release-program.md)

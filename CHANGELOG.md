@@ -6,6 +6,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-12
+
+### Added
+
+- Nocturne dark design system adopted app-wide, replacing the light SIS palette: retuned token layer (`src/styles/tokens.css`, `src/app/globals.css`, `tailwind.config.ts`), restyled shared UI primitives (`Button`, `Badge`, `Table`, `Tabs`), the sidebar's left accent inset mark on the active nav item, and reskinned the login page, root error boundary, and two admin pages that had inline hex styles.
+- Feature Inventory Audit and MVP Evaluation at `docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md` — the current authoritative, code-verified feature-completeness reference. Confirms the full Core Academic Loop (academic years/periods, course catalog, programs, program curriculum, course sections, student program membership, section enrollment, student progress, grade entry, transcript entries, student groups) is built end-to-end with real Postgres-backed logic, admin UI, and tests.
+- Architecture diagrams (Mermaid) in `docs/architecture.md`: system/repository boundary, request security boundary (Supabase auth → RLS), Core Academic Loop entity graph, and the admissions-to-conversion flow.
+- OneRoster decision history at `docs/integrations/oneroster-decision-history.md`, recording that OneRoster is the ratified Academy/LMS exchange standard, that an Academy-side implementation was briefly merged then reverted the same day because the work belongs in ChurchCore LMS, and where to recover it from git history if needed.
+- Idempotent enrollment conversion: `PostgresEnrollmentConversionRepository.convert()` now reuses an existing student profile, program enrollment, or period registration when a conversion is retried after a partial failure, instead of throwing or inserting conflicting rows; a repeat request with a different idempotency key now returns the existing result instead of throwing `AcademyConflictError`.
+
+### Changed
+
+- Bumped package metadata from `0.9.0` to `0.10.0`.
+- Upgraded ~30 npm dependencies to their latest compatible versions (React 19.3, Next.js 16.3.5, Supabase JS/SSR, Radix UI, Stripe 22.6.2, Zod, react-hook-form, etc.).
+- **Migrated Tailwind CSS 3 → 4.** `postcss.config.mjs` now uses `@tailwindcss/postcss`; `globals.css` uses `@import "tailwindcss"` with a `@config` compatibility pointer to the existing `tailwind.config.ts`, preserving the full token/color/radius/shadow customization built for Nocturne without a config rewrite. Removed the unused `darkMode` config key (no toggle exists; the app is dark-only).
+- Bumped `tsconfig.json` `target` from `ES2017` to `ES2020` (needed for `s`-flag regexes already in the test suite; a safe modernization given `engines.node >= 24`).
+- `docs/product/product-context.md`: corrected the "Current Honest State" table, which had gone stale and wrongly claimed six Core Academic Loop modules "do not exist" (they shipped 2026-07-09); struck through the now-obsolete "What NOT to Build Yet" entries for Guardian portal, Student PWA, billing, attendance, reporting, and ShepherdAI, with pointers to the audit.
+- `docs/project-status.md`: points to the 2026-09-12 audit as the authoritative reference; added the Core Academic Loop items and Nocturne redesign to "Implemented And Verified."
+- `CLAUDE.md`: corrected the Stack section, which incorrectly said "Mantine 7" — this codebase has never had a Mantine dependency; it uses Tailwind CSS + Radix UI + the Nocturne design system.
+- `README.md`: version bump, Tailwind CSS 4 badge, links to the feature audit and OneRoster decision history.
+
+### Fixed
+
+- `@react-pdf/renderer`'s transitive dependency chain (`@react-pdf/textkit` → `@react-pdf/hyphenate`) had drifted to a version with a broken package `exports` map (missing a `require` condition), breaking transcript/aid-letter PDF generation under a fresh install. Pinned `@react-pdf/render`, `@react-pdf/layout`, and `@react-pdf/textkit` via `package.json` `overrides` to the last known-good versions.
+- `src/lib/stripe.ts`: pinned Stripe API version string was stale relative to the `stripe` SDK's expected literal type (`2026-05-27.dahlia` → `2026-08-26.dahlia`).
+- 65 pre-existing TypeScript errors across 22 test files, surfaced (not caused) by the Next.js 16.3.5 typecheck change covering files it previously didn't fully check. Included real bugs: a missing `alumni_relations` academy role and a missing `platform_admin`-gated actor case, several stale test fixtures left behind by the institution-mode-pack and capability-enforcement work (missing `covenantRecords`/`supportedModes`/`periodType` fields, wrong enum literals), and a battery of mock-typing gaps in Node's `mock.fn()` usage. Fixed all of them at the source rather than suppressing with `@ts-ignore`.
+- A runtime test regression introduced and caught during the above: `academic-calendar/__tests__/calendar-crud.test.ts`'s shared term fixture used `periodType: "semester"`, which the real `getActiveTerm()` query (filters on `period_type = 'term'`) never matches — corrected to `"term"`.
+- `docs/product/product-context.md`'s "What NOT to Build Yet" list contradicted its own "Current Honest State" table (e.g. listing Guardian portal and Student PWA as not-yet-built while `docs/project-status.md` and the code showed them working); reconciled.
+
+### External Gates
+
+No change to release posture. Billing, financial aid, communications, and LMS provider activation remain built-but-externally-gated per `docs/project-status.md`; regulated/federal aid remains a separate compliance gate.
+
 ## [0.9.0] - 2026-06-30
 
 ### Added (Capability enforcement and institution settings)

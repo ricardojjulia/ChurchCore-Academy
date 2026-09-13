@@ -13,7 +13,7 @@ import {
 } from "@/modules/admissions/types";
 import { AcademyAuditEventInput } from "@/modules/audit/types";
 
-interface DocumentRepository {
+export interface DocumentRepository {
   createDocumentType(input: CreateDocumentTypeInput): Promise<DocumentType>;
   findDocumentTypeById(
     tenantId: string,
@@ -60,11 +60,11 @@ interface DocumentRepository {
   ): Promise<Array<{ documentTypeId: string; name: string }>>;
 }
 
-interface AuditRepository {
+export interface AuditRepository {
   append(input: AcademyAuditEventInput): Promise<unknown>;
 }
 
-interface StorageProvider {
+export interface StorageProvider {
   generateUploadUrl(
     path: string,
     mimeType: string,

@@ -17,6 +17,7 @@ describe("fetchCapabilitySet", () => {
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: true,
+      covenantRecords: false,
     };
 
     const mockClient = {
@@ -59,6 +60,7 @@ describe("withCapabilityContext", () => {
       lmsRosterSync: true,
       lmsGradeReturn: true,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     const mockClient = {
