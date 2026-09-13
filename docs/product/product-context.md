@@ -93,7 +93,9 @@ When the context is set, all underlying screens (student lists, enrollment views
 
 ## Current Honest State
 
-The following actually works end-to-end (admin can complete the workflow in the browser):
+**Last verified: 2026-09-12 by full code-level audit — see `docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md` for methodology and evidence.** The table below previously claimed several Core Academic Loop items "do not exist"; that was stale (they shipped 2026-07-09 and the table was never updated). Treat the audit doc as the canonical reference going forward — if this table and the audit ever disagree again, trust the audit and re-verify against code, not either document.
+
+The full Core Academic Loop (steps 1–10 above) is implemented, with real Postgres-backed modules, admin UI, and tests for every step:
 
 | Feature | Status |
 |---------|--------|
@@ -103,22 +105,19 @@ The following actually works end-to-end (admin can complete the workflow in the 
 | Context Picker — persistent year + period selector in admin header | Working (browser-verified 2026-07-03) |
 | Course Catalog — create, edit, archive, activate courses | Working (browser-verified 2026-07-03) |
 | Program Management — create, edit, archive, detail page | Working (browser-verified 2026-07-03) |
+| Program Curriculum — required courses versioned by entry year | Working (`src/modules/program-curriculum`, embedded in `/admin/programs/[id]`) |
+| Course Sections — create/edit within a Period | Working (`/admin/sections` + `SectionFormDialog`, not read-only) |
+| Student Program Membership — enroll student in a program with entry year | Working (`src/modules/student-program-memberships`, dialog on student detail) |
+| Section Enrollment — enroll a student in sections within a period | Working (`src/modules/student-section-enrollments`, dialog on student detail) |
+| Student progress against program requirements | Working (`src/modules/student-program-progress`, card on student detail) |
+| Grade entry | Working (`src/modules/grading-records`, `/admin/gradebook`, `/faculty/gradebook`) |
+| Transcript entries (immutable snapshot) | Working (`src/modules/transcript-entries`, `/admin/transcripts`) — test coverage thinner than comparable modules (6 tests) |
+| Student Groups (cohorts) | Working (browser-verified 2026-07-09) |
 | Student list (read-only) | Working |
 | Student detail — academic record, ShepherdAI, sections, relationships | Working |
 | People & Roles — institution settings tiles | Working |
 
-The following has code and mutations but **no working UI**:
-
-| Feature | Status |
-|---------|--------|
-| Course sections — create/assign to periods | Read-only list only; no create/edit UI |
-| Program Curriculum — required courses versioned by entry year | Does not exist |
-| Student Program Membership — enroll student in a program with entry year | Does not exist |
-| Section Enrollment — enroll a student in sections within a period | Does not exist |
-| Student progress against program requirements | Does not exist |
-| Grade entry | Does not exist |
-| Transcript entries | Does not exist |
-| Student Groups (cohorts) | Working (browser-verified 2026-07-09) |
+**Open verification gap:** every step above is independently verified, but nobody has walked the complete 12-step chain in one browser session in a single sitting. That remains the highest-value next verification task per this document's own Definition of Done.
 
 ---
 
@@ -224,17 +223,19 @@ The Academy ↔ ChurchCore LMS integration contract covers:
 
 The following are explicitly out of scope until the Core Academic Loop (steps 1–10 above) works completely:
 
+**Updated 2026-09-12:** several items below were listed as out of scope on the assumption that their prerequisites (grade/progress data, enrollment data, academic records) didn't exist yet. Per the 2026-09-12 feature inventory audit (`docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md`), those prerequisites are now built, and so are the dependent features — they are no longer "not yet built," they are built-but-externally-gated or built-and-live. See the audit for exact status per item. Struck through below; not deleted, so the reasoning trail stays visible.
+
 - Bulk import of students, courses, or programs
-- Live ChurchCore LMS roster sync execution against production providers (sandbox evidence and operator approval are still required)
-- ShepherdAI recommendations for academic progress (needs grade and progress data first)
-- Guardian portal (needs working enrollment data first)
-- Student PWA (needs working academic record first)
-- Financial management, billing, or tuition
-- Attendance tracking
-- FERPA consent management UI
-- Reporting or analytics exports
-- Multi-campus management
-- Accreditation compliance workflows
+- Live ChurchCore LMS roster sync execution against production providers (sandbox evidence and operator approval are still required — this remains correctly gated)
+- ~~ShepherdAI recommendations for academic progress~~ — built and working (deterministic, per audit)
+- ~~Guardian portal~~ — built and working, scoped to guardian relationships
+- ~~Student PWA~~ — built and working, all 11 promised surfaces
+- ~~Financial management, billing, or tuition~~ — built (ledger, manual payment, Stripe boundary); live settlement still requires external approval
+- ~~Attendance tracking~~ — built and working, no gate
+- FERPA consent management UI — not covered by the 2026-09-12 audit; status unverified, do not assume either way
+- ~~Reporting or analytics exports~~ — built (CSV export, IPEDS foundation); IPEDS explicitly self-disclaimed as "review-required," not a certified filing
+- Multi-campus management — not covered by the 2026-09-12 audit; status unverified
+- Accreditation compliance workflows — not covered by the 2026-09-12 audit; status unverified
 
 ---
 

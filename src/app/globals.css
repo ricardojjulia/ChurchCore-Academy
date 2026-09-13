@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 html {
   color-scheme: dark;
@@ -56,7 +55,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  @apply focus-ring;
+  @apply outline-2 outline-ring outline-offset-2 rounded;
 }
 
 /* See src/styles/ for admin, student-pwa, and shared CSS */

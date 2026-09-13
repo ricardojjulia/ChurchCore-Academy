@@ -169,7 +169,7 @@ function mockRepository(): TuitionScheduleRepository & {
           (i) =>
             i.tenant_id === tenantId &&
             i.status === "pending" &&
-            String(i.due_date) < asOfString,
+            String(i.due_date) < String(asOfString),
         );
         marked.forEach((i) => {
           i.status = "overdue";

@@ -13,7 +13,8 @@ export type AcademyRole =
   | "teacher"
   | "professor"
   | "student"
-  | "guardian";
+  | "guardian"
+  | "alumni_relations";
 
 export type PlatformRole = "platform_staff" | "platform_admin";
 

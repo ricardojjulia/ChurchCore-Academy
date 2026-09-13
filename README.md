@@ -13,11 +13,12 @@
   [![Next.js](https://img.shields.io/badge/Next.js-16-111827)](https://nextjs.org/)
   [![React](https://img.shields.io/badge/React-19-149ECA)](https://react.dev/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6)](https://www.typescriptlang.org/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4)](https://tailwindcss.com/)
   [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3FCF8E)](https://supabase.com/)
 </div>
 
 > [!IMPORTANT]
-> Current version: `0.9.0`. ChurchCore Academy is a controlled-pilot candidate for core SIS workflows. Institution capability flags are now enforced at the API layer — mode-pack configuration has runtime effect. The codebase has the Academy-owned implementation for Moodle and Canvas integration, but production provider activation remains an external release gate requiring sandbox evidence, tenant approval, rollback review, and provider owner signoff.
+> Current version: `0.10.0`. ChurchCore Academy is a controlled-pilot candidate for core SIS workflows. Institution capability flags are now enforced at the API layer — mode-pack configuration has runtime effect. The codebase has the Academy-owned implementation for Moodle and Canvas integration, but production provider activation remains an external release gate requiring sandbox evidence, tenant approval, rollback review, and provider owner signoff. See the [Feature Inventory Audit](docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) for the current code-verified completeness reference — the Core Academic Loop (academic years/periods, course catalog, programs, program curriculum, course sections, student program membership, section enrollment, student progress, grade entry, transcript entries, student groups) is fully built end-to-end.
 
 ## What This Software Does
 
@@ -50,6 +51,7 @@ The product currently covers:
 
 Authoritative status docs:
 
+- [Feature Inventory Audit and MVP Evaluation](docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current code-verified completeness reference
 - [Project Status](docs/project-status.md)
 - [Factory Roadmap](docs/product/factory-roadmap.md)
 - [Controlled Pilot Release Notes](docs/releases/2026-06-21-controlled-pilot-release-notes.md)
@@ -98,7 +100,7 @@ Core architectural rules:
 | Layer | Technology |
 | --- | --- |
 | Web application | Next.js 16 App Router, React 19, TypeScript 6 |
-| UI | Custom React components, Radix primitives, Tailwind/CSS utilities, Lucide icons |
+| UI | Custom React components, Radix primitives, Tailwind CSS 4, Lucide icons — Nocturne dark design system |
 | Data and identity | Supabase Auth, PostgreSQL, Row Level Security |
 | Database access | `pg`, request-scoped transactions, SQL migrations |
 | Testing | Node test runner with `tsx` |
@@ -211,6 +213,7 @@ docs/superpowers/        Approved design specs and implementation plans
 - [Factory Roadmap](docs/product/factory-roadmap.md)
 - [Software Factory](docs/software-factory.md)
 - [LMS Provider Strategy](docs/lms-dual-provider-strategy.md)
+- [OneRoster Decision History](docs/integrations/oneroster-decision-history.md)
 - [ShepherdAI Academy](docs/shepherd-ai-academy.md)
 - [Authentication and Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
 - [Authenticated Role Walkthrough Evidence](docs/acceptance/authenticated-role-walkthrough-evidence.md)

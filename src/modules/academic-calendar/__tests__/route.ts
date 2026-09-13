@@ -1,10 +1,10 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { asAcademyDatabase, withAcademyDatabaseContext, AcademyDatabase } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademicPeriodLifecycleService } from "@/modules/academic-calendar/period-lifecycle-service";
 import { PostgresAcademicPeriodRepository } from "@/modules/academic-calendar/postgres-period-repository";
 import { AuditService } from "@/modules/audit/service";
-import { PostgresAuditRepository } from "@/modules/audit/postgres-repository";
+import { PostgresAuditRepository, AcademyAuditQuery } from "@/modules/audit/postgres-repository";
 
 export async function PATCH(
   request: Request,
@@ -21,9 +21,9 @@ export async function PATCH(
     }
 
     return withAcademyDatabaseContext(actor, async (client) => {
-      const db = asAcademyDatabase(client);
+      const db = asAcademyDatabase<AcademyDatabase>(client);
       const periodRepo = new PostgresAcademicPeriodRepository(db, actor.tenantId);
-      const auditRepo = new PostgresAuditRepository(db);
+      const auditRepo = new PostgresAuditRepository(asAcademyDatabase<AcademyAuditQuery>(client));
       const auditService = new AuditService(auditRepo);
       const service = new AcademicPeriodLifecycleService(db, periodRepo, auditService);
 

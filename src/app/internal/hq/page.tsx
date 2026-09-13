@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -344,6 +345,7 @@ async function readResponseError(response: Response) {
 }
 
 export default function HQPage() {
+  const router = useRouter();
   const hasPublicSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
@@ -669,7 +671,7 @@ export default function HQPage() {
 
   async function signOut() {
     await supabase?.auth.signOut();
-    window.location.href = "/login";
+    router.push("/login");
   }
 
   const sessionList = historyFilter === "all" ? sessions : sessions.filter((s) => s.agent_id === historyFilter);

@@ -17,6 +17,7 @@ describe("assertCapability", () => {
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     assert.doesNotThrow(() => {
@@ -37,6 +38,7 @@ describe("assertCapability", () => {
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     assert.throws(
@@ -60,6 +62,7 @@ describe("assertCapability", () => {
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     try {
@@ -84,6 +87,7 @@ describe("assertCapability", () => {
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     try {

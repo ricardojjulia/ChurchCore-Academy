@@ -167,7 +167,7 @@ describe("user-context-repository", () => {
         code: "TY2026",
         startsOn: "2026-01-01",
         endsOn: "2026-12-31",
-        calendarSystem: "semester",
+        calendarSystem: "academic_year",
       },
       db,
     );
@@ -204,7 +204,7 @@ describe("user-context-repository", () => {
         code: "TY2027",
         startsOn: "2027-01-01",
         endsOn: "2027-12-31",
-        calendarSystem: "semester",
+        calendarSystem: "academic_year",
       },
       db,
     );
@@ -248,7 +248,7 @@ describe("user-context-repository", () => {
         code: "TAY01",
         startsOn: "2026-01-01",
         endsOn: "2026-12-31",
-        calendarSystem: "semester",
+        calendarSystem: "academic_year",
       },
       db,
     );
@@ -260,7 +260,7 @@ describe("user-context-repository", () => {
         code: "TBY01",
         startsOn: "2026-01-01",
         endsOn: "2026-12-31",
-        calendarSystem: "semester",
+        calendarSystem: "academic_year",
       },
       db,
     );
