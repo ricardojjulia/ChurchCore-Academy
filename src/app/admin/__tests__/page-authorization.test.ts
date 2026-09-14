@@ -127,6 +127,15 @@ test("root page still unconditionally redirects to /admin (documents the loop ri
   assert.match(source, /redirect\(["']\/admin["']\)/);
 });
 
+test("platform demo-feedback route stays outside the /admin layout gate", async () => {
+  const source = await readPage("src/app/settings/demo-feedback/page.tsx");
+  assert.match(
+    source,
+    /export \{ default, dynamic \} from ["']@\/app\/admin\/settings\/demo-feedback\/page["'];?/,
+  );
+  assert.doesNotMatch(source, /redirect\(["']\/admin\/settings\/demo-feedback["']\)/);
+});
+
 test("admin error boundary distinguishes an authorization denial from a real error", async () => {
   const source = await readPage("src/app/admin/error.tsx");
   assert.match(source, /Forbidden/);

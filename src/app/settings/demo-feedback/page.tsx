@@ -1,4 +1,1 @@
-import { redirect } from "next/navigation";
-export default function LegacyRedirect() {
-  redirect("/admin/settings/demo-feedback");
-}
+export { default, dynamic } from "@/app/admin/settings/demo-feedback/page";
