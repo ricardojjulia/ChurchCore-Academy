@@ -208,6 +208,21 @@ export function createMockDb(): AcademyQueryClient {
         if (personId === "student-2" && tenantId === "tenant-a") {
           return { rows: [{ display_name: "Jane Student" }] };
         }
+        if (personId === "advisor-1" && tenantId === "tenant-a") {
+          return { rows: [{ display_name: "Dr. Smith" }] };
+        }
+        if (personId === "faculty-1" && tenantId === "tenant-a") {
+          return { rows: [{ display_name: "Prof. Faculty" }] };
+        }
+        if (personId === "institution_admin-1" && tenantId === "tenant-a") {
+          return { rows: [{ display_name: "Admin User" }] };
+        }
+        if (personId === "admin-1" && tenantId === "tenant-a") {
+          return { rows: [{ display_name: "Admin User" }] };
+        }
+        if (personId === "faculty-evaluator" && tenantId === "tenant-a") {
+          return { rows: [{ display_name: "Faculty Evaluator" }] };
+        }
         if (personId === "tenant-b-student" && tenantId === "tenant-a") {
           return { rows: [] };
         }
@@ -356,7 +371,7 @@ export function createMockDb(): AcademyQueryClient {
         return { rows: [] };
       }
 
-      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+      if (text.includes("from public.academy_people p") && text.includes("coalesce(prac.total_hours")) {
         // Formation summary query
         const tenantId = values![0] as string;
         if (tenantId === "tenant-a") {
@@ -371,6 +386,8 @@ export function createMockDb(): AcademyQueryClient {
             total_practicum_hours: "10.5",
             milestone_count: "2",
             evaluation_count: "1",
+            endorsed_practicum_hours: "10.5",
+            endorsed_milestone_count: "2",
             formation_advisor_person_id: assignment1?.advisorId ?? null,
             formation_advisor_name: assignment1 ? "Dr. Advisor" : null,
           });

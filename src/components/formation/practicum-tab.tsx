@@ -27,9 +27,10 @@ interface PracticumTabProps {
   studentId: string;
   sessions: PracticumSession[];
   canEndorse: boolean;
+  canRecord: boolean;
 }
 
-export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabProps) {
+export function PracticumTab({ studentId, sessions, canEndorse, canRecord }: PracticumTabProps) {
   const [hours, setHours] = useState("");
   const [siteName, setSiteName] = useState("");
   const [supervisorName, setSupervisorName] = useState("");
@@ -179,6 +180,7 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
         </CardContent>
       </Card>
 
+      {canRecord && (
       <Card className="ops-panel">
         <CardHeader>
           <CardTitle>Log New Practicum Session</CardTitle>
@@ -244,6 +246,7 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
           </form>
         </CardContent>
       </Card>
+      )}
 
       <Dialog open={endorseDialogOpen} onOpenChange={setEndorseDialogOpen}>
         <DialogContent>

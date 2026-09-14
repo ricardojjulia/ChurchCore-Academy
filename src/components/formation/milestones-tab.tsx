@@ -28,6 +28,7 @@ interface MilestonesTabProps {
   studentId: string;
   milestones: FaithMilestone[];
   canEndorse: boolean;
+  canRecord: boolean;
 }
 
 const milestoneTypeOptions = [
@@ -39,7 +40,7 @@ const milestoneTypeOptions = [
   { value: "custom", label: "Custom" },
 ];
 
-export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesTabProps) {
+export function MilestonesTab({ studentId, milestones, canEndorse, canRecord }: MilestonesTabProps) {
   const [milestoneType, setMilestoneType] = useState("");
   const [customTypeLabel, setCustomTypeLabel] = useState("");
   const [milestoneDate, setMilestoneDate] = useState("");
@@ -186,6 +187,7 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
         </CardContent>
       </Card>
 
+      {canRecord && (
       <Card className="ops-panel">
         <CardHeader>
           <CardTitle>Record New Milestone</CardTitle>
@@ -242,6 +244,7 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
           </form>
         </CardContent>
       </Card>
+      )}
 
       <Dialog open={endorseDialogOpen} onOpenChange={setEndorseDialogOpen}>
         <DialogContent>

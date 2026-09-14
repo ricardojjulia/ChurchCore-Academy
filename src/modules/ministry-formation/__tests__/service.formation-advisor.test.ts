@@ -289,7 +289,7 @@ test("listStudentsWithFormationSummary formationComplete is null when student ha
   // Create a mock DB that returns a student with zero formation activity
   const mockDb = {
     async query(text: string, values?: unknown[]) {
-      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+      if (text.includes("from public.academy_people p") && text.includes("coalesce(prac.total_hours")) {
         const tenantId = values![0] as string;
         if (tenantId === "tenant-a") {
           return {
@@ -300,6 +300,8 @@ test("listStudentsWithFormationSummary formationComplete is null when student ha
               total_practicum_hours: "0",
               milestone_count: "0",
               evaluation_count: "0",
+              endorsed_practicum_hours: "0",
+              endorsed_milestone_count: "0",
               formation_advisor_person_id: null,
               formation_advisor_name: null,
             }],
@@ -332,7 +334,7 @@ test("listStudentsWithFormationSummary formationComplete is false when student h
   // Create a mock DB that returns a student with some activity but below threshold
   const mockDb = {
     async query(text: string, values?: unknown[]) {
-      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+      if (text.includes("from public.academy_people p") && text.includes("coalesce(prac.total_hours")) {
         const tenantId = values![0] as string;
         if (tenantId === "tenant-a") {
           return {
@@ -343,6 +345,8 @@ test("listStudentsWithFormationSummary formationComplete is false when student h
               total_practicum_hours: "50",
               milestone_count: "1",
               evaluation_count: "2",
+              endorsed_practicum_hours: "50",
+              endorsed_milestone_count: "1",
               formation_advisor_person_id: null,
               formation_advisor_name: null,
             }],
@@ -375,7 +379,7 @@ test("listStudentsWithFormationSummary formationComplete is true when student me
   // Create a mock DB that returns a student meeting the completion threshold
   const mockDb = {
     async query(text: string, values?: unknown[]) {
-      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+      if (text.includes("from public.academy_people p") && text.includes("coalesce(prac.total_hours")) {
         const tenantId = values![0] as string;
         if (tenantId === "tenant-a") {
           return {
@@ -386,6 +390,8 @@ test("listStudentsWithFormationSummary formationComplete is true when student me
               total_practicum_hours: "120",
               milestone_count: "5",
               evaluation_count: "3",
+              endorsed_practicum_hours: "120",
+              endorsed_milestone_count: "5",
               formation_advisor_person_id: "advisor-1",
               formation_advisor_name: "Dr. Advisor",
             }],
@@ -418,7 +424,7 @@ test("listStudentsWithFormationSummary formationComplete boundary case: exactly 
   // Create a mock DB that returns a student exactly at the threshold
   const mockDb = {
     async query(text: string, values?: unknown[]) {
-      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+      if (text.includes("from public.academy_people p") && text.includes("coalesce(prac.total_hours")) {
         const tenantId = values![0] as string;
         if (tenantId === "tenant-a") {
           return {
@@ -429,6 +435,8 @@ test("listStudentsWithFormationSummary formationComplete boundary case: exactly 
               total_practicum_hours: "100",
               milestone_count: "3",
               evaluation_count: "1",
+              endorsed_practicum_hours: "100",
+              endorsed_milestone_count: "3",
               formation_advisor_person_id: null,
               formation_advisor_name: null,
             }],
@@ -448,6 +456,54 @@ test("listStudentsWithFormationSummary formationComplete boundary case: exactly 
   assert.strictEqual(student.totalPracticumHours, 100, "Should have exactly 100 practicum hours");
   assert.strictEqual(student.milestoneCount, 3, "Should have exactly 3 milestones");
   assert.strictEqual(student.formationComplete, true, "formationComplete should be true when student exactly meets threshold (100 hours and 3 milestones)");
+});
+
+test("listStudentsWithFormationSummary formationComplete is false when totals meet the threshold but none of it is endorsed", async () => {
+  // Regression test: formationComplete must be judged against endorsed/released work only.
+  // A student with 100 draft practicum hours and 3 draft milestones has met the RAW total
+  // but none of it has been reviewed — this must not show as "Complete".
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const mockDb = {
+    async query(text: string, values?: unknown[]) {
+      if (text.includes("from public.academy_people p") && text.includes("coalesce(prac.total_hours")) {
+        const tenantId = values![0] as string;
+        if (tenantId === "tenant-a") {
+          return {
+            rows: [{
+              student_person_id: "student-all-draft",
+              full_name: "All Draft Student",
+              email: "alldraft@example.com",
+              total_practicum_hours: "100",
+              milestone_count: "3",
+              evaluation_count: "0",
+              endorsed_practicum_hours: "0",
+              endorsed_milestone_count: "0",
+              formation_advisor_person_id: null,
+              formation_advisor_name: null,
+            }],
+          };
+        }
+      }
+      return { rows: [] };
+    },
+    release() {},
+  } as AcademyQueryClient;
+
+  const summaries = await listStudentsWithFormationSummary(actor, mockDb);
+
+  const student = summaries.find((s) => s.studentPersonId === "student-all-draft");
+  assert.ok(student, "Should find student with all-draft records");
+  assert.strictEqual(student.totalPracticumHours, 100, "Raw total still reflects draft hours for display");
+  assert.strictEqual(
+    student.formationComplete,
+    false,
+    "formationComplete must be false when the 100hrs/3-milestone threshold is only met by unendorsed records",
+  );
 });
 
 test("getStudentFormationRecord includes advisor when assigned", async () => {

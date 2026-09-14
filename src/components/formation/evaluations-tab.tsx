@@ -25,10 +25,10 @@ interface EvaluationsTabProps {
   studentId: string;
   evaluations: FormationEvaluation[];
   canEndorse: boolean;
+  canRecord: boolean;
 }
 
-export function EvaluationsTab({ studentId, evaluations, canEndorse }: EvaluationsTabProps) {
-  const [evaluatorName, setEvaluatorName] = useState("");
+export function EvaluationsTab({ studentId, evaluations, canEndorse, canRecord }: EvaluationsTabProps) {
   const [rubricLabel, setRubricLabel] = useState("");
   const [evaluationDate, setEvaluationDate] = useState("");
   const [spiritualMaturity, setSpiritualMaturity] = useState("");
@@ -54,7 +54,6 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentPersonId: studentId,
-          evaluatorNameSnapshot: evaluatorName,
           rubricLabel,
           scores,
           pastoralNotes: pastoralNotes || undefined,
@@ -68,7 +67,6 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
       }
 
       // Reset form and reload
-      setEvaluatorName("");
       setRubricLabel("");
       setEvaluationDate("");
       setSpiritualMaturity("");
@@ -185,6 +183,7 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
         </CardContent>
       </Card>
 
+      {canRecord && (
       <Card className="ops-panel">
         <CardHeader>
           <CardTitle>Record New Evaluation</CardTitle>
@@ -196,25 +195,15 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
                 {error}
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <label className="grid gap-2 text-sm font-medium">
-                <span>Evaluator Name</span>
-                <Input
-                  value={evaluatorName}
-                  onChange={(e) => setEvaluatorName(e.target.value)}
-                  required
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-medium">
-                <span>Evaluation Date</span>
-                <Input
-                  type="date"
-                  value={evaluationDate}
-                  onChange={(e) => setEvaluationDate(e.target.value)}
-                  required
-                />
-              </label>
-            </div>
+            <label className="grid gap-2 text-sm font-medium">
+              <span>Evaluation Date</span>
+              <Input
+                type="date"
+                value={evaluationDate}
+                onChange={(e) => setEvaluationDate(e.target.value)}
+                required
+              />
+            </label>
             <label className="grid gap-2 text-sm font-medium">
               <span>Rubric Label</span>
               <Input
@@ -265,6 +254,7 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
           </form>
         </CardContent>
       </Card>
+      )}
 
       <Dialog open={endorseDialogOpen} onOpenChange={setEndorseDialogOpen}>
         <DialogContent>

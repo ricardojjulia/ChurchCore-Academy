@@ -14,9 +14,17 @@ import { EvaluationsTab } from "@/components/formation/evaluations-tab";
 import { FormationAdvisorTab } from "@/components/formation/formation-advisor-tab";
 import { getStudentFormationRecord, getFormationPageMetadata } from "@/modules/ministry-formation/service";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import type { AcademyRole } from "@/modules/academy-auth/policy";
 import type { StudentFormationRecordStaffView } from "@/modules/ministry-formation/types";
 
 export const dynamic = "force-dynamic";
+
+// Mirrors service.ts's practicumRecorderRoles/milestoneRecorderRoles/evaluationRecorderRoles —
+// every formationViewerRoles member can reach this page, but recording is narrower per action,
+// so each tab's "record new" form must only render for actors who can actually submit it.
+const PRACTICUM_RECORDER_ROLES: AcademyRole[] = ["faculty", "advisor", "institution_admin", "registrar"];
+const MILESTONE_RECORDER_ROLES: AcademyRole[] = ["institution_admin", "registrar", "academic_admin"];
+const EVALUATION_RECORDER_ROLES: AcademyRole[] = ["faculty", "advisor", "institution_admin"];
 
 export default async function FormationDetailPage({
   params,
@@ -104,6 +112,9 @@ export default async function FormationDetailPage({
 
   const canEndorse = actor.roles.includes("institution_admin");
   const canAssignAdvisor = actor.roles.includes("institution_admin") || actor.roles.includes("academic_admin");
+  const canRecordPracticum = actor.roles.some((role) => PRACTICUM_RECORDER_ROLES.includes(role));
+  const canRecordMilestone = actor.roles.some((role) => MILESTONE_RECORDER_ROLES.includes(role));
+  const canRecordEvaluation = actor.roles.some((role) => EVALUATION_RECORDER_ROLES.includes(role));
 
   return (
     <AdminShell
@@ -133,6 +144,7 @@ export default async function FormationDetailPage({
             studentId={studentId}
             sessions={record.practicumSessions}
             canEndorse={canEndorse}
+            canRecord={canRecordPracticum}
           />
         </TabsContent>
 
@@ -141,6 +153,7 @@ export default async function FormationDetailPage({
             studentId={studentId}
             milestones={record.milestones}
             canEndorse={canEndorse}
+            canRecord={canRecordMilestone}
           />
         </TabsContent>
 
@@ -149,6 +162,7 @@ export default async function FormationDetailPage({
             studentId={studentId}
             evaluations={record.evaluations}
             canEndorse={canEndorse}
+            canRecord={canRecordEvaluation}
           />
         </TabsContent>
 

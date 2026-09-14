@@ -73,7 +73,9 @@ export default async function GraduationPage() {
       student.allProgramCoursesCompleted ||
       (progressPct !== null && progressPct >= Math.round(GRADUATION_CREDIT_THRESHOLD * 100));
 
-    const formation = formationSummaries.find((f) => f.studentPersonId === student.id);
+    // formationSummaries key on academy_people.id (studentPersonId); StudentRecord.id is the
+    // academy_student_profiles row's own id, a different identifier — match on personId instead.
+    const formation = formationSummaries.find((f) => f.studentPersonId === student.personId);
     const formationComplete = formation?.formationComplete ?? null;
 
     return { student, program, progressPct, holds, readyToReview, formationComplete };

@@ -63,7 +63,6 @@ test("registrar+reviewer cap: registrar with reviewer role must NOT see pastoral
     adminActor,
     {
       studentPersonId: "student-1",
-      evaluatorNameSnapshot: "Admin User",
       rubricLabel: "Formation Progress",
       scores: { ministry: 4, theology: 5 },
       evaluationDate: "2026-06-20",
@@ -128,7 +127,6 @@ test("evaluator-without-reviewer sees own pastoral notes", async () => {
     facultyEvaluatorActor,
     {
       studentPersonId: "student-1",
-      evaluatorNameSnapshot: "Faculty Evaluator",
       rubricLabel: "Ministry Readiness",
       scores: { preaching: 4 },
       evaluationDate: "2026-06-21",
@@ -165,7 +163,6 @@ test("non-evaluator faculty does NOT see another evaluator's pastoral notes", as
     adminActor,
     {
       studentPersonId: "student-1",
-      evaluatorNameSnapshot: "Admin User",
       rubricLabel: "Spiritual Formation",
       scores: { discipleship: 5 },
       evaluationDate: "2026-06-22",

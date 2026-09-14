@@ -12,7 +12,6 @@ export async function POST(request: Request) {
       assertCapability(capabilities, "ministryFormation");
       return recordFormationEvaluation(actor, {
         studentPersonId: String(body.studentPersonId),
-        evaluatorNameSnapshot: String(body.evaluatorNameSnapshot),
         rubricLabel: String(body.rubricLabel),
         scores: body.scores as Record<string, number>,
         pastoralNotes: body.pastoralNotes ? String(body.pastoralNotes) : undefined,

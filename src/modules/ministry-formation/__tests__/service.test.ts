@@ -206,7 +206,6 @@ test("recordFormationEvaluation success with pastoralNotes", async () => {
     actor,
     {
       studentPersonId: "student-1",
-      evaluatorNameSnapshot: "Dr. Smith",
       rubricLabel: "Pastoral Character",
       scores: { humility: 4, leadership: 5 },
       pastoralNotes: "Shows great promise in ministry.",
@@ -215,6 +214,8 @@ test("recordFormationEvaluation success with pastoralNotes", async () => {
     db,
   );
 
+  // evaluatorNameSnapshot is derived server-side from the authenticated actor (advisor-1),
+  // never trusted from client input — proves a caller can't spoof a different evaluator's name.
   assert.equal(result.evaluatorNameSnapshot, "Dr. Smith");
   assert.equal(result.pastoralNotes, "Shows great promise in ministry.");
   assert.deepEqual(result.scores, { humility: 4, leadership: 5 });
@@ -313,7 +314,6 @@ test("getStudentFormationRecord student view does not include pastoralNotes", as
     { userId: "advisor-1", tenantId: "tenant-a", roles: ["advisor"] },
     {
       studentPersonId: "student-1",
-      evaluatorNameSnapshot: "Dr. Smith",
       rubricLabel: "Character Assessment",
       scores: { integrity: 5 },
       pastoralNotes: "Confidential pastoral observation.",
@@ -356,7 +356,6 @@ test("getStudentFormationRecord withdrawn student, admin role returns full recor
     actor,
     {
       studentPersonId: "withdrawn-student",
-      evaluatorNameSnapshot: "Dr. Jones",
       rubricLabel: "Final Review",
       scores: { completion: 3 },
       pastoralNotes: "Student withdrew mid-term.",
@@ -432,7 +431,6 @@ test("ACCEPTANCE: pastoralNotes never appears in student-facing response with re
     { userId: "advisor-1", tenantId: "tenant-a", roles: ["advisor"] },
     {
       studentPersonId: "student-1",
-      evaluatorNameSnapshot: "Rev. Dr. Thompson",
       rubricLabel: "Spiritual Formation Assessment",
       scores: { humility: 5, servantLeadership: 4, biblicalKnowledge: 5 },
       pastoralNotes: "Student shows deep spiritual sensitivity. Recommend continued mentoring in pastoral care contexts. Private concern: struggles with public speaking anxiety.",
@@ -530,7 +528,6 @@ test("ACCEPTANCE: guardian role has no access to formation records", async () =>
         guardianActor,
         {
           studentPersonId: "student-1",
-          evaluatorNameSnapshot: "Guardian Attempt",
           rubricLabel: "Test",
           scores: { test: 1 },
           evaluationDate: "2026-09-01",

@@ -142,20 +142,108 @@ async function verifySchemaColumns() {
 async function verifyFacultyScopingQuery() {
   const pool = getDatabasePool();
 
-  // Verify the faculty scoping query shape doesn't throw (no actual data needed)
-  // This is the query from listStudentsWithFormationSummary lines 674-681
-  const testQuery = `
+  // Verify the faculty/advisor scoping EXISTS-subquery shapes don't throw (no actual data
+  // needed). These are the scopeWhere clauses built in listStudentsWithFormationSummary and
+  // the equivalent inline checks in getStudentFormationRecord.
+  const facultyScopeQuery = `
     select 1
     from public.academy_people p
-    inner join public.academy_course_section_registrations reg
-      on reg.student_person_id = p.id and reg.tenant_id = p.tenant_id
-    inner join public.academy_course_sections sec
-      on sec.id = reg.course_section_id and sec.tenant_id = reg.tenant_id
-    where p.tenant_id = $1 and sec.primary_instructor_id = $2
+    where p.tenant_id = $1 and exists (
+      select 1 from public.academy_course_section_registrations reg
+      join public.academy_course_sections sec
+        on sec.id = reg.course_section_id and sec.tenant_id = reg.tenant_id
+      where reg.student_person_id = p.id and reg.tenant_id = p.tenant_id
+        and sec.primary_instructor_id = $2
+    )
     limit 0
   `;
+  await pool.query(facultyScopeQuery, [tenantId, "test-instructor-id"]);
 
-  await pool.query(testQuery, [tenantId, "test-instructor-id"]);
+  const advisorScopeQuery = `
+    select 1
+    from public.academy_people p
+    where p.tenant_id = $1 and exists (
+      select 1 from public.ministry_formation_advisor_assignments fa
+      where fa.student_person_id = p.id and fa.tenant_id = p.tenant_id
+        and fa.advisor_person_id = $2
+    )
+    limit 0
+  `;
+  await pool.query(advisorScopeQuery, [tenantId, "test-advisor-id"]);
+}
+
+async function verifyFormationSummaryAggregationQuery() {
+  const pool = getDatabasePool();
+
+  // Verify the pre-aggregated summary query (listStudentsWithFormationSummary) is valid
+  // against the real schema, including the academy_student_profiles join that excludes
+  // non-student people, and prove with real inserted data (rolled back) that practicum
+  // hours are no longer inflated by joining multiple one-to-many child tables directly —
+  // this is the exact class of bug (SQL fan-out via multiple LEFT JOINs) that shipped
+  // undetected in an earlier round, caught only by manual review, not by the mock-DB suite.
+  await pool.query("BEGIN");
+  try {
+    const personResult = await pool.query<{ id: string }>(
+      `select p.id from public.academy_people p
+       join public.academy_student_profiles sp on sp.person_id = p.id and sp.tenant_id = p.tenant_id
+       where p.tenant_id = $1 limit 1`,
+      [tenantId],
+    );
+    if (personResult.rows.length === 0) {
+      throw new Error(`No student found in tenant ${tenantId} for formation summary aggregation test`);
+    }
+    const studentId = personResult.rows[0].id;
+
+    await pool.query(
+      `insert into public.ministry_practicum_sessions
+        (tenant_id, student_person_id, recorded_by_person_id, hours, site_name, supervisor_name, session_date, status)
+       values
+        ($1, $2, $2, 10.00, 'Verify Site A', 'Verify Sup A', current_date, 'endorsed'),
+        ($1, $2, $2, 20.00, 'Verify Site B', 'Verify Sup B', current_date, 'endorsed')`,
+      [tenantId, studentId],
+    );
+    await pool.query(
+      `insert into public.ministry_faith_milestones
+        (tenant_id, student_person_id, recorded_by_person_id, milestone_type, milestone_date, status)
+       values
+        ($1, $2, $2, 'baptism', current_date, 'endorsed'),
+        ($1, $2, $2, 'ordination', current_date, 'endorsed'),
+        ($1, $2, $2, 'custom', current_date, 'endorsed')`,
+      [tenantId, studentId],
+    );
+
+    const result = await pool.query<{ total_practicum_hours: string; milestone_count: string }>(
+      `select
+         coalesce(prac.total_hours, 0) as total_practicum_hours,
+         coalesce(mile.milestone_count, 0) as milestone_count
+       from public.academy_people p
+       inner join public.academy_student_profiles stu
+         on stu.person_id = p.id and stu.tenant_id = p.tenant_id
+       left join (
+         select student_person_id, tenant_id, sum(hours) as total_hours
+         from public.ministry_practicum_sessions
+         group by student_person_id, tenant_id
+       ) prac on prac.student_person_id = p.id and prac.tenant_id = p.tenant_id
+       left join (
+         select student_person_id, tenant_id, count(*) as milestone_count
+         from public.ministry_faith_milestones
+         group by student_person_id, tenant_id
+       ) mile on mile.student_person_id = p.id and mile.tenant_id = p.tenant_id
+       where p.id = $1 and p.tenant_id = $2`,
+      [studentId, tenantId],
+    );
+
+    const row = result.rows[0];
+    if (!row || Number(row.total_practicum_hours) !== 30 || Number(row.milestone_count) !== 3) {
+      throw new Error(
+        `Formation summary aggregation is wrong: expected 30 practicum hours / 3 milestones, ` +
+        `got ${row?.total_practicum_hours} hours / ${row?.milestone_count} milestones ` +
+        `(a mismatch here means the multi-LEFT-JOIN fan-out bug has regressed)`,
+      );
+    }
+  } finally {
+    await pool.query("ROLLBACK");
+  }
 }
 
 async function verifyReviewerRoleGrant() {
@@ -245,12 +333,14 @@ async function verifyForeignKeyConstraints() {
 async function main() {
   const columnsResult = await verifySchemaColumns();
   await verifyFacultyScopingQuery();
+  await verifyFormationSummaryAggregationQuery();
   await verifyReviewerRoleGrant();
   const constraintsResult = await verifyForeignKeyConstraints();
 
   console.log(`Ministry formation schema verification passed:`);
   console.log(`- ${columnsResult.verified} required columns verified`);
-  console.log(`- Faculty scoping query shape verified (no SQL errors)`);
+  console.log(`- Faculty/advisor scoping EXISTS-subquery shapes verified (no SQL errors)`);
+  console.log(`- Formation summary aggregation verified correct with real inserted data (30 hours / 3 milestones, not fan-out-inflated)`);
   console.log(`- Reviewer role grant INSERT shape verified (no SQL errors)`);
   console.log(`- ${constraintsResult.verified} FK constraints verified and tested`);
 }

@@ -313,7 +313,6 @@ export async function recordFormationEvaluation(
   actor: AcademyActor,
   input: {
     studentPersonId: string;
-    evaluatorNameSnapshot: string;
     rubricLabel: string;
     scores: Record<string, number>;
     pastoralNotes?: string;
@@ -324,10 +323,14 @@ export async function recordFormationEvaluation(
   assertEvaluationRecorder(actor);
 
   const studentPersonId = requireText(input.studentPersonId, "studentPersonId");
-  const evaluatorNameSnapshot = requireText(
-    input.evaluatorNameSnapshot,
-    "evaluatorNameSnapshot",
-  );
+  // Derived server-side from the authenticated actor, never trusted from client input — a
+  // client-supplied evaluatorNameSnapshot would let a recorder attribute their own evaluation
+  // to a different person's name while evaluatorPersonId still records their real identity.
+  const evaluatorNameResult = await db.query(
+    `select display_name from academy_people where id = $1 and tenant_id = $2`,
+    [actor.userId, actor.tenantId],
+  ) as { rows: Array<{ display_name: string }> };
+  const evaluatorNameSnapshot = evaluatorNameResult.rows[0]?.display_name ?? "Unknown Evaluator";
   const rubricLabel = requireText(input.rubricLabel, "rubricLabel");
   const evaluationDate = validateDate(input.evaluationDate, "evaluationDate");
   const pastoralNotes = input.pastoralNotes?.trim() || null;
@@ -674,30 +677,36 @@ export async function listStudentsWithFormationSummary(
   const isAdvisor = actor.roles.includes("advisor");
   const isRegistrar = actor.roles.includes("registrar");
 
-  let scopeJoin = "";
+  // Scoping is expressed as an EXISTS subquery, not a JOIN, so it can never multiply the
+  // one-row-per-student result (a JOIN to a one-to-many table like section registrations
+  // would otherwise fan out, inflating every aggregate computed afterward).
   let scopeWhere = "";
 
   if (isReviewer) {
     // Full tenant scope
     scopeWhere = "p.tenant_id = $1";
   } else if (isFaculty) {
-    // Faculty scoping: students in their sections
-    // ADR-0026 pattern: academy_course_sections.primary_instructor_id = actor.userId
-    scopeJoin = `
-      inner join public.academy_course_section_registrations reg
-        on reg.student_person_id = p.id and reg.tenant_id = p.tenant_id
-      inner join public.academy_course_sections sec
-        on sec.id = reg.course_section_id and sec.tenant_id = reg.tenant_id
+    // Faculty scoping: students in their sections. ADR-0026 pattern:
+    // academy_course_sections.primary_instructor_id = actor.userId
+    scopeWhere = `
+      p.tenant_id = $1 and exists (
+        select 1 from public.academy_course_section_registrations reg
+        join public.academy_course_sections sec
+          on sec.id = reg.course_section_id and sec.tenant_id = reg.tenant_id
+        where reg.student_person_id = p.id and reg.tenant_id = p.tenant_id
+          and sec.primary_instructor_id = $2
+      )
     `;
-    scopeWhere = "p.tenant_id = $1 and sec.primary_instructor_id = $2";
   } else if (isAdvisor && !isFaculty) {
-    // Advisor scoping: students where they are the formation advisor
-    // ADR-0045 interpretation: use ministry_formation_advisor_assignments for advisee-scoping
-    scopeJoin = `
-      inner join public.ministry_formation_advisor_assignments fa
-        on fa.student_person_id = p.id and fa.tenant_id = p.tenant_id
+    // Advisor scoping: students where they are the formation advisor.
+    // ADR-0045 interpretation: use ministry_formation_advisor_assignments for advisee-scoping.
+    scopeWhere = `
+      p.tenant_id = $1 and exists (
+        select 1 from public.ministry_formation_advisor_assignments fa
+        where fa.student_person_id = p.id and fa.tenant_id = p.tenant_id
+          and fa.advisor_person_id = $2
+      )
     `;
-    scopeWhere = "p.tenant_id = $1 and fa.advisor_person_id = $2";
   } else if (isRegistrar) {
     // Registrar scoping: endorsed-only records across full tenant
     scopeWhere = "p.tenant_id = $1";
@@ -706,31 +715,63 @@ export async function listStudentsWithFormationSummary(
     throw new AcademyAuthorizationError("Forbidden formation summary access.");
   }
 
+  // Each child table is pre-aggregated to at most one row per (student_person_id, tenant_id)
+  // in its own subquery before being joined — avoids the classic multi-LEFT-JOIN fan-out where
+  // joining several one-to-many tables off the same parent row multiplies every other table's
+  // rows by each other, silently inflating sum(ps.hours) whenever a student has more than one
+  // milestone or evaluation.
   const query = `
     select
        p.id as student_person_id,
        p.display_name as full_name,
        p.email,
-       coalesce(sum(ps.hours), 0) as total_practicum_hours,
-       count(distinct fm.id) as milestone_count,
-       count(distinct fe.id) as evaluation_count,
+       coalesce(prac.total_hours, 0) as total_practicum_hours,
+       coalesce(mile.milestone_count, 0) as milestone_count,
+       coalesce(evals.evaluation_count, 0) as evaluation_count,
+       coalesce(prac_endorsed.total_hours, 0) as endorsed_practicum_hours,
+       coalesce(mile_endorsed.milestone_count, 0) as endorsed_milestone_count,
        aa.advisor_person_id as formation_advisor_person_id,
        adv.display_name as formation_advisor_name
      from public.academy_people p
-     ${scopeJoin}
-     left join public.ministry_practicum_sessions ps
-       on ps.student_person_id = p.id and ps.tenant_id = p.tenant_id ${isRegistrar ? "and ps.status = 'endorsed'" : ""}
-     left join public.ministry_faith_milestones fm
-       on fm.student_person_id = p.id and fm.tenant_id = p.tenant_id ${isRegistrar ? "and fm.status = 'endorsed'" : ""}
-     left join public.ministry_formation_evaluations fe
-       on fe.student_person_id = p.id and fe.tenant_id = p.tenant_id ${isRegistrar ? "and fe.status = 'endorsed'" : ""}
+     inner join public.academy_student_profiles stu
+       on stu.person_id = p.id and stu.tenant_id = p.tenant_id
+     left join (
+       select student_person_id, tenant_id, sum(hours) as total_hours
+       from public.ministry_practicum_sessions
+       where true ${isRegistrar ? "and status = 'endorsed'" : ""}
+       group by student_person_id, tenant_id
+     ) prac on prac.student_person_id = p.id and prac.tenant_id = p.tenant_id
+     left join (
+       select student_person_id, tenant_id, count(*) as milestone_count
+       from public.ministry_faith_milestones
+       where true ${isRegistrar ? "and status = 'endorsed'" : ""}
+       group by student_person_id, tenant_id
+     ) mile on mile.student_person_id = p.id and mile.tenant_id = p.tenant_id
+     left join (
+       select student_person_id, tenant_id, count(*) as evaluation_count
+       from public.ministry_formation_evaluations
+       where true ${isRegistrar ? "and status = 'endorsed'" : ""}
+       group by student_person_id, tenant_id
+     ) evals on evals.student_person_id = p.id and evals.tenant_id = p.tenant_id
+     left join (
+       select student_person_id, tenant_id, sum(hours) as total_hours
+       from public.ministry_practicum_sessions
+       where status = 'endorsed'
+       group by student_person_id, tenant_id
+     ) prac_endorsed on prac_endorsed.student_person_id = p.id and prac_endorsed.tenant_id = p.tenant_id
+     left join (
+       select student_person_id, tenant_id, count(*) as milestone_count
+       from public.ministry_faith_milestones
+       where status = 'endorsed'
+       group by student_person_id, tenant_id
+     ) mile_endorsed on mile_endorsed.student_person_id = p.id and mile_endorsed.tenant_id = p.tenant_id
      left join public.ministry_formation_advisor_assignments aa
        on aa.student_person_id = p.id and aa.tenant_id = p.tenant_id
      left join public.academy_people adv
        on adv.id = aa.advisor_person_id and adv.tenant_id = aa.tenant_id
      where ${scopeWhere}
-       and (ps.id is not null or fm.id is not null or fe.id is not null or aa.id is not null)
-     group by p.id, p.display_name, p.email, aa.advisor_person_id, adv.display_name
+       and (prac.total_hours is not null or mile.milestone_count is not null
+            or evals.evaluation_count is not null or aa.id is not null)
      order by p.display_name
   `;
 
@@ -743,6 +784,8 @@ export async function listStudentsWithFormationSummary(
     total_practicum_hours: string;
     milestone_count: string;
     evaluation_count: string;
+    endorsed_practicum_hours: string;
+    endorsed_milestone_count: string;
     formation_advisor_person_id: string | null;
     formation_advisor_name: string | null;
   }> };
@@ -751,17 +794,22 @@ export async function listStudentsWithFormationSummary(
     const totalPracticumHours = parseFloat(row.total_practicum_hours);
     const milestoneCount = parseInt(row.milestone_count, 10);
     const evaluationCount = parseInt(row.evaluation_count, 10);
+    // The completion threshold must always be judged against endorsed/released work only,
+    // independent of what's displayed to this particular viewer's role — a student with 100
+    // unendorsed practicum hours and 3 draft milestones is not "Complete," just unreviewed.
+    const endorsedPracticumHours = parseFloat(row.endorsed_practicum_hours);
+    const endorsedMilestoneCount = parseInt(row.endorsed_milestone_count, 10);
 
     // TODO: replace hardcoded formation-completion thresholds (100 hrs / 3 milestones) with per-program requirements once that config exists
     let formationComplete: boolean | null;
     if (totalPracticumHours === 0 && milestoneCount === 0 && evaluationCount === 0) {
       // No formation activity at all — not applicable
       formationComplete = null;
-    } else if (totalPracticumHours >= 100 && milestoneCount >= 3) {
-      // Meets completion threshold
+    } else if (endorsedPracticumHours >= 100 && endorsedMilestoneCount >= 3) {
+      // Meets completion threshold using endorsed/released records only
       formationComplete = true;
     } else {
-      // Has formation activity but does not meet threshold
+      // Has formation activity but does not meet the endorsed-only threshold
       formationComplete = false;
     }
 
