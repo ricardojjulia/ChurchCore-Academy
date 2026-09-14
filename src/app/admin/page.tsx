@@ -83,6 +83,7 @@ async function countTenantRows(
 
 export default async function AdminDashboard() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
   const user = await getCurrentUser();
   const institution = await getInstitutionProfile(actor.tenantId);
 

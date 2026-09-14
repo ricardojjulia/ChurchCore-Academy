@@ -8,6 +8,7 @@ import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows
 
 export default async function FacultyPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"]);
 
   const { suggestions, workflows } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));

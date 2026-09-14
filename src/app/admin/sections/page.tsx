@@ -43,6 +43,7 @@ function periodLabel(periods: { id: string; name: string; academicYearName: stri
 
 export default async function SectionsRosterPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
 
   const {
     sections,

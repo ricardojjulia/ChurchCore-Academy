@@ -8,11 +8,11 @@ import {
   asAcademyDatabase,
   withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
-import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
 import {
   AdmissionsDatabase,
   PostgresAdmissionsRepository,
 } from "@/modules/admissions/postgres-repository";
+import { requireActor } from "@/lib/require-actor";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,8 @@ function daysSince(iso?: string) {
 }
 
 export default async function AdmissionsDecisionsPage() {
-  const actor = await resolveAcademyActorForServerComponent();
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
   const applications = await withAcademyDatabaseContext(actor, (client) =>
     new PostgresAdmissionsRepository(

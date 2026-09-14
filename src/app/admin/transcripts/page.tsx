@@ -9,6 +9,8 @@ import { TranscriptIssuanceForm } from "@/components/admin/transcript-issuance-f
 export const dynamic = "force-dynamic";
 
 export default async function TranscriptsPage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -18,7 +20,6 @@ export default async function TranscriptsPage() {
     redirect("/login");
   }
 
-  const actor = await requireActor();
   const students = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(
       `select

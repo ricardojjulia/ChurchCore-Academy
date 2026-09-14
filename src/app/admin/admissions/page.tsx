@@ -10,10 +10,13 @@ import {
   PostgresAdmissionsRepository,
 } from "@/modules/admissions/postgres-repository";
 import { loadAdmissionsPageState } from "@/modules/admissions/page-state";
+import { requireActor } from "@/lib/require-actor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdmissionsPage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
   const state = await loadAdmissionsPageState({
     resolveActor: resolveAcademyActorForServerComponent,
     loadApplications: (actor) =>

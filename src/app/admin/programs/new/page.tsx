@@ -3,8 +3,11 @@ import { BookOpen } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ProgramCreateForm } from "@/components/program-create-form";
+import { requireActor } from "@/lib/require-actor";
 
-export default function NewProgramPage() {
+export default async function NewProgramPage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
   return (
     <AdminShell
       activeSection="academics"

@@ -14,6 +14,8 @@ import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows
 export const dynamic = "force-dynamic";
 
 export default async function WorkflowQueuePage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -22,8 +24,6 @@ export default async function WorkflowQueuePage() {
     await supabase.auth.signOut();
     redirect("/login");
   }
-
-  const actor = await requireActor();
 
   const { suggestions, workflows, administrators } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new ShepherdAiPostgresRepository(

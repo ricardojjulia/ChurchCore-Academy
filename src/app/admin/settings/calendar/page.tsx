@@ -3,11 +3,13 @@ import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase, type AcademyDatabase } from "@/lib/academy-database-context";
 import { PostgresAcademicPeriodRepository } from "@/modules/academic-calendar/postgres-period-repository";
 import { CalendarClient } from "./CalendarClient";
+import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 
 export const dynamic = "force-dynamic";
 
 export default async function AcademicCalendarSettingsPage() {
   const actor = await requireActor();
+  assertInstitutionConfigAccess(actor, actor.tenantId, "read");
 
   const { periods, years } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new PostgresAcademicPeriodRepository(asAcademyDatabase<AcademyDatabase>(client), actor.tenantId);

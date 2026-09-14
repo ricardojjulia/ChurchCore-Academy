@@ -20,6 +20,8 @@ export default async function WatchlistPage({
 }: {
   searchParams: Promise<{ signalType?: string; urgency?: string; page?: string }>;
 }) {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -29,7 +31,6 @@ export default async function WatchlistPage({
     redirect("/login");
   }
 
-  const actor = await requireActor();
   const params = await searchParams;
   const page = params.page ? Number(params.page) : 1;
   const pageSize = 50;

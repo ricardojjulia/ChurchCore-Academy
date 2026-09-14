@@ -10,6 +10,7 @@ import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { loadPeopleReviewModel } from "@/modules/people/review-loader";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import {
   AccountLinkReviewItem,
   PeopleCoverageReviewItem,
@@ -29,9 +30,9 @@ interface PersonRow {
 }
 
 export default async function PeopleSettingsPage() {
-  redirect("/admin/people");
-
   const actor = await requireActor();
+  assertInstitutionConfigAccess(actor, actor.tenantId, "read");
+  redirect("/admin/people");
   const [model, people] = await Promise.all([
     loadPeopleReviewModel(new AcademyPeopleRepository(), actor.tenantId),
     withAcademyDatabaseContext(actor, async (client) => {

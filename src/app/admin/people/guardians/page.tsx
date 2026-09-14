@@ -32,6 +32,7 @@ function statusVariant(status: string) {
 
 export default async function GuardiansListPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"]);
 
   const guardians = await withAcademyDatabaseContext(actor, async (client) => {
     try {
