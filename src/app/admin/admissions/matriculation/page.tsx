@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdmissionsEnrollmentPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "admissions"]);
 
   const { applications, students } = await withAcademyDatabaseContext(actor, async (client) => {
     const [apps, allStudents] = await Promise.all([
