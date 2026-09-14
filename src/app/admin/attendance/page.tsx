@@ -24,7 +24,7 @@ interface SectionAttendanceSummary {
 
 export default async function AdminAttendancePage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
