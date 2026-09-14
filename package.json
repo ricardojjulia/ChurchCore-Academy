@@ -63,6 +63,7 @@
     "@react-pdf/textkit": "6.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "24.13.2",
     "@types/pg": "^8.23.1",

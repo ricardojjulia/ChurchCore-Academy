@@ -3,7 +3,7 @@ import {
   AcademyIdentityRecord,
   PlatformSessionRepository,
 } from "@/modules/academy-auth/session-resolver";
-import { AcademyRole, PlatformRole } from "@/modules/academy-auth/policy";
+import { ACADEMY_ROLES, AcademyRole, PlatformRole } from "@/modules/academy-auth/policy";
 
 interface IdentityRow {
   external_subject: string;
@@ -23,20 +23,7 @@ interface IdentityQuery {
   ): Promise<{ rows: IdentityRow[] | PlatformRoleRow[] }>;
 }
 
-const academyRoles = new Set<AcademyRole>([
-  "institution_admin",
-  "dean",
-  "registrar",
-  "academic_admin",
-  "admissions",
-  "applicant",
-  "advisor",
-  "faculty",
-  "teacher",
-  "professor",
-  "student",
-  "guardian",
-]);
+const academyRoles = new Set<AcademyRole>(ACADEMY_ROLES);
 
 const platformRoles = new Set<PlatformRole>([
   "platform_staff",

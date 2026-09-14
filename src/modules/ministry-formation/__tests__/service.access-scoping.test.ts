@@ -4,6 +4,7 @@ import type { AcademyActor } from "@/modules/academy-auth/policy";
 import {
   getStudentFormationRecord,
   recordFormationEvaluation,
+  logPracticumSession,
 } from "@/modules/ministry-formation/service";
 import { createMockDb } from "./service.test-helpers";
 
@@ -92,6 +93,49 @@ test("registrar+reviewer cap: registrar with reviewer role must NOT see pastoral
     recordJson,
     /private family crisis/,
     "Registrar must not see sensitive pastoral observations even with reviewer role",
+  );
+});
+
+test("institution_admin+registrar dual role: draft practicum sessions remain visible, not hidden by the registrar endorsed-only cap", async () => {
+  // Reproduces a real bug found via live browser testing: the demo institution_admin persona
+  // also holds the registrar role. The endorsed-only visibility filter applied `isRegistrar`
+  // without checking whether the actor ALSO had full reviewer access, so a dual-role
+  // institution_admin+registrar actor had every draft practicum session they had just logged
+  // silently hidden from them — including from themselves, making endorsement impossible.
+  const dualRoleActor: AcademyActor = {
+    userId: "admin-registrar-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin", "registrar"],
+  };
+
+  const db = createMockDb();
+
+  await logPracticumSession(
+    dualRoleActor,
+    {
+      studentPersonId: "student-1",
+      hours: 12.5,
+      siteName: "Regression Test Site",
+      supervisorName: "Regression Test Supervisor",
+      sessionDate: "2026-01-15",
+    },
+    db,
+  );
+
+  const record = await getStudentFormationRecord(dualRoleActor, "student-1", db);
+
+  assert.ok(record, "Record should exist");
+  const recordJson = JSON.stringify(record);
+
+  assert.match(
+    recordJson,
+    /Regression Test Site/,
+    "institution_admin who also holds registrar must still see their own draft practicum session",
+  );
+  assert.match(
+    recordJson,
+    /"status":"draft"/,
+    "the session must still report its real draft status, not be filtered away",
   );
 });
 
