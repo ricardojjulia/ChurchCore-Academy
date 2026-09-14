@@ -3,52 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { getStudentFormationRecord } from "@/modules/ministry-formation/service";
 import { Briefcase, Award, FileCheck } from "lucide-react";
+import type { StudentFormationRecord } from "@/modules/ministry-formation/types";
 
 export const dynamic = "force-dynamic";
-
-interface PracticumSession {
-  id: string;
-  hours: number;
-  siteName: string;
-  supervisorName: string;
-  sessionDate: string;
-  reflectionNote?: string;
-  status: "draft" | "endorsed";
-  isTransferCredit: boolean;
-  sourceInstitution?: string;
-}
-
-interface FaithMilestone {
-  id: string;
-  milestoneType: string;
-  customTypeLabel?: string;
-  milestoneDate: string;
-  witnessNames?: string[];
-  institutionNotes?: string;
-  status: "draft" | "endorsed";
-  isTransferCredit: boolean;
-  sourceInstitution?: string;
-}
-
-interface FormationEvaluationStudentView {
-  id: string;
-  evaluatorNameSnapshot: string;
-  rubricLabel: string;
-  scores: Record<string, number>;
-  status: "draft" | "endorsed";
-  evaluationDate: string;
-}
-
-interface StudentFormationRecord {
-  tenantId: string;
-  studentPersonId: string;
-  practicumSessions: PracticumSession[];
-  milestones: FaithMilestone[];
-  evaluations: FormationEvaluationStudentView[];
-  formationAdvisorPersonId?: string;
-  formationAdvisorName?: string;
-}
 
 const milestoneTypeLabels: Record<string, string> = {
   baptism: "Baptism",
@@ -62,20 +22,10 @@ const milestoneTypeLabels: Record<string, string> = {
 export default async function StudentFormationPage() {
   const actor = await requireActor();
 
-  const requestHeaders = await (await import("next/headers")).headers();
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/academy/ministry-formation/${actor.userId}`,
-    {
-      headers: {
-        cookie: requestHeaders.get("cookie") || "",
-      },
-    },
-  );
-
-  let record: StudentFormationRecord | null = null;
-  if (response.ok) {
-    record = await response.json();
-  }
+  const record = await withAcademyDatabaseContext(actor, async (client) => {
+    const formationRecord = await getStudentFormationRecord(actor, actor.userId, client);
+    return formationRecord as StudentFormationRecord | null;
+  });
 
   if (!record) {
     return (

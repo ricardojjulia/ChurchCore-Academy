@@ -81,13 +81,25 @@ export interface FormationSummary {
   evaluationCount: number;
   formationAdvisorPersonId?: string;
   formationAdvisorName?: string;
+  /**
+   * Formation completion status:
+   * - `null`: Not applicable (no formation activity at all)
+   * - `true`: Meets completion threshold
+   * - `false`: Has formation activity but does not meet threshold
+   */
+  formationComplete: boolean | null;
 }
 
+/**
+ * Student-facing formation record.
+ * Contains only endorsed practicum sessions and milestones (no drafts).
+ * Evaluations omit pastoralNotes.
+ */
 export interface StudentFormationRecord {
   tenantId: string;
   studentPersonId: string;
-  practicumSessions: PracticumSession[];
-  milestones: FaithMilestone[];
+  practicumSessions: PracticumSession[]; // endorsed only
+  milestones: FaithMilestone[]; // endorsed only
   evaluations: FormationEvaluationStudentView[];
   formationAdvisorPersonId?: string;
   formationAdvisorName?: string;
@@ -101,4 +113,14 @@ export interface StudentFormationRecordStaffView {
   evaluations: FormationEvaluation[];
   formationAdvisorPersonId?: string;
   formationAdvisorName?: string;
+}
+
+export interface EligibleAdvisor {
+  id: string;
+  displayName: string;
+}
+
+export interface FormationPageMetadata {
+  studentDisplayName: string;
+  eligibleAdvisors: EligibleAdvisor[];
 }

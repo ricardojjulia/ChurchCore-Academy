@@ -5,37 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
 
 export const dynamic = "force-dynamic";
 
-interface FormationSummary {
-  studentPersonId: string;
-  fullName: string;
-  email: string;
-  totalPracticumHours: number;
-  milestoneCount: number;
-  evaluationCount: number;
-  formationAdvisorPersonId?: string;
-  formationAdvisorName?: string;
-}
-
 export default async function FormationListPage() {
-  await requireActor();
+  const actor = await requireActor();
 
-  const requestHeaders = await (await import("next/headers")).headers();
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/academy/ministry-formation/students`,
-    {
-      headers: {
-        cookie: requestHeaders.get("cookie") || "",
-      },
-    },
-  );
-
-  let students: FormationSummary[] = [];
-  if (response.ok) {
-    students = await response.json();
-  }
+  const students = await withAcademyDatabaseContext(actor, async (client) => {
+    return await listStudentsWithFormationSummary(actor, client);
+  });
 
   const totalHours = students.reduce((sum, s) => sum + s.totalPracticumHours, 0);
   const totalMilestones = students.reduce((sum, s) => sum + s.milestoneCount, 0);

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
@@ -9,52 +9,11 @@ import { PracticumTab } from "@/components/formation/practicum-tab";
 import { MilestonesTab } from "@/components/formation/milestones-tab";
 import { EvaluationsTab } from "@/components/formation/evaluations-tab";
 import { FormationAdvisorTab } from "@/components/formation/formation-advisor-tab";
+import { getStudentFormationRecord, getFormationPageMetadata } from "@/modules/ministry-formation/service";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import type { StudentFormationRecordStaffView } from "@/modules/ministry-formation/types";
 
 export const dynamic = "force-dynamic";
-
-interface StudentFormationRecordStaffView {
-  tenantId: string;
-  studentPersonId: string;
-  practicumSessions: Array<{
-    id: string;
-    hours: number;
-    siteName: string;
-    supervisorName: string;
-    sessionDate: string;
-    reflectionNote?: string;
-    status: "draft" | "endorsed";
-    endorsedByPersonId?: string;
-    endorsedAt?: string;
-    isTransferCredit: boolean;
-    sourceInstitution?: string;
-  }>;
-  milestones: Array<{
-    id: string;
-    milestoneType: string;
-    customTypeLabel?: string;
-    milestoneDate: string;
-    witnessNames?: string[];
-    institutionNotes?: string;
-    status: "draft" | "endorsed";
-    endorsedByPersonId?: string;
-    endorsedAt?: string;
-    isTransferCredit: boolean;
-    sourceInstitution?: string;
-  }>;
-  evaluations: Array<{
-    id: string;
-    evaluatorNameSnapshot: string;
-    rubricLabel: string;
-    scores: Record<string, number>;
-    pastoralNotes?: string;
-    status: "draft" | "endorsed";
-    endorsedByPersonId?: string;
-    endorsedAt?: string;
-    evaluationDate: string;
-  }>;
-  formationAdvisorPersonId?: string;
-  formationAdvisorName?: string;
-}
 
 export default async function FormationDetailPage({
   params,
@@ -64,47 +23,32 @@ export default async function FormationDetailPage({
   const { studentId } = await params;
   const actor = await requireActor();
 
-  const requestHeaders = await (await import("next/headers")).headers();
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/academy/ministry-formation/${studentId}`,
-    {
-      headers: {
-        cookie: requestHeaders.get("cookie") || "",
-      },
-    },
-  );
+  const { record, metadata } = await withAcademyDatabaseContext(actor, async (client) => {
+    try {
+      const [formationRecord, pageMetadata] = await Promise.all([
+        getStudentFormationRecord(actor, studentId, client),
+        getFormationPageMetadata(actor, studentId, client),
+      ]);
 
-  if (!response.ok) {
-    notFound();
-  }
+      if (!formationRecord) {
+        notFound();
+      }
 
-  const record: StudentFormationRecordStaffView = await response.json();
-
-  // Fetch student name for display
-  const studentName = await withAcademyDatabaseContext(actor, async (client) => {
-    const result = await client.query(
-      `select display_name from academy_people where id = $1 and tenant_id = $2`,
-      [studentId, actor.tenantId],
-    ) as { rows: Array<{ display_name: string }> };
-    return result.rows[0]?.display_name || "Student";
-  });
-
-  // Fetch eligible advisors for the person picker
-  const eligibleAdvisors = await withAcademyDatabaseContext(actor, async (client) => {
-    const result = await client.query(
-      `select distinct p.id, p.display_name
-       from academy_people p
-       join academy_person_role_assignments pra
-         on pra.person_id = p.id and pra.tenant_id = p.tenant_id
-       where p.tenant_id = $1
-         and pra.role in ('faculty', 'advisor', 'institution_admin')
-         and pra.status = 'active'
-         and (pra.starts_on is null or pra.starts_on <= current_date)
-         and (pra.ends_on is null or pra.ends_on >= current_date)
-       order by p.display_name`,
-      [actor.tenantId],
-    ) as { rows: Array<{ id: string; display_name: string }> };
-    return result.rows;
+      return {
+        record: formationRecord as StudentFormationRecordStaffView,
+        metadata: pageMetadata,
+      };
+    } catch (error) {
+      if (error instanceof AcademyAuthorizationError) {
+        // If the actor is a student trying to view another student's record, redirect to their own
+        if (actor.roles.includes("student")) {
+          redirect("/student/formation");
+        }
+        // Otherwise, it's a staff member lacking formation-viewer access
+        notFound();
+      }
+      throw error;
+    }
   });
 
   const canEndorse = actor.roles.includes("institution_admin");
@@ -113,7 +57,7 @@ export default async function FormationDetailPage({
     <AdminShell
       activeSection="records"
       eyebrow="Ministry Formation"
-      title={studentName}
+      title={metadata.studentDisplayName}
     >
       <div className="mb-4">
         <Link
@@ -160,7 +104,10 @@ export default async function FormationDetailPage({
           <FormationAdvisorTab
             studentId={studentId}
             currentAdvisorName={record.formationAdvisorName}
-            eligibleAdvisors={eligibleAdvisors}
+            eligibleAdvisors={metadata.eligibleAdvisors.map((a) => ({
+              id: a.id,
+              display_name: a.displayName,
+            }))}
           />
         </TabsContent>
       </Tabs>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Award,
   Bell,
   BookOpen,
   CalendarDays,
@@ -31,6 +32,7 @@ const iconByName = {
   privacy: ShieldCheck,
   account: CreditCard,
   aid: HandCoins,
+  formation: Award,
 };
 
 export function StudentPwaShell({

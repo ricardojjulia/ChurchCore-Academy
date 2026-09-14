@@ -10,6 +10,7 @@ import {
   getStudentFormationRecord,
   assignFormationAdvisor,
   listStudentsWithFormationSummary,
+  getFormationPageMetadata,
 } from "@/modules/ministry-formation/service";
 import { PermanentRecordError } from "@/modules/ministry-formation/errors";
 
@@ -96,7 +97,57 @@ function createMockDb(): AcademyQueryClient {
         return { rows: [] };
       }
 
+      if (text.includes("select status from public.ministry_faith_milestones")) {
+        const recordId = values![0];
+        const record = store.get(recordId as string);
+        if (record) {
+          return { rows: [{ status: (record as { status: string }).status }] };
+        }
+        return { rows: [] };
+      }
+
+      if (text.includes("select status from public.ministry_formation_evaluations")) {
+        const recordId = values![0];
+        const record = store.get(recordId as string);
+        if (record) {
+          return { rows: [{ status: (record as { status: string }).status }] };
+        }
+        return { rows: [] };
+      }
+
       if (text.includes("update public.ministry_practicum_sessions")) {
+        const recordId = values![1];
+        const record = store.get(recordId as string);
+        if (record) {
+          const updated = {
+            ...(record as object),
+            status: "endorsed",
+            endorsed_by_person_id: values![0],
+            endorsed_at: new Date().toISOString(),
+          };
+          store.set(recordId as string, updated);
+          return { rows: [updated] };
+        }
+        return { rows: [] };
+      }
+
+      if (text.includes("update public.ministry_faith_milestones")) {
+        const recordId = values![1];
+        const record = store.get(recordId as string);
+        if (record) {
+          const updated = {
+            ...(record as object),
+            status: "endorsed",
+            endorsed_by_person_id: values![0],
+            endorsed_at: new Date().toISOString(),
+          };
+          store.set(recordId as string, updated);
+          return { rows: [updated] };
+        }
+        return { rows: [] };
+      }
+
+      if (text.includes("update public.ministry_formation_evaluations")) {
         const recordId = values![1];
         const record = store.get(recordId as string);
         if (record) {
@@ -128,20 +179,49 @@ function createMockDb(): AcademyQueryClient {
       }
 
       if (text.includes("select * from public.ministry_practicum_sessions")) {
-        return { rows: [] };
+        const studentId = values![0];
+        const rows = Array.from(store.values()).filter(
+          (record: unknown) =>
+            (record as { student_person_id?: string; hours?: string }).student_person_id === studentId &&
+            (record as { hours?: string }).hours !== undefined,
+        );
+        return { rows };
       }
 
       if (text.includes("select * from public.ministry_faith_milestones")) {
-        return { rows: [] };
+        const studentId = values![0];
+        const rows = Array.from(store.values()).filter(
+          (record: unknown) =>
+            (record as { student_person_id?: string; milestone_type?: string }).student_person_id === studentId &&
+            (record as { milestone_type?: string }).milestone_type !== undefined,
+        );
+        return { rows };
       }
 
       if (text.includes("select * from public.ministry_formation_evaluations")) {
         const studentId = values![0];
         const rows = Array.from(store.values()).filter(
           (record: unknown) =>
-            (record as { student_person_id?: string }).student_person_id === studentId,
+            (record as { student_person_id?: string; evaluator_person_id?: string }).student_person_id === studentId &&
+            (record as { evaluator_person_id?: string }).evaluator_person_id !== undefined,
         );
         return { rows };
+      }
+
+      if (text.includes("select display_name from academy_people")) {
+        const personId = values![0];
+        const tenantId = values![1];
+        // Mock person data for display names
+        if (personId === "student-1" && tenantId === "tenant-a") {
+          return { rows: [{ display_name: "John Student" }] };
+        }
+        if (personId === "student-2" && tenantId === "tenant-a") {
+          return { rows: [{ display_name: "Jane Student" }] };
+        }
+        if (personId === "tenant-b-student" && tenantId === "tenant-a") {
+          return { rows: [] };
+        }
+        return { rows: [] };
       }
 
       if (text.includes("select person_status from public.academy_people")) {
@@ -213,6 +293,28 @@ function createMockDb(): AcademyQueryClient {
               advisor_person_id: assignment.advisorId,
               advisor_name: "Dr. Advisor",
             }],
+          };
+        }
+        return { rows: [] };
+      }
+
+      if (text.includes("select distinct p.id, p.display_name") && text.includes("join academy_person_role_assignments pra")) {
+        // Eligible advisors query
+        const tenantId = values![0] as string;
+        if (tenantId === "tenant-a") {
+          return {
+            rows: [
+              { id: "faculty-1", display_name: "Dr. Faculty" },
+              { id: "advisor-1", display_name: "Dr. Advisor" },
+              { id: "admin-1", display_name: "Admin User" },
+            ],
+          };
+        }
+        if (tenantId === "tenant-b") {
+          return {
+            rows: [
+              { id: "tenant-b-faculty", display_name: "Tenant B Faculty" },
+            ],
           };
         }
         return { rows: [] };
@@ -856,6 +958,177 @@ test("listStudentsWithFormationSummary RBAC rejection", async () => {
   );
 });
 
+test("listStudentsWithFormationSummary formationComplete is null when student has no formation records", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  // Create a mock DB that returns a student with zero formation activity
+  const mockDb = {
+    async query(text: string, values?: unknown[]) {
+      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+        const tenantId = values![0] as string;
+        if (tenantId === "tenant-a") {
+          return {
+            rows: [{
+              student_person_id: "student-no-records",
+              full_name: "No Formation Student",
+              email: "norecords@example.com",
+              total_practicum_hours: "0",
+              milestone_count: "0",
+              evaluation_count: "0",
+              formation_advisor_person_id: null,
+              formation_advisor_name: null,
+            }],
+          };
+        }
+      }
+      return { rows: [] };
+    },
+    release() {},
+  } as AcademyQueryClient;
+
+  const summaries = await listStudentsWithFormationSummary(actor, mockDb);
+
+  assert.ok(summaries.length > 0, "Should return at least one student");
+  const student = summaries.find((s) => s.studentPersonId === "student-no-records");
+  assert.ok(student, "Should find student with no records");
+  assert.strictEqual(student.totalPracticumHours, 0, "Should have 0 practicum hours");
+  assert.strictEqual(student.milestoneCount, 0, "Should have 0 milestones");
+  assert.strictEqual(student.evaluationCount, 0, "Should have 0 evaluations");
+  assert.strictEqual(student.formationComplete, null, "formationComplete should be null when no formation activity exists");
+});
+
+test("listStudentsWithFormationSummary formationComplete is false when student has records but does not meet threshold", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  // Create a mock DB that returns a student with some activity but below threshold
+  const mockDb = {
+    async query(text: string, values?: unknown[]) {
+      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+        const tenantId = values![0] as string;
+        if (tenantId === "tenant-a") {
+          return {
+            rows: [{
+              student_person_id: "student-below-threshold",
+              full_name: "Below Threshold Student",
+              email: "below@example.com",
+              total_practicum_hours: "50",
+              milestone_count: "1",
+              evaluation_count: "2",
+              formation_advisor_person_id: null,
+              formation_advisor_name: null,
+            }],
+          };
+        }
+      }
+      return { rows: [] };
+    },
+    release() {},
+  } as AcademyQueryClient;
+
+  const summaries = await listStudentsWithFormationSummary(actor, mockDb);
+
+  assert.ok(summaries.length > 0, "Should return at least one student");
+  const student = summaries.find((s) => s.studentPersonId === "student-below-threshold");
+  assert.ok(student, "Should find student below threshold");
+  assert.strictEqual(student.totalPracticumHours, 50, "Should have 50 practicum hours");
+  assert.strictEqual(student.milestoneCount, 1, "Should have 1 milestone");
+  assert.strictEqual(student.evaluationCount, 2, "Should have 2 evaluations");
+  assert.strictEqual(student.formationComplete, false, "formationComplete should be false when student has activity but does not meet threshold");
+});
+
+test("listStudentsWithFormationSummary formationComplete is true when student meets threshold", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  // Create a mock DB that returns a student meeting the completion threshold
+  const mockDb = {
+    async query(text: string, values?: unknown[]) {
+      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+        const tenantId = values![0] as string;
+        if (tenantId === "tenant-a") {
+          return {
+            rows: [{
+              student_person_id: "student-complete",
+              full_name: "Complete Student",
+              email: "complete@example.com",
+              total_practicum_hours: "120",
+              milestone_count: "5",
+              evaluation_count: "3",
+              formation_advisor_person_id: "advisor-1",
+              formation_advisor_name: "Dr. Advisor",
+            }],
+          };
+        }
+      }
+      return { rows: [] };
+    },
+    release() {},
+  } as AcademyQueryClient;
+
+  const summaries = await listStudentsWithFormationSummary(actor, mockDb);
+
+  assert.ok(summaries.length > 0, "Should return at least one student");
+  const student = summaries.find((s) => s.studentPersonId === "student-complete");
+  assert.ok(student, "Should find complete student");
+  assert.strictEqual(student.totalPracticumHours, 120, "Should have 120 practicum hours");
+  assert.strictEqual(student.milestoneCount, 5, "Should have 5 milestones");
+  assert.strictEqual(student.evaluationCount, 3, "Should have 3 evaluations");
+  assert.strictEqual(student.formationComplete, true, "formationComplete should be true when student meets threshold (100+ hours and 3+ milestones)");
+});
+
+test("listStudentsWithFormationSummary formationComplete boundary case: exactly at threshold", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  // Create a mock DB that returns a student exactly at the threshold
+  const mockDb = {
+    async query(text: string, values?: unknown[]) {
+      if (text.includes("from public.academy_people p") && text.includes("left join public.ministry_practicum_sessions ps")) {
+        const tenantId = values![0] as string;
+        if (tenantId === "tenant-a") {
+          return {
+            rows: [{
+              student_person_id: "student-exact-threshold",
+              full_name: "Exact Threshold Student",
+              email: "exact@example.com",
+              total_practicum_hours: "100",
+              milestone_count: "3",
+              evaluation_count: "1",
+              formation_advisor_person_id: null,
+              formation_advisor_name: null,
+            }],
+          };
+        }
+      }
+      return { rows: [] };
+    },
+    release() {},
+  } as AcademyQueryClient;
+
+  const summaries = await listStudentsWithFormationSummary(actor, mockDb);
+
+  assert.ok(summaries.length > 0, "Should return at least one student");
+  const student = summaries.find((s) => s.studentPersonId === "student-exact-threshold");
+  assert.ok(student, "Should find student at exact threshold");
+  assert.strictEqual(student.totalPracticumHours, 100, "Should have exactly 100 practicum hours");
+  assert.strictEqual(student.milestoneCount, 3, "Should have exactly 3 milestones");
+  assert.strictEqual(student.formationComplete, true, "formationComplete should be true when student exactly meets threshold (100 hours and 3 milestones)");
+});
+
 test("getStudentFormationRecord includes advisor when assigned", async () => {
   const actor: AcademyActor = {
     userId: "admin-1",
@@ -1091,4 +1364,239 @@ test("ACCEPTANCE: formation status is informational only and does not affect gra
   // evaluateAcademicStanding (in grading-records module) knows nothing about formation
 
   assert.ok(Array.isArray(summaries), "Formation summaries are informational data only");
+});
+
+test("getStudentFormationRecord excludes draft practicum sessions and milestones from student view", async () => {
+  const studentActor: AcademyActor = {
+    userId: "student-1",
+    tenantId: "tenant-a",
+    roles: ["student"],
+  };
+
+  const staffActor: AcademyActor = {
+    userId: "faculty-1",
+    tenantId: "tenant-a",
+    roles: ["faculty"],
+  };
+
+  const adminActor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+
+  // Create a draft practicum session
+  const draftPracticum = await logPracticumSession(
+    staffActor,
+    {
+      studentPersonId: "student-1",
+      hours: 5,
+      siteName: "Test Church",
+      supervisorName: "Rev. Test",
+      sessionDate: "2026-06-15",
+    },
+    db,
+  );
+
+  // Create an endorsed practicum session
+  const endorsedPracticum = await logPracticumSession(
+    staffActor,
+    {
+      studentPersonId: "student-1",
+      hours: 3,
+      siteName: "Endorsed Church",
+      supervisorName: "Rev. Endorsed",
+      sessionDate: "2026-06-20",
+    },
+    db,
+  );
+  await endorseRecord(
+    adminActor,
+    { recordType: "practicum", recordId: endorsedPracticum.id },
+    db,
+  );
+
+  // Create a draft milestone
+  const draftMilestone = await recordMilestone(
+    adminActor,
+    {
+      studentPersonId: "student-1",
+      milestoneType: "baptism",
+      milestoneDate: "2026-05-01",
+    },
+    db,
+  );
+
+  // Create an endorsed milestone
+  const endorsedMilestone = await recordMilestone(
+    adminActor,
+    {
+      studentPersonId: "student-1",
+      milestoneType: "ordination",
+      milestoneDate: "2026-06-01",
+    },
+    db,
+  );
+  await endorseRecord(
+    adminActor,
+    { recordType: "milestone", recordId: endorsedMilestone.id },
+    db,
+  );
+
+  // Fetch as student
+  const studentRecord = await getStudentFormationRecord(studentActor, "student-1", db);
+
+  assert.ok(studentRecord, "Student record should exist");
+
+  // Student should see only endorsed practicum session
+  assert.strictEqual(
+    studentRecord.practicumSessions.length,
+    1,
+    "Student should see exactly 1 endorsed practicum session",
+  );
+  assert.strictEqual(
+    studentRecord.practicumSessions[0].id,
+    endorsedPracticum.id,
+    "Student should see the endorsed practicum session",
+  );
+  assert.strictEqual(
+    studentRecord.practicumSessions[0].status,
+    "endorsed",
+    "Returned practicum session should be endorsed",
+  );
+
+  // Student should see only endorsed milestone
+  assert.strictEqual(
+    studentRecord.milestones.length,
+    1,
+    "Student should see exactly 1 endorsed milestone",
+  );
+  assert.strictEqual(
+    studentRecord.milestones[0].id,
+    endorsedMilestone.id,
+    "Student should see the endorsed milestone",
+  );
+  assert.strictEqual(
+    studentRecord.milestones[0].status,
+    "endorsed",
+    "Returned milestone should be endorsed",
+  );
+
+  // Verify draft records are not present
+  const studentRecordJson = JSON.stringify(studentRecord);
+  assert.ok(
+    !studentRecordJson.includes(draftPracticum.id),
+    "Draft practicum session should not appear in student view",
+  );
+  assert.ok(
+    !studentRecordJson.includes(draftMilestone.id),
+    "Draft milestone should not appear in student view",
+  );
+
+  // Fetch as staff - should see all records
+  const staffRecord = await getStudentFormationRecord(staffActor, "student-1", db);
+
+  assert.ok(staffRecord, "Staff record should exist");
+  assert.strictEqual(
+    staffRecord.practicumSessions.length,
+    2,
+    "Staff should see both draft and endorsed practicum sessions",
+  );
+  assert.strictEqual(
+    staffRecord.milestones.length,
+    2,
+    "Staff should see both draft and endorsed milestones",
+  );
+});
+
+test("getFormationPageMetadata success with formation viewer role", async () => {
+  const actor: AcademyActor = {
+    userId: "faculty-1",
+    tenantId: "tenant-a",
+    roles: ["faculty"],
+  };
+
+  const db = createMockDb();
+  const metadata = await getFormationPageMetadata(actor, "student-1", db);
+
+  assert.ok(metadata, "Metadata should be returned");
+  assert.equal(metadata.studentDisplayName, "John Student", "Student name should match");
+  assert.ok(Array.isArray(metadata.eligibleAdvisors), "Eligible advisors should be an array");
+  assert.ok(metadata.eligibleAdvisors.length > 0, "Should have at least one eligible advisor");
+
+  // Verify structure of advisor records
+  const firstAdvisor = metadata.eligibleAdvisors[0];
+  assert.ok(firstAdvisor.id, "Advisor should have an id");
+  assert.ok(firstAdvisor.displayName, "Advisor should have a displayName");
+});
+
+test("getFormationPageMetadata RBAC rejection for student role", async () => {
+  const actor: AcademyActor = {
+    userId: "student-1",
+    tenantId: "tenant-a",
+    roles: ["student"],
+  };
+
+  const db = createMockDb();
+
+  await assert.rejects(
+    async () => {
+      await getFormationPageMetadata(actor, "student-1", db);
+    },
+    { message: /Forbidden formation page metadata access/i },
+    "Student role must not access formation page metadata",
+  );
+});
+
+test("getFormationPageMetadata RBAC rejection for guardian role", async () => {
+  const actor: AcademyActor = {
+    userId: "guardian-1",
+    tenantId: "tenant-a",
+    roles: ["guardian"],
+  };
+
+  const db = createMockDb();
+
+  await assert.rejects(
+    async () => {
+      await getFormationPageMetadata(actor, "student-1", db);
+    },
+    { message: /Forbidden formation page metadata access/i },
+    "Guardian role must not access formation page metadata",
+  );
+});
+
+test("getFormationPageMetadata cross-tenant isolation for advisors", async () => {
+  const actorTenantA: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const actorTenantB: AcademyActor = {
+    userId: "admin-2",
+    tenantId: "tenant-b",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+
+  // Tenant A should see tenant A advisors
+  const metadataA = await getFormationPageMetadata(actorTenantA, "student-1", db);
+  assert.ok(metadataA.eligibleAdvisors.length > 0, "Tenant A should have advisors");
+
+  // Verify tenant A advisors don't include tenant B people
+  const advisorIdsA = metadataA.eligibleAdvisors.map(a => a.id);
+  assert.ok(!advisorIdsA.includes("tenant-b-faculty"), "Tenant A should not see tenant B advisors");
+  assert.ok(advisorIdsA.includes("faculty-1") || advisorIdsA.includes("advisor-1"), "Tenant A should see its own advisors");
+
+  // Tenant B should see tenant B advisors
+  const metadataB = await getFormationPageMetadata(actorTenantB, "student-2", db);
+
+  // Verify tenant B advisors don't include tenant A people
+  const advisorIdsB = metadataB.eligibleAdvisors.map(a => a.id);
+  assert.ok(!advisorIdsB.includes("faculty-1"), "Tenant B should not see tenant A advisors");
+  assert.ok(!advisorIdsB.includes("advisor-1"), "Tenant B should not see tenant A advisors");
 });

@@ -13,6 +13,7 @@ import type {
   FormationEvaluationStudentView,
   FormationAdvisorAssignment,
   FormationSummary,
+  FormationPageMetadata,
 } from "@/modules/ministry-formation/types";
 import { PermanentRecordError } from "@/modules/ministry-formation/errors";
 
@@ -649,16 +650,36 @@ export async function listStudentsWithFormationSummary(
     formation_advisor_name: string | null;
   }> };
 
-  return result.rows.map((row) => ({
-    studentPersonId: row.student_person_id,
-    fullName: row.full_name,
-    email: row.email ?? "",
-    totalPracticumHours: parseFloat(row.total_practicum_hours),
-    milestoneCount: parseInt(row.milestone_count, 10),
-    evaluationCount: parseInt(row.evaluation_count, 10),
-    formationAdvisorPersonId: row.formation_advisor_person_id ?? undefined,
-    formationAdvisorName: row.formation_advisor_name ?? undefined,
-  }));
+  return result.rows.map((row) => {
+    const totalPracticumHours = parseFloat(row.total_practicum_hours);
+    const milestoneCount = parseInt(row.milestone_count, 10);
+    const evaluationCount = parseInt(row.evaluation_count, 10);
+
+    // TODO: replace hardcoded formation-completion thresholds (100 hrs / 3 milestones) with per-program requirements once that config exists
+    let formationComplete: boolean | null;
+    if (totalPracticumHours === 0 && milestoneCount === 0 && evaluationCount === 0) {
+      // No formation activity at all — not applicable
+      formationComplete = null;
+    } else if (totalPracticumHours >= 100 && milestoneCount >= 3) {
+      // Meets completion threshold
+      formationComplete = true;
+    } else {
+      // Has formation activity but does not meet threshold
+      formationComplete = false;
+    }
+
+    return {
+      studentPersonId: row.student_person_id,
+      fullName: row.full_name,
+      email: row.email ?? "",
+      totalPracticumHours,
+      milestoneCount,
+      evaluationCount,
+      formationAdvisorPersonId: row.formation_advisor_person_id ?? undefined,
+      formationAdvisorName: row.formation_advisor_name ?? undefined,
+      formationComplete,
+    };
+  });
 }
 
 export async function getStudentFormationRecord(
@@ -822,7 +843,7 @@ export async function getStudentFormationRecord(
 
   const advisorInfo = advisorResult.rows[0];
 
-  // If student, strip pastoralNotes
+  // If student, strip pastoralNotes and filter to endorsed-only records
   if (isStudent) {
     const evaluationsStudentView: FormationEvaluationStudentView[] = evaluationResult.rows.map((row) => ({
       id: row.id,
@@ -839,11 +860,15 @@ export async function getStudentFormationRecord(
       createdAt: row.created_at,
     }));
 
+    // Students see only endorsed practicum sessions and milestones
+    const endorsedPracticumSessions = practicumSessions.filter(s => s.status === "endorsed");
+    const endorsedMilestones = milestones.filter(m => m.status === "endorsed");
+
     return {
       tenantId: actor.tenantId,
       studentPersonId: subject,
-      practicumSessions,
-      milestones,
+      practicumSessions: endorsedPracticumSessions,
+      milestones: endorsedMilestones,
       evaluations: evaluationsStudentView,
       formationAdvisorPersonId: advisorInfo?.advisor_person_id,
       formationAdvisorName: advisorInfo?.advisor_name,
@@ -875,4 +900,49 @@ export async function getStudentFormationRecord(
       formationAdvisorName: advisorInfo?.advisor_name,
     };
   }
+}
+
+export async function getFormationPageMetadata(
+  actor: AcademyActor,
+  studentPersonId: string,
+  db: AcademyQueryClient,
+): Promise<FormationPageMetadata> {
+  if (!hasFormationViewerAccess(actor)) {
+    throw new AcademyAuthorizationError(
+      "Forbidden formation page metadata access.",
+    );
+  }
+
+  const subject = requireText(studentPersonId, "studentPersonId");
+
+  // Fetch student display name with tenant isolation
+  const studentNameResult = await db.query(
+    `select display_name from academy_people where id = $1 and tenant_id = $2`,
+    [subject, actor.tenantId],
+  ) as { rows: Array<{ display_name: string }> };
+
+  const studentDisplayName = studentNameResult.rows[0]?.display_name || "Student";
+
+  // Fetch eligible advisors for the person picker with tenant isolation
+  const eligibleAdvisorsResult = await db.query(
+    `select distinct p.id, p.display_name
+     from academy_people p
+     join academy_person_role_assignments pra
+       on pra.person_id = p.id and pra.tenant_id = p.tenant_id
+     where p.tenant_id = $1
+       and pra.role in ('faculty', 'advisor', 'institution_admin')
+       and pra.status = 'active'
+       and (pra.starts_on is null or pra.starts_on <= current_date)
+       and (pra.ends_on is null or pra.ends_on >= current_date)
+     order by p.display_name`,
+    [actor.tenantId],
+  ) as { rows: Array<{ id: string; display_name: string }> };
+
+  return {
+    studentDisplayName,
+    eligibleAdvisors: eligibleAdvisorsResult.rows.map((row) => ({
+      id: row.id,
+      displayName: row.display_name,
+    })),
+  };
 }

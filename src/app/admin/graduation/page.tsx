@@ -7,6 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
+import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import type { FormationSummary } from "@/modules/ministry-formation/types";
 
 export const dynamic = "force-dynamic";
 
@@ -35,32 +38,16 @@ export default async function GraduationPage() {
     ]);
 
     // Fetch formation summaries for Formation Status column
-    let formationSummaries: Array<{
-      studentPersonId: string;
-      totalPracticumHours: number;
-      milestoneCount: number;
-    }> = [];
+    let formationSummaries: FormationSummary[] = [];
 
     try {
-      const requestHeaders = await (await import("next/headers")).headers();
-      const formationResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/academy/ministry-formation/students`,
-        {
-          headers: {
-            cookie: requestHeaders.get("cookie") || "",
-          },
-        },
-      );
-      if (formationResponse.ok) {
-        const data = await formationResponse.json();
-        formationSummaries = data.map((f: { studentPersonId: string; totalPracticumHours: number; milestoneCount: number }) => ({
-          studentPersonId: f.studentPersonId,
-          totalPracticumHours: f.totalPracticumHours,
-          milestoneCount: f.milestoneCount,
-        }));
+      formationSummaries = await listStudentsWithFormationSummary(actor, client);
+    } catch (error) {
+      // If actor lacks formation-viewer access, that's fine — just don't show formation column
+      if (!(error instanceof AcademyAuthorizationError)) {
+        // Any other error (e.g., DB failure) should propagate
+        throw error;
       }
-    } catch {
-      // Formation module not available or actor lacks permission
     }
 
     return { students: s, programs: p, formationSummaries };
@@ -78,11 +65,8 @@ export default async function GraduationPage() {
       student.allProgramCoursesCompleted ||
       (progressPct !== null && progressPct >= Math.round(GRADUATION_CREDIT_THRESHOLD * 100));
 
-    // TODO: replace hardcoded formation-completion thresholds (100 hrs / 3 milestones) with per-program requirements once that config exists
     const formation = formationSummaries.find((f) => f.studentPersonId === student.id);
-    const formationComplete = formation
-      ? formation.totalPracticumHours >= 100 && formation.milestoneCount >= 3
-      : false;
+    const formationComplete = formation?.formationComplete ?? null;
 
     return { student, program, progressPct, holds, readyToReview, formationComplete };
   });
@@ -179,7 +163,7 @@ type CandidateRow = {
   progressPct: number | null;
   holds: string[];
   readyToReview: boolean;
-  formationComplete: boolean;
+  formationComplete: boolean | null;
 };
 
 function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?: boolean }) {
@@ -227,7 +211,9 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
             </TableCell>
             <TableCell>{student.gpa ?? "—"}</TableCell>
             <TableCell>
-              {formationComplete ? (
+              {formationComplete === null ? (
+                <span className="text-sm text-muted-foreground">—</span>
+              ) : formationComplete ? (
                 <Badge variant="secondary">Complete</Badge>
               ) : (
                 <Badge variant="outline">Incomplete</Badge>

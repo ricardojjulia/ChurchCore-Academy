@@ -65,6 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Student Center", href: "/admin/students" },
       { label: "Transcripts", href: "/admin/transcripts" },
       { label: "Graduation", href: "/admin/graduation" },
+      { label: "Ministry Formation", href: "/admin/formation" },
     ],
   },
   {
