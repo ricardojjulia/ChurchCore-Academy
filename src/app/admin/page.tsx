@@ -83,7 +83,22 @@ async function countTenantRows(
 
 export default async function AdminDashboard() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  // The dashboard is a general landing page, not sensitive data — any staff role that
+  // passes the layout's baseline gate should be able to see it (narrower pages further
+  // down the tree restrict specific sensitive data, e.g. billing, separately).
+  requireActor(actor, [
+    "institution_admin",
+    "dean",
+    "registrar",
+    "academic_admin",
+    "admissions",
+    "finance",
+    "advisor",
+    "faculty",
+    "teacher",
+    "professor",
+    "alumni_relations",
+  ]);
   const user = await getCurrentUser();
   const institution = await getInstitutionProfile(actor.tenantId);
 
