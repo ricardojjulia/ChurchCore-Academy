@@ -23,6 +23,8 @@ interface SectionAttendanceSummary {
 }
 
 export default async function AdminAttendancePage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -32,7 +34,6 @@ export default async function AdminAttendancePage() {
     redirect("/login");
   }
 
-  const actor = await requireActor();
   const sections = await withAcademyDatabaseContext(actor, (client) =>
     fetchSectionList(actor.tenantId, client),
   );

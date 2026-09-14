@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **Security:** every page under `/admin/*` (41 pages) previously called `requireActor()` with no role argument — authentication only, no authorization — meaning any logged-in user, including a `student`, `guardian`, or `applicant`, could load any admin page and read institution configuration, student/staff/guardian records, billing, financial aid, gradebook, and attendance data. Mutations were already correctly protected at the API layer; this was a read-side information-disclosure gap across the entire admin section. Added a baseline staff-only gate in `src/app/admin/layout.tsx` plus per-page role refinement reusing existing `requireActor(actor, roles)` / `assertInstitutionConfigAccess` conventions. Working vertical slice — build/test/lint verified, not yet browser click-tested with a real unauthorized account.
+
 ## [0.10.0] - 2026-09-12
 
 ### Added

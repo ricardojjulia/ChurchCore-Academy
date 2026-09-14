@@ -9,6 +9,7 @@ import { StudentGroupsClient } from "./StudentGroupsClient";
 
 export default async function StudentGroupsPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const data = await withAcademyDatabaseContext(actor, async (client) => {
     const database = asAcademyDatabase<StudentGroupDatabase>(client);
     const repository = new PostgresStudentGroupRepository(database);
