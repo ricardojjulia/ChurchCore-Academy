@@ -6,6 +6,19 @@ Baseline: c9e302b (first pass), fixes landed in 86c6464 (diffed against origin/m
 Scope: PR #106 — a standalone security fix adding authorization checks to 41 admin pages that previously called `requireActor()` with no role argument (authentication only), letting any authenticated user, including a `student` or `guardian`, load any admin page and read its data.
 Decision Requested: ship / revise / defer / split / reject
 
+## Addendum: final round via GitHub's automated PR review
+
+After 86c6464 landed, GitHub's `copilot-pull-request-reviewer` left one further comment on `src/app/admin/layout.tsx`: `/admin/settings/demo-feedback` is a platform-only workspace (gated on `platform_staff`/`platform_admin`, a `PlatformRole`, not an `AcademyRole`) — the new baseline staff gate resolves an Academy actor and would redirect platform-only staff before that page's own check ever ran, locking them out. Valid finding, missed by every prior review pass including this one.
+
+The user applied this and several further Copilot Autofix suggestions directly (commits `65f48d1`, `aab5ad7`, `e28c1047`, `ec927fa4`, `cc093ee2` — narrowing `attendance`, `sections`, `transcripts`, `admissions/*`, and `people/advisors/[id]` role lists closer to least-privilege) and used GitHub's Copilot coding agent for two structural fixes (commits `4bb3713`, `4455a65`, `c34f36d`, `6f47f24`):
+
+- `/settings/demo-feedback` now serves its own page component directly, outside the `/admin` layout tree entirely, rather than redirecting into the now-gated `/admin/settings/demo-feedback`. The old path was deleted; the platform-role check (`canAccessPlatformStaffWorkspace`) lives entirely in the new location.
+- The admin dashboard's ShepherdAI suggestions/workflows fetch is now independently gated behind `canAccessShepherdAi(actor, tenantId, "read")` — a fix for a risk this review's own earlier dashboard-role-widening introduced: opening the dashboard to every staff role without also re-checking who should see AI-signal data specifically.
+- Two API routes (`src/app/api/academy/programs/route.ts` POST, `src/app/api/academy/programs/[id]/route.ts` PATCH/DELETE) turned out to have no role check at all, contradicting this review's own claim that "mutations were already correctly protected at the API layer." Both now call `requireActor(actor, [...])` matching the page-level convention.
+- Several page role lists were tightened further (e.g. `attendance`/`sections`/`transcripts` no longer admit `faculty`/`advisor`/`teacher`/`professor`; `admissions/*` no longer admits `academic_admin`), addressing this review's own "admissions over-breadth" follow-up note more thoroughly than originally scoped.
+
+All of this was pulled into a clean worktree and independently re-verified: `npm test` (1428/1428), `npm run lint` (clean), `npm run build` (clean). All 32 review threads on the PR are now resolved.
+
 ## Executive Verdict
 
 Decision: **revise → fixed**
