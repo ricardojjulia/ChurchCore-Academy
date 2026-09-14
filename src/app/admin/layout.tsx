@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { requireActor, type Actor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { fetchCapabilitySet } from "@/lib/capability-context";
 import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 import { AcademicContextDataProvider, type AcademicContextData } from "@/contexts/academic-context";
+import { AdminCapabilityProvider } from "@/components/admin-capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
 
@@ -28,6 +30,7 @@ const STAFF_ROLES: AcademyRole[] = [
   "teacher",
   "professor",
   "alumni_relations",
+  "ministry_formation_reviewer",
 ];
 
 // Where to send an authenticated-but-non-staff actor instead of a bare "/" — "/" itself
@@ -74,6 +77,17 @@ async function getAcademicContextData(actor: Actor): Promise<AcademicContextData
   }
 }
 
+async function getCapabilityData(actor: Actor): Promise<{ ministryFormationEnabled: boolean }> {
+  try {
+    return await withAcademyDatabaseContext(actor, async (client) => {
+      const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      return { ministryFormationEnabled: capabilities.ministryFormation ?? false };
+    });
+  } catch {
+    return { ministryFormationEnabled: false };
+  }
+}
+
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   // The zero-arg form already redirects to /login on an authentication failure
   // internally (see src/lib/require-actor.ts) — no local catch needed here.
@@ -91,10 +105,13 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const academicContextData = await getAcademicContextData(actor);
+  const capabilityData = await getCapabilityData(actor);
 
   return (
     <AcademicContextDataProvider value={academicContextData}>
-      {children}
+      <AdminCapabilityProvider ministryFormationEnabled={capabilityData.ministryFormationEnabled}>
+        {children}
+      </AdminCapabilityProvider>
     </AcademicContextDataProvider>
   );
 }

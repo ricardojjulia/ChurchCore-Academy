@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { StudentServiceWorkerRegistration } from "@/components/student-service-worker-registration";
+import { StudentCapabilityProvider } from "@/components/student-capability-context";
 import { assertStudentPortalAccess } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
 import { AcademyAuthenticationError } from "@/modules/academy-auth/errors";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchCapabilitySet } from "@/lib/capability-context";
 
 export const metadata: Metadata = {
   title: {
@@ -27,10 +30,17 @@ export default async function StudentLayout({ children }: Readonly<{ children: R
 
   assertStudentPortalAccess(actor);
 
+  const ministryFormationEnabled = await withAcademyDatabaseContext(actor, async (client) => {
+    const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+    return capabilities.ministryFormation ?? false;
+  });
+
   return (
     <>
       <StudentServiceWorkerRegistration />
-      {children}
+      <StudentCapabilityProvider ministryFormationEnabled={ministryFormationEnabled}>
+        {children}
+      </StudentCapabilityProvider>
     </>
   );
 }

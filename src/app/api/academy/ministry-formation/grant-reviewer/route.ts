@@ -2,17 +2,16 @@ import { handleApi } from "@/app/api/academy/api-utils";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { assertCapability } from "@/modules/academy-auth/policy";
-import { getStudentFormationRecord } from "@/modules/ministry-formation/service";
+import { grantMinistryFormationReviewer } from "@/modules/ministry-formation/service";
 
-type RouteContext = { params: Promise<{ studentId: string }> };
-
-export async function GET(request: Request, context: RouteContext) {
+export async function POST(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    const { studentId } = await context.params;
-    return withCapabilityContext(actor, (client, capabilities) => {
+    const body = await request.json();
+    return withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "ministryFormation");
-      return getStudentFormationRecord(actor, studentId, client);
+      await grantMinistryFormationReviewer(actor, String(body.targetPersonId), client);
+      return { success: true };
     });
   });
 }

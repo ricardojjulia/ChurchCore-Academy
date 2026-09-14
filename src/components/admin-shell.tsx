@@ -24,6 +24,7 @@ import {
 } from "@/contexts/student-context";
 import { useAcademicContextData } from "@/contexts/academic-context";
 import { AcademicContextPicker } from "@/components/AcademicContextPicker";
+import { useAdminCapabilities } from "@/components/admin-capability-context";
 
 export type AdminSection =
   | "admissions"
@@ -65,6 +66,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Student Center", href: "/admin/students" },
       { label: "Transcripts", href: "/admin/transcripts" },
       { label: "Graduation", href: "/admin/graduation" },
+      { label: "Ministry Formation", href: "/admin/formation" },
     ],
   },
   {
@@ -159,6 +161,7 @@ function AdminShellInner({
   const pathname = usePathname();
   const derivedSection = sectionForPath(pathname);
   const academicContextData = useAcademicContextData();
+  const { ministryFormationEnabled } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
     activeSectionProp ?? derivedSection,
@@ -171,6 +174,18 @@ function AdminShellInner({
 
   const { studentId, studentName, programName, enrollmentStatus, setStudent, clearStudent } =
     useStudentContext();
+
+  // Filter nav sections based on capabilities
+  const visibleNavSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => {
+      // Filter out Ministry Formation nav item if capability is disabled
+      if (item.href === "/admin/formation" && !ministryFormationEnabled) {
+        return false;
+      }
+      return true;
+    }),
+  })).filter((section) => section.items.length > 0); // Remove sections with no visible items
 
   const userInitials = userEmail
     ? userEmail.slice(0, 2).toUpperCase()
@@ -204,7 +219,7 @@ function AdminShellInner({
         </Link>
 
         <nav className="admin-nav" aria-label="Admin navigation">
-          {NAV_SECTIONS.map((section) => {
+          {visibleNavSections.map((section) => {
             const { Icon } = section;
             const isExpanded = expanded === section.id;
             const isActive = derivedSection === section.id;
