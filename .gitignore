@@ -26,3 +26,6 @@ pnpm-debug.log*
 .idea/
 .vscode/
 .env.local
+
+# FreeFileSync sync-tool artifact
+.sync.ffs_db

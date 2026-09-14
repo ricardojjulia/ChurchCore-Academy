@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Ministry Formation admin UI (`/admin/formation`, `/admin/formation/[studentId]`), student formation dashboard (`/student/formation`), and a display-only formation-completion badge on the graduation-readiness page, surfacing the previously backend-only `ministry-formation` module (practicum sessions, faith milestones, evaluations, endorsement) with navigation entries (PR #105). Adds one-to-one formation-advisor assignment. First item in the "Surface the Built Differentiators" competitive closure plan. Working vertical slice — code-complete and test-verified through Council Review 16 (`docs/reviews/2026-09-14-council-review-16-ministry-formation-admin-ui.md`), not yet browser click-tested or pilot-observed.
+
 ## [0.10.0] - 2026-09-12
 
 ### Added
