@@ -131,8 +131,9 @@ test("platform demo-feedback route stays outside the /admin layout gate", async 
   const source = await readPage("src/app/settings/demo-feedback/page.tsx");
   assert.match(
     source,
-    /export \{ default, dynamic \} from ["']@\/app\/admin\/settings\/demo-feedback\/page["'];?/,
+    /export \{ default \} from ["']@\/app\/admin\/settings\/demo-feedback\/page["'];?/,
   );
+  assert.match(source, /export const dynamic = ["']force-dynamic["'];?/);
   assert.doesNotMatch(source, /redirect\(["']\/admin\/settings\/demo-feedback["']\)/);
 });
 
