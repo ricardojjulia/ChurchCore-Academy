@@ -45,7 +45,7 @@ interface AuditEvent {
 
 export default async function AdvisorDetailPage({ params }: { params: { id: string } }) {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const personId = params.id;
 
   const data = await withAcademyDatabaseContext(actor, async (client) => {
