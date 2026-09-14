@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface FormationEvaluation {
   id: string;
@@ -35,6 +36,8 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
   const [pastoralNotes, setPastoralNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [endorseDialogOpen, setEndorseDialogOpen] = useState(false);
+  const [evaluationToEndorse, setEvaluationToEndorse] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -79,10 +82,16 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
     }
   }
 
-  async function handleEndorse(evaluationId: string) {
-    if (!confirm("Endorse this evaluation? This action cannot be undone.")) {
-      return;
-    }
+  function openEndorseDialog(evaluationId: string) {
+    setEvaluationToEndorse(evaluationId);
+    setEndorseDialogOpen(true);
+  }
+
+  async function handleEndorse() {
+    if (!evaluationToEndorse) return;
+
+    setSubmitting(true);
+    setError(null);
 
     try {
       const response = await fetch("/api/academy/ministry-formation/endorse", {
@@ -90,7 +99,7 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recordType: "evaluation",
-          recordId: evaluationId,
+          recordId: evaluationToEndorse,
         }),
       });
 
@@ -101,7 +110,9 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
 
       window.location.reload();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -159,7 +170,7 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEndorse(evaluation.id)}
+                            onClick={() => openEndorseDialog(evaluation.id)}
                           >
                             Endorse
                           </Button>
@@ -254,6 +265,36 @@ export function EvaluationsTab({ studentId, evaluations, canEndorse }: Evaluatio
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={endorseDialogOpen} onOpenChange={setEndorseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Endorse Evaluation</DialogTitle>
+            <DialogDescription>
+              Endorse this formation evaluation? This action cannot be undone. Once endorsed, the evaluation becomes part of the student&apos;s official formation record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setEndorseDialogOpen(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleEndorse} disabled={submitting}>
+                {submitting ? "Endorsing..." : "Endorse Evaluation"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

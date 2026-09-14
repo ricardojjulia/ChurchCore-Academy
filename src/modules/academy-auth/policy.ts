@@ -14,7 +14,8 @@ export type AcademyRole =
   | "professor"
   | "student"
   | "guardian"
-  | "alumni_relations";
+  | "alumni_relations"
+  | "ministry_formation_reviewer";
 
 export type PlatformRole = "platform_staff" | "platform_admin";
 

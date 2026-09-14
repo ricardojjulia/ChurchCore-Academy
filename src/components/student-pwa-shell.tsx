@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import {
   Award,
   Bell,
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { studentPwaDestinations, type StudentPwaDestination } from "@/modules/student-pwa/shell-config";
+import { useStudentCapabilities } from "@/components/student-capability-context";
 
 const iconByName = {
   home: Home,
@@ -44,6 +46,18 @@ export function StudentPwaShell({
   description: string;
   children: React.ReactNode;
 }) {
+  const { ministryFormationEnabled } = useStudentCapabilities();
+
+  const visibleDestinations = useMemo(() => {
+    return studentPwaDestinations.filter((destination) => {
+      // Filter out formation destination if capability is disabled
+      if (destination.href === "/student/formation" && !ministryFormationEnabled) {
+        return false;
+      }
+      return true;
+    });
+  }, [ministryFormationEnabled]);
+
   return (
     <div className="student-pwa">
       <header className="student-pwa-header">
@@ -65,7 +79,7 @@ export function StudentPwaShell({
       <div className="student-pwa-frame">
         <aside className="student-pwa-sidebar">
           <p className="student-pwa-nav-label">My Academy</p>
-          <StudentPwaNavigation />
+          <StudentPwaNavigation destinations={visibleDestinations} />
           <div className="student-pwa-sidebar-note">
             <CheckCircle2 />
             <div>
@@ -92,7 +106,7 @@ export function StudentPwaShell({
       </div>
 
       <nav className="student-pwa-bottom-nav" aria-label="Student mobile navigation">
-        {studentPwaDestinations.map((destination) => (
+        {visibleDestinations.map((destination) => (
           <StudentPwaNavLink key={destination.href} destination={destination} compact />
         ))}
       </nav>
@@ -100,10 +114,10 @@ export function StudentPwaShell({
   );
 }
 
-function StudentPwaNavigation() {
+function StudentPwaNavigation({ destinations }: { destinations: StudentPwaDestination[] }) {
   return (
     <nav className="student-pwa-nav" aria-label="Student">
-      {studentPwaDestinations.map((destination) => (
+      {destinations.map((destination) => (
         <StudentPwaNavLink key={destination.href} destination={destination} />
       ))}
     </nav>

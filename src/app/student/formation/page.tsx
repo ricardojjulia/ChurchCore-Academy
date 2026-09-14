@@ -2,8 +2,10 @@ import { StudentPwaShell } from "@/components/student-pwa-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { requireActor } from "@/lib/require-actor";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import { getStudentFormationRecord } from "@/modules/ministry-formation/service";
 import { Briefcase, Award, FileCheck } from "lucide-react";
 import type { StudentFormationRecord } from "@/modules/ministry-formation/types";
@@ -22,10 +24,33 @@ const milestoneTypeLabels: Record<string, string> = {
 export default async function StudentFormationPage() {
   const actor = await requireActor();
 
-  const record = await withAcademyDatabaseContext(actor, async (client) => {
-    const formationRecord = await getStudentFormationRecord(actor, actor.userId, client);
-    return formationRecord as StudentFormationRecord | null;
-  });
+  let record: StudentFormationRecord | null = null;
+  let capabilityDisabled = false;
+
+  try {
+    record = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "ministryFormation");
+      const formationRecord = await getStudentFormationRecord(actor, actor.userId, client);
+      return formationRecord as StudentFormationRecord | null;
+    });
+  } catch (error) {
+    if (error instanceof CapabilityDisabledError) {
+      capabilityDisabled = true;
+    } else {
+      throw error;
+    }
+  }
+
+  if (capabilityDisabled) {
+    return (
+      <StudentPwaShell
+        title="Ministry Formation"
+        description="Your ministry formation journey records."
+      >
+        <CapabilityGhostPage capability="Ministry Formation" institutionModel="your institution" />
+      </StudentPwaShell>
+    );
+  }
 
   if (!record) {
     return (
@@ -142,11 +167,7 @@ export default async function StudentFormationPage() {
                     </TableCell>
                     <TableCell className="text-sm">{session.supervisorName}</TableCell>
                     <TableCell>
-                      {session.status === "endorsed" ? (
-                        <Badge variant="secondary">Endorsed</Badge>
-                      ) : (
-                        <Badge variant="outline">Draft</Badge>
-                      )}
+                      <Badge variant="secondary">Endorsed</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -187,11 +208,7 @@ export default async function StudentFormationPage() {
                       {milestone.institutionNotes || "—"}
                     </TableCell>
                     <TableCell>
-                      {milestone.status === "endorsed" ? (
-                        <Badge variant="secondary">Endorsed</Badge>
-                      ) : (
-                        <Badge variant="outline">Draft</Badge>
-                      )}
+                      <Badge variant="secondary">Endorsed</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -230,11 +247,7 @@ export default async function StudentFormationPage() {
                     <TableCell className="text-sm">{evaluation.rubricLabel}</TableCell>
                     <TableCell className="text-sm">{formatScores(evaluation.scores)}</TableCell>
                     <TableCell>
-                      {evaluation.status === "endorsed" ? (
-                        <Badge variant="secondary">Endorsed</Badge>
-                      ) : (
-                        <Badge variant="outline">Draft</Badge>
-                      )}
+                      <Badge variant="secondary">Endorsed</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

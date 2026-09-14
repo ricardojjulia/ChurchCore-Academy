@@ -3,8 +3,10 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { requireActor } from "@/lib/require-actor";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import { PracticumTab } from "@/components/formation/practicum-tab";
 import { MilestonesTab } from "@/components/formation/milestones-tab";
 import { EvaluationsTab } from "@/components/formation/evaluations-tab";
@@ -23,33 +25,62 @@ export default async function FormationDetailPage({
   const { studentId } = await params;
   const actor = await requireActor();
 
-  const { record, metadata } = await withAcademyDatabaseContext(actor, async (client) => {
-    try {
-      const [formationRecord, pageMetadata] = await Promise.all([
-        getStudentFormationRecord(actor, studentId, client),
-        getFormationPageMetadata(actor, studentId, client),
-      ]);
+  let record: StudentFormationRecordStaffView | undefined;
+  let metadata: Awaited<ReturnType<typeof getFormationPageMetadata>> | undefined;
+  let capabilityDisabled = false;
 
-      if (!formationRecord) {
-        notFound();
-      }
+  try {
+    const result = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "ministryFormation");
 
-      return {
-        record: formationRecord as StudentFormationRecordStaffView,
-        metadata: pageMetadata,
-      };
-    } catch (error) {
-      if (error instanceof AcademyAuthorizationError) {
-        // If the actor is a student trying to view another student's record, redirect to their own
-        if (actor.roles.includes("student")) {
-          redirect("/student/formation");
+      try {
+        const [formationRecord, pageMetadata] = await Promise.all([
+          getStudentFormationRecord(actor, studentId, client),
+          getFormationPageMetadata(actor, studentId, client),
+        ]);
+
+        if (!formationRecord) {
+          notFound();
         }
-        // Otherwise, it's a staff member lacking formation-viewer access
-        notFound();
+
+        return {
+          record: formationRecord as StudentFormationRecordStaffView,
+          metadata: pageMetadata,
+        };
+      } catch (error) {
+        if (error instanceof AcademyAuthorizationError) {
+          // If the actor is a student trying to view another student's record, redirect to their own
+          if (actor.roles.includes("student")) {
+            redirect("/student/formation");
+          }
+          // Otherwise, it's a staff member lacking formation-viewer access
+          notFound();
+        }
+        throw error;
       }
+    });
+
+    record = result.record;
+    metadata = result.metadata;
+  } catch (error) {
+    if (error instanceof CapabilityDisabledError) {
+      capabilityDisabled = true;
+    } else {
       throw error;
     }
-  });
+  }
+
+  if (capabilityDisabled || !record || !metadata) {
+    return (
+      <AdminShell
+        activeSection="records"
+        eyebrow="Ministry Formation"
+        title="Student Formation"
+      >
+        <CapabilityGhostPage capability="Ministry Formation" institutionModel="your institution" />
+      </AdminShell>
+    );
+  }
 
   const canEndorse = actor.roles.includes("institution_admin");
 
@@ -62,7 +93,7 @@ export default async function FormationDetailPage({
       <div className="mb-4">
         <Link
           href="/admin/formation"
-          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+          className="inline-flex items-center gap-2 text-sm text-accent hover:underline"
         >
           <ArrowLeft size={16} /> All Students
         </Link>

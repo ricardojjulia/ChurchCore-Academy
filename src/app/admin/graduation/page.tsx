@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import { CapabilityDisabledError, assertCapability } from "@/modules/academy-auth/policy";
 import type { FormationSummary } from "@/modules/ministry-formation/types";
 
 export const dynamic = "force-dynamic";
@@ -41,10 +43,13 @@ export default async function GraduationPage() {
     let formationSummaries: FormationSummary[] = [];
 
     try {
-      formationSummaries = await listStudentsWithFormationSummary(actor, client);
+      formationSummaries = await withCapabilityContext(actor, async (capClient, capabilities) => {
+        assertCapability(capabilities, "ministryFormation");
+        return await listStudentsWithFormationSummary(actor, capClient);
+      });
     } catch (error) {
-      // If actor lacks formation-viewer access, that's fine — just don't show formation column
-      if (!(error instanceof AcademyAuthorizationError)) {
+      // If actor lacks formation-viewer access or capability is disabled, that's fine — just don't show formation column
+      if (!(error instanceof AcademyAuthorizationError) && !(error instanceof CapabilityDisabledError)) {
         // Any other error (e.g., DB failure) should propagate
         throw error;
       }

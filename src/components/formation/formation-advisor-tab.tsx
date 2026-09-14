@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 
@@ -22,6 +23,7 @@ export function FormationAdvisorTab({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [filterText, setFilterText] = useState("");
 
   async function handleAssign() {
     if (!selectedAdvisorId) {
@@ -55,10 +57,18 @@ export function FormationAdvisorTab({
     }
   }
 
-  const advisorOptions = eligibleAdvisors.map((a) => ({
-    value: a.id,
-    label: a.display_name,
-  }));
+  const advisorOptions = useMemo(() => {
+    const filtered = filterText
+      ? eligibleAdvisors.filter((a) =>
+          a.display_name.toLowerCase().includes(filterText.toLowerCase())
+        )
+      : eligibleAdvisors;
+
+    return filtered.map((a) => ({
+      value: a.id,
+      label: a.display_name,
+    }));
+  }, [eligibleAdvisors, filterText]);
 
   return (
     <Card className="ops-panel">
@@ -101,9 +111,18 @@ export function FormationAdvisorTab({
                     {error}
                   </div>
                 )}
+                <label className="grid gap-2 text-sm font-medium">
+                  <span>Search advisors</span>
+                  <Input
+                    type="text"
+                    placeholder="Type to filter by name..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                  />
+                </label>
                 <Select
                   label="Formation Advisor"
-                  placeholder="Select an advisor"
+                  placeholder={advisorOptions.length === 0 ? "No advisors match your search" : "Select an advisor"}
                   data={advisorOptions}
                   value={selectedAdvisorId}
                   onChange={setSelectedAdvisorId}

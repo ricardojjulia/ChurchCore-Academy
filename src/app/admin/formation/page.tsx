@@ -4,8 +4,10 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { requireActor } from "@/lib/require-actor";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +15,34 @@ export const dynamic = "force-dynamic";
 export default async function FormationListPage() {
   const actor = await requireActor();
 
-  const students = await withAcademyDatabaseContext(actor, async (client) => {
-    return await listStudentsWithFormationSummary(actor, client);
-  });
+  let students: Awaited<ReturnType<typeof listStudentsWithFormationSummary>> | undefined;
+  let capabilityDisabled = false;
+
+  try {
+    students = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "ministryFormation");
+      return await listStudentsWithFormationSummary(actor, client);
+    });
+  } catch (error) {
+    if (error instanceof CapabilityDisabledError) {
+      capabilityDisabled = true;
+    } else {
+      throw error;
+    }
+  }
+
+  if (capabilityDisabled || !students) {
+    return (
+      <AdminShell
+        activeSection="records"
+        eyebrow="Ministry Formation"
+        title="Ministry Formation Records"
+        subtitle="Practicum sessions, faith milestones, formation evaluations, and formation advisor assignments for ministry preparation students."
+      >
+        <CapabilityGhostPage capability="Ministry Formation" institutionModel="your institution" />
+      </AdminShell>
+    );
+  }
 
   const totalHours = students.reduce((sum, s) => sum + s.totalPracticumHours, 0);
   const totalMilestones = students.reduce((sum, s) => sum + s.milestoneCount, 0);
@@ -119,7 +146,7 @@ export default async function FormationListPage() {
                     <TableCell>
                       <Link
                         href={`/admin/formation/${student.studentPersonId}`}
-                        className="text-sm font-semibold text-blue-600 hover:underline"
+                        className="text-sm font-semibold text-accent hover:underline"
                       >
                         View
                       </Link>

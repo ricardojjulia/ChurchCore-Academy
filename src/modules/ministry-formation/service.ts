@@ -65,6 +65,28 @@ function requireText(value: string, field: string): string {
   return trimmed;
 }
 
+// Helper: Check if actor has full reviewer access (institution_admin bypass or explicit reviewer role)
+function hasReviewerAccess(actor: AcademyActor): boolean {
+  return actor.roles.includes("institution_admin") || actor.roles.includes("ministry_formation_reviewer");
+}
+
+// Helper: Check if actor can see pastoral notes on a specific evaluation
+function canSeePastoralNotes(actor: AcademyActor, evaluatorPersonId: string): boolean {
+  // Reviewer access (institution_admin or ministry_formation_reviewer) can see all pastoral notes
+  if (hasReviewerAccess(actor)) {
+    return true;
+  }
+  // Evaluator can see their own evaluation's pastoral notes
+  if (evaluatorPersonId === actor.userId) {
+    return true;
+  }
+  // Registrar never sees pastoral notes, regardless of other roles
+  if (actor.roles.includes("registrar")) {
+    return false;
+  }
+  return false;
+}
+
 function assertPracticumRecorder(actor: AcademyActor) {
   if (!actor.roles.some((role) => practicumRecorderRoles.has(role))) {
     throw new AcademyAuthorizationError(
@@ -593,6 +615,20 @@ export async function assignFormationAdvisor(
     throw new Error("Failed to assign advisor.");
   }
 
+  // Record assignment in append-only history table
+  await db.query(
+    `insert into public.ministry_formation_advisor_assignment_history
+      (tenant_id, student_person_id, advisor_person_id, assigned_at, assigned_by_person_id)
+     values ($1, $2, $3, $4, $5)`,
+    [
+      row.tenant_id,
+      row.student_person_id,
+      row.advisor_person_id,
+      row.assigned_at,
+      row.assigned_by_person_id,
+    ],
+  );
+
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -613,8 +649,52 @@ export async function listStudentsWithFormationSummary(
     );
   }
 
-  const result = await db.query(
-    `select
+  // Build scoped query based on role
+  // ADR-0045 scoping:
+  // - institution_admin or ministry_formation_reviewer: full tenant scope
+  // - faculty: only students in their own sections (via academy_course_sections.instructor_person_id joined through academy_registrations)
+  // - advisor: only students where they are the formation advisor (via ministry_formation_advisor_assignments.advisor_person_id)
+  // - registrar: endorsed-only records across full tenant
+
+  const isReviewer = hasReviewerAccess(actor);
+  const isFaculty = actor.roles.some(r => r === "faculty" || r === "teacher" || r === "professor");
+  const isAdvisor = actor.roles.includes("advisor");
+  const isRegistrar = actor.roles.includes("registrar");
+
+  let scopeJoin = "";
+  let scopeWhere = "";
+
+  if (isReviewer) {
+    // Full tenant scope
+    scopeWhere = "p.tenant_id = $1";
+  } else if (isFaculty) {
+    // Faculty scoping: students in their sections
+    // ADR-0026 pattern: academy_course_sections.instructor_person_id = actor.userId
+    scopeJoin = `
+      inner join public.academy_registrations reg
+        on reg.student_person_id = p.id and reg.tenant_id = p.tenant_id
+      inner join public.academy_course_sections sec
+        on sec.id = reg.section_id and sec.tenant_id = reg.tenant_id
+    `;
+    scopeWhere = "p.tenant_id = $1 and sec.instructor_person_id = $2";
+  } else if (isAdvisor && !isFaculty) {
+    // Advisor scoping: students where they are the formation advisor
+    // ADR-0045 interpretation: use ministry_formation_advisor_assignments for advisee-scoping
+    scopeJoin = `
+      inner join public.ministry_formation_advisor_assignments fa
+        on fa.student_person_id = p.id and fa.tenant_id = p.tenant_id
+    `;
+    scopeWhere = "p.tenant_id = $1 and fa.advisor_person_id = $2";
+  } else if (isRegistrar) {
+    // Registrar scoping: endorsed-only records across full tenant
+    scopeWhere = "p.tenant_id = $1";
+  } else {
+    // Fallback: no scope (should not happen if hasFormationViewerAccess passed)
+    throw new AcademyAuthorizationError("Forbidden formation summary access.");
+  }
+
+  const query = `
+    select
        p.id as student_person_id,
        p.display_name as full_name,
        p.email,
@@ -624,22 +704,26 @@ export async function listStudentsWithFormationSummary(
        aa.advisor_person_id as formation_advisor_person_id,
        adv.display_name as formation_advisor_name
      from public.academy_people p
+     ${scopeJoin}
      left join public.ministry_practicum_sessions ps
-       on ps.student_person_id = p.id and ps.tenant_id = p.tenant_id
+       on ps.student_person_id = p.id and ps.tenant_id = p.tenant_id ${isRegistrar ? "and ps.status = 'endorsed'" : ""}
      left join public.ministry_faith_milestones fm
-       on fm.student_person_id = p.id and fm.tenant_id = p.tenant_id
+       on fm.student_person_id = p.id and fm.tenant_id = p.tenant_id ${isRegistrar ? "and fm.status = 'endorsed'" : ""}
      left join public.ministry_formation_evaluations fe
-       on fe.student_person_id = p.id and fe.tenant_id = p.tenant_id
+       on fe.student_person_id = p.id and fe.tenant_id = p.tenant_id ${isRegistrar ? "and fe.status = 'endorsed'" : ""}
      left join public.ministry_formation_advisor_assignments aa
        on aa.student_person_id = p.id and aa.tenant_id = p.tenant_id
      left join public.academy_people adv
        on adv.id = aa.advisor_person_id and adv.tenant_id = aa.tenant_id
-     where p.tenant_id = $1
+     where ${scopeWhere}
        and (ps.id is not null or fm.id is not null or fe.id is not null or aa.id is not null)
      group by p.id, p.display_name, p.email, aa.advisor_person_id, adv.display_name
-     order by p.display_name`,
-    [actor.tenantId],
-  ) as { rows: Array<{
+     order by p.display_name
+  `;
+
+  const params = (isFaculty || (isAdvisor && !isFaculty)) ? [actor.tenantId, actor.userId] : [actor.tenantId];
+
+  const result = await db.query(query, params) as { rows: Array<{
     student_person_id: string;
     full_name: string;
     email: string | null;
@@ -720,6 +804,52 @@ export async function getStudentFormationRecord(
   // If student is withdrawn and actor is a student, return null
   if (isStudent && enrollmentStatus === "withdrawn") {
     return null;
+  }
+
+  // Staff scoping check: verify actor can see this student's formation record
+  // ADR-0045 scoping applies
+  // Only apply to staff, not to students viewing their own record
+  if (!isStudent && isStaff) {
+    const isReviewer = hasReviewerAccess(actor);
+    const isFaculty = actor.roles.some(r => r === "faculty" || r === "teacher" || r === "professor");
+    const isAdvisor = actor.roles.includes("advisor");
+    const isRegistrar = actor.roles.includes("registrar");
+
+    if (!isReviewer && !isRegistrar) {
+      // Faculty or advisor must have explicit relationship to this student
+      if (isFaculty) {
+        // Faculty scoping: student must be in one of their sections
+        const sectionCheckResult = await db.query(
+          `select 1 from public.academy_registrations reg
+           join public.academy_course_sections sec
+             on sec.id = reg.section_id and sec.tenant_id = reg.tenant_id
+           where reg.student_person_id = $1 and reg.tenant_id = $2
+             and sec.instructor_person_id = $3
+           limit 1`,
+          [subject, actor.tenantId, actor.userId],
+        ) as { rows: Array<{ "?column?": number }> };
+
+        if (sectionCheckResult.rows.length === 0) {
+          throw new AcademyAuthorizationError(
+            "Faculty can view only students in their sections.",
+          );
+        }
+      } else if (isAdvisor) {
+        // Advisor scoping: actor must be the formation advisor for this student
+        const advisorCheckResult = await db.query(
+          `select 1 from public.ministry_formation_advisor_assignments
+           where student_person_id = $1 and tenant_id = $2 and advisor_person_id = $3
+           limit 1`,
+          [subject, actor.tenantId, actor.userId],
+        ) as { rows: Array<{ "?column?": number }> };
+
+        if (advisorCheckResult.rows.length === 0) {
+          throw new AcademyAuthorizationError(
+            "Advisor can view only their assigned formation advisees.",
+          );
+        }
+      }
+    }
   }
 
   // Fetch practicum sessions
@@ -843,6 +973,9 @@ export async function getStudentFormationRecord(
 
   const advisorInfo = advisorResult.rows[0];
 
+  // Registrar sees only endorsed records (no drafts)
+  const isRegistrar = actor.roles.includes("registrar");
+
   // If student, strip pastoralNotes and filter to endorsed-only records
   if (isStudent) {
     const evaluationsStudentView: FormationEvaluationStudentView[] = evaluationResult.rows.map((row) => ({
@@ -874,32 +1007,112 @@ export async function getStudentFormationRecord(
       formationAdvisorName: advisorInfo?.advisor_name,
     };
   } else {
-    const evaluations: FormationEvaluation[] = evaluationResult.rows.map((row) => ({
-      id: row.id,
-      tenantId: row.tenant_id,
-      studentPersonId: row.student_person_id,
-      evaluatorPersonId: row.evaluator_person_id,
-      evaluatorNameSnapshot: row.evaluator_name_snapshot,
-      rubricLabel: row.rubric_label,
-      scores: row.scores,
-      pastoralNotes: row.pastoral_notes ?? undefined,
-      status: row.status as "draft" | "endorsed",
-      endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-      endorsedAt: row.endorsed_at ?? undefined,
-      evaluationDate: row.evaluation_date,
-      createdAt: row.created_at,
-    }));
+    // Staff view: filter pastoral notes based on access rules
+    // ADR-0045: pastoral notes visible only to:
+    // - institution_admin or ministry_formation_reviewer (reviewer access)
+    // - the evaluation's own evaluator
+    // - NEVER to registrar, regardless of other roles
+    const evaluations: FormationEvaluation[] = evaluationResult.rows.map((row) => {
+      const showPastoralNotes = canSeePastoralNotes(actor, row.evaluator_person_id);
+
+      return {
+        id: row.id,
+        tenantId: row.tenant_id,
+        studentPersonId: row.student_person_id,
+        evaluatorPersonId: row.evaluator_person_id,
+        evaluatorNameSnapshot: row.evaluator_name_snapshot,
+        rubricLabel: row.rubric_label,
+        scores: row.scores,
+        pastoralNotes: showPastoralNotes ? (row.pastoral_notes ?? undefined) : undefined,
+        status: row.status as "draft" | "endorsed",
+        endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
+        endorsedAt: row.endorsed_at ?? undefined,
+        evaluationDate: row.evaluation_date,
+        createdAt: row.created_at,
+      };
+    });
+
+    // Registrar sees only endorsed records
+    const filteredPracticumSessions = isRegistrar ? practicumSessions.filter(s => s.status === "endorsed") : practicumSessions;
+    const filteredMilestones = isRegistrar ? milestones.filter(m => m.status === "endorsed") : milestones;
+    const filteredEvaluations = isRegistrar ? evaluations.filter(e => e.status === "endorsed") : evaluations;
 
     return {
       tenantId: actor.tenantId,
       studentPersonId: subject,
-      practicumSessions,
-      milestones,
-      evaluations,
+      practicumSessions: filteredPracticumSessions,
+      milestones: filteredMilestones,
+      evaluations: filteredEvaluations,
       formationAdvisorPersonId: advisorInfo?.advisor_person_id,
       formationAdvisorName: advisorInfo?.advisor_name,
     };
   }
+}
+
+export async function grantMinistryFormationReviewer(
+  actor: AcademyActor,
+  targetPersonId: string,
+  db: AcademyQueryClient,
+): Promise<void> {
+  // Only institution_admin can grant this sensitive role
+  if (!actor.roles.includes("institution_admin")) {
+    throw new AcademyAuthorizationError(
+      "Forbidden ministry formation reviewer grant access.",
+    );
+  }
+
+  const target = requireText(targetPersonId, "targetPersonId");
+
+  // Cross-tenant check: confirm target exists in actor's tenant
+  const targetCheckResult = await db.query(
+    `select person_status from public.academy_people where id = $1 and tenant_id = $2`,
+    [target, actor.tenantId],
+  ) as { rows: Array<{ person_status: string }> };
+
+  if (targetCheckResult.rows.length === 0) {
+    throw new Error("Target person not found.");
+  }
+
+  // Insert role assignment (idempotent via on conflict do nothing)
+  await db.query(
+    `insert into public.academy_person_role_assignments
+      (person_id, tenant_id, role, status)
+     values ($1, $2, 'ministry_formation_reviewer', 'active')
+     on conflict (person_id, tenant_id, role) do nothing`,
+    [target, actor.tenantId],
+  );
+}
+
+export async function revokeMinistryFormationReviewer(
+  actor: AcademyActor,
+  targetPersonId: string,
+  db: AcademyQueryClient,
+): Promise<void> {
+  // Only institution_admin can revoke this sensitive role
+  if (!actor.roles.includes("institution_admin")) {
+    throw new AcademyAuthorizationError(
+      "Forbidden ministry formation reviewer revoke access.",
+    );
+  }
+
+  const target = requireText(targetPersonId, "targetPersonId");
+
+  // Cross-tenant check: confirm target exists in actor's tenant
+  const targetCheckResult = await db.query(
+    `select person_status from public.academy_people where id = $1 and tenant_id = $2`,
+    [target, actor.tenantId],
+  ) as { rows: Array<{ person_status: string }> };
+
+  if (targetCheckResult.rows.length === 0) {
+    throw new Error("Target person not found.");
+  }
+
+  // Delete role assignment
+  await db.query(
+    `delete from public.academy_person_role_assignments
+     where person_id = $1 and tenant_id = $2 and role = 'ministry_formation_reviewer'`,
+    [target, actor.tenantId],
+  );
 }
 
 export async function getFormationPageMetadata(

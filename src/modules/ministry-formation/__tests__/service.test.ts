@@ -11,12 +11,15 @@ import {
   assignFormationAdvisor,
   listStudentsWithFormationSummary,
   getFormationPageMetadata,
+  grantMinistryFormationReviewer,
+  revokeMinistryFormationReviewer,
 } from "@/modules/ministry-formation/service";
 import { PermanentRecordError } from "@/modules/ministry-formation/errors";
 
 function createMockDb(): AcademyQueryClient {
   const store = new Map<string, unknown>();
   const advisorAssignments = new Map<string, { advisorId: string; assignedBy: string; assignedAt: string }>();
+  const advisorAssignmentHistory: Array<{ tenantId: string; studentPersonId: string; advisorPersonId: string; assignedAt: string; assignedByPersonId: string; recordedAt: string }> = [];
   let idCounter = 0;
 
   return {
@@ -282,6 +285,33 @@ function createMockDb(): AcademyQueryClient {
         };
       }
 
+      if (text.includes("insert into public.ministry_formation_advisor_assignment_history")) {
+        const tenantId = values![0] as string;
+        const studentId = values![1] as string;
+        const advisorId = values![2] as string;
+        const assignedAt = values![3] as string;
+        const assignedBy = values![4] as string;
+        const recordedAt = new Date().toISOString();
+        advisorAssignmentHistory.push({
+          tenantId,
+          studentPersonId: studentId,
+          advisorPersonId: advisorId,
+          assignedAt,
+          assignedByPersonId: assignedBy,
+          recordedAt,
+        });
+        return { rows: [] };
+      }
+
+      if (text.includes("select count(*) from public.ministry_formation_advisor_assignment_history")) {
+        const studentId = values![0] as string;
+        const tenantId = values![1] as string;
+        const count = advisorAssignmentHistory.filter(
+          h => h.studentPersonId === studentId && h.tenantId === tenantId
+        ).length;
+        return { rows: [{ count: String(count) }] };
+      }
+
       if (text.includes("select aa.advisor_person_id, p.display_name as advisor_name")) {
         const studentId = values![0] as string;
         const tenantId = values![1] as string;
@@ -340,6 +370,40 @@ function createMockDb(): AcademyQueryClient {
           });
           return { rows: summaries };
         }
+        return { rows: [] };
+      }
+
+      // Mock faculty section scoping check
+      if (text.includes("select 1 from public.academy_registrations reg") && text.includes("join public.academy_course_sections sec")) {
+        const studentId = values![0];
+        const tenantId = values![1];
+        const instructorId = values![2];
+        // Faculty-1 can see student-1 in tenant-a
+        if (studentId === "student-1" && tenantId === "tenant-a" && instructorId === "faculty-1") {
+          return { rows: [{ "?column?": 1 }] };
+        }
+        return { rows: [] };
+      }
+
+      // Mock formation advisor scoping check
+      if (text.includes("select 1 from public.ministry_formation_advisor_assignments") && text.includes("where student_person_id")) {
+        const studentId = values![0];
+        const tenantId = values![1];
+        const advisorId = values![2];
+        const key = `${tenantId}:${studentId}`;
+        const assignment = advisorAssignments.get(key);
+        if (assignment && assignment.advisorId === advisorId) {
+          return { rows: [{ "?column?": 1 }] };
+        }
+        return { rows: [] };
+      }
+
+      // Mock grant/revoke reviewer role
+      if (text.includes("insert into public.academy_person_role_assignments") && text.includes("ministry_formation_reviewer")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("delete from public.academy_person_role_assignments") && text.includes("ministry_formation_reviewer")) {
         return { rows: [] };
       }
 
@@ -797,6 +861,58 @@ test("assignFormationAdvisor reassignment replaces previous advisor", async () =
   );
   assert.equal(result2.advisorPersonId, "faculty-1");
   assert.equal(result2.studentPersonId, "student-1");
+});
+
+test("assignFormationAdvisor reassignments create additive history trail", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+
+  // First assignment
+  await assignFormationAdvisor(
+    actor,
+    {
+      studentPersonId: "student-1",
+      advisorPersonId: "advisor-1",
+    },
+    db,
+  );
+
+  // Second assignment (reassignment)
+  await assignFormationAdvisor(
+    actor,
+    {
+      studentPersonId: "student-1",
+      advisorPersonId: "faculty-1",
+    },
+    db,
+  );
+
+  // Verify history table has 2 rows (one per assignment)
+  const historyCountResult = await db.query(
+    `select count(*) from public.ministry_formation_advisor_assignment_history
+     where student_person_id = $1 and tenant_id = $2`,
+    ["student-1", "tenant-a"],
+  ) as { rows: Array<{ count: string }> };
+
+  assert.equal(historyCountResult.rows[0].count, "2");
+
+  // Verify live table still has exactly 1 row (the current assignment)
+  const liveAssignmentResult = await db.query(
+    `select aa.advisor_person_id, p.display_name as advisor_name
+     from public.ministry_formation_advisor_assignments aa
+     join public.academy_people p
+       on p.id = aa.advisor_person_id and p.tenant_id = aa.tenant_id
+     where aa.student_person_id = $1 and aa.tenant_id = $2`,
+    ["student-1", "tenant-a"],
+  ) as { rows: Array<{ advisor_person_id: string; advisor_name: string }> };
+
+  assert.equal(liveAssignmentResult.rows.length, 1);
+  assert.equal(liveAssignmentResult.rows[0].advisor_person_id, "faculty-1");
 });
 
 test("assignFormationAdvisor RBAC rejection", async () => {
@@ -1599,4 +1715,96 @@ test("getFormationPageMetadata cross-tenant isolation for advisors", async () =>
   const advisorIdsB = metadataB.eligibleAdvisors.map(a => a.id);
   assert.ok(!advisorIdsB.includes("faculty-1"), "Tenant B should not see tenant A advisors");
   assert.ok(!advisorIdsB.includes("advisor-1"), "Tenant B should not see tenant A advisors");
+});
+
+// Package B: Role-scoped access and pastoral notes tests
+
+test("grantMinistryFormationReviewer success for institution_admin", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+  await grantMinistryFormationReviewer(actor, "faculty-1", db);
+  // If no error, test passes (grant succeeded)
+  assert.ok(true);
+});
+
+test("grantMinistryFormationReviewer forbidden for non-institution_admin", async () => {
+  const actor: AcademyActor = {
+    userId: "faculty-1",
+    tenantId: "tenant-a",
+    roles: ["faculty"],
+  };
+
+  const db = createMockDb();
+  await assert.rejects(
+    async () => {
+      await grantMinistryFormationReviewer(actor, "advisor-1", db);
+    },
+    { message: /Forbidden ministry formation reviewer grant access/i },
+  );
+});
+
+test("grantMinistryFormationReviewer cross-tenant rejection", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+  await assert.rejects(
+    async () => {
+      await grantMinistryFormationReviewer(actor, "tenant-b-person", db);
+    },
+    { message: /Target person not found/i },
+  );
+});
+
+test("revokeMinistryFormationReviewer success for institution_admin", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+  await revokeMinistryFormationReviewer(actor, "faculty-1", db);
+  // If no error, test passes (revoke succeeded)
+  assert.ok(true);
+});
+
+test("revokeMinistryFormationReviewer forbidden for non-institution_admin", async () => {
+  const actor: AcademyActor = {
+    userId: "faculty-1",
+    tenantId: "tenant-a",
+    roles: ["faculty"],
+  };
+
+  const db = createMockDb();
+  await assert.rejects(
+    async () => {
+      await revokeMinistryFormationReviewer(actor, "advisor-1", db);
+    },
+    { message: /Forbidden ministry formation reviewer revoke access/i },
+  );
+});
+
+test("revokeMinistryFormationReviewer cross-tenant rejection", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+  await assert.rejects(
+    async () => {
+      await revokeMinistryFormationReviewer(actor, "tenant-b-person", db);
+    },
+    { message: /Target person not found/i },
+  );
 });

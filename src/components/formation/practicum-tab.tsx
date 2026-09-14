@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface PracticumSession {
   id: string;
@@ -36,6 +37,8 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
   const [reflectionNote, setReflectionNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [endorseDialogOpen, setEndorseDialogOpen] = useState(false);
+  const [sessionToEndorse, setSessionToEndorse] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,10 +79,16 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
     }
   }
 
-  async function handleEndorse(sessionId: string) {
-    if (!confirm("Endorse this practicum session? This action cannot be undone.")) {
-      return;
-    }
+  function openEndorseDialog(sessionId: string) {
+    setSessionToEndorse(sessionId);
+    setEndorseDialogOpen(true);
+  }
+
+  async function handleEndorse() {
+    if (!sessionToEndorse) return;
+
+    setSubmitting(true);
+    setError(null);
 
     try {
       const response = await fetch("/api/academy/ministry-formation/endorse", {
@@ -87,7 +96,7 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recordType: "practicum",
-          recordId: sessionId,
+          recordId: sessionToEndorse,
         }),
       });
 
@@ -98,7 +107,9 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
 
       window.location.reload();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -153,7 +164,7 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEndorse(session.id)}
+                            onClick={() => openEndorseDialog(session.id)}
                           >
                             Endorse
                           </Button>
@@ -233,6 +244,36 @@ export function PracticumTab({ studentId, sessions, canEndorse }: PracticumTabPr
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={endorseDialogOpen} onOpenChange={setEndorseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Endorse Practicum Session</DialogTitle>
+            <DialogDescription>
+              Endorse this practicum session? This action cannot be undone. Once endorsed, the session becomes part of the student&apos;s official formation record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setEndorseDialogOpen(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleEndorse} disabled={submitting}>
+                {submitting ? "Endorsing..." : "Endorse Session"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

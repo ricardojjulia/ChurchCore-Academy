@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface FaithMilestone {
   id: string;
@@ -45,6 +46,8 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
   const [institutionNotes, setInstitutionNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [endorseDialogOpen, setEndorseDialogOpen] = useState(false);
+  const [milestoneToEndorse, setMilestoneToEndorse] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,10 +86,16 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
     }
   }
 
-  async function handleEndorse(milestoneId: string) {
-    if (!confirm("Endorse this milestone? This action cannot be undone.")) {
-      return;
-    }
+  function openEndorseDialog(milestoneId: string) {
+    setMilestoneToEndorse(milestoneId);
+    setEndorseDialogOpen(true);
+  }
+
+  async function handleEndorse() {
+    if (!milestoneToEndorse) return;
+
+    setSubmitting(true);
+    setError(null);
 
     try {
       const response = await fetch("/api/academy/ministry-formation/endorse", {
@@ -94,7 +103,7 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recordType: "milestone",
-          recordId: milestoneId,
+          recordId: milestoneToEndorse,
         }),
       });
 
@@ -105,7 +114,9 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
 
       window.location.reload();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -160,7 +171,7 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEndorse(milestone.id)}
+                            onClick={() => openEndorseDialog(milestone.id)}
                           >
                             Endorse
                           </Button>
@@ -231,6 +242,36 @@ export function MilestonesTab({ studentId, milestones, canEndorse }: MilestonesT
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={endorseDialogOpen} onOpenChange={setEndorseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Endorse Milestone</DialogTitle>
+            <DialogDescription>
+              Endorse this faith milestone? This action cannot be undone. Once endorsed, the milestone becomes part of the student&apos;s official formation record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setEndorseDialogOpen(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleEndorse} disabled={submitting}>
+                {submitting ? "Endorsing..." : "Endorse Milestone"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

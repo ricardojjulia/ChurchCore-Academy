@@ -1,13 +1,15 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
 
 export async function GET(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    return withAcademyDatabaseContext(actor, (client) =>
-      listStudentsWithFormationSummary(actor, client),
-    );
+    return withCapabilityContext(actor, (client, capabilities) => {
+      assertCapability(capabilities, "ministryFormation");
+      return listStudentsWithFormationSummary(actor, client);
+    });
   });
 }
