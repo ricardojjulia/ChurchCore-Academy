@@ -18,7 +18,7 @@ test("authenticated walkthrough expands required and forbidden surfaces", () => 
   const plan = buildAuthenticatedRoleWalkthroughPlan({
     baseUrl: "http://localhost:3200/",
     generatedAt: "2026-06-21T00:00:00.000Z",
-    environment: {},
+    environment: { NODE_ENV: "test" },
   });
   const expectedStepCount = acceptanceRoles.reduce(
     (total, profile) => total + profile.requiredSurfaces.length + profile.forbiddenSurfaces.length,
@@ -47,7 +47,7 @@ test("authenticated walkthrough expands required and forbidden surfaces", () => 
 test("authenticated walkthrough markdown records commands and credential contract", () => {
   const plan = buildAuthenticatedRoleWalkthroughPlan({
     generatedAt: "2026-06-21T00:00:00.000Z",
-    environment: {},
+    environment: { NODE_ENV: "test" },
   });
   const markdown = renderRoleWalkthroughMarkdown(plan);
 

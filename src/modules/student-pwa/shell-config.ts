@@ -5,7 +5,7 @@ export type StudentPwaDestination = {
   label: string;
   title: string;
   description: string;
-  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance" | "account" | "aid";
+  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance" | "account" | "aid" | "formation";
 };
 
 export const studentPwaDestinations: StudentPwaDestination[] = [
@@ -85,6 +85,13 @@ export const studentPwaDestinations: StudentPwaDestination[] = [
     title: "My Privacy",
     description: "Review and update your consent for learning intelligence features.",
     icon: "privacy",
+  },
+  {
+    href: "/student/formation",
+    label: "Formation",
+    title: "Ministry Formation",
+    description: "Your practicum hours, faith milestones, and formation evaluations appear here once endorsed.",
+    icon: "formation",
   },
 ];
 

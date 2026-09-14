@@ -98,7 +98,9 @@ test("marks retryable provider failures without exposing raw errors", async () =
         retryAfterSeconds: 60,
       }),
     },
-    emitEvent: (event) => events.push(event),
+    emitEvent: (event) => {
+      events.push(event);
+    },
   });
 
   assert.equal(result.result.status, "retryable_failure");
@@ -177,8 +179,12 @@ test("durable worker retries until exhaustion and stores only redacted last erro
     {
       tenantId: "tenant-1",
       repository,
-      emitEvent: (event) => events.push(event),
-      auditSink: (event) => audits.push(event),
+      emitEvent: (event) => {
+        events.push(event);
+      },
+      auditSink: (event) => {
+        audits.push(event);
+      },
       executor: {
         execute: async () => ({
           status: "retryable_failure",
@@ -193,8 +199,12 @@ test("durable worker retries until exhaustion and stores only redacted last erro
     {
       tenantId: "tenant-1",
       repository,
-      emitEvent: (event) => events.push(event),
-      auditSink: (event) => audits.push(event),
+      emitEvent: (event) => {
+        events.push(event);
+      },
+      auditSink: (event) => {
+        audits.push(event);
+      },
       executor: {
         execute: async () => ({
           status: "retryable_failure",
@@ -232,7 +242,9 @@ test("durable worker skips provider calls while tenant provider circuit is open"
     tenantId: "tenant-1",
     repository,
     isProviderCircuitOpen: async () => true,
-    auditSink: (event) => audits.push(event),
+    auditSink: (event) => {
+      audits.push(event);
+    },
     emitEvent: () => undefined,
     executor: {
       execute: async () => {
@@ -283,8 +295,12 @@ test("circuit open helper emits admin notification and safe operational event", 
   const events: OperationalEvent[] = [];
 
   await markProviderCircuitOpen("tenant-1", "moodle", "token=sk_live_secret rawProviderPayload password=hidden", {
-    notifyAdministrators: async (notification) => notifications.push(notification),
-    emitEvent: (event) => events.push(event),
+    notifyAdministrators: async (notification) => {
+      notifications.push(notification);
+    },
+    emitEvent: (event) => {
+      events.push(event);
+    },
   });
 
   assert.deepEqual(notifications, [
@@ -302,7 +318,9 @@ test("reset helper delegates tenant/provider circuit reset", async () => {
   const calls: string[] = [];
 
   await resetProviderCircuitAfterSuccess("tenant-1", "canvas", {
-    resetCircuit: async (tenantId, providerId) => calls.push(`${tenantId}:${providerId}`),
+    resetCircuit: async (tenantId, providerId) => {
+      calls.push(`${tenantId}:${providerId}`);
+    },
     emitEvent: () => undefined,
   });
 

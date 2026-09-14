@@ -49,10 +49,12 @@ This directory contains the durable product, architecture, delivery, operations,
 - [Provider Activation](runbooks/provider-activation.md)
 - [Moodle Configuration](integrations/moodle-provider-configuration.md)
 - [Canvas Configuration](integrations/canvas-provider-configuration.md)
+- [OneRoster Decision History](integrations/oneroster-decision-history.md)
 - [LLIS Retention and Deletion](policies/llis-data-retention-and-deletion.md)
 
 ## Delivery Artifacts
 
+- [Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current code-verified completeness reference
 - [0.9.0 Release Notes — Capability Enforcement](releases/2026-06-30-capability-enforcement-release-notes.md)
 - [0.8.0 Release Notes — Full LMS Integration](releases/2026-06-26-full-lms-integration-readiness.md)
 - `docs/releases/`: all release notes and readiness packages

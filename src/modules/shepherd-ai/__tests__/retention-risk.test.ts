@@ -165,7 +165,7 @@ function buildMockDb(studentData: MockStudentData, existingScores: RetentionRisk
           highCount: Number(params?.[5]),
           moderateCount: Number(params?.[6]),
           lowCount: Number(params?.[7]),
-          avgCompositeScore: params?.[8] !== null ? Number(params[8]) : null,
+          avgCompositeScore: params?.[8] !== null ? Number(params?.[8]) : null,
           snapshotAt: String(params?.[9]),
           createdAt: new Date().toISOString(),
         };

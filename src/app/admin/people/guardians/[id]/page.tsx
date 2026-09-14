@@ -47,6 +47,7 @@ interface PageProps {
 export default async function GuardianDetailPage(props: PageProps) {
   const params = await props.params;
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
   const { person, relationships, auditEvents, students, covenantEnabled, covenantRecord } = await withAcademyDatabaseContext(
     actor,

@@ -2,7 +2,6 @@ import type { Config } from "tailwindcss";
 import animate from "tailwindcss-animate";
 
 const config: Config = {
-  darkMode: ["class"],
   content: ["./src/**/*.{js,jsx,ts,tsx,mdx}"],
   theme: {
     extend: {
@@ -74,7 +73,7 @@ const config: Config = {
       },
       boxShadow: {
         sm: "var(--sis-shadow-elev)",
-        academy: "var(--shadow-card)",
+        academy: "var(--shadow-panel)",
       },
       keyframes: {
         "accordion-down": {

@@ -13,10 +13,12 @@ describe("assertCapability", () => {
       admissionsWorkflows: false,
       transcriptWorkflows: false,
       graduationWorkflows: false,
+      ministryFormation: false,
       lmsLaunch: false,
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     assert.doesNotThrow(() => {
@@ -33,10 +35,12 @@ describe("assertCapability", () => {
       admissionsWorkflows: false,
       transcriptWorkflows: false,
       graduationWorkflows: false,
+      ministryFormation: false,
       lmsLaunch: false,
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     assert.throws(
@@ -56,10 +60,12 @@ describe("assertCapability", () => {
       admissionsWorkflows: false,
       transcriptWorkflows: false,
       graduationWorkflows: false,
+      ministryFormation: false,
       lmsLaunch: false,
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     try {
@@ -80,10 +86,12 @@ describe("assertCapability", () => {
       admissionsWorkflows: false,
       transcriptWorkflows: false,
       graduationWorkflows: false,
+      ministryFormation: false,
       lmsLaunch: false,
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     try {

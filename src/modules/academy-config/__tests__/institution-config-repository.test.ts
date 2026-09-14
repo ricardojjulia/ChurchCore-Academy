@@ -4,6 +4,7 @@ import { buildInstitutionConfigPayload, buildUpdateInstitutionModesPayload } fro
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import { mapInstitutionProfileRow, AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import { validateInstitutionProfile } from "@/modules/academy-config/validation";
+import type { InstitutionMode } from "@/modules/academy-config/types";
 
 const row = {
   tenant_id: "tenant-read",
@@ -223,13 +224,13 @@ test("API mode update recalculates profile for institution admins", async () => 
   const repository = {
     updateInstitutionModes: async (
       tenantId: string,
-      input: { selectedModes: string[]; primaryMode?: string },
+      input: { selectedModes: InstitutionMode[]; primaryMode?: InstitutionMode },
     ) => {
       captured = { tenantId, ...input };
       return {
         ...mapInstitutionProfileRow(row),
         primaryMode: "childrens_school" as const,
-        supportedModes: ["childrens_school", "seminary"] as const,
+        supportedModes: ["childrens_school", "seminary"] as InstitutionMode[],
       };
     },
   };
