@@ -63,12 +63,34 @@ export interface FormationEvaluation {
 // Student-safe evaluation — no pastoralNotes
 export type FormationEvaluationStudentView = Omit<FormationEvaluation, 'pastoralNotes'>;
 
+export interface FormationAdvisorAssignment {
+  id: string;
+  tenantId: string;
+  studentPersonId: string;
+  advisorPersonId: string;
+  assignedAt: string;
+  assignedByPersonId: string;
+}
+
+export interface FormationSummary {
+  studentPersonId: string;
+  fullName: string;
+  email: string;
+  totalPracticumHours: number;
+  milestoneCount: number;
+  evaluationCount: number;
+  formationAdvisorPersonId?: string;
+  formationAdvisorName?: string;
+}
+
 export interface StudentFormationRecord {
   tenantId: string;
   studentPersonId: string;
   practicumSessions: PracticumSession[];
   milestones: FaithMilestone[];
   evaluations: FormationEvaluationStudentView[];
+  formationAdvisorPersonId?: string;
+  formationAdvisorName?: string;
 }
 
 export interface StudentFormationRecordStaffView {
@@ -77,4 +99,6 @@ export interface StudentFormationRecordStaffView {
   practicumSessions: PracticumSession[];
   milestones: FaithMilestone[];
   evaluations: FormationEvaluation[];
+  formationAdvisorPersonId?: string;
+  formationAdvisorName?: string;
 }

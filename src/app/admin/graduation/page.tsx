@@ -28,12 +28,42 @@ function credentialLabel(credential: string) {
 
 export default async function GraduationPage() {
   const actor = await requireActor();
-  const { students, programs } = await withAcademyDatabaseContext(actor, async (client) => {
+  const { students, programs, formationSummaries } = await withAcademyDatabaseContext(actor, async (client) => {
     const [s, p] = await Promise.all([
       fetchStudentRecords(actor.tenantId, client),
       fetchProgramList(actor.tenantId, client),
     ]);
-    return { students: s, programs: p };
+
+    // Fetch formation summaries for Formation Status column
+    let formationSummaries: Array<{
+      studentPersonId: string;
+      totalPracticumHours: number;
+      milestoneCount: number;
+    }> = [];
+
+    try {
+      const requestHeaders = await (await import("next/headers")).headers();
+      const formationResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/academy/ministry-formation/students`,
+        {
+          headers: {
+            cookie: requestHeaders.get("cookie") || "",
+          },
+        },
+      );
+      if (formationResponse.ok) {
+        const data = await formationResponse.json();
+        formationSummaries = data.map((f: { studentPersonId: string; totalPracticumHours: number; milestoneCount: number }) => ({
+          studentPersonId: f.studentPersonId,
+          totalPracticumHours: f.totalPracticumHours,
+          milestoneCount: f.milestoneCount,
+        }));
+      }
+    } catch {
+      // Formation module not available or actor lacks permission
+    }
+
+    return { students: s, programs: p, formationSummaries };
   });
 
   const activeStudents = students.filter((s) => s.enrollmentStatus === "active");
@@ -48,7 +78,13 @@ export default async function GraduationPage() {
       student.allProgramCoursesCompleted ||
       (progressPct !== null && progressPct >= Math.round(GRADUATION_CREDIT_THRESHOLD * 100));
 
-    return { student, program, progressPct, holds, readyToReview };
+    // TODO: replace hardcoded formation-completion thresholds (100 hrs / 3 milestones) with per-program requirements once that config exists
+    const formation = formationSummaries.find((f) => f.studentPersonId === student.id);
+    const formationComplete = formation
+      ? formation.totalPracticumHours >= 100 && formation.milestoneCount >= 3
+      : false;
+
+    return { student, program, progressPct, holds, readyToReview, formationComplete };
   });
 
   const reviewReady = candidateRows.filter((r) => r.readyToReview && r.holds.length === 0);
@@ -143,6 +179,7 @@ type CandidateRow = {
   progressPct: number | null;
   holds: string[];
   readyToReview: boolean;
+  formationComplete: boolean;
 };
 
 function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?: boolean }) {
@@ -155,12 +192,13 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
           <TableHead>Credits</TableHead>
           <TableHead>Progress</TableHead>
           <TableHead>GPA</TableHead>
+          <TableHead>Formation Status</TableHead>
           {showHolds && <TableHead>Holds</TableHead>}
           <TableHead>Profile</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map(({ student, program, progressPct, holds }) => (
+        {rows.map(({ student, program, progressPct, holds, formationComplete }) => (
           <TableRow key={student.id}>
             <TableCell className="whitespace-normal">
               <div className="font-medium">{student.fullName}</div>
@@ -188,6 +226,13 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
               )}
             </TableCell>
             <TableCell>{student.gpa ?? "—"}</TableCell>
+            <TableCell>
+              {formationComplete ? (
+                <Badge variant="secondary">Complete</Badge>
+              ) : (
+                <Badge variant="outline">Incomplete</Badge>
+              )}
+            </TableCell>
             {showHolds && (
               <TableCell className="whitespace-normal">
                 <div className="flex flex-wrap gap-1">

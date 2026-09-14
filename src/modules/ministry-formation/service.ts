@@ -11,6 +11,8 @@ import type {
   StudentFormationRecord,
   StudentFormationRecordStaffView,
   FormationEvaluationStudentView,
+  FormationAdvisorAssignment,
+  FormationSummary,
 } from "@/modules/ministry-formation/types";
 import { PermanentRecordError } from "@/modules/ministry-formation/errors";
 
@@ -41,6 +43,17 @@ const formationViewerRoles = new Set<AcademyRole>([
   "institution_admin",
   "registrar",
   "academic_admin",
+]);
+
+const advisorAssignerRoles = new Set<AcademyRole>([
+  "institution_admin",
+  "academic_admin",
+]);
+
+const advisorEligibleRoles = new Set<AcademyRole>([
+  "faculty",
+  "advisor",
+  "institution_admin",
 ]);
 
 function requireText(value: string, field: string): string {
@@ -83,6 +96,14 @@ function assertEndorser(actor: AcademyActor) {
 
 function hasFormationViewerAccess(actor: AcademyActor): boolean {
   return actor.roles.some((role) => formationViewerRoles.has(role));
+}
+
+function assertAdvisorAssigner(actor: AcademyActor) {
+  if (!actor.roles.some((role) => advisorAssignerRoles.has(role))) {
+    throw new AcademyAuthorizationError(
+      "Forbidden advisor assignment access.",
+    );
+  }
 }
 
 function validateDate(dateString: string, field: string): string {
@@ -494,6 +515,152 @@ export async function endorseRecord(
   }
 }
 
+export async function assignFormationAdvisor(
+  actor: AcademyActor,
+  input: {
+    studentPersonId: string;
+    advisorPersonId: string;
+  },
+  db: AcademyQueryClient,
+): Promise<FormationAdvisorAssignment> {
+  assertAdvisorAssigner(actor);
+
+  const studentPersonId = requireText(input.studentPersonId, "studentPersonId");
+  const advisorPersonId = requireText(input.advisorPersonId, "advisorPersonId");
+
+  // Cross-tenant check: confirm both student and advisor exist in actor's tenant
+  const studentCheckResult = await db.query(
+    `select person_status from public.academy_people where id = $1 and tenant_id = $2`,
+    [studentPersonId, actor.tenantId],
+  ) as { rows: Array<{ person_status: string }> };
+
+  if (studentCheckResult.rows.length === 0) {
+    throw new Error("Student not found.");
+  }
+
+  const advisorCheckResult = await db.query(
+    `select person_status from public.academy_people where id = $1 and tenant_id = $2`,
+    [advisorPersonId, actor.tenantId],
+  ) as { rows: Array<{ person_status: string }> };
+
+  if (advisorCheckResult.rows.length === 0) {
+    throw new Error("Advisor not found.");
+  }
+
+  // Advisor eligibility check: confirm advisor has at least one eligible role
+  const advisorRoleResult = await db.query(
+    `select role from public.academy_person_role_assignments
+     where person_id = $1 and tenant_id = $2 and status = 'active'
+       and (starts_on is null or starts_on <= current_date)
+       and (ends_on is null or ends_on >= current_date)`,
+    [advisorPersonId, actor.tenantId],
+  ) as { rows: Array<{ role: string }> };
+
+  const hasEligibleRole = advisorRoleResult.rows.some((row) =>
+    advisorEligibleRoles.has(row.role as AcademyRole),
+  );
+
+  if (!hasEligibleRole) {
+    throw new Error(
+      "Advisor must have faculty, advisor, or institution_admin role.",
+    );
+  }
+
+  // Upsert advisor assignment
+  const result = await db.query(
+    `insert into public.ministry_formation_advisor_assignments
+      (tenant_id, student_person_id, advisor_person_id, assigned_by_person_id)
+     values ($1, $2, $3, $4)
+     on conflict (tenant_id, student_person_id)
+     do update set
+       advisor_person_id = excluded.advisor_person_id,
+       assigned_at = now(),
+       assigned_by_person_id = excluded.assigned_by_person_id
+     returning *`,
+    [actor.tenantId, studentPersonId, advisorPersonId, actor.userId],
+  ) as { rows: Array<{
+    id: string;
+    tenant_id: string;
+    student_person_id: string;
+    advisor_person_id: string;
+    assigned_at: string;
+    assigned_by_person_id: string;
+  }> };
+
+  const row = result.rows[0];
+  if (!row) {
+    throw new Error("Failed to assign advisor.");
+  }
+
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    studentPersonId: row.student_person_id,
+    advisorPersonId: row.advisor_person_id,
+    assignedAt: row.assigned_at,
+    assignedByPersonId: row.assigned_by_person_id,
+  };
+}
+
+export async function listStudentsWithFormationSummary(
+  actor: AcademyActor,
+  db: AcademyQueryClient,
+): Promise<FormationSummary[]> {
+  if (!hasFormationViewerAccess(actor)) {
+    throw new AcademyAuthorizationError(
+      "Forbidden formation summary access.",
+    );
+  }
+
+  const result = await db.query(
+    `select
+       p.id as student_person_id,
+       p.display_name as full_name,
+       p.email,
+       coalesce(sum(ps.hours), 0) as total_practicum_hours,
+       count(distinct fm.id) as milestone_count,
+       count(distinct fe.id) as evaluation_count,
+       aa.advisor_person_id as formation_advisor_person_id,
+       adv.display_name as formation_advisor_name
+     from public.academy_people p
+     left join public.ministry_practicum_sessions ps
+       on ps.student_person_id = p.id and ps.tenant_id = p.tenant_id
+     left join public.ministry_faith_milestones fm
+       on fm.student_person_id = p.id and fm.tenant_id = p.tenant_id
+     left join public.ministry_formation_evaluations fe
+       on fe.student_person_id = p.id and fe.tenant_id = p.tenant_id
+     left join public.ministry_formation_advisor_assignments aa
+       on aa.student_person_id = p.id and aa.tenant_id = p.tenant_id
+     left join public.academy_people adv
+       on adv.id = aa.advisor_person_id and adv.tenant_id = aa.tenant_id
+     where p.tenant_id = $1
+       and (ps.id is not null or fm.id is not null or fe.id is not null or aa.id is not null)
+     group by p.id, p.display_name, p.email, aa.advisor_person_id, adv.display_name
+     order by p.display_name`,
+    [actor.tenantId],
+  ) as { rows: Array<{
+    student_person_id: string;
+    full_name: string;
+    email: string | null;
+    total_practicum_hours: string;
+    milestone_count: string;
+    evaluation_count: string;
+    formation_advisor_person_id: string | null;
+    formation_advisor_name: string | null;
+  }> };
+
+  return result.rows.map((row) => ({
+    studentPersonId: row.student_person_id,
+    fullName: row.full_name,
+    email: row.email ?? "",
+    totalPracticumHours: parseFloat(row.total_practicum_hours),
+    milestoneCount: parseInt(row.milestone_count, 10),
+    evaluationCount: parseInt(row.evaluation_count, 10),
+    formationAdvisorPersonId: row.formation_advisor_person_id ?? undefined,
+    formationAdvisorName: row.formation_advisor_name ?? undefined,
+  }));
+}
+
 export async function getStudentFormationRecord(
   actor: AcademyActor,
   studentPersonId: string,
@@ -640,6 +807,21 @@ export async function getStudentFormationRecord(
     created_at: string;
   }> };
 
+  // Fetch advisor assignment
+  const advisorResult = await db.query(
+    `select aa.advisor_person_id, p.display_name as advisor_name
+     from public.ministry_formation_advisor_assignments aa
+     join public.academy_people p
+       on p.id = aa.advisor_person_id and p.tenant_id = aa.tenant_id
+     where aa.student_person_id = $1 and aa.tenant_id = $2`,
+    [subject, actor.tenantId],
+  ) as { rows: Array<{
+    advisor_person_id: string;
+    advisor_name: string;
+  }> };
+
+  const advisorInfo = advisorResult.rows[0];
+
   // If student, strip pastoralNotes
   if (isStudent) {
     const evaluationsStudentView: FormationEvaluationStudentView[] = evaluationResult.rows.map((row) => ({
@@ -663,6 +845,8 @@ export async function getStudentFormationRecord(
       practicumSessions,
       milestones,
       evaluations: evaluationsStudentView,
+      formationAdvisorPersonId: advisorInfo?.advisor_person_id,
+      formationAdvisorName: advisorInfo?.advisor_name,
     };
   } else {
     const evaluations: FormationEvaluation[] = evaluationResult.rows.map((row) => ({
@@ -687,6 +871,8 @@ export async function getStudentFormationRecord(
       practicumSessions,
       milestones,
       evaluations,
+      formationAdvisorPersonId: advisorInfo?.advisor_person_id,
+      formationAdvisorName: advisorInfo?.advisor_name,
     };
   }
 }
