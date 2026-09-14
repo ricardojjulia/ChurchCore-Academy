@@ -552,16 +552,25 @@ export async function assignFormationAdvisor(
   const studentPersonId = requireText(input.studentPersonId, "studentPersonId");
   const advisorPersonId = requireText(input.advisorPersonId, "advisorPersonId");
 
-  // Cross-tenant check: confirm both student and advisor exist in actor's tenant
+  // Cross-tenant check: confirm the target is actually a student (an academy_student_profiles
+  // row, not just any academy_people row) and is an active person in this tenant.
   const studentCheckResult = await db.query(
-    `select person_status from public.academy_people where id = $1 and tenant_id = $2`,
+    `select p.person_status
+     from public.academy_people p
+     join public.academy_student_profiles sp
+       on sp.person_id = p.id and sp.tenant_id = p.tenant_id
+     where p.id = $1 and p.tenant_id = $2`,
     [studentPersonId, actor.tenantId],
   ) as { rows: Array<{ person_status: string }> };
 
   if (studentCheckResult.rows.length === 0) {
     throw new Error("Student not found.");
   }
+  if (studentCheckResult.rows[0].person_status !== "active") {
+    throw new Error("Student is not active.");
+  }
 
+  // Confirm the advisor exists, is in this tenant, and is an active person.
   const advisorCheckResult = await db.query(
     `select person_status from public.academy_people where id = $1 and tenant_id = $2`,
     [advisorPersonId, actor.tenantId],
@@ -569,6 +578,9 @@ export async function assignFormationAdvisor(
 
   if (advisorCheckResult.rows.length === 0) {
     throw new Error("Advisor not found.");
+  }
+  if (advisorCheckResult.rows[0].person_status !== "active") {
+    throw new Error("Advisor is not active.");
   }
 
   // Advisor eligibility check: confirm advisor has at least one eligible role
@@ -1152,6 +1164,7 @@ export async function getFormationPageMetadata(
      join academy_person_role_assignments pra
        on pra.person_id = p.id and pra.tenant_id = p.tenant_id
      where p.tenant_id = $1
+       and p.person_status = 'active'
        and pra.role in ('faculty', 'advisor', 'institution_admin')
        and pra.status = 'active'
        and (pra.starts_on is null or pra.starts_on <= current_date)

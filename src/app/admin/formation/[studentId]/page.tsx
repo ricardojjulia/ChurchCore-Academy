@@ -103,6 +103,7 @@ export default async function FormationDetailPage({
   }
 
   const canEndorse = actor.roles.includes("institution_admin");
+  const canAssignAdvisor = actor.roles.includes("institution_admin") || actor.roles.includes("academic_admin");
 
   return (
     <AdminShell
@@ -155,6 +156,7 @@ export default async function FormationDetailPage({
           <FormationAdvisorTab
             studentId={studentId}
             currentAdvisorName={record.formationAdvisorName}
+            canAssign={canAssignAdvisor}
             eligibleAdvisors={metadata.eligibleAdvisors.map((a) => ({
               id: a.id,
               display_name: a.displayName,

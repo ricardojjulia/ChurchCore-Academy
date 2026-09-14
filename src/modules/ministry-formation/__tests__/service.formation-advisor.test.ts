@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import type { AcademyQueryClient } from "@/lib/academy-database-context";
 import {
@@ -578,6 +580,90 @@ test("getFormationPageMetadata cross-tenant isolation for advisors", async () =>
   const advisorIdsB = metadataB.eligibleAdvisors.map(a => a.id);
   assert.ok(!advisorIdsB.includes("faculty-1"), "Tenant B should not see tenant A advisors");
   assert.ok(!advisorIdsB.includes("advisor-1"), "Tenant B should not see tenant A advisors");
+});
+
+test("eligible-advisors picker query excludes inactive people (source assertion — the mock DB doesn't execute real SQL, so this locks in the WHERE clause itself)", async () => {
+  const source = await readFile(
+    join(process.cwd(), "src/modules/ministry-formation/service.ts"),
+    "utf8",
+  );
+  const pickerQueryStart = source.indexOf("Fetch eligible advisors for the person picker");
+  assert.ok(pickerQueryStart !== -1, "could not locate the eligible-advisors picker query");
+  const pickerQuerySnippet = source.slice(pickerQueryStart, pickerQueryStart + 600);
+  assert.match(pickerQuerySnippet, /p\.person_status\s*=\s*'active'/);
+});
+
+test("assignFormationAdvisor rejects when studentPersonId is not actually a student", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+
+  // "advisor-1" exists in academy_people but has no academy_student_profiles row.
+  await assert.rejects(
+    async () => {
+      await assignFormationAdvisor(
+        actor,
+        {
+          studentPersonId: "advisor-1",
+          advisorPersonId: "faculty-1",
+        },
+        db,
+      );
+    },
+    { message: /Student not found/i },
+  );
+});
+
+test("assignFormationAdvisor rejects an inactive student", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+
+  await assert.rejects(
+    async () => {
+      await assignFormationAdvisor(
+        actor,
+        {
+          studentPersonId: "inactive-student",
+          advisorPersonId: "advisor-1",
+        },
+        db,
+      );
+    },
+    { message: /Student is not active/i },
+  );
+});
+
+test("assignFormationAdvisor rejects an inactive advisor even with an eligible role", async () => {
+  const actor: AcademyActor = {
+    userId: "admin-1",
+    tenantId: "tenant-a",
+    roles: ["institution_admin"],
+  };
+
+  const db = createMockDb();
+
+  await assert.rejects(
+    async () => {
+      await assignFormationAdvisor(
+        actor,
+        {
+          studentPersonId: "student-1",
+          advisorPersonId: "inactive-advisor",
+        },
+        db,
+      );
+    },
+    { message: /Advisor is not active/i },
+  );
 });
 
 // Package B: Role-scoped access and pastoral notes tests

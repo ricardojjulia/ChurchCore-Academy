@@ -11,12 +11,14 @@ import { Select } from "@/components/ui/select";
 interface FormationAdvisorTabProps {
   studentId: string;
   currentAdvisorName?: string;
+  canAssign: boolean;
   eligibleAdvisors: Array<{ id: string; display_name: string }>;
 }
 
 export function FormationAdvisorTab({
   studentId,
   currentAdvisorName,
+  canAssign,
   eligibleAdvisors,
 }: FormationAdvisorTabProps) {
   const [selectedAdvisorId, setSelectedAdvisorId] = useState("");
@@ -89,10 +91,15 @@ export function FormationAdvisorTab({
             )}
           </div>
         </div>
+        {!canAssign && (
+          <p className="text-sm text-muted-foreground">
+            Only an institution admin or academic admin can assign a formation advisor.
+          </p>
+        )}
         <div className="button-row">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" disabled={!canAssign}>
                 {currentAdvisorName ? "Reassign Advisor" : "Assign Advisor"}
               </Button>
             </DialogTrigger>

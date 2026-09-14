@@ -214,6 +214,19 @@ export function createMockDb(): AcademyQueryClient {
         return { rows: [] };
       }
 
+      if (text.includes("join public.academy_student_profiles sp")) {
+        const personId = values![0];
+        const tenantId = values![1];
+        // Only "student-1" and "student-2" have a student profile in these fixtures.
+        if ((personId === "student-1" || personId === "student-2") && tenantId === "tenant-a") {
+          return { rows: [{ person_status: "active" }] };
+        }
+        if (personId === "inactive-student" && tenantId === "tenant-a") {
+          return { rows: [{ person_status: "archived" }] };
+        }
+        return { rows: [] };
+      }
+
       if (text.includes("select person_status from public.academy_people")) {
         const personId = values![0];
         const tenantId = values![1];
@@ -229,6 +242,9 @@ export function createMockDb(): AcademyQueryClient {
         }
         if (personId === "non-advisor-person" && tenantId === "tenant-a") {
           return { rows: [{ person_status: "active" }] };
+        }
+        if (personId === "inactive-advisor" && tenantId === "tenant-a") {
+          return { rows: [{ person_status: "archived" }] };
         }
         if (personId === "tenant-b-person" && tenantId === "tenant-a") {
           return { rows: [] };
@@ -248,6 +264,9 @@ export function createMockDb(): AcademyQueryClient {
         }
         if (personId === "non-advisor-person" && tenantId === "tenant-a") {
           return { rows: [{ role: "student" }] };
+        }
+        if (personId === "inactive-advisor" && tenantId === "tenant-a") {
+          return { rows: [{ role: "faculty" }] };
         }
         return { rows: [] };
       }
