@@ -74,7 +74,7 @@ type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: num
 
 export default async function CoursesPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
   const { catalog, people, selectedPeriodId } = await withAcademyDatabaseContext(actor, async (client) => {
     const db = asAcademyDatabase<Queryable>(client);

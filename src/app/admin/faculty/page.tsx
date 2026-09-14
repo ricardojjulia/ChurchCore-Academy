@@ -2,13 +2,14 @@ import { AdminShell } from "@/components/admin-shell";
 import { StatCard, SuggestionDetail, WorkflowRecordList } from "@/components/academy-ui";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { assertShepherdAiAccess } from "@/modules/academy-auth/policy";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
 
 export default async function FacultyPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"]);
+  assertShepherdAiAccess(actor, actor.tenantId, "read");
 
   const { suggestions, workflows } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));

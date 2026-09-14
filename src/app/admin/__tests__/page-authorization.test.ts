@@ -26,34 +26,37 @@ const requireActorPages: Array<{ path: string; roles: string[] }> = [
   { path: "src/app/admin/admissions/page.tsx", roles: ["institution_admin", "dean", "registrar", "admissions"] },
   { path: "src/app/admin/attendance/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/billing/page.tsx", roles: ["institution_admin", "finance", "registrar"] },
-  { path: "src/app/admin/communications/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
-  { path: "src/app/admin/courses/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"] },
-  { path: "src/app/admin/faculty/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
+  { path: "src/app/admin/communications/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions", "finance"] },
+  { path: "src/app/admin/courses/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/financial-aid/page.tsx", roles: ["institution_admin", "finance", "registrar"] },
-  { path: "src/app/admin/gradebook/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"] },
-  { path: "src/app/admin/graduation/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"] },
-  { path: "src/app/admin/groups/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/gradebook/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
+  { path: "src/app/admin/graduation/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
+  { path: "src/app/admin/groups/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/people/advisors/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
-  { path: "src/app/admin/people/advisors/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/applicants/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/applicants/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/guardians/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/guardians/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/staff/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/staff/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/students/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/people/students/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "advisor", "admissions"] },
-  { path: "src/app/admin/programs/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"] },
-  { path: "src/app/admin/programs/new/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"] },
-  { path: "src/app/admin/programs/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"] },
-  { path: "src/app/admin/reporting/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/advisors/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
+  { path: "src/app/admin/people/applicants/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/applicants/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/guardians/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/guardians/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/staff/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/staff/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/students/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/people/students/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/programs/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
+  { path: "src/app/admin/programs/new/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
+  { path: "src/app/admin/programs/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
+  { path: "src/app/admin/reporting/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "finance"] },
   { path: "src/app/admin/sections/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/staff/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
   { path: "src/app/admin/students/[id]/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
   { path: "src/app/admin/students/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
   { path: "src/app/admin/transcripts/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
-  { path: "src/app/admin/workflows/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
-  { path: "src/app/admin/workflows/watchlist/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions"] },
+  { path: "src/app/admin/workflows/watchlist/page.tsx", roles: ["institution_admin", "registrar", "academic_admin", "advisor", "faculty"] },
+];
+
+const shepherdAiPages: string[] = [
+  "src/app/admin/faculty/page.tsx",
+  "src/app/admin/workflows/page.tsx",
 ];
 
 const institutionConfigPages: string[] = [
@@ -81,6 +84,17 @@ for (const { path, roles } of requireActorPages) {
         `${path} is missing expected role "${role}"`,
       );
     }
+  });
+}
+
+for (const path of shepherdAiPages) {
+  test(`${path} requires shared ShepherdAI read access before rendering`, async () => {
+    const source = await readPage(path);
+    assert.match(
+      source,
+      /assertShepherdAiAccess\(actor, actor\.tenantId, ["']read["']\)/,
+      `${path} no longer calls assertShepherdAiAccess`,
+    );
   });
 }
 
@@ -131,10 +145,33 @@ test("platform demo-feedback route stays outside the /admin layout gate", async 
   const source = await readPage("src/app/settings/demo-feedback/page.tsx");
   assert.match(
     source,
-    /export \{ default \} from ["']@\/app\/admin\/settings\/demo-feedback\/page["'];?/,
+    /canAccessPlatformStaffWorkspace/,
   );
   assert.match(source, /export const dynamic = ["']force-dynamic["'];?/);
-  assert.doesNotMatch(source, /redirect\(["']\/admin\/settings\/demo-feedback["']\)/);
+  assert.doesNotMatch(source, /@\/app\/admin\/settings\/demo-feedback\/page/);
+});
+
+test("admin-scoped demo-feedback page is removed so platform triage stays outside the academy layout", async () => {
+  await assert.rejects(
+    () => readPage("src/app/admin/settings/demo-feedback/page.tsx"),
+    /ENOENT/,
+  );
+});
+
+test("admin dashboard gates ShepherdAI reads behind the shared policy", async () => {
+  const source = await readPage("src/app/admin/page.tsx");
+  assert.match(source, /canAccessShepherdAi\(actor, actor\.tenantId, ["']read["']\)/);
+});
+
+test("program mutation APIs enforce catalog-admin roles", async () => {
+  const createRoute = await readPage("src/app/api/academy/programs/route.ts");
+  const detailRoute = await readPage("src/app/api/academy/programs/[id]/route.ts");
+  for (const source of [createRoute, detailRoute]) {
+    assert.match(
+      source,
+      /requireActor\(actor, \["institution_admin", "dean", "registrar", "academic_admin"\]\)/,
+    );
+  }
 });
 
 test("admin error boundary distinguishes an authorization denial from a real error", async () => {

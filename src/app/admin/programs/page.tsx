@@ -24,7 +24,7 @@ function formatCode(value: string) {
 
 export default async function ProgramsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const { programs, enrollmentCounts } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new PostgresAcademicProgramRepository(asAcademyDatabase<AcademicProgramDatabase>(client));
     const programs = await repo.list(actor.tenantId, {});

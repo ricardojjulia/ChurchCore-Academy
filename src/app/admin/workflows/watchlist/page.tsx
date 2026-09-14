@@ -21,7 +21,7 @@ export default async function WatchlistPage({
   searchParams: Promise<{ signalType?: string; urgency?: string; page?: string }>;
 }) {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  requireActor(actor, ["institution_admin", "registrar", "academic_admin", "advisor", "faculty"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {

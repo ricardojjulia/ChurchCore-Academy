@@ -7,7 +7,7 @@ import { requireActor } from "@/lib/require-actor";
 
 export default async function NewProgramPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   return (
     <AdminShell
       activeSection="academics"

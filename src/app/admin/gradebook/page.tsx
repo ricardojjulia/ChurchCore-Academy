@@ -97,7 +97,7 @@ async function loadPostingQueue(
 
 export default async function AdminGradebookPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
   async function postGradeFormAction(formData: FormData) {
     "use server";

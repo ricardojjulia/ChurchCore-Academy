@@ -54,7 +54,7 @@ export default async function ProgramPage({
 }) {
   const { id } = await params;
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
   const data = await withAcademyDatabaseContext(actor, async (client) => {
     const database = asAcademyDatabase<ProgramPageDatabase>(client);
