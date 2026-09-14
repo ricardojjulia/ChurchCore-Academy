@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdmissionsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "admissions"]);
   const state = await loadAdmissionsPageState({
     resolveActor: resolveAcademyActorForServerComponent,
     loadApplications: (actor) =>

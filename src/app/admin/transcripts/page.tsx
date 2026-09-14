@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TranscriptsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "faculty", "advisor", "teacher", "professor"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
