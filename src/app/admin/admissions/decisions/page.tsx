@@ -29,7 +29,7 @@ function daysSince(iso?: string) {
 
 export default async function AdmissionsDecisionsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  requireActor(actor, ["institution_admin", "dean", "registrar", "admissions"]);
 
   const applications = await withAcademyDatabaseContext(actor, (client) =>
     new PostgresAdmissionsRepository(
