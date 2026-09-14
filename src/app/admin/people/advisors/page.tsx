@@ -20,6 +20,7 @@ interface AdvisorRow {
 
 export default async function AdvisorsListPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
   const advisors = await withAcademyDatabaseContext(actor, async (client) => {
     let result;

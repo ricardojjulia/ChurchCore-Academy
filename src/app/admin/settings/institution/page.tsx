@@ -3,6 +3,7 @@ import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import { buildInstitutionReviewModel } from "@/modules/academy-config/review-view";
+import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import { InstitutionModelMetric } from "@/app/admin/settings/institution/InstitutionModelMetric";
 import { InstitutionTile } from "@/app/admin/settings/institution/InstitutionTile";
 import { LmsProviderTile } from "@/app/admin/settings/institution/LmsProviderTile";
@@ -13,6 +14,7 @@ type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: num
 
 export default async function InstitutionSettingsPage() {
   const actor = await requireActor();
+  assertInstitutionConfigAccess(actor, actor.tenantId, "read");
   const institutionProfile = await withAcademyDatabaseContext(actor, async (client) =>
     new AcademyConfigRepository(asAcademyDatabase<RepoPool>(client)).fetchInstitutionProfile(actor.tenantId),
   );

@@ -97,6 +97,7 @@ export default async function StudentPage({
 }) {
   const { id } = await params;
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
   const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations, person, personId, relationships, covenantEnabled, covenantRecord, programMemberships, programProgress, transcriptEntries, transcriptEntryCandidates, studentGroupMemberships, academicProgramOptions, academicYearOptions, availableSectionOptions } =
     await withAcademyDatabaseContext(actor, async (client) => {

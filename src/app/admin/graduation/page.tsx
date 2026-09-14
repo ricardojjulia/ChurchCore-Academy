@@ -37,6 +37,7 @@ function credentialLabel(credential: string) {
 
 export default async function GraduationPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const { students, programs, formationSummaries } = await withAcademyDatabaseContext(actor, async (client) => {
     const [s, p] = await Promise.all([
       fetchStudentRecords(actor.tenantId, client),

@@ -44,6 +44,7 @@ interface PageProps {
 export default async function ApplicantDetailPage(props: PageProps) {
   const params = await props.params;
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
   const { person, studentProfile, auditEvents, covenantEnabled, covenantRecord } = await withAcademyDatabaseContext(
     actor,

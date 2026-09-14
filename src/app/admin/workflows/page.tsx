@@ -7,6 +7,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { assertShepherdAiAccess } from "@/modules/academy-auth/policy";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
@@ -14,6 +15,8 @@ import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows
 export const dynamic = "force-dynamic";
 
 export default async function WorkflowQueuePage() {
+  const actor = await requireActor();
+  assertShepherdAiAccess(actor, actor.tenantId, "read");
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -22,8 +25,6 @@ export default async function WorkflowQueuePage() {
     await supabase.auth.signOut();
     redirect("/login");
   }
-
-  const actor = await requireActor();
 
   const { suggestions, workflows, administrators } = await withAcademyDatabaseContext(actor, async (client) => {
     const repo = new ShepherdAiPostgresRepository(

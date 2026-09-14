@@ -69,6 +69,7 @@ function statusVariant(status: string) {
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
   const data = await withAcademyDatabaseContext(actor, async (client) => {
     const personResult = (await client.query(
