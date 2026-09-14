@@ -1,7 +1,9 @@
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { fetchCapabilitySet } from "@/lib/capability-context";
 import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 import { AcademicContextDataProvider, type AcademicContextData } from "@/contexts/academic-context";
+import { AdminCapabilityProvider } from "@/components/admin-capability-context";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -40,12 +42,27 @@ async function getAcademicContextData(): Promise<AcademicContextData | null> {
   }
 }
 
+async function getCapabilityData(): Promise<{ ministryFormationEnabled: boolean }> {
+  try {
+    const actor = await requireActor();
+    return await withAcademyDatabaseContext(actor, async (client) => {
+      const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      return { ministryFormationEnabled: capabilities.ministryFormation ?? false };
+    });
+  } catch {
+    return { ministryFormationEnabled: false };
+  }
+}
+
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const academicContextData = await getAcademicContextData();
+  const capabilityData = await getCapabilityData();
 
   return (
     <AcademicContextDataProvider value={academicContextData}>
-      {children}
+      <AdminCapabilityProvider ministryFormationEnabled={capabilityData.ministryFormationEnabled}>
+        {children}
+      </AdminCapabilityProvider>
     </AcademicContextDataProvider>
   );
 }

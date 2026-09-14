@@ -72,6 +72,11 @@ function hasReviewerAccess(actor: AcademyActor): boolean {
 
 // Helper: Check if actor can see pastoral notes on a specific evaluation
 function canSeePastoralNotes(actor: AcademyActor, evaluatorPersonId: string): boolean {
+  // Registrar never sees pastoral notes, regardless of any other roles held
+  // This cap applies even if the registrar also holds ministry_formation_reviewer
+  if (actor.roles.includes("registrar")) {
+    return false;
+  }
   // Reviewer access (institution_admin or ministry_formation_reviewer) can see all pastoral notes
   if (hasReviewerAccess(actor)) {
     return true;
@@ -79,10 +84,6 @@ function canSeePastoralNotes(actor: AcademyActor, evaluatorPersonId: string): bo
   // Evaluator can see their own evaluation's pastoral notes
   if (evaluatorPersonId === actor.userId) {
     return true;
-  }
-  // Registrar never sees pastoral notes, regardless of other roles
-  if (actor.roles.includes("registrar")) {
-    return false;
   }
   return false;
 }
@@ -669,14 +670,14 @@ export async function listStudentsWithFormationSummary(
     scopeWhere = "p.tenant_id = $1";
   } else if (isFaculty) {
     // Faculty scoping: students in their sections
-    // ADR-0026 pattern: academy_course_sections.instructor_person_id = actor.userId
+    // ADR-0026 pattern: academy_course_sections.primary_instructor_id = actor.userId
     scopeJoin = `
-      inner join public.academy_registrations reg
+      inner join public.academy_course_section_registrations reg
         on reg.student_person_id = p.id and reg.tenant_id = p.tenant_id
       inner join public.academy_course_sections sec
-        on sec.id = reg.section_id and sec.tenant_id = reg.tenant_id
+        on sec.id = reg.course_section_id and sec.tenant_id = reg.tenant_id
     `;
-    scopeWhere = "p.tenant_id = $1 and sec.instructor_person_id = $2";
+    scopeWhere = "p.tenant_id = $1 and sec.primary_instructor_id = $2";
   } else if (isAdvisor && !isFaculty) {
     // Advisor scoping: students where they are the formation advisor
     // ADR-0045 interpretation: use ministry_formation_advisor_assignments for advisee-scoping
@@ -820,11 +821,11 @@ export async function getStudentFormationRecord(
       if (isFaculty) {
         // Faculty scoping: student must be in one of their sections
         const sectionCheckResult = await db.query(
-          `select 1 from public.academy_registrations reg
+          `select 1 from public.academy_course_section_registrations reg
            join public.academy_course_sections sec
-             on sec.id = reg.section_id and sec.tenant_id = reg.tenant_id
+             on sec.id = reg.course_section_id and sec.tenant_id = reg.tenant_id
            where reg.student_person_id = $1 and reg.tenant_id = $2
-             and sec.instructor_person_id = $3
+             and sec.primary_instructor_id = $3
            limit 1`,
           [subject, actor.tenantId, actor.userId],
         ) as { rows: Array<{ "?column?": number }> };
@@ -848,6 +849,12 @@ export async function getStudentFormationRecord(
             "Advisor can view only their assigned formation advisees.",
           );
         }
+      } else {
+        // Any other formation-viewer role without explicit scoping must be denied
+        // This prevents academic_admin (or any future role) from getting unscoped tenant-wide access
+        throw new AcademyAuthorizationError(
+          "Forbidden formation record access.",
+        );
       }
     }
   }
@@ -1074,12 +1081,14 @@ export async function grantMinistryFormationReviewer(
   }
 
   // Insert role assignment (idempotent via on conflict do nothing)
+  // The unique index is (tenant_id, person_id, role, scope_type, COALESCE(scope_id, ''))
+  // For a tenant-wide role, scope_type = 'tenant' and scope_id is NULL
   await db.query(
     `insert into public.academy_person_role_assignments
-      (person_id, tenant_id, role, status)
-     values ($1, $2, 'ministry_formation_reviewer', 'active')
-     on conflict (person_id, tenant_id, role) do nothing`,
-    [target, actor.tenantId],
+      (id, tenant_id, person_id, role, scope_type, scope_id, status)
+     values (gen_random_uuid(), $1, $2, 'ministry_formation_reviewer', 'tenant', null, 'active')
+     on conflict (tenant_id, person_id, role, scope_type, COALESCE(scope_id, '')) do nothing`,
+    [actor.tenantId, target],
   );
 }
 

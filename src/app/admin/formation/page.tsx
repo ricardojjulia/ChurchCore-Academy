@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { requireActor } from "@/lib/require-actor";
 import { withCapabilityContext } from "@/lib/capability-context";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
 
@@ -17,15 +18,44 @@ export default async function FormationListPage() {
 
   let students: Awaited<ReturnType<typeof listStudentsWithFormationSummary>> | undefined;
   let capabilityDisabled = false;
+  let institutionName = "your institution";
 
   try {
-    students = await withCapabilityContext(actor, async (client, capabilities) => {
+    const result = await withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "ministryFormation");
-      return await listStudentsWithFormationSummary(actor, client);
+
+      // Fetch institution name for ghost page
+      const profileResult = (await client.query(
+        "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+        [actor.tenantId]
+      )) as { rows: Array<{ institution_name?: string }> };
+      const fetchedInstitutionName = profileResult.rows[0]?.institution_name;
+
+      const studentList = await listStudentsWithFormationSummary(actor, client);
+
+      return {
+        students: studentList,
+        institutionName: fetchedInstitutionName ?? "your institution",
+      };
     });
+
+    students = result.students;
+    institutionName = result.institutionName;
   } catch (error) {
     if (error instanceof CapabilityDisabledError) {
       capabilityDisabled = true;
+      // Fetch institution name even when capability is disabled, for the ghost page
+      try {
+        institutionName = await withAcademyDatabaseContext(actor, async (client) => {
+          const profileResult = (await client.query(
+            "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+            [actor.tenantId]
+          )) as { rows: Array<{ institution_name?: string }> };
+          return profileResult.rows[0]?.institution_name ?? "your institution";
+        });
+      } catch {
+        // Fallback to default if fetch fails
+      }
     } else {
       throw error;
     }
@@ -39,7 +69,7 @@ export default async function FormationListPage() {
         title="Ministry Formation Records"
         subtitle="Practicum sessions, faith milestones, formation evaluations, and formation advisor assignments for ministry preparation students."
       >
-        <CapabilityGhostPage capability="Ministry Formation" institutionModel="your institution" />
+        <CapabilityGhostPage capability="Ministry Formation" institutionModel={institutionName} />
       </AdminShell>
     );
   }

@@ -78,8 +78,8 @@ export function MinistryFormationReviewerControl({
                 </DialogTitle>
                 <DialogDescription>
                   {currentlyHasRole
-                    ? `Remove ministry formation reviewer role from ${personName}? They will no longer be able to endorse practicum sessions, milestones, or evaluations.`
-                    : `Grant ministry formation reviewer role to ${personName}? They will be able to endorse practicum sessions, milestones, and evaluations for all students.`}
+                    ? `Remove ministry formation reviewer role from ${personName}? They will no longer have visibility into pastoral notes on formation evaluations.`
+                    : `Grant ministry formation reviewer role to ${personName}? They will gain visibility into pastoral notes on formation evaluations for all students tenant-wide.`}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4">

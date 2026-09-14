@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { requireActor } from "@/lib/require-actor";
 import { withCapabilityContext } from "@/lib/capability-context";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import { PracticumTab } from "@/components/formation/practicum-tab";
 import { MilestonesTab } from "@/components/formation/milestones-tab";
@@ -28,15 +29,20 @@ export default async function FormationDetailPage({
   let record: StudentFormationRecordStaffView | undefined;
   let metadata: Awaited<ReturnType<typeof getFormationPageMetadata>> | undefined;
   let capabilityDisabled = false;
+  let institutionName = "your institution";
 
   try {
     const result = await withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "ministryFormation");
 
       try {
-        const [formationRecord, pageMetadata] = await Promise.all([
+        const [formationRecord, pageMetadata, profileResult] = await Promise.all([
           getStudentFormationRecord(actor, studentId, client),
           getFormationPageMetadata(actor, studentId, client),
+          client.query(
+            "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+            [actor.tenantId]
+          ) as Promise<{ rows: Array<{ institution_name?: string }> }>,
         ]);
 
         if (!formationRecord) {
@@ -46,6 +52,7 @@ export default async function FormationDetailPage({
         return {
           record: formationRecord as StudentFormationRecordStaffView,
           metadata: pageMetadata,
+          institutionName: profileResult.rows[0]?.institution_name ?? "your institution",
         };
       } catch (error) {
         if (error instanceof AcademyAuthorizationError) {
@@ -62,9 +69,22 @@ export default async function FormationDetailPage({
 
     record = result.record;
     metadata = result.metadata;
+    institutionName = result.institutionName;
   } catch (error) {
     if (error instanceof CapabilityDisabledError) {
       capabilityDisabled = true;
+      // Fetch institution name even when capability is disabled, for the ghost page
+      try {
+        institutionName = await withAcademyDatabaseContext(actor, async (client) => {
+          const profileResult = (await client.query(
+            "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+            [actor.tenantId]
+          )) as { rows: Array<{ institution_name?: string }> };
+          return profileResult.rows[0]?.institution_name ?? "your institution";
+        });
+      } catch {
+        // Fallback to default if fetch fails
+      }
     } else {
       throw error;
     }
@@ -77,7 +97,7 @@ export default async function FormationDetailPage({
         eyebrow="Ministry Formation"
         title="Student Formation"
       >
-        <CapabilityGhostPage capability="Ministry Formation" institutionModel="your institution" />
+        <CapabilityGhostPage capability="Ministry Formation" institutionModel={institutionName} />
       </AdminShell>
     );
   }

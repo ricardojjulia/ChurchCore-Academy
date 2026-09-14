@@ -6,9 +6,16 @@ import { Lock } from "lucide-react";
 interface CapabilityGhostPageProps {
   capability: string;
   institutionModel: string;
+  actionHref?: string;
+  actionLabel?: string;
 }
 
-export function CapabilityGhostPage({ capability, institutionModel }: CapabilityGhostPageProps) {
+export function CapabilityGhostPage({
+  capability,
+  institutionModel,
+  actionHref = "/admin/settings/institution",
+  actionLabel = "Review institution configuration →",
+}: CapabilityGhostPageProps) {
   return (
     <div className="ops-ghost-page">
       <Lock className="ops-ghost-icon" />
@@ -16,9 +23,11 @@ export function CapabilityGhostPage({ capability, institutionModel }: Capability
       <p className="ops-ghost-detail">
         <strong>{capability}</strong> is not enabled for <strong>{institutionModel}</strong>.
       </p>
-      <Link href="/admin/settings/institution" className="ops-ghost-link">
-        Review institution configuration →
-      </Link>
+      {actionHref && (
+        <Link href={actionHref} className="ops-ghost-link">
+          {actionLabel}
+        </Link>
+      )}
     </div>
   );
 }
