@@ -44,11 +44,21 @@ Council must ratify:
 Shared profile and conformance model:
 
 - Add a shared OneRoster profile document and typed profile module in both repos.
+- Treat the profile document as generated, not hand-duplicated: publish it from a single source repo (Academy, as the Rostering Provider) as a versioned artifact, and have the LMS import that exact version rather than maintaining an independent copy.
+- Add a cross-repo drift check to CI in both repos that fails the build if a repo's local profile module doesn't match the version it declares consuming — local tests passing against a stale or diverged profile must not be possible.
 - Define profile id `churchcore-oneroster-1p2p1-rostering-gradebook`.
 - Define compatibility profile ids `churchcore-oneroster-v1p1-csv-import` and `churchcore-oneroster-v1p1-csv-export`.
 - Generate a conformance matrix covering version, service, transport, provider/consumer role, required objects, required operations, optional operations, current support, tests, and claim status.
 - Treat `sourcedId` as an interoperability key only; never use it as an internal primary key.
 - Maintain tenant/source/object/sourcedId mappings with source hashes, local ids, provenance status, and audit evidence.
+
+OAuth client credential lifecycle (Rostering and Gradebook REST):
+
+- Client Credentials registration is tenant-bound: every client id maps to exactly one Academy tenant, enforced at token-issue and at every request, not assumed from the caller.
+- Define scopes per role (Rostering Provider read, Gradebook Consumer write, etc.) and reject a token's use outside its granted scope.
+- Define secret lifecycle: generation, rotation on a defined schedule and on demand, and immediate revocation — a revoked or rotated-out secret must fail auth on the next request, not eventually.
+- Log and alert on auth failures from a valid client id presenting a mismatched tenant or scope, as a signal of a possibly leaked credential.
+- Test plan must include negative cases: invalid client id, invalid secret, valid credential used for the wrong tenant, valid credential used outside its granted scope, and a revoked/rotated secret still being presented.
 
 Academy Rostering Provider:
 
