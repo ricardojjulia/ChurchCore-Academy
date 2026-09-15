@@ -130,14 +130,12 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     let covenantEnabled = false;
     let covenantRecord: CovenantRecord | null = null;
     try {
-      const profileResult = await client.query(
-        `SELECT capabilities FROM academy_institution_profiles WHERE tenant_id = $1`,
-        [actor.tenantId]
-      ) as { rows: Array<{ capabilities: Record<string, boolean> }> };
-      if (profileResult.rows[0]) {
-        const caps = profileResult.rows[0].capabilities;
-        covenantEnabled = caps.covenantRecords === true;
-      }
+      // Uses fetchCapabilitySet (not a raw capabilities-column read) — a raw read only ever
+      // sees the capability snapshot stored when the tenant's modes were last saved, silently
+      // missing any capability added to mode-packs.ts afterward. Same bug found via live
+      // browser testing and fixed once already for denominationTracking on this same page.
+      const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      covenantEnabled = caps.covenantRecords === true;
       if (covenantEnabled) {
         const covenantResult = await client.query(
           `SELECT id, tenant_id, person_id, covenant_fields, created_at, updated_at
