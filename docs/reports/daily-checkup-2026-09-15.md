@@ -69,6 +69,16 @@ The 2026-09-13 competitive closure plan and `docs/product/factory-roadmap.md` Ph
 
 Corrected in `docs/superpowers/plans/2026-09-13-competitive-feature-closure-plan.md`, `docs/product/factory-roadmap.md`, and `docs/product/sis-competitive-research-and-expansion-roadmap.md`. Docs-only, landed in **PR [#109](https://github.com/ricardojjulia/ChurchCore-Academy/pull/109)**.
 
+### 2.5 Draft ministry-formation evaluations exposed to students (fixed, merged) — found via automated PR review
+
+`getStudentFormationRecord()` (`src/modules/ministry-formation/service.ts`) filtered `practicumSessions` and `milestones` to endorsed-only records for the student view, but mapped every `evaluations` row unfiltered — a draft (unreviewed) formation evaluation, including its scores, was exposed on the Student PWA. This is a direct violation of CLAUDE.md's "Student PWA surfaces only released, reviewed records. No drafts, no held records."
+
+**How it was found:** not by this run's own browser walkthrough — the Copilot PR-review bot commented on PR #110 (this report's own PR) flagging that its "releases-only" claim for the Student PWA hadn't actually been verified against this specific code path. Investigating that comment surfaced the real bug. Worth noting for future runs: automated PR review on the report itself caught something the manual browser pass missed.
+
+**Fix:** filter `evaluationResult.rows` to `status === "endorsed"` before mapping into the student view, matching the existing pattern for practicum sessions and milestones two lines below. Extended the existing draft-exclusion test to cover evaluations, and fixed a second test that had been accidentally relying on the draft-exposure bug (it asserted an unendorsed evaluation appeared in the student view, stripped of pastoral notes — endorsed it first instead, which is what that test actually needs).
+
+**PR:** [#111](https://github.com/ricardojjulia/ChurchCore-Academy/pull/111) — squash-merged to `main`.
+
 ---
 
 ## 3. Test / lint / build results
@@ -86,10 +96,12 @@ All three required gates (`npm test && npm run lint && npm run build`) passed be
 
 ## 4. Pull requests
 
-| PR | Title | Classification | Status |
+| PR | Title (exact) | Classification | Status |
 |---|---|---|---|
 | [#108](https://github.com/ricardojjulia/ChurchCore-Academy/pull/108) | fix: stop dashboard from linking non-academic-admin roles into ShepherdAI dead end | Safe (UI-only, tested, no schema/auth-logic/tenant-isolation change, no new dependency) | **Merged** to `main` after CI passed |
-| [#109](https://github.com/ricardojjulia/ChurchCore-Academy/pull/109) | docs: land pending council review and planning docs (+ ministry-formation correction) | Safe (docs-only) | Opened; merge status recorded in the run's chat summary — check PR for final state if this report is read before CI finished |
+| [#109](https://github.com/ricardojjulia/ChurchCore-Academy/pull/109) | docs: land pending council review and planning docs | Safe (docs-only; includes the ministry-formation correction as a follow-up commit on the same PR) | **Merged** to `main` after CI passed |
+| [#110](https://github.com/ricardojjulia/ChurchCore-Academy/pull/110) | docs: add 2026-09-15 daily checkup report | Safe (docs-only) | **Merged** to `main` after CI passed |
+| [#111](https://github.com/ricardojjulia/ChurchCore-Academy/pull/111) | fix: exclude draft ministry-formation evaluations from student view | Safe (isolated data-filter fix, fully tested, no schema/auth/tenant-isolation change) | Found via automated PR review on #110 — see §2.5. Status recorded in the run's chat summary; check the PR directly if reading this before it merged |
 
 No PR was left in "needs review" status this run — nothing touched schema, auth logic, tenant isolation, or added a dependency.
 
@@ -123,7 +135,8 @@ No new council proposal drafted this run. The standing plan — `docs/superpower
 
 ## Needs your attention
 
-- **PR #109** (docs) — verify it merged cleanly; if CI was still running when this report was generated, check its status directly.
+- **All four PRs from this run (#108, #109, #110, #111) merged to `main`** — no PR was left open or needing review.
+- **§2.5 (draft ministry-formation evaluations exposed to students) was a real privacy-adjacent bug that shipped to `main` before today** — it's fixed now, but worth a moment's thought on whether any real (non-demo) tenant had draft evaluations a student could have already seen before this fix. On the local demo tenant, no harm — this is the first time it was caught.
 - **The full 12-step core-loop walkthrough is still not done in one sitting.** This is the top recommended focus for the next session — see §5.
 - **The scheduled job itself expires around 2026-09-21** (7-day session-cron limit) and only fires while the desktop session is open and idle at 6am — renew it before then if daily runs should continue.
 - Denomination and alumni admin UI remain genuinely unbuilt (§2.4) — real gap, not a doc error, whenever that work gets prioritized.
