@@ -165,7 +165,7 @@ test("conversion reuses existing student records for partially converted applica
       if (/from academy_period_registrations/.test(sql)) {
         return {
           rowCount: 1,
-          rows: [{ id: "period-registration-existing" }],
+          rows: [{ id: "period-registration-existing", status: "registered", source_application_id: "application-1" }],
         };
       }
       if (/update academy_period_registrations/.test(sql)) {
@@ -220,6 +220,72 @@ test("conversion reuses existing student records for partially converted applica
       assert.ok(call.values?.includes("tenant-1"), call.sql);
     }
   }
+});
+
+test("conversion refuses to resurrect a cancelled/completed period registration from a different application", async () => {
+  // Regression test for a real correctness bug flagged in code review: the period-registration
+  // reuse fallback matched ANY row for (student_profile_id, academic_period_id), regardless of
+  // status or which application created it, then unconditionally set it back to 'registered'.
+  // A student whose prior registration was cancelled or completed would have that terminal
+  // status silently overwritten and misattributed to an unrelated application's conversion.
+  const database = {
+    query: async (sql: string) => {
+      if (/from academy_enrollment_conversion_events/.test(sql)) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (/from academy_admission_applications/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: "application-2",
+              applicant_person_id: "person-applicant",
+              program_id: "program-1",
+              application_term_id: "term-1",
+              status: "accepted",
+              converted_at: null,
+            },
+          ],
+        };
+      }
+      if (/from academy_student_profiles/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "profile-existing", student_number: "COL-2022001" }],
+        };
+      }
+      if (/from academy_program_enrollments/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "program-enrollment-existing" }] };
+      }
+      if (/update academy_program_enrollments/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "program-enrollment-existing" }] };
+      }
+      if (/from academy_period_registrations/.test(sql)) {
+        // Belongs to a DIFFERENT application (application-1) and is terminal (cancelled).
+        return {
+          rowCount: 1,
+          rows: [{ id: "period-registration-cancelled", status: "cancelled", source_application_id: "application-1" }],
+        };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+  };
+
+  const repository = new PostgresEnrollmentConversionRepository(database);
+
+  await assert.rejects(
+    async () => {
+      await repository.convert({
+        tenantId: "tenant-1",
+        applicationId: "application-2",
+        actorPersonId: "person-registrar",
+        convertedAt: "2026-06-13T16:00:00.000Z",
+        correlationId: "correlation-2",
+        idempotencyKey: "key-2",
+      });
+    },
+    /already has a cancelled period registration/,
+  );
 });
 
 test("conversion does not reuse another tenant's student, enrollment, or registration records", async () => {

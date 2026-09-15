@@ -243,7 +243,7 @@ export class PostgresEnrollmentConversionRepository {
     const resolvedProgramEnrollmentId = String(programEnrollmentId);
 
     const existingPeriodRegistrationResult = await this.database.query(
-      `select id
+      `select id, status, source_application_id
        from academy_period_registrations
        where tenant_id = $1
          and (
@@ -260,7 +260,26 @@ export class PostgresEnrollmentConversionRepository {
         application.application_term_id,
       ],
     );
-    let periodRegistrationId = existingPeriodRegistrationResult.rows[0]?.id;
+    const existingPeriodRegistration = existingPeriodRegistrationResult.rows[0];
+
+    // A row belonging to a different application is only safe to reuse when it's still
+    // 'registered' (the idempotent-retry case this fallback exists for). A 'cancelled' or
+    // 'completed' row from a different application must keep its terminal status — silently
+    // resurrecting it to 'registered' would lose that history and misattribute it to this
+    // conversion. The (tenant_id, student_profile_id, academic_period_id) unique constraint
+    // means at most one row can exist for this student+period, so there's no row to fall back
+    // to in that case — converting this application requires resolving the conflict first.
+    if (
+      existingPeriodRegistration &&
+      existingPeriodRegistration.source_application_id !== input.applicationId &&
+      existingPeriodRegistration.status !== "registered"
+    ) {
+      throw new Error(
+        `Cannot convert this application: the student already has a ${String(existingPeriodRegistration.status)} period registration for this term from a different application.`,
+      );
+    }
+
+    let periodRegistrationId = existingPeriodRegistration?.id;
 
     if (periodRegistrationId) {
       const updatedPeriodRegistrationResult = await this.database.query(
