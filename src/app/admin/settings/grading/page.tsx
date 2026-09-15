@@ -3,6 +3,8 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AcademyGradingRecordsRepository } from "@/modules/grading-records/postgres-repository";
+import { requireActor } from "@/lib/require-actor";
+import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import {
   AcademicStandingRuleReviewItem,
   EvaluationRuleSetReviewItem,
@@ -17,11 +19,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const tenantId = "cca-main";
-
 export default async function GradingSettingsPage() {
+  const actor = await requireActor();
+  assertInstitutionConfigAccess(actor, actor.tenantId, "read");
   const repository = new AcademyGradingRecordsRepository();
-  const config = await repository.fetchGradingRecordsConfiguration(tenantId);
+  const config = await repository.fetchGradingRecordsConfiguration(actor.tenantId);
   const model = buildGradingRecordsReviewModel(config);
 
   return (

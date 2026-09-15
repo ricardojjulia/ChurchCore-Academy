@@ -46,6 +46,7 @@ function asDate(value: string | Date) {
 
 export default async function AdminBillingPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "finance", "registrar"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {

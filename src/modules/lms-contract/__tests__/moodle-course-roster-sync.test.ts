@@ -314,7 +314,7 @@ test("executeMoodleRosterSync returns circuit_open when circuit breaker is open"
     call: async () => {
       throw new Error("Should not be called");
     },
-  } as MoodleHttpClient;
+  } as unknown as MoodleHttpClient;
 
   const mockDb: CircuitBreakerDb = {
     query: async (sql: string) => {

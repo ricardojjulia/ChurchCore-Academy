@@ -1,7 +1,12 @@
-import { requireActor } from "@/lib/require-actor";
+import { redirect } from "next/navigation";
+import { requireActor, type Actor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { fetchCapabilitySet } from "@/lib/capability-context";
 import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 import { AcademicContextDataProvider, type AcademicContextData } from "@/contexts/academic-context";
+import { AdminCapabilityProvider } from "@/components/admin-capability-context";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import type { AcademyRole } from "@/modules/academy-auth/policy";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -11,10 +16,43 @@ export interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-async function getAcademicContextData(): Promise<AcademicContextData | null> {
-  try {
-    const actor = await requireActor();
+// Baseline staff roles - every AcademyRole except the non-staff roles (student, guardian, applicant),
+// which each have their own portal and are redirected there instead — see NON_STAFF_REDIRECTS below.
+const STAFF_ROLES: AcademyRole[] = [
+  "institution_admin",
+  "dean",
+  "registrar",
+  "academic_admin",
+  "admissions",
+  "finance",
+  "advisor",
+  "faculty",
+  "teacher",
+  "professor",
+  "alumni_relations",
+  "ministry_formation_reviewer",
+];
 
+// Where to send an authenticated-but-non-staff actor instead of a bare "/" — "/" itself
+// unconditionally redirects to "/admin", so sending a blocked actor back to "/" would loop.
+const NON_STAFF_REDIRECTS: Record<string, string> = {
+  student: "/student",
+  guardian: "/guardian",
+  applicant: "/apply",
+};
+
+function redirectTargetFor(actor: Actor): string {
+  for (const role of actor.roles) {
+    const target = NON_STAFF_REDIRECTS[role];
+    if (target) return target;
+  }
+  // No recognized non-staff role and not a staff role either (shouldn't happen given
+  // AcademyRole is a closed union) — fail safe to login rather than looping through "/".
+  return "/login";
+}
+
+async function getAcademicContextData(actor: Actor): Promise<AcademicContextData | null> {
+  try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const db = asAcademyDatabase<Queryable>(client);
       const { context, options } = await resolveAcademicContext(actor.userId, actor.tenantId, db);
@@ -35,17 +73,45 @@ async function getAcademicContextData(): Promise<AcademicContextData | null> {
       };
     });
   } catch {
-    // If actor resolution fails, let child pages handle auth redirect
     return null;
   }
 }
 
+async function getCapabilityData(actor: Actor): Promise<{ ministryFormationEnabled: boolean }> {
+  try {
+    return await withAcademyDatabaseContext(actor, async (client) => {
+      const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      return { ministryFormationEnabled: capabilities.ministryFormation ?? false };
+    });
+  } catch {
+    return { ministryFormationEnabled: false };
+  }
+}
+
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const academicContextData = await getAcademicContextData();
+  // The zero-arg form already redirects to /login on an authentication failure
+  // internally (see src/lib/require-actor.ts) — no local catch needed here.
+  const actor: Actor = await requireActor();
+
+  // Baseline authorization gate: block student, guardian, applicant from the entire /admin/* tree,
+  // sending each to their own portal instead of "/" (which would redirect right back to /admin).
+  try {
+    requireActor(actor, STAFF_ROLES);
+  } catch (error) {
+    if (error instanceof AcademyAuthorizationError) {
+      redirect(redirectTargetFor(actor));
+    }
+    throw error;
+  }
+
+  const academicContextData = await getAcademicContextData(actor);
+  const capabilityData = await getCapabilityData(actor);
 
   return (
     <AcademicContextDataProvider value={academicContextData}>
-      {children}
+      <AdminCapabilityProvider ministryFormationEnabled={capabilityData.ministryFormationEnabled}>
+        {children}
+      </AdminCapabilityProvider>
     </AcademicContextDataProvider>
   );
 }

@@ -13,10 +13,12 @@ describe("fetchCapabilitySet", () => {
       admissionsWorkflows: false,
       transcriptWorkflows: true,
       graduationWorkflows: true,
+      ministryFormation: true,
       lmsLaunch: true,
       lmsRosterSync: false,
       lmsGradeReturn: false,
       shepherdAiRecommendations: true,
+      covenantRecords: false,
     };
 
     const mockClient = {
@@ -55,10 +57,12 @@ describe("withCapabilityContext", () => {
       admissionsWorkflows: false,
       transcriptWorkflows: true,
       graduationWorkflows: false,
+      ministryFormation: false,
       lmsLaunch: true,
       lmsRosterSync: true,
       lmsGradeReturn: true,
       shepherdAiRecommendations: false,
+      covenantRecords: false,
     };
 
     const mockClient = {

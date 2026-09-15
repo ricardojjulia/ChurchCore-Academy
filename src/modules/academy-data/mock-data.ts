@@ -886,6 +886,7 @@ export const academyDataset: AcademyDataset = {
   students: [
     {
       id: "stu-maya-bennett",
+      personId: "person-maya-bennett",
       tenantId: "cca-main",
       fullName: "Maya Bennett",
       email: "maya.bennett@churchcoreacademy.edu",
@@ -906,6 +907,7 @@ export const academyDataset: AcademyDataset = {
     },
     {
       id: "stu-ezra-coleman",
+      personId: "person-ezra-coleman",
       tenantId: "cca-main",
       fullName: "Ezra Coleman",
       email: "ezra.coleman@churchcoreacademy.edu",
@@ -931,6 +933,7 @@ export const academyDataset: AcademyDataset = {
     },
     {
       id: "stu-naomi-price",
+      personId: "person-naomi-price",
       tenantId: "cca-main",
       fullName: "Naomi Price",
       email: "naomi.price@churchcoreacademy.edu",
@@ -956,6 +959,7 @@ export const academyDataset: AcademyDataset = {
     },
     {
       id: "stu-daniel-hart",
+      personId: "person-daniel-hart",
       tenantId: "cca-main",
       fullName: "Daniel Hart",
       email: "daniel.hart@churchcoreacademy.edu",
@@ -981,6 +985,7 @@ export const academyDataset: AcademyDataset = {
     },
     {
       id: "stu-leah-brooks",
+      personId: "person-leah-brooks",
       tenantId: "cca-main",
       fullName: "Leah Brooks",
       email: "leah.brooks@churchcoreacademy.edu",

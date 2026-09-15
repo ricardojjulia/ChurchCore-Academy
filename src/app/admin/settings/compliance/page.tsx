@@ -6,11 +6,13 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
 import { IPEDS_REVIEW_DISCLAIMER } from "@/modules/reporting/service";
+import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 
 export const dynamic = "force-dynamic";
 
 export default async function ComplianceSettingsPage() {
-  await requireActor();
+  const actor = await requireActor();
+  assertInstitutionConfigAccess(actor, actor.tenantId, "read");
   const user = await getCurrentUser();
 
   async function signOutAction() {

@@ -29,6 +29,7 @@ function statusLabel(value: string) {
 
 export default async function AdminCommunicationsPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions", "finance"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { CovenantRecordTab } from "@/components/covenant-record-tab";
+import { MinistryFormationReviewerControl } from "@/components/ministry-formation-reviewer-control";
 import type { CovenantRecord } from "@/modules/people/types";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ interface AuditEvent {
 
 export default async function StaffDetailPage({ params }: { params: { id: string } }) {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
   const personId = params.id;
 
   const data = await withAcademyDatabaseContext(actor, async (client) => {
@@ -142,15 +144,30 @@ export default async function StaffDetailPage({ params }: { params: { id: string
       // covenant record feature not available
     }
 
-    return { person, profile, sections, auditEvents, covenantEnabled, covenantRecord };
+    // Check if person has ministry_formation_reviewer role
+    let hasReviewerRole = false;
+    try {
+      const roleResult = await client.query(
+        `SELECT 1 FROM academy_person_role_assignments
+         WHERE tenant_id = $1 AND person_id = $2 AND role = $3 AND status = 'active'
+         LIMIT 1`,
+        [actor.tenantId, personId, 'ministry_formation_reviewer']
+      ) as { rows: Array<Record<string, unknown>> };
+      hasReviewerRole = roleResult.rows.length > 0;
+    } catch {
+      // role check not available or table doesn't exist
+    }
+
+    return { person, profile, sections, auditEvents, covenantEnabled, covenantRecord, hasReviewerRole };
   });
 
   if (!data) {
     notFound();
   }
 
-  const { person, profile, sections, auditEvents, covenantEnabled, covenantRecord } = data;
+  const { person, profile, sections, auditEvents, covenantEnabled, covenantRecord, hasReviewerRole } = data;
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
+  const isInstitutionAdmin = actor.roles.includes('institution_admin');
 
   return (
     <AdminShell
@@ -343,6 +360,22 @@ export default async function StaffDetailPage({ params }: { params: { id: string
 
         <TabsContent value="ministry">
           <div className="grid gap-4">
+            <Card className="ops-panel">
+              <CardHeader>
+                <CardTitle>Ministry Formation Reviewer Role</CardTitle>
+                <CardDescription>
+                  Reviewers can endorse practicum sessions, faith milestones, and formation evaluations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MinistryFormationReviewerControl
+                  personId={personId}
+                  personName={person.display_name}
+                  hasReviewerRole={hasReviewerRole}
+                  isInstitutionAdmin={isInstitutionAdmin}
+                />
+              </CardContent>
+            </Card>
             <Card className="ops-panel">
               <CardHeader>
                 <CardTitle>Ordination & Credentials</CardTitle>

@@ -3,33 +3,16 @@ import assert from "node:assert/strict";
 import { canAccessPeopleDomain } from "../access-policy";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import type { PeopleConfiguration } from "../types";
+import { createInstitutionProfileDefaults } from "@/modules/academy-config/defaults";
 
 function createMockConfig(tenantId: string): PeopleConfiguration {
   return {
-    institutionProfile: {
+    institutionProfile: createInstitutionProfileDefaults({
       tenantId,
       institutionName: "Test Institution",
       legalName: "Test Institution Legal",
       primaryMode: "bible_school",
-      supportedModes: ["bible_school"],
-      operatingRules: {
-        usesSubdivisions: false,
-        usesGuardians: true,
-        usesAdvisors: true,
-        usesCohorts: false,
-      },
-      capabilities: {
-        academicCalendar: true,
-        courseCatalog: true,
-        grading: true,
-        studentPwa: false,
-        lmsIntegration: false,
-        covenantRecords: false,
-      },
-      lmsPreference: "none",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
+    }),
     people: [],
     roleAssignments: [],
     studentProfiles: [],

@@ -1,5 +1,6 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { requireActor } from "@/lib/require-actor";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import {
   PostgresAcademicProgramRepository,
@@ -32,6 +33,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
     const { actor } = await resolveAcademyActorFromSession(request);
+    requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
     return withAcademyDatabaseContext(actor, async (client) => {
       const repo = new PostgresAcademicProgramRepository(
@@ -68,6 +70,7 @@ export async function DELETE(
   return handleApi(async () => {
     const { id } = await params;
     const { actor } = await resolveAcademyActorFromSession(request);
+    requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
     return withAcademyDatabaseContext(actor, async (client) => {
       const repo = new PostgresAcademicProgramRepository(

@@ -28,6 +28,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
 import { requireActor } from "@/lib/require-actor";
+import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import {
   ShepherdAiPostgresRepository,
   type ShepherdAiDatabase,
@@ -83,8 +84,25 @@ async function countTenantRows(
 
 export default async function AdminDashboard() {
   const actor = await requireActor();
+  // The dashboard is a general landing page, not sensitive data — any staff role that
+  // passes the layout's baseline gate should be able to see it (narrower pages further
+  // down the tree restrict specific sensitive data, e.g. billing, separately).
+  requireActor(actor, [
+    "institution_admin",
+    "dean",
+    "registrar",
+    "academic_admin",
+    "admissions",
+    "finance",
+    "advisor",
+    "faculty",
+    "teacher",
+    "professor",
+    "alumni_relations",
+  ]);
   const user = await getCurrentUser();
   const institution = await getInstitutionProfile(actor.tenantId);
+  const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
 
   async function signOutAction() {
     "use server";
@@ -94,17 +112,21 @@ export default async function AdminDashboard() {
   }
 
   const dashboardData = await withAcademyDatabaseContext(actor, async (client) => {
-    const shepherdAiRepository = new ShepherdAiPostgresRepository(
-      asAcademyDatabase<ShepherdAiDatabase>(client),
-    );
-
-    const suggestions = await shepherdAiRepository.fetchSuggestions(actor.tenantId);
-    const workflows = await shepherdAiRepository.fetchWorkflows(actor.tenantId);
     const studentsCount = await countTenantRows(
       client,
       "select count(*)::int as count from academy_student_profiles where tenant_id = $1",
       actor.tenantId,
     );
+
+    if (!canReadShepherdAi) {
+      return { suggestions: [], workflows: [], studentsCount };
+    }
+
+    const shepherdAiRepository = new ShepherdAiPostgresRepository(
+      asAcademyDatabase<ShepherdAiDatabase>(client),
+    );
+    const suggestions = await shepherdAiRepository.fetchSuggestions(actor.tenantId);
+    const workflows = await shepherdAiRepository.fetchWorkflows(actor.tenantId);
 
     return { suggestions, workflows, studentsCount };
   });

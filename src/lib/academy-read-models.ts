@@ -22,7 +22,7 @@ function rows<T>(result: unknown): T[] {
 export async function fetchStudentRecords(tenantId: string, client: AcademyQueryClient): Promise<StudentRecord[]> {
   const result = await client.query(
     `select
-       sp.id, sp.tenant_id, sp.enrollment_status,
+       sp.id, sp.person_id, sp.tenant_id, sp.enrollment_status,
        sp.program_id, sp.advisor_person_id,
        p.display_name as full_name, p.email,
        (select max(aa.submitted_at)
@@ -58,6 +58,7 @@ export async function fetchStudentRecords(tenantId: string, client: AcademyQuery
   );
   return rows<Record<string, unknown>>(result).map((row): StudentRecord => ({
     id: String(row.id),
+    personId: String(row.person_id),
     tenantId: String(row.tenant_id),
     fullName: String(row.full_name),
     email: String(row.email ?? ""),

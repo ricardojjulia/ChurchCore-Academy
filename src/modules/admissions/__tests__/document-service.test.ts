@@ -1,6 +1,11 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { AdmissionDocumentService } from "@/modules/admissions/document-service";
+import {
+  AdmissionDocumentService,
+  DocumentRepository,
+  AuditRepository,
+  StorageProvider,
+} from "@/modules/admissions/document-service";
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import {
   ApplicationDocument,
@@ -9,6 +14,46 @@ import {
   UploadUrlRequest,
   WaiveDocumentInput,
 } from "@/modules/admissions/types";
+
+function createRepositoryMock<T extends Partial<DocumentRepository>>(overrides: T = {} as T) {
+  return {
+    createDocumentType: mock.fn(async () => {
+      throw new Error("createDocumentType not stubbed");
+    }),
+    findDocumentTypeById: mock.fn(async () => undefined),
+    listActiveDocumentTypes: mock.fn(async () => []),
+    createApplicationDocument: mock.fn(async () => {
+      throw new Error("createApplicationDocument not stubbed");
+    }),
+    findApplicationDocument: mock.fn(async () => undefined),
+    getDocumentChecklist: mock.fn(async () => []),
+    confirmDocumentUpload: mock.fn(async () => undefined),
+    markDocumentReceived: mock.fn(async () => undefined),
+    waiveDocument: mock.fn(async () => undefined),
+    canAdvanceToDecision: mock.fn(async () => false),
+    getMissingRequiredDocuments: mock.fn(async () => []),
+    ...overrides,
+  };
+}
+
+function createAuditMock<T extends Partial<AuditRepository>>(overrides: T = {} as T) {
+  return {
+    append: mock.fn(async () => ({})),
+    ...overrides,
+  };
+}
+
+function createStorageMock<T extends Partial<StorageProvider>>(overrides: T = {} as T) {
+  return {
+    generateUploadUrl: mock.fn(async () => {
+      throw new Error("generateUploadUrl not stubbed");
+    }),
+    generateDownloadUrl: mock.fn(async () => {
+      throw new Error("generateDownloadUrl not stubbed");
+    }),
+    ...overrides,
+  };
+}
 
 describe("AdmissionDocumentService", () => {
   const tenantId = "tenant-123";
@@ -49,28 +94,12 @@ describe("AdmissionDocumentService", () => {
         updatedAt: "2026-06-25T10:00:00Z",
       };
 
-      const repository = {
+      const repository = createRepositoryMock({
         createDocumentType: mock.fn(async () => expectedType),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      });
 
-      const audit = {
-        append: mock.fn(async () => ({})),
-      };
-
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
       const result = await service.createDocumentType(actor, input);
@@ -88,25 +117,10 @@ describe("AdmissionDocumentService", () => {
         required: false,
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      const repository = createRepositoryMock();
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
 
@@ -128,25 +142,10 @@ describe("AdmissionDocumentService", () => {
         required: false,
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      const repository = createRepositoryMock();
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
 
@@ -167,25 +166,12 @@ describe("AdmissionDocumentService", () => {
         sizeBytes: 5 * 1024 * 1024, // 5 MB
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      const repository = createRepositoryMock();
 
-      const audit = { append: mock.fn(async () => ({})) };
-      const storage = {
+      const audit = createAuditMock();
+      const storage = createStorageMock({
         generateUploadUrl: mock.fn(async () => "https://upload.url/signed"),
-        generateDownloadUrl: mock.fn(),
-      };
+      });
 
       const service = new AdmissionDocumentService(repository, audit, storage);
       const result = await service.generateUploadUrl(
@@ -211,25 +197,10 @@ describe("AdmissionDocumentService", () => {
         sizeBytes: 1024,
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      const repository = createRepositoryMock();
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
 
@@ -256,25 +227,10 @@ describe("AdmissionDocumentService", () => {
         sizeBytes: 11 * 1024 * 1024, // 11 MB
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      const repository = createRepositoryMock();
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
 
@@ -301,25 +257,10 @@ describe("AdmissionDocumentService", () => {
         sizeBytes: 1024,
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      const repository = createRepositoryMock();
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
 
@@ -363,25 +304,12 @@ describe("AdmissionDocumentService", () => {
         updatedAt: "2026-06-25T10:00:00Z",
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
+      const repository = createRepositoryMock({
         waiveDocument: mock.fn(async () => waived),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      });
 
-      const audit = { append: mock.fn(async () => ({})) };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
       const result = await service.waiveDocument(staffActor, input);
@@ -400,25 +328,10 @@ describe("AdmissionDocumentService", () => {
         waiverNote: "",
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      const repository = createRepositoryMock();
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
 
@@ -433,25 +346,12 @@ describe("AdmissionDocumentService", () => {
 
   describe("canAdvanceToDecision", () => {
     it("returns complete when all required documents are received", async () => {
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
+      const repository = createRepositoryMock({
         canAdvanceToDecision: mock.fn(async () => true),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      });
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
       const result = await service.canAdvanceToDecision(
@@ -465,25 +365,12 @@ describe("AdmissionDocumentService", () => {
     });
 
     it("returns complete when required document is waived", async () => {
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
+      const repository = createRepositoryMock({
         canAdvanceToDecision: mock.fn(async () => true),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      });
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
       const result = await service.canAdvanceToDecision(
@@ -496,16 +383,7 @@ describe("AdmissionDocumentService", () => {
     });
 
     it("returns incomplete when required document is pending", async () => {
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
-        findApplicationDocument: mock.fn(),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
+      const repository = createRepositoryMock({
         canAdvanceToDecision: mock.fn(async () => false),
         getMissingRequiredDocuments: mock.fn(async () => [
           {
@@ -513,13 +391,10 @@ describe("AdmissionDocumentService", () => {
             name: "Official Transcript",
           },
         ]),
-      };
+      });
 
-      const audit = { append: mock.fn() };
-      const storage = {
-        generateUploadUrl: mock.fn(),
-        generateDownloadUrl: mock.fn(),
-      };
+      const audit = createAuditMock();
+      const storage = createStorageMock();
 
       const service = new AdmissionDocumentService(repository, audit, storage);
       const result = await service.canAdvanceToDecision(
@@ -549,25 +424,14 @@ describe("AdmissionDocumentService", () => {
         updatedAt: "2026-06-25T09:00:00Z",
       };
 
-      const repository = {
-        createDocumentType: mock.fn(),
-        findDocumentTypeById: mock.fn(),
-        listActiveDocumentTypes: mock.fn(),
-        createApplicationDocument: mock.fn(),
+      const repository = createRepositoryMock({
         findApplicationDocument: mock.fn(async () => document),
-        getDocumentChecklist: mock.fn(),
-        confirmDocumentUpload: mock.fn(),
-        markDocumentReceived: mock.fn(),
-        waiveDocument: mock.fn(),
-        canAdvanceToDecision: mock.fn(),
-        getMissingRequiredDocuments: mock.fn(),
-      };
+      });
 
-      const audit = { append: mock.fn(async () => ({})) };
-      const storage = {
-        generateUploadUrl: mock.fn(),
+      const audit = createAuditMock();
+      const storage = createStorageMock({
         generateDownloadUrl: mock.fn(async () => "https://secret.download.url/with-token"),
-      };
+      });
 
       const service = new AdmissionDocumentService(repository, audit, storage);
       const downloadUrl = await service.generateDownloadUrl(

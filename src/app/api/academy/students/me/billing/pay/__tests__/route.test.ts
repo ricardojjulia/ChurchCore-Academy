@@ -40,6 +40,7 @@ test("student self-pay creates Stripe checkout for the authenticated student's c
           id: "intent-student-1",
           tenantId: actor.tenantId,
           studentPersonId: input.studentPersonId,
+          academicPeriodId: input.academicPeriodId ?? "period-1",
           amountCents: input.amountCents,
           currency: input.currency,
           provider: "stripe",
