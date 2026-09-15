@@ -2,9 +2,13 @@ import { AlertTriangle, BadgeCheck, CheckCircle2, ClipboardList, FileCheck2, Gra
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { AcademyGradingRecordsRepository } from "@/modules/grading-records/postgres-repository";
 import { requireActor } from "@/lib/require-actor";
 import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import {
   AcademicStandingRuleReviewItem,
   EvaluationRuleSetReviewItem,
@@ -16,14 +20,93 @@ import {
   OfficialRecordRuleReviewItem,
   buildGradingRecordsReviewModel,
 } from "@/modules/grading-records/review-view";
+import { GradingConfigActions } from "./GradingConfigActions";
+import type { GradingRecordsConfiguration } from "@/modules/grading-records/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function GradingSettingsPage() {
   const actor = await requireActor();
   assertInstitutionConfigAccess(actor, actor.tenantId, "read");
-  const repository = new AcademyGradingRecordsRepository();
-  const config = await repository.fetchGradingRecordsConfiguration(actor.tenantId);
+
+  let config: GradingRecordsConfiguration | null = null;
+  let capabilityDisabled = false;
+  let institutionName = "your institution";
+  let availableCourses: Array<{ id: string; code: string; title: string }> = [];
+
+  // Check for write access: institution_admin or academic_admin
+  const canEdit = actor.roles.some((role) => ["institution_admin", "academic_admin"].includes(role));
+
+  try {
+    const result = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "competencyNarrativeGrading");
+
+      // Fetch institution name for ghost page
+      const profileResult = (await client.query(
+        "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+        [actor.tenantId]
+      )) as { rows: Array<{ institution_name?: string }> };
+      const fetchedInstitutionName = profileResult.rows[0]?.institution_name;
+
+      const repository = new AcademyGradingRecordsRepository();
+      const gradingConfig = await repository.fetchGradingRecordsConfiguration(actor.tenantId);
+
+      // Populates the rule-set form's course picker: courseId is the course's internal id
+      // (e.g. "course-acts-ministry"), not its human-readable code (e.g. "ACTS-MIN") — a free-text
+      // field asking the admin to type an id they can't see anywhere else in the UI would fail on
+      // nearly every real submission. Found via review before this shipped.
+      const coursesResult = (await client.query(
+        "SELECT id, code, title FROM academy_courses WHERE tenant_id = $1 ORDER BY code",
+        [actor.tenantId]
+      )) as { rows: Array<{ id: string; code: string; title: string }> };
+
+      return {
+        config: gradingConfig,
+        institutionName: fetchedInstitutionName ?? "your institution",
+        courses: coursesResult.rows,
+      };
+    });
+
+    config = result.config;
+    institutionName = result.institutionName;
+    availableCourses = result.courses;
+  } catch (error) {
+    if (error instanceof CapabilityDisabledError) {
+      capabilityDisabled = true;
+      // Fetch institution name even when capability is disabled, for the ghost page
+      try {
+        institutionName = await withAcademyDatabaseContext(actor, async (client) => {
+          const profileResult = (await client.query(
+            "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+            [actor.tenantId]
+          )) as { rows: Array<{ institution_name?: string }> };
+          return profileResult.rows[0]?.institution_name ?? "your institution";
+        });
+      } catch {
+        // Fallback to default if fetch fails
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  if (capabilityDisabled) {
+    return (
+      <AdminShell
+        activeSection="system"
+        eyebrow="Grading And Records"
+        title="Grading setup review"
+        subtitle="Competency and narrative evaluation configuration for faith-based education."
+      >
+        <CapabilityGhostPage capability="Competency & Narrative Grading" institutionModel={institutionName} />
+      </AdminShell>
+    );
+  }
+
+  if (!config) {
+    throw new Error("Configuration not loaded.");
+  }
+
   const model = buildGradingRecordsReviewModel(config);
 
   return (
@@ -157,6 +240,12 @@ export default async function GradingSettingsPage() {
 
         <ValidationPanel model={model} />
       </section>
+
+      {canEdit && (
+        <section>
+          <GradingConfigActions config={config} canEdit={canEdit} availableCourses={availableCourses} />
+        </section>
+      )}
     </AdminShell>
   );
 }
