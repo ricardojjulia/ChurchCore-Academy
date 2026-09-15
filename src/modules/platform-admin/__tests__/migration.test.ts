@@ -25,6 +25,10 @@ test("platform admin control-plane migration creates platform role, tenant regis
     join(process.cwd(), "supabase/migrations", migrationName),
     "utf8",
   );
+  const foundationSeed = await readFile(
+    join(process.cwd(), "supabase/migrations/20260616085000_seed_demo_institution_foundation.sql"),
+    "utf8",
+  );
 
   assert.match(sql, /create table if not exists public\.academy_platform_role_assignments/i);
   assert.match(sql, /role in \('platform_staff', 'platform_admin'\)/i);
@@ -38,5 +42,6 @@ test("platform admin control-plane migration creates platform role, tenant regis
   assert.match(sql, /enable row level security/i);
   assert.match(sql, /force row level security/i);
   assert.match(sql, /auth\.uid\(\)::text/i);
-  assert.match(sql, /profile\.tenant_id = 'cca-main'/i);
+  assert.match(foundationSeed, /insert into public\.academy_tenant_registry/i);
+  assert.match(foundationSeed, /profile\.tenant_id = 'cca-main'/i);
 });

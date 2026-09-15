@@ -2,8 +2,11 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { FacultyShell } from "@/components/faculty-shell";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
-import { runAcademicWorkflowEvaluationJob } from "@/modules/scheduled-jobs/evaluate-academic-workflows";
+import { ReEvaluateButton } from "@/components/re-evaluate-button";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 import { AlertTriangle, BookOpen, ClipboardList, ShieldCheck, Sparkles } from "lucide-react";
 import type { ShepherdAiSuggestion } from "@/modules/shepherd-ai/types";
 
@@ -77,18 +80,32 @@ export default async function FacultyShepherdPage() {
     redirect("/login");
   }
 
+  const actor = await requireActor();
+
+  const ownedSectionIds = await withAcademyDatabaseContext(actor, async (client) => {
+    const result = await client.query(
+      "select id from academy_course_sections where tenant_id = $1 and primary_instructor_id = $2",
+      [actor.tenantId, actor.userId],
+    ) as { rows: { id: string }[] };
+    return new Set(result.rows.map((r) => r.id));
+  });
+
   let suggestions: ShepherdAiSuggestion[] = [];
 
   try {
-    const { actor, dataset } = await loadProtectedAcademyDataset();
-    const evaluation = await runAcademicWorkflowEvaluationJob(actor.tenantId, dataset, null);
-    suggestions = (evaluation.suggestions ?? []).filter(
+    const all = await withAcademyDatabaseContext(actor, (client) =>
+      new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client)).fetchSuggestions(actor.tenantId),
+    );
+
+    suggestions = all.filter(
       (s) =>
         s.workflowCode === "faculty_or_course_assignment_imbalance_review" ||
-        s.workflowCode === "calendar_setup_review",
+        s.workflowCode === "calendar_setup_review" ||
+        (s.entityType === "course_section" && ownedSectionIds.has(s.entityId)) ||
+        (s.entityType === "faculty" && s.entityId === actor.userId),
     );
   } catch {
-    // graceful degradation
+    // graceful degradation — DB unavailable; page shows empty state
   }
 
   const critical = suggestions.filter((s) => s.urgency === "critical" || s.urgency === "high");
@@ -102,21 +119,24 @@ export default async function FacultyShepherdPage() {
       userEmail={user?.email}
       signOutAction={signOutAction}
     >
-      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        <div className="ops-metric" style={{ flex: "0 0 auto", minWidth: "160px" }}>
-          <div style={{ padding: "1rem" }}>
-            <div className="ops-metric-label">Total signals</div>
-            <div className="ops-metric-value">{suggestions.length}</div>
-            <div className="ops-metric-detail"><Sparkles size={13} /> Faculty &amp; setup signals</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          <div className="ops-metric" style={{ flex: "0 0 auto", minWidth: "160px" }}>
+            <div style={{ padding: "1rem" }}>
+              <div className="ops-metric-label">Total signals</div>
+              <div className="ops-metric-value">{suggestions.length}</div>
+              <div className="ops-metric-detail"><Sparkles size={13} /> Faculty &amp; setup signals</div>
+            </div>
+          </div>
+          <div className="ops-metric" style={{ flex: "0 0 auto", minWidth: "160px" }}>
+            <div style={{ padding: "1rem" }}>
+              <div className="ops-metric-label">High urgency</div>
+              <div className="ops-metric-value">{critical.length}</div>
+              <div className="ops-metric-detail"><AlertTriangle size={13} /> Requires attention</div>
+            </div>
           </div>
         </div>
-        <div className="ops-metric" style={{ flex: "0 0 auto", minWidth: "160px" }}>
-          <div style={{ padding: "1rem" }}>
-            <div className="ops-metric-label">High urgency</div>
-            <div className="ops-metric-value">{critical.length}</div>
-            <div className="ops-metric-detail"><AlertTriangle size={13} /> Requires attention</div>
-          </div>
-        </div>
+        <ReEvaluateButton endpoint="/api/academy/shepherd-ai/evaluate" label="Re-evaluate" />
       </div>
 
       {suggestions.length === 0 ? (

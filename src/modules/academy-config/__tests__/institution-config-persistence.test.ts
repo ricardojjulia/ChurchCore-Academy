@@ -36,6 +36,6 @@ test("institution configuration migration creates tenant-scoped profile storage"
 
 test("seeded mock Academy dataset includes a valid institution profile", () => {
   assert.equal(academyDataset.institutionProfile.tenantId, academyDataset.tenantId);
-  assert.equal(academyDataset.institutionProfile.primaryMode, "mixed");
+  assert.equal(academyDataset.institutionProfile.primaryMode, "bible_school");
   assert.deepEqual(validateInstitutionProfile(academyDataset.institutionProfile), []);
 });

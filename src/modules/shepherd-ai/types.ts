@@ -16,6 +16,7 @@ export type SignalType =
   | "required_document_missing"
   | "graduation_threshold_near"
   | "credit_progress_gap"
+  | "attendance_threshold_exceeded"
   | "transcript_inconsistency_possible"
   | "course_without_instructor"
   | "faculty_course_assignment_imbalance"
@@ -91,6 +92,8 @@ export interface ShepherdAiSuggestion {
   generatedAt: string;
   status: SuggestionStatus;
   messageDraft?: string;
+  dismissNote?: string;
+  snoozeUntil?: string;
 }
 
 export interface WorkflowRecord {

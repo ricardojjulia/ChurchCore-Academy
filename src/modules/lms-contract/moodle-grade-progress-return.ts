@@ -8,6 +8,8 @@ import {
 } from "./contract";
 import { createLmsAuditEvent } from "./sync-audit-reconciliation";
 import { ResolvedTenantLmsProvider } from "./tenant-provider-selection";
+import { MoodleHttpClient, LmsProviderError } from "./moodle-http-client";
+import { CircuitBreakerDb, getCircuitState, recordFailure, recordSuccess } from "./circuit-breaker";
 
 export interface MoodleReturnConfiguration {
   tenantId: string;
@@ -294,4 +296,140 @@ export function createMoodleProgressReturnImportPlan(
       })),
     },
   };
+}
+
+export interface ExecuteMoodleGradeReturnInput {
+  reviewedImport: MoodleGradeReturnReviewedImport;
+  httpClient: MoodleHttpClient;
+  db: CircuitBreakerDb;
+  moodleCourseId: number;
+  moodleUserIdToPersonId: Map<number, string>;
+}
+
+export async function executeMoodleGradeReturn(
+  input: ExecuteMoodleGradeReturnInput,
+): Promise<MoodleReturnImportPlan<MoodleGradeReturnReviewedImport>> {
+  const { reviewedImport, httpClient, db, moodleCourseId, moodleUserIdToPersonId } = input;
+  const tenantId = reviewedImport.tenantId;
+
+  const circuitState = await getCircuitState(tenantId, "moodle", db);
+  if (circuitState === "open") {
+    return {
+      result: {
+        status: "retryable_failure",
+        providerId: "moodle",
+        capability: "grade_return",
+        tenantId,
+        correlationId: reviewedImport.idempotencyKey,
+        operationId: reviewedImport.idempotencyKey,
+        retryable: true,
+        safeMessage: "Moodle integration circuit breaker is open",
+      },
+      auditEvent: createLmsAuditEvent({
+        tenantId,
+        providerId: "moodle",
+        operation: "grade_return",
+        targetReferences: [reviewedImport.courseId, reviewedImport.sectionId],
+        correlationId: reviewedImport.idempotencyKey,
+        resultStatus: "retryable_failure",
+        metadata: { circuitState: "open" },
+      }),
+    };
+  }
+
+  try {
+    interface MoodleGradeItem {
+      id: number;
+      itemname: string;
+      graderaw?: number;
+      gradeformatted?: string;
+    }
+
+    const gradeData = await httpClient.call<{ usergrades: Array<{ gradeitems: MoodleGradeItem[] }> }>(
+      "gradereport_user_get_grade_items",
+      {
+        courseid: moodleCourseId,
+      },
+    );
+
+    const results: MoodleGradeReturnReviewedImport["results"] = [];
+
+    for (const userGrade of gradeData.usergrades || []) {
+      for (const item of userGrade.gradeitems || []) {
+        const personId = moodleUserIdToPersonId.get(item.id);
+        if (!personId) continue;
+
+        results.push({
+          studentPersonId: personId,
+          providerResultId: String(item.id),
+          label: item.itemname,
+          value: item.gradeformatted || String(item.graderaw || ""),
+          reviewStatus: "pending_review",
+        });
+      }
+    }
+
+    await recordSuccess(tenantId, "moodle", db);
+
+    return {
+      result: {
+        status: "needs_review",
+        providerId: "moodle",
+        capability: "grade_return",
+        tenantId,
+        correlationId: reviewedImport.idempotencyKey,
+        operationId: reviewedImport.idempotencyKey,
+        retryable: false,
+        safeMessage: "Moodle grade return import completed",
+      },
+      auditEvent: createLmsAuditEvent({
+        tenantId,
+        providerId: "moodle",
+        operation: "grade_return",
+        targetReferences: [reviewedImport.courseId, reviewedImport.sectionId],
+        correlationId: reviewedImport.idempotencyKey,
+        resultStatus: "needs_review",
+        metadata: {
+          importSourceLabel: reviewedImport.importSourceLabel,
+          resultCount: results.length,
+          pendingReviewCount: results.length,
+        },
+      }),
+      reviewedImport: {
+        ...reviewedImport,
+        results,
+      },
+    };
+  } catch (error) {
+    await recordFailure(tenantId, "moodle", db);
+
+    if (error instanceof LmsProviderError) {
+      return {
+        result: {
+          status: error.retryable ? "retryable_failure" : "permanent_failure",
+          providerId: "moodle",
+          capability: "grade_return",
+          tenantId,
+          correlationId: reviewedImport.idempotencyKey,
+          operationId: reviewedImport.idempotencyKey,
+          retryable: error.retryable,
+          safeMessage: error.message,
+        },
+        auditEvent: createLmsAuditEvent({
+          tenantId,
+          providerId: "moodle",
+          operation: "grade_return",
+          targetReferences: [reviewedImport.courseId, reviewedImport.sectionId],
+          correlationId: reviewedImport.idempotencyKey,
+          resultStatus: error.retryable ? "retryable_failure" : "permanent_failure",
+          metadata: {
+            errorCode: error.code,
+            httpStatus: error.httpStatus,
+          },
+        }),
+      };
+    }
+
+    throw error;
+  }
 }

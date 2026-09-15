@@ -9,6 +9,10 @@ export interface MoodleLaunchConfiguration {
   launchBaseUrl: string;
   displayLabel?: string;
   expiresInMinutes?: number;
+  credentialStatus?: "valid" | "invalid";
+  circuitState?: "closed" | "open";
+  mappedCourseIds?: string[];
+  mappedSectionIds?: string[];
   accessToken?: string;
   refreshToken?: string;
   clientSecret?: string;
@@ -45,6 +49,25 @@ function unavailableReason(input: CreateMoodleLaunchResponseInput) {
 
   if (!input.resolvedProvider.supports("identity_launch")) {
     return warning ?? "Moodle launch is not active for this tenant.";
+  }
+
+  if (input.configuration?.credentialStatus === "invalid") {
+    return "Moodle credentials need administrator review before launch.";
+  }
+
+  if (input.configuration?.circuitState === "open") {
+    return "Moodle is temporarily paused while provider health recovers.";
+  }
+
+  if (
+    (input.request.courseId &&
+      input.configuration?.mappedCourseIds &&
+      !input.configuration.mappedCourseIds.includes(input.request.courseId)) ||
+    (input.request.sectionId &&
+      input.configuration?.mappedSectionIds &&
+      !input.configuration.mappedSectionIds.includes(input.request.sectionId))
+  ) {
+    return "Moodle course mapping is missing for this launch.";
   }
 
   if (!input.configuration?.launchBaseUrl.trim()) {

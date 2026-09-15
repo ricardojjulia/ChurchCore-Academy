@@ -2,13 +2,15 @@ import { AdminShell } from "@/components/admin-shell";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
-import Link from "next/link";
-import { FileText, GraduationCap } from "lucide-react";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { TranscriptIssuanceForm } from "@/components/admin/transcript-issuance-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function TranscriptsPage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -18,76 +20,38 @@ export default async function TranscriptsPage() {
     redirect("/login");
   }
 
-  const { dataset } = await loadProtectedAcademyDataset();
-  const students = dataset.students;
+  const students = await withAcademyDatabaseContext(actor, async (client) => {
+    const result = await client.query(
+      `select
+         sp.person_id as id,
+         p.display_name as full_name,
+         sp.enrollment_status
+       from academy_student_profiles sp
+       join academy_people p
+         on p.tenant_id = sp.tenant_id
+        and p.id = sp.person_id
+       where sp.tenant_id = $1
+       order by sp.student_number asc`,
+      [actor.tenantId],
+    );
+
+    return (result as { rows: Record<string, unknown>[] }).rows.map((row) => ({
+      id: String(row.id),
+      fullName: String(row.full_name),
+      enrollmentStatus: String(row.enrollment_status),
+    }));
+  });
 
   return (
     <AdminShell
-      eyebrow="Records"
+      eyebrow="Registrar"
       title="Transcript Issuance"
       subtitle="Issue official transcripts to students and recipients. All issuances are logged and tenant-scoped."
       activeSection="records"
       userEmail={user?.email}
       signOutAction={signOutAction}
     >
-      <div className="admin-panel transcript-info-panel">
-        <div className="admin-panel-heading">
-          <h2 className="sections-panel-title">
-            <GraduationCap size={16} strokeWidth={2} aria-hidden="true" />
-            Issuance Overview
-          </h2>
-        </div>
-        <p className="admin-signal-empty">
-          Transcripts are issued via the API. Select a student below to view their
-          issuance history, or POST to{" "}
-          <code className="sections-id-code">/api/academy/transcripts</code> to
-          issue a new transcript.
-        </p>
-      </div>
-
-      <div className="admin-panel">
-        <div className="admin-panel-heading">
-          <h2 className="sections-panel-title">
-            <FileText size={16} strokeWidth={2} aria-hidden="true" />
-            Student Roster
-          </h2>
-          <span className="sections-roster-count">{students.length} students</span>
-        </div>
-        {students.length === 0 ? (
-          <p className="admin-signal-empty">No students found for this tenant.</p>
-        ) : (
-          <div className="faculty-section-list">
-            {students.map((student) => (
-              <div key={student.id} className="faculty-section-row">
-                <span className="faculty-section-code transcript-student-number">
-                  {student.id.slice(0, 8)}
-                </span>
-                <span className="faculty-section-title">{student.fullName}</span>
-                <span className="faculty-section-roster">{student.enrollmentStatus}</span>
-                <Link
-                  href={`/api/academy/transcripts?studentId=${student.id}`}
-                  className="faculty-grade-link"
-                >
-                  View issuances →
-                </Link>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="admin-panel">
-        <div className="admin-panel-heading">
-          <h2>Student-Facing Transcripts</h2>
-        </div>
-        <p className="admin-signal-empty">
-          Students view their released transcripts via the Student PWA at{" "}
-          <Link href="/student/documents" className="faculty-grade-link">
-            /student/documents
-          </Link>
-          .
-        </p>
-      </div>
+      <TranscriptIssuanceForm students={students} />
     </AdminShell>
   );
 }

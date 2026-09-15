@@ -137,7 +137,7 @@ test("dismissSuggestion and assignWorkflow mutations include tenant filters", as
   await service.assignWorkflow("tenant-shepherd", "workflow-1", "assignee-1");
 
   assert.match(calls[0].sql, /where id = \$1 and tenant_id = \$2/i);
-  assert.deepEqual(calls[0].params, ["suggestion-1", "tenant-shepherd", "dismissed"]);
+  assert.deepEqual(calls[0].params, ["suggestion-1", "tenant-shepherd", "done"]);
   const assignCall = calls.find((call) => call.sql.includes("set assigned_to_user_id = $2"));
   assert.ok(assignCall);
   assert.match(assignCall?.sql ?? "", /where id = \$1 and tenant_id = \$3/i);

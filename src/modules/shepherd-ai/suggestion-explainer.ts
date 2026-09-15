@@ -11,6 +11,7 @@ const categoryBySignalType: Record<AiSignalRecord["signalType"], SignalCategory[
   course_without_instructor: ["faculty-admin-signals"],
   faculty_course_assignment_imbalance: ["faculty-admin-signals"],
   calendar_setup_incomplete_or_inconsistent: ["institutional-setup-signals"],
+  attendance_threshold_exceeded: ["student-record-signals", "enrollment-signals"],
 };
 
 function normalizeValidationError(value: string) {

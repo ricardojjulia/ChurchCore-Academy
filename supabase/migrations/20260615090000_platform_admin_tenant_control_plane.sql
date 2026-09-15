@@ -87,27 +87,3 @@ create policy academy_platform_audit_self_read
   on public.academy_platform_audit_events
   for select to authenticated
   using (external_subject = auth.uid()::text);
-
-insert into public.academy_tenant_registry (
-  tenant_id,
-  display_name,
-  tenant_kind,
-  lifecycle_status,
-  is_demo,
-  provisioning_status,
-  created_by_external_subject
-)
-select
-  profile.tenant_id,
-  profile.institution_name,
-  profile.primary_mode,
-  case when profile.tenant_id = 'cca-main' then 'demo' else 'development' end,
-  profile.tenant_id = 'cca-main',
-  'ready',
-  null
-from public.academy_institution_profiles profile
-where not exists (
-  select 1
-  from public.academy_tenant_registry registry
-  where registry.tenant_id = profile.tenant_id
-);

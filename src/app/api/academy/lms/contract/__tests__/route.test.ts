@@ -135,6 +135,32 @@ test("course shell plan payload returns unsupported result for no-LMS tenants", 
   assert.equal(payload.plan.result?.status, "unsupported");
 });
 
+test("course shell plan payload returns Moodle planning operations for active Moodle tenants", async () => {
+  const payload = await buildLmsCourseShellPlanPayload(
+    {
+      fetchInstitutionProfile: async () => profile("moodle"),
+    },
+    institutionAdmin,
+    "tenant-contract",
+    "corr-moodle-course-shell",
+    {
+      courseId: "course-1",
+      sectionId: "section-1",
+      academicYearId: "year-1",
+      academicPeriodId: "period-1",
+      mappingIntent: "ready_to_provision",
+      syncPolicy: "full_section_sync",
+      idempotencyKey: "idemp-moodle-course-shell-1",
+    },
+  );
+
+  assert.equal(payload.operation, "course_shell_plan");
+  assert.equal(payload.providerId, "moodle");
+  assert.equal(payload.plan.result.status, "success");
+  assert.equal(payload.plan.providerOperations.length, 1);
+  assert.doesNotMatch(JSON.stringify(payload), /contract stub is not implemented/i);
+});
+
 test("roster sync plan payload rejects non-admin actors before repository access", async () => {
   let repositoryCalled = false;
 
@@ -196,6 +222,39 @@ test("grade return plan payload returns canvas reviewed-import plan for active c
   assert.equal(payload.plan.result.status, "needs_review");
   assert.equal(payload.plan.reviewedImport?.importKind, "grade_return");
   assert.equal(payload.plan.reviewedImport?.results[0]?.reviewStatus, "pending_review");
+});
+
+test("grade return plan payload returns Moodle reviewed-import plan for active Moodle tenants", async () => {
+  const payload = await buildLmsGradeReturnPlanPayload(
+    {
+      fetchInstitutionProfile: async () => profile("moodle"),
+    },
+    institutionAdmin,
+    "tenant-contract",
+    "corr-moodle-grade-return",
+    {
+      courseId: "course-1",
+      sectionId: "section-1",
+      idempotencyKey: "idemp-moodle-grade-return-1",
+      importSourceLabel: "Moodle Web Service",
+      results: [
+        {
+          studentPersonId: "student-1",
+          providerResultId: "grade-1",
+          label: "Quiz 1",
+          value: "90",
+          reviewStatus: "accepted_for_review",
+        },
+      ],
+    },
+  );
+
+  assert.equal(payload.operation, "grade_return_plan");
+  assert.equal(payload.providerId, "moodle");
+  assert.equal(payload.plan.result.status, "needs_review");
+  assert.equal(payload.plan.reviewedImport?.importKind, "grade_return");
+  assert.equal(payload.plan.reviewedImport?.results[0]?.reviewStatus, "pending_review");
+  assert.doesNotMatch(JSON.stringify(payload), /contract stub is not implemented/i);
 });
 
 test("progress return plan payload returns canvas reviewed-import plan for active canvas tenants", async () => {

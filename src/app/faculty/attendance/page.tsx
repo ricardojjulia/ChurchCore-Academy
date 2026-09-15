@@ -2,7 +2,9 @@ import { FacultyShell } from "@/components/faculty-shell";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchSectionList, fetchStudentRecords } from "@/lib/academy-read-models";
 import { FacultyAttendanceForm } from "./faculty-attendance-form";
 
 export const dynamic = "force-dynamic";
@@ -17,16 +19,19 @@ export default async function FacultyAttendancePage() {
     redirect("/login");
   }
 
-  const { dataset } = await loadProtectedAcademyDataset();
-  const sections = dataset.sections.map((s) => ({
-    id: s.id,
-    code: s.code,
-    title: s.title,
-    rosterCount: s.rosterCount,
-  }));
-  const students = dataset.students
-    .filter((s) => s.enrollmentStatus === "active" || s.enrollmentStatus === "admitted")
-    .map((s) => ({ id: s.id, name: s.fullName }));
+  const actor = await requireActor();
+  const { sections, students } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [allSections, allStudents] = await Promise.all([
+      fetchSectionList(actor.tenantId, client),
+      fetchStudentRecords(actor.tenantId, client),
+    ]);
+    return {
+      sections: allSections.map((s) => ({ id: s.id, code: s.code, title: s.title, rosterCount: s.rosterCount })),
+      students: allStudents
+        .filter((s) => s.enrollmentStatus === "active" || s.enrollmentStatus === "admitted")
+        .map((s) => ({ id: s.id, name: s.fullName })),
+    };
+  });
 
   return (
     <FacultyShell

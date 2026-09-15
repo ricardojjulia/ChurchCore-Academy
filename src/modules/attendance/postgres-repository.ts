@@ -22,6 +22,7 @@ function mapRow(row: Record<string, unknown>): AttendanceRecord {
     studentPersonId: String(row.student_person_id),
     sessionDate: String(row.session_date).slice(0, 10),
     status: String(row.status) as AttendanceRecord["status"],
+    sessionType: (String(row.session_type || "class")) as AttendanceRecord["sessionType"],
     recordedAt: row.recorded_at instanceof Date
       ? row.recorded_at.toISOString()
       : String(row.recorded_at),
@@ -43,13 +44,15 @@ export class PostgresAttendanceRepository implements AttendanceRepository {
          student_person_id,
          session_date,
          status,
+         session_type,
          recorded_by_person_id,
          note,
          recorded_at
-       ) values ($1, $2, $3, $4::date, $5, $6, $7, now())
+       ) values ($1, $2, $3, $4::date, $5, $6, $7, $8, now())
        on conflict (tenant_id, course_section_id, student_person_id, session_date)
        do update set
          status = excluded.status,
+         session_type = excluded.session_type,
          recorded_by_person_id = excluded.recorded_by_person_id,
          note = excluded.note,
          recorded_at = now()
@@ -60,6 +63,7 @@ export class PostgresAttendanceRepository implements AttendanceRepository {
          student_person_id,
          session_date,
          status,
+         session_type,
          recorded_at,
          recorded_by_person_id,
          note`,
@@ -69,6 +73,7 @@ export class PostgresAttendanceRepository implements AttendanceRepository {
         input.studentPersonId,
         input.sessionDate,
         input.status,
+        input.sessionType,
         input.recordedByPersonId,
         input.note ?? null,
       ],
@@ -79,6 +84,53 @@ export class PostgresAttendanceRepository implements AttendanceRepository {
     }
 
     return mapRow(result.rows[0]);
+  }
+
+  async canRecordSectionAttendance(input: {
+    tenantId: string;
+    courseSectionId: string;
+    actorPersonId: string;
+    hasAdminAccess: boolean;
+  }): Promise<boolean> {
+    const result = await this.database.query(
+      `select true as can_record
+         from academy_course_sections section
+        where section.tenant_id = $1
+          and section.id = $2
+          and (
+            $4::boolean = true
+            or section.primary_instructor_id = $3
+            or section.assistant_instructor_ids ? $3
+          )
+        limit 1`,
+      [
+        input.tenantId,
+        input.courseSectionId,
+        input.actorPersonId,
+        input.hasAdminAccess,
+      ],
+    );
+
+    return Boolean(result.rows[0]);
+  }
+
+  async isStudentActivelyRegistered(input: {
+    tenantId: string;
+    courseSectionId: string;
+    studentPersonId: string;
+  }): Promise<boolean> {
+    const result = await this.database.query(
+      `select true as registered
+         from academy_course_section_registrations registration
+        where registration.tenant_id = $1
+          and registration.course_section_id = $2
+          and registration.student_person_id = $3
+          and registration.status in ('pending_confirmation', 'registered')
+        limit 1`,
+      [input.tenantId, input.courseSectionId, input.studentPersonId],
+    );
+
+    return Boolean(result.rows[0]);
   }
 
   async listBySection(
@@ -92,7 +144,7 @@ export class PostgresAttendanceRepository implements AttendanceRepository {
 
     const result = await this.database.query(
       `select id, tenant_id, course_section_id, student_person_id, session_date,
-              status, recorded_at, recorded_by_person_id, note
+              status, session_type, recorded_at, recorded_by_person_id, note
          from academy_attendance_records
         where tenant_id = $1 and course_section_id = $2${dateClause}
         order by session_date desc, recorded_at desc`,
@@ -108,7 +160,7 @@ export class PostgresAttendanceRepository implements AttendanceRepository {
   ): Promise<AttendanceRecord[]> {
     const result = await this.database.query(
       `select id, tenant_id, course_section_id, student_person_id, session_date,
-              status, recorded_at, recorded_by_person_id, note
+              status, session_type, recorded_at, recorded_by_person_id, note
          from academy_attendance_records
         where tenant_id = $1 and student_person_id = $2
         order by session_date desc, recorded_at desc

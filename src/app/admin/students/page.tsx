@@ -4,7 +4,9 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +21,17 @@ function statusVariant(status: string) {
 }
 
 export default async function StudentsPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const activeStudents = dataset.students.filter((student) => student.enrollmentStatus === "active");
-  const reviewStudents = dataset.students.filter(
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  const { students, programs } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [s, p] = await Promise.all([
+      fetchStudentRecords(actor.tenantId, client),
+      fetchProgramList(actor.tenantId, client),
+    ]);
+    return { students: s, programs: p };
+  });
+  const activeStudents = students.filter((student) => student.enrollmentStatus === "active");
+  const reviewStudents = students.filter(
     (student) =>
       student.missingEnrollmentSteps.length > 0 ||
       student.missingDocuments.length > 0 ||
@@ -37,20 +47,30 @@ export default async function StudentsPage() {
       subtitle="Tenant-scoped student records, status, program assignment, and ShepherdAI review entry points."
     >
       <section className="ops-stats-grid">
-        <StudentIndexMetric label="Total students" value={dataset.students.length} detail="Protected tenant records" icon={<UsersRound />} />
+        <StudentIndexMetric label="Total students" value={students.length} detail="Protected tenant records" icon={<UsersRound />} />
         <StudentIndexMetric label="Active students" value={activeStudents.length} detail="Currently active enrollment" icon={<GraduationCap />} />
         <StudentIndexMetric label="Needs review" value={reviewStudents.length} detail="Records, documentation, or transcript signals" icon={<FileWarning />} />
       </section>
 
       <Card className="ops-panel">
-        <CardHeader>
-          <CardTitle>Student Index</CardTitle>
-          <CardDescription>
-            Open a student profile for academic record details, administrative signals, and human-reviewed ShepherdAI workflow context.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Student Center</CardTitle>
+            <CardDescription>
+              Open a student profile for academic record details, administrative signals, and human-reviewed ShepherdAI workflow context.
+            </CardDescription>
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+            disabled
+            title="Coming soon"
+          >
+            + New Student
+          </button>
         </CardHeader>
         <CardContent>
-          {dataset.students.length === 0 ? (
+          {students.length === 0 ? (
             <div className="student-empty-state">
               <ShieldCheck />
               <span>No student records exist for this tenant yet. Start from admissions when applicant records are ready.</span>
@@ -72,8 +92,8 @@ export default async function StudentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dataset.students.map((student) => {
-                  const program = dataset.programs.find((item) => item.id === student.programId);
+                {students.map((student) => {
+                  const program = programs.find((item) => item.id === student.programId);
                   const needsReview =
                     student.missingEnrollmentSteps.length +
                     student.missingDocuments.length +

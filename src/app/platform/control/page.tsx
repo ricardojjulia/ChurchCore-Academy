@@ -3,6 +3,7 @@ import { AcademyShell } from "@/components/academy-shell";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { resolvePlatformSessionForServerComponent } from "@/modules/academy-auth/request-context";
+import { canAccessPlatformStaffWorkspace } from "@/modules/academy-auth/policy";
 import { TenantControlPanel } from "@/app/platform/control/tenant-control-panel";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,9 @@ export const dynamic = "force-dynamic";
 export default async function PlatformControlPage() {
   const user = await getCurrentUser();
   const initialSession = await resolvePlatformSessionForServerComponent();
+  if (!canAccessPlatformStaffWorkspace(initialSession.platformRoles)) {
+    redirect("/");
+  }
 
   async function signOutAction() {
     "use server";

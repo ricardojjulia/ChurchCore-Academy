@@ -1,56 +1,110 @@
 # Project Status
 
-- Version: `0.1.0`
-- Stage: active pre-production development
-- Updated: 2026-06-16
+- Version: `0.10.0`
+- Stage: controlled-pilot candidate
+- Updated: 2026-09-12
 
 ## Current Assessment
 
-ChurchCore Academy has a substantial domain, security, and integration foundation. It should be evaluated as an emerging platform with several production-shaped vertical slices, not as a complete production SIS.
+**The authoritative, code-verified feature completeness reference is now [`docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md`](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md).** It confirms the Core Academic Loop (academic years/periods, course catalog, programs, program curriculum, course sections, student program membership, section enrollment, student progress, grade entry, transcript entries, student groups) is fully built end-to-end with real Postgres-backed logic, admin UI, and tests — correcting an earlier `docs/product/product-context.md` table that had gone stale and claimed several of these did not exist. It also confirms billing, financial aid, communications, and LMS provider activation are functionally complete but deliberately gated behind external approval/compliance evidence, consistent with the controlled-pilot posture below — that gating is a release-management decision, not a missing-code gap. Read that audit before assuming either this document or `product-context.md` is current; both are point-in-time claims and code is the tiebreaker.
 
-## Implemented and Verified
+ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, the ADR-0059 full Moodle/Canvas LMS implementation closeout, and the ADR-0061 institution capability enforcement closeout.
 
-- configurable institution, calendar, subdivision, course, people, and grading foundations
-- verified-session Academy identity
-- persisted account links and active role assignments
-- request-scoped PostgreSQL tenant context
-- forced RLS and tenant-aware foreign keys
-- immutable audit evidence
-- admissions application through decision
-- accepted-application conversion into student, enrollment, and period registration
-- admissions staff workflow visibility from converted application to created student record
-- working MVP surface pass for student/program indexes and dashboard navigation to core staff/admin workflows
-- Gradebook Phase 1 schema, RLS, override audit, GrowthFrameFilter, route scaffolds, tenant-scoped read models, and faculty grade-entry queue
-- Student PWA shell and provider-neutral LMS launch
-- no-LMS provider and Moodle/Canvas contract foundations
-- deterministic ShepherdAI workflow suggestions
-- LLIS learner consent lifecycle and immutable evidence ledger
+Council Review IX approved a split release decision for controlled-pilot core SIS workflows with provider activation disabled unless separately approved. Council Review XII closed the Academy-owned Moodle and Canvas implementation work while preserving the external sandbox-evidence gate for production LMS activation. Council Review XIII revalidated the current MVP and competitive stance: ChurchCore Academy is strong enough for controlled-pilot and design-partner positioning, but not approved for production/GA parity claims against mature SIS vendors. Council Review III (capability enforcement) confirmed that all 11 institution capability flags are now enforced at the API layer, closing the gap between mode-pack configuration and runtime behavior.
 
-## Partially Implemented
+Current posture:
 
-- Gradebook bulk operations and full faculty grading workflow polish
-- Student PWA persistence across courses, schedule, progress, documents, and messages
-- Moodle and Canvas execution beyond launch and contract/planning foundations
-- browser role-matrix acceptance across all protected pages
-- complete production operations, observability, backup, and incident procedures
+| Area | Status |
+| --- | --- |
+| Controlled-pilot core SIS readiness | Candidate |
+| Competitive readiness | Strong pre-GA candidate |
+| Production/GA readiness | Not approved |
+| Live provider activation | External release gate |
+| Regulated/federal aid | External compliance gate |
 
-## Production MVP Blockers
+## Implemented And Verified
 
-- course-section registration and enrollment confirmation
-- attendance and production faculty grade entry workflows
-- operational transcript issuance
-- billing and payments
-- institutional and regulated financial aid
-- reporting and exports
-- notifications and communications
-- executable LMS synchronization workers
-- complete Student PWA data workflows
+- Configurable institution, calendar, subdivision, course, people, guardian, faculty, grading, and transcript-rule foundations.
+- Verified Supabase session identity.
+- Persisted Academy account links and active role assignments.
+- Request-scoped PostgreSQL tenant/person context.
+- Forced RLS and tenant-aware foreign keys.
+- Immutable audit evidence.
+- Admissions application, submission, document checklist, review, decision, and conversion workflows.
+- Accepted-application conversion into student, enrollment, and period registration records.
+- Course-section registration and enrollment confirmation.
+- Attendance and grade posting foundations.
+- Transcript request, issuance, hold, release, revoke, PDF/export filtering, and storage boundary.
+- Billing ledger, manual payment/account workflows, payment-plan foundation, and Stripe-hosted checkout boundary.
+- Institutional financial-aid foundation with regulated-aid gate.
+- Reporting dashboard, CSV export foundation, IPEDS review-required export foundation, and scheduled-report schema.
+- Persisted communications queue, provider-safe email boundary, and admin/student/guardian message centers.
+- Student PWA shell and workflow surfaces for courses, schedule, progress, documents/transcript request, account, aid, messages, LMS launch, attendance, offline shell, and privacy controls.
+- Faculty portal surfaces for sections, schedule, roster, attendance, gradebook, and ShepherdAI work.
+- Guardian portal shell with scoped student access.
+- Platform tenant control plane.
+- No-LMS, Moodle, and Canvas provider-neutral LMS contract foundations.
+- Moodle and Canvas provider activation boundary, live transport helpers, durable worker, Student PWA launch parity, reviewed-import parity, reconciliation parity, and readiness surface.
+- Deterministic ShepherdAI workflow suggestions and review lifecycle.
+- LLIS learner consent lifecycle and immutable evidence ledger.
+- Release 1 authentication, tenant isolation, RLS, and seeded-runtime-data exit gate closeout.
+- ADR-0033 Full SIS Competitive MVP release program and change-management record.
+- ADR-0038 acceptance/deployment readiness program, role matrix, migration/seed rehearsal verifier, deployment runbooks, incident response, backup/restore, provider activation checklist, and Council Review IX closeout.
+- Authenticated role walkthrough harness, seeded acceptance personas, and generated evidence template.
+- Production observability foundation for authentication, authorization, workflow, migration, and LMS provider-worker failures.
+- Council Review XII full LMS integration MVP closeout.
+- Council Review XIII MVP and competitive stance evaluation.
+- Council Review III capability enforcement audit, ADR 0061, Ghost Mode (HTTP 451), and centralized `withCapabilityContext` / `assertCapability` enforcement infrastructure.
+- Institution capability flags (`studentPwa`, `guardianPortal`, `admissionsWorkflows`, `transcriptWorkflows`, `lmsLaunch`, `lmsRosterSync`, `lmsGradeReturn`, `shepherdAiRecommendations`) enforced at runtime on 35+ API routes. Mode-pack configuration has actual runtime effect.
+- Institution settings page redesigned as four fully clickable metric tiles with focused dialogs; legal name editable; legalName used as institution display name.
+- Academic period hard delete with enrollment guard.
+- README, HOWTO, CHANGELOG, and VERSIONING documentation refresh.
+- Full Core Academic Loop: program curriculum (versioned by entry year), student program membership, section enrollment, student progress tracking, grade entry/gradebook, and immutable transcript entries — all code-verified 2026-09-12 after `docs/product/product-context.md` had gone stale claiming these did not exist. See the feature inventory audit.
+- Nocturne dark design system adopted app-wide, replacing the light SIS palette across shared UI primitives, all four shells (admin/student/faculty/guardian), and the login/error pages.
+
+## External Release Gates
+
+These are not open implementation tasks in the repository. They are live-environment, governance, compliance, or tenant-approval gates.
+
+- Moodle sandbox or tenant test-instance evidence for credential validation, course shell sync, roster sync, Student PWA launch, reviewed grade/progress return, reconciliation, rollback, and secret redaction.
+- Canvas sandbox or tenant test-instance evidence for OAuth/token refresh, course shell sync, roster sync, Student PWA launch, reviewed grade/progress return, SIS import guardrails, reconciliation, rollback, and secret redaction.
+- Tenant owner approval and provider owner signoff before LMS production activation.
+- Live payment checkout and settlement approval before production payment activation.
+- Live email/SMS delivery evidence and approval before provider delivery activation.
+- Deployment-specific log drains, dashboards, and alert routing before expanding beyond controlled pilot.
+- Per-tenant authenticated browser walkthrough screenshots and console-error capture during pilot onboarding.
+- Regulated/federal financial-aid compliance validation before activation.
+- Separate Council approval before model-generated learner predictions or autonomous academic/pastoral interventions.
 
 ## Product Safety Position
 
-- Academy is not approved for production official records.
+- Academy is approved only for controlled-pilot core SIS use under the split release decision.
+- Academy is not approved for general availability.
+- Academy is not approved for unrestricted production official-record use.
+- Provider activation requires provider-specific evidence and approval.
+- Moodle and Canvas code implementation is closed, but production activation is not automatic.
 - Model-generated learner predictions are not approved.
 - Autonomous academic or pastoral interventions are not approved.
 - Federal-aid functionality requires separate regulatory validation and activation gates.
 
-The canonical sequence is maintained in the [Factory Roadmap](product/factory-roadmap.md).
+## Canonical References
+
+- [README](../README.md)
+- [HOWTO](../HOWTO.md)
+- [CHANGELOG](../CHANGELOG.md)
+- [Versioning](../VERSIONING.md)
+- [Factory Roadmap](product/factory-roadmap.md)
+- [2026-09-12 Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current authoritative feature-completeness reference
+- [ADR-0060 Concrete Institution Modes And Mode Packs](adr/0060-concrete-institution-modes-and-mode-packs.md)
+- [ADR-0061 Institution Capability Enforcement](adr/0061-institution-capability-enforcement.md)
+- [Council Review XV Institution Mode Pack Closeout](reviews/2026-07-21-council-review-15-institution-mode-pack-closeout.md)
+- [Council Review III Capability Enforcement](reviews/council-review-3-capability-enforcement.md)
+- [0.9.0 Release Notes](releases/2026-06-30-capability-enforcement-release-notes.md)
+- [ADR-0033 Full SIS Competitive MVP Release Program](adr/0033-full-sis-competitive-mvp-release-program.md)
+- [ADR-0038 Competitive Acceptance And Deployment Readiness](adr/0038-competitive-acceptance-and-deployment-readiness.md)
+- [ADR-0059 Full Moodle And Canvas Live Integration](adr/0059-full-moodle-canvas-live-integration.md)
+- [Council Review IX Release Closeout](reviews/2026-06-21-council-review-9-release-closeout.md)
+- [Council Review XII LMS Closeout](reviews/2026-06-26-council-review-12-full-lms-integration-mvp.md)
+- [Council Review XIII MVP And Competitive Stance](reviews/2026-06-26-council-review-13-mvp-competitive-stance.md)
+- [Controlled Pilot Release Notes](releases/2026-06-21-controlled-pilot-release-notes.md)
+- [Full LMS Integration Readiness](releases/2026-06-26-full-lms-integration-readiness.md)

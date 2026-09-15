@@ -6,8 +6,14 @@ import { InstitutionProfile, LmsSelectionStatus } from "@/modules/academy-config
 import { PeopleConfiguration } from "@/modules/people/types";
 import { createMoodleLaunchResponse, MoodleLaunchConfiguration } from "../moodle-launch";
 import { resolveTenantLmsProvider } from "../tenant-provider-selection";
+import type { LmsLaunchResponse } from "../contract";
 
 const now = "2026-06-04T12:00:00.000Z";
+
+function unavailableReasonOf(response: LmsLaunchResponse): string {
+  assert.equal(response.status, "unavailable");
+  return (response as Extract<LmsLaunchResponse, { status: "unavailable" }>).unavailableReason;
+}
 
 function profile(selectionStatus: LmsSelectionStatus = "active"): InstitutionProfile {
   const base = createInstitutionProfileDefaults({
@@ -165,6 +171,50 @@ test("Moodle launch is gated by tenant provider status", () => {
       auditReference: `${resolved.tenant.correlationId}:moodle:identity_launch`,
     });
   }
+});
+
+test("Moodle launch returns safe unavailable reasons for credential circuit and mapping states", () => {
+  const resolved = resolveTenantLmsProvider(profile(), {
+    tenantId: "tenant-moodle-launch",
+    correlationId: "corr-moodle-launch-readiness",
+  });
+  const request = {
+    tenant: resolved.tenant,
+    actor: lmsActor(actor()),
+    courseId: "course-101",
+    sectionId: "section-101-a",
+    targetStudentPersonId: "student-one",
+    redirectPath: "/student/lms",
+    nonce: "nonce-readiness",
+  };
+
+  assert.equal(
+    unavailableReasonOf(createMoodleLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ credentialStatus: "invalid" }),
+      request,
+      now,
+    })),
+    "Moodle credentials need administrator review before launch.",
+  );
+  assert.equal(
+    unavailableReasonOf(createMoodleLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ circuitState: "open" }),
+      request,
+      now,
+    })),
+    "Moodle is temporarily paused while provider health recovers.",
+  );
+  assert.equal(
+    unavailableReasonOf(createMoodleLaunchResponse({
+      resolvedProvider: resolved,
+      configuration: launchConfig({ mappedCourseIds: ["course-other"], mappedSectionIds: ["section-other"] }),
+      request,
+      now,
+    })),
+    "Moodle course mapping is missing for this launch.",
+  );
 });
 
 test("Moodle launch rejects cross-tenant launch configuration", () => {

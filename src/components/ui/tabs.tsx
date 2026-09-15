@@ -45,7 +45,7 @@ function Tabs({
 }
 
 function TabsList({ className, ...props }: React.ComponentProps<"div">) {
-  return <div role="tablist" className={cn("inline-flex flex-wrap items-center gap-2 rounded-lg bg-muted p-1", className)} {...props} />;
+  return <div role="tablist" className={cn("inline-flex flex-wrap items-center gap-6 border-b border-border", className)} {...props} />;
 }
 
 function TabsTrigger({ value, className, ...props }: React.ComponentProps<"button"> & { value: string }) {
@@ -56,10 +56,12 @@ function TabsTrigger({ value, className, ...props }: React.ComponentProps<"butto
     <button
       type="button"
       role="tab"
+      id={`tab-${value}`}
       aria-selected={selected}
+      aria-controls={`tabpanel-${value}`}
       className={cn(
-        "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
-        selected && "bg-background text-foreground shadow-sm",
+        "-mb-px border-b-2 border-transparent px-1 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+        selected && "border-accent text-accent",
         className,
       )}
       onClick={() => context.setValue(value)}
@@ -74,7 +76,15 @@ function TabsContent({ value, className, ...props }: React.ComponentProps<"div">
     return null;
   }
 
-  return <div role="tabpanel" className={cn("outline-none", className)} {...props} />;
+  return (
+    <div
+      role="tabpanel"
+      id={`tabpanel-${value}`}
+      aria-labelledby={`tab-${value}`}
+      className={cn("outline-none", className)}
+      {...props}
+    />
+  );
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent };

@@ -43,7 +43,7 @@ export function ToastViewport() {
   }
 
   return (
-    <div className="fixed right-4 top-4 z-[80] grid w-[min(24rem,calc(100vw-2rem))] gap-3" aria-live="polite" aria-atomic="false">
+    <div className="fixed right-4 top-4 z-[80] grid w-[min(24rem,calc(100vw-2rem))] gap-3" role="status" aria-live="polite" aria-atomic="false">
       {toasts.map((toast) => {
         const Icon = toneIcons[toast.tone];
 

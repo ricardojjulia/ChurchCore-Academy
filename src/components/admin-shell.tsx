@@ -6,11 +6,13 @@ import { useRef, useState } from "react";
 import {
   Activity,
   BarChart3,
+  CircleDollarSign,
   BookOpen,
   ChevronRight,
   FolderOpen,
   GraduationCap,
   LogOut,
+  Menu,
   Search,
   Settings2,
   Users,
@@ -20,12 +22,16 @@ import {
   StudentContextProvider,
   useStudentContext,
 } from "@/contexts/student-context";
+import { useAcademicContextData } from "@/contexts/academic-context";
+import { AcademicContextPicker } from "@/components/AcademicContextPicker";
+import { useAdminCapabilities } from "@/components/admin-capability-context";
 
 export type AdminSection =
   | "admissions"
   | "records"
   | "academics"
   | "dailyops"
+  | "finance"
   | "reports"
   | "system";
 
@@ -49,17 +55,18 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Applications", href: "/admin/admissions" },
       { label: "Decisions", href: "/admin/admissions/decisions" },
-      { label: "Matriculation", href: "/admin/admissions/matriculation" },
+      { label: "Enrollment", href: "/admin/admissions/matriculation" },
     ],
   },
   {
     id: "records",
-    label: "Records",
+    label: "Registrar",
     Icon: FolderOpen,
     items: [
-      { label: "Student Index", href: "/admin/students" },
+      { label: "Student Center", href: "/admin/students" },
       { label: "Transcripts", href: "/admin/transcripts" },
       { label: "Graduation", href: "/admin/graduation" },
+      { label: "Ministry Formation", href: "/admin/formation" },
     ],
   },
   {
@@ -70,6 +77,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Programs", href: "/admin/programs" },
       { label: "Course Catalog", href: "/admin/courses" },
       { label: "Sections & Schedule", href: "/admin/sections" },
+      { label: "Student Groups", href: "/admin/groups" },
     ],
   },
   {
@@ -81,7 +89,17 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Gradebook", href: "/admin/gradebook" },
       { label: "Faculty", href: "/admin/faculty" },
       { label: "Staff Directory", href: "/admin/staff" },
+      { label: "Communications", href: "/admin/communications" },
       { label: "ShepherdAI Queue", href: "/admin/workflows" },
+    ],
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    Icon: CircleDollarSign,
+    items: [
+      { label: "Billing", href: "/admin/billing" },
+      { label: "Financial Aid", href: "/admin/financial-aid" },
     ],
   },
   {
@@ -100,6 +118,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Institution", href: "/admin/settings/institution" },
       { label: "Calendar", href: "/admin/settings/calendar" },
       { label: "People & Roles", href: "/admin/settings/people" },
+      { label: "LMS Providers", href: "/admin/settings/lms" },
     ],
   },
 ];
@@ -120,8 +139,8 @@ export interface StudentSearchEntry {
 
 interface AdminShellInnerProps {
   activeSection?: AdminSection;
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   eyebrow?: string;
   children: React.ReactNode;
   signOutAction?: () => Promise<void>;
@@ -141,15 +160,32 @@ function AdminShellInner({
 }: AdminShellInnerProps) {
   const pathname = usePathname();
   const derivedSection = sectionForPath(pathname);
+  const academicContextData = useAcademicContextData();
+  const { ministryFormationEnabled } = useAdminCapabilities();
+
   const [expanded, setExpanded] = useState<AdminSection | null>(
     activeSectionProp ?? derivedSection,
   );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [activeResultIndex, setActiveResultIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const { studentId, studentName, programName, enrollmentStatus, setStudent, clearStudent } =
     useStudentContext();
+
+  // Filter nav sections based on capabilities
+  const visibleNavSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => {
+      // Filter out Ministry Formation nav item if capability is disabled
+      if (item.href === "/admin/formation" && !ministryFormationEnabled) {
+        return false;
+      }
+      return true;
+    }),
+  })).filter((section) => section.items.length > 0); // Remove sections with no visible items
 
   const userInitials = userEmail
     ? userEmail.slice(0, 2).toUpperCase()
@@ -168,9 +204,9 @@ function AdminShellInner({
   }
 
   return (
-    <div className="admin-app">
+    <div className={`admin-app ${sidebarOpen ? "sidebar-mobile-open" : ""}`}>
       {/* Sidebar */}
-      <aside className={`admin-sidebar ${expanded ? "is-open" : ""}`}>
+      <aside id="admin-sidebar-nav" className={`admin-sidebar ${expanded ? "is-open" : ""}`}>
         <Link href="/admin" className="admin-brand">
           <span className="admin-brand-mark">
             <GraduationCap size={18} strokeWidth={2.5} />
@@ -183,7 +219,7 @@ function AdminShellInner({
         </Link>
 
         <nav className="admin-nav" aria-label="Admin navigation">
-          {NAV_SECTIONS.map((section) => {
+          {visibleNavSections.map((section) => {
             const { Icon } = section;
             const isExpanded = expanded === section.id;
             const isActive = derivedSection === section.id;
@@ -226,6 +262,8 @@ function AdminShellInner({
                           }
                           className={`admin-nav-item ${itemActive ? "is-active" : ""}`}
                           title={item.label}
+                          aria-current={itemActive ? "page" : undefined}
+                          onClick={() => setSidebarOpen(false)}
                         >
                           {item.label}
                           {studentName && (
@@ -265,51 +303,124 @@ function AdminShellInner({
       {/* Main */}
       <div className="admin-main">
         <header className="admin-topbar">
+          <button
+            type="button"
+            className="admin-mobile-menu-toggle"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={sidebarOpen}
+            aria-controls="admin-sidebar-nav"
+          >
+            {sidebarOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
+          </button>
           <div className="admin-topbar-left">
             <p className="admin-eyebrow">{eyebrow ?? "Admin"}</p>
-            <h1 className="admin-title">
-              {title}
-              {studentName ? (
-                <span className="admin-title-context"> · {studentName}</span>
-              ) : null}
-            </h1>
+            {(title || studentName) && (
+              <h1 className="admin-title">
+                {title}
+                {studentName ? (
+                  <span className="admin-title-context"> · {studentName}</span>
+                ) : null}
+              </h1>
+            )}
           </div>
 
           <div className="admin-topbar-right">
+            {/* Academic Context Picker */}
+            {academicContextData && academicContextData.years.length > 0 && (
+              <AcademicContextPicker
+                context={academicContextData.context}
+                years={academicContextData.years}
+                periods={academicContextData.periods}
+              />
+            )}
+
             {/* Search */}
             <div className="admin-search-wrapper">
               <div className="admin-search">
                 <Search size={14} strokeWidth={2} />
                 <input
                   ref={searchRef}
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-autocomplete="list"
+                  aria-expanded={searchOpen && filtered.length > 0}
+                  aria-controls="admin-search-listbox"
+                  aria-activedescendant={
+                    activeResultIndex >= 0
+                      ? `search-result-${filtered[activeResultIndex]?.id}`
+                      : undefined
+                  }
                   value={searchQuery}
                   placeholder="Search students, courses…"
-                  aria-label="Search"
+                  aria-label="Search students"
                   title="Search students, courses, or people"
                   autoComplete="off"
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setSearchOpen(true);
+                    setActiveResultIndex(-1);
                   }}
                   onFocus={() => setSearchOpen(true)}
-                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                  onBlur={() => setTimeout(() => {
+                    setSearchOpen(false);
+                    setActiveResultIndex(-1);
+                  }, 150)}
+                  onKeyDown={(e) => {
+                    if (!searchOpen || filtered.length === 0) return;
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveResultIndex((i) => Math.min(i + 1, filtered.length - 1));
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveResultIndex((i) => Math.max(i - 1, 0));
+                    } else if (e.key === "Enter" && activeResultIndex >= 0) {
+                      e.preventDefault();
+                      const entry = filtered[activeResultIndex];
+                      if (entry) {
+                        setStudent(entry.id, entry.name, entry.program, entry.status);
+                        setSearchQuery("");
+                        setSearchOpen(false);
+                        setActiveResultIndex(-1);
+                      }
+                    } else if (e.key === "Escape") {
+                      setSearchOpen(false);
+                      setActiveResultIndex(-1);
+                    }
+                  }}
                 />
                 <kbd>⌘K</kbd>
               </div>
 
               {searchOpen && filtered.length > 0 && (
-                <div className="admin-search-dropdown" role="listbox" aria-label="Student search results">
-                  {filtered.map((entry) => (
-                    <button
+                <div
+                  id="admin-search-listbox"
+                  className="admin-search-dropdown"
+                  role="listbox"
+                  aria-label="Student search results"
+                >
+                  {filtered.map((entry, index) => (
+                    <div
                       key={entry.id}
-                      type="button"
+                      id={`search-result-${entry.id}`}
                       role="option"
-                      aria-selected={studentId === entry.id}
-                      className={`admin-search-result ${studentId === entry.id ? "is-active" : ""}`}
+                      tabIndex={-1}
+                      aria-selected={activeResultIndex === index}
+                      className={`admin-search-result ${studentId === entry.id ? "is-active" : ""} ${activeResultIndex === index ? "is-focused" : ""}`}
                       onClick={() => {
                         setStudent(entry.id, entry.name, entry.program, entry.status);
                         setSearchQuery("");
                         setSearchOpen(false);
+                        setActiveResultIndex(-1);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setStudent(entry.id, entry.name, entry.program, entry.status);
+                          setSearchQuery("");
+                          setSearchOpen(false);
+                          setActiveResultIndex(-1);
+                        }
                       }}
                     >
                       <span className="admin-search-result-avatar">
@@ -322,7 +433,7 @@ function AdminShellInner({
                       <span className="admin-search-result-status">
                         {statusLabel(entry.status)}
                       </span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -356,9 +467,11 @@ function AdminShellInner({
           </div>
         )}
 
-        <div className="admin-page-header">
-          <p className="admin-subtitle">{subtitle}</p>
-        </div>
+        {subtitle && (
+          <div className="admin-page-header">
+            <p className="admin-subtitle">{subtitle}</p>
+          </div>
+        )}
 
         <div className="admin-content">{children}</div>
       </div>

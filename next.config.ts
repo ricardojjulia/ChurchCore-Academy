@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["127.0.0.1"],
   outputFileTracingRoot: fileURLToPath(new URL("./", import.meta.url)),
   async headers() {
     return [

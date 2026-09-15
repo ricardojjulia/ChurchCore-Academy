@@ -9,6 +9,8 @@ import {
   asAcademyDatabase,
   withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import {
   AdmissionsDatabase,
@@ -61,7 +63,8 @@ export async function GET(request: Request) {
       actor.userId,
       "read",
     );
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
       const repository = new PostgresAdmissionsRepository(
         asAcademyDatabase<AdmissionsDatabase>(client),
       );

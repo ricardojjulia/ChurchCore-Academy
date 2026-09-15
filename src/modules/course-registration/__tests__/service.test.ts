@@ -7,6 +7,7 @@ import {
   ConvertedAdmissionRecord,
   CourseRegistrationRepository,
   CourseRegistrationResult,
+  CourseSectionRegistrationEligibility,
 } from "@/modules/course-registration/types";
 
 const actor: AcademyActor = {
@@ -52,7 +53,25 @@ function repository(overrides: Partial<CourseRegistrationRepository>): CourseReg
   return {
     findConvertedAdmission: async () => convertedRecord(),
     findReplay: async () => undefined,
+    evaluateSectionEligibility: async () => eligibleSection(),
     createRegistration: async () => conversionResult(),
+    ...overrides,
+  };
+}
+
+function eligibleSection(
+  overrides: Partial<CourseSectionRegistrationEligibility> = {},
+): CourseSectionRegistrationEligibility {
+  return {
+    courseSectionId: "section-101-a",
+    academicPeriodId: "period-fall-2026",
+    status: "open",
+    capacity: 20,
+    activeRegistrationCount: 10,
+    hasActiveRegistrationForStudent: false,
+    registrationWindowOpen: true,
+    unmetPrerequisites: [],
+    activeHolds: [],
     ...overrides,
   };
 }
@@ -151,4 +170,99 @@ test("creates registration and confirmation for accepted converted admissions", 
 
   assert.equal(result.registrationId, "registration-1");
   assert.equal(result.courseSectionId, "section-101-a");
+});
+
+test("rejects section registration when the section capacity is full", async () => {
+  const service = new CourseRegistrationService(
+    repository({
+      evaluateSectionEligibility: async () =>
+        eligibleSection({ capacity: 20, activeRegistrationCount: 20 }),
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      service.registerAndConfirm(actor, {
+        tenantId: "tenant-1",
+        applicationId: "application-1",
+        courseSectionId: "section-101-a",
+        idempotencyKey: "idem-capacity",
+        correlationId: "corr-capacity",
+      }),
+    (error: Error) =>
+      error instanceof AcademyConflictError &&
+      /section capacity is full/i.test(error.message),
+  );
+});
+
+test("rejects duplicate active section registrations for the same student", async () => {
+  const service = new CourseRegistrationService(
+    repository({
+      evaluateSectionEligibility: async () =>
+        eligibleSection({ hasActiveRegistrationForStudent: true }),
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      service.registerAndConfirm(actor, {
+        tenantId: "tenant-1",
+        applicationId: "application-1",
+        courseSectionId: "section-101-a",
+        idempotencyKey: "idem-duplicate",
+        correlationId: "corr-duplicate",
+      }),
+    (error: Error) =>
+      error instanceof AcademyConflictError &&
+      /already has an active registration/i.test(error.message),
+  );
+});
+
+test("rejects section registration outside the registration window", async () => {
+  const service = new CourseRegistrationService(
+    repository({
+      evaluateSectionEligibility: async () =>
+        eligibleSection({ registrationWindowOpen: false }),
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      service.registerAndConfirm(actor, {
+        tenantId: "tenant-1",
+        applicationId: "application-1",
+        courseSectionId: "section-101-a",
+        idempotencyKey: "idem-window",
+        correlationId: "corr-window",
+      }),
+    (error: Error) =>
+      error instanceof AcademyConflictError &&
+      /registration window is not open/i.test(error.message),
+  );
+});
+
+test("rejects section registration when prerequisites or holds block registration", async () => {
+  const service = new CourseRegistrationService(
+    repository({
+      evaluateSectionEligibility: async () =>
+        eligibleSection({
+          unmetPrerequisites: ["course-101"],
+          activeHolds: ["financial_hold"],
+        }),
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      service.registerAndConfirm(actor, {
+        tenantId: "tenant-1",
+        applicationId: "application-1",
+        courseSectionId: "section-101-a",
+        idempotencyKey: "idem-blocked",
+        correlationId: "corr-blocked",
+      }),
+    (error: Error) =>
+      error instanceof AcademyConflictError &&
+      /unmet prerequisites.*active holds/i.test(error.message),
+  );
 });

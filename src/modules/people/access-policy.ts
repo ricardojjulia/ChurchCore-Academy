@@ -10,7 +10,14 @@ export type PeopleAccessAction =
   | "write_student"
   | "read_guardian_relationship"
   | "write_guardian_relationship"
-  | "assign_instruction";
+  | "assign_instruction"
+  | "write_person"
+  | "write_staff"
+  | "write_guardian"
+  | "write_relationship"
+  | "read_applicant"
+  | "write_applicant"
+  | "read_advisor_load";
 
 export interface PeopleAccessRequest {
   action: PeopleAccessAction;
@@ -25,6 +32,13 @@ const studentWriteRoles = new Set<AcademyRole>(["institution_admin", "registrar"
 const guardianRelationshipWriteRoles = new Set<AcademyRole>(["institution_admin", "registrar", "admissions"]);
 const instructionAssignmentRoles = new Set<AcademyRole>(["institution_admin", "dean", "academic_admin"]);
 const assignedStudentReadRoles = new Set<AcademyRole>(["advisor", "faculty", "teacher", "professor"]);
+const personWriteRoles = new Set<AcademyRole>(["institution_admin", "registrar"]);
+const staffWriteRoles = new Set<AcademyRole>(["institution_admin", "dean", "academic_admin"]);
+const guardianWriteRoles = new Set<AcademyRole>(["institution_admin", "registrar", "admissions"]);
+const relationshipWriteRoles = new Set<AcademyRole>(["institution_admin", "registrar"]);
+const applicantReadRoles = new Set<AcademyRole>(["institution_admin", "registrar", "admissions", "academic_admin", "dean"]);
+const applicantWriteRoles = new Set<AcademyRole>(["institution_admin", "registrar", "admissions"]);
+const advisorLoadReadRoles = new Set<AcademyRole>(["institution_admin", "dean", "academic_admin", "registrar"]);
 
 function actorTenantMatches(actor: AcademyActor, config: PeopleConfiguration, request: PeopleAccessRequest) {
   return actor.tenantId === request.tenantId && config.institutionProfile.tenantId === request.tenantId;
@@ -106,6 +120,20 @@ export function canAccessPeopleDomain(actor: AcademyActor, config: PeopleConfigu
       return hasActiveMatchingRole(assignments, actor, guardianRelationshipWriteRoles);
     case "assign_instruction":
       return hasActiveMatchingRole(assignments, actor, instructionAssignmentRoles);
+    case "write_person":
+      return hasActiveMatchingRole(assignments, actor, personWriteRoles);
+    case "write_staff":
+      return hasActiveMatchingRole(assignments, actor, staffWriteRoles);
+    case "write_guardian":
+      return hasActiveMatchingRole(assignments, actor, guardianWriteRoles);
+    case "write_relationship":
+      return hasActiveMatchingRole(assignments, actor, relationshipWriteRoles);
+    case "read_applicant":
+      return hasActiveMatchingRole(assignments, actor, applicantReadRoles);
+    case "write_applicant":
+      return hasActiveMatchingRole(assignments, actor, applicantWriteRoles);
+    case "read_advisor_load":
+      return hasActiveMatchingRole(assignments, actor, advisorLoadReadRoles);
   }
 }
 

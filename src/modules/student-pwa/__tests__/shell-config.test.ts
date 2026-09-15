@@ -14,7 +14,10 @@ test("student PWA exposes the complete first-sprint route family", () => {
       { href: "/student/messages", label: "Messages" },
       { href: "/student/lms", label: "Learning" },
       { href: "/student/attendance", label: "Attendance" },
+      { href: "/student/account", label: "Account" },
+      { href: "/student/aid", label: "Aid" },
       { href: "/student/privacy", label: "Privacy" },
+      { href: "/student/formation", label: "Formation" },
     ],
   );
 });
@@ -31,6 +34,7 @@ test("student manifest is installable and starts inside the student route family
   assert.equal(studentManifest.start_url, "/student");
   assert.equal(studentManifest.display, "standalone");
   assert.equal(studentManifest.scope, "/student");
+  assert.ok(studentManifest.icons, "manifest icons should be defined");
   assert.deepEqual(
     studentManifest.icons.map((icon) => icon.sizes),
     ["192x192", "512x512", "any"],

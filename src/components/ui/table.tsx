@@ -5,18 +5,18 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div className="w-full overflow-auto">
+    <div className="w-full overflow-auto rounded-md border border-border bg-card">
       <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   );
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead className={cn("[&_tr]:border-b", className)} {...props} />;
+  return <thead className={cn("[&_tr]:table-row-rule", className)} {...props} />;
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
-  return <tbody className={cn("[&_tr:last-child]:border-0", className)} {...props} />;
+  return <tbody className={className} {...props} />;
 }
 
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
@@ -24,11 +24,11 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
 }
 
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return <tr className={cn("border-b transition-colors hover:bg-muted/50", className)} {...props} />;
+  return <tr className={cn("table-row-rule table-row-rule-hover transition-colors", className)} {...props} />;
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return <th className={cn("h-11 px-3 text-left align-middle font-semibold text-muted-foreground", className)} {...props} />;
+function TableHead({ className, scope = "col", ...props }: React.ComponentProps<"th">) {
+  return <th scope={scope} className={cn("h-10 bg-muted/60 px-3 text-left align-middle font-semibold text-muted-foreground", className)} {...props} />;
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {

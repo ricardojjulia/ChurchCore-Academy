@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
-import { AcademyActor, assertShepherdAiAccess } from "@/modules/academy-auth/policy";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { AcademyActor, assertShepherdAiAccess, assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import { ShepherdAiSuggestion } from "@/modules/shepherd-ai/types";
@@ -26,12 +27,13 @@ export async function buildShepherdSuggestionsPayload(
 export async function GET(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    return withAcademyDatabaseContext(actor, (client) =>
-      buildShepherdSuggestionsPayload(
+    return withCapabilityContext(actor, (client, capabilities) => {
+      assertCapability(capabilities, "shepherdAiRecommendations");
+      return buildShepherdSuggestionsPayload(
         new ShepherdAiPostgresRepository(asAcademyDatabase(client)),
         actor,
         actor.tenantId,
-      ),
-    );
+      );
+    });
   });
 }

@@ -21,3 +21,11 @@ export const overrideGradeSchema = z.object({
 });
 
 export type OverrideGradeInput = z.infer<typeof overrideGradeSchema>;
+
+export const postGradeSchema = z.object({
+  gradeRecordId: z.uuid(),
+  releaseToStudent: z.boolean().default(true),
+  reason: z.string().trim().min(12).max(4000),
+});
+
+export type PostGradeInput = z.infer<typeof postGradeSchema>;

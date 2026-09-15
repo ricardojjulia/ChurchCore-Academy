@@ -386,6 +386,7 @@ test("server components can resolve a platform session with demo tenant default"
     demoTenantId: "cca-main",
   });
 
+  assert.ok(resolved.activeTenant, "activeTenant should be defined");
   assert.equal(resolved.activeTenant.tenantId, "cca-main");
   assert.deepEqual(resolved.platformRoles, ["platform_admin"]);
 });

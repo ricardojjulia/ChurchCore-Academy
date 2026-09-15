@@ -15,6 +15,7 @@ test("platform admin service persists active tenant selection", async () => {
     provisionTenant: async () => {
       throw new Error("not used");
     },
+    deleteTenant: async () => { throw new Error("not used"); },
   };
 
   const service = new PlatformAdminService(repository);
@@ -35,6 +36,7 @@ test("tenant creation requires platform_admin role", async () => {
     provisionTenant: async () => {
       throw new Error("not used");
     },
+    deleteTenant: async () => { throw new Error("not used"); },
   };
 
   const service = new PlatformAdminService(repository);
@@ -70,6 +72,7 @@ test("tenant creation normalizes payload before provisioning", async () => {
         initialAdminPersonId: "person-1",
       };
     },
+    deleteTenant: async () => { throw new Error("not used"); },
   };
 
   const service = new PlatformAdminService(repository);
@@ -78,7 +81,7 @@ test("tenant creation normalizes payload before provisioning", async () => {
     platformRoles: ["platform_admin"],
     tenantId: "  NEW-TENANT  ",
     displayName: "  New Academy  ",
-    primaryMode: "college",
+    selectedModes: ["college", "seminary"],
     isDemo: true,
     initialInstitutionAdmin: {
       displayName: "  Admin User  ",
@@ -92,10 +95,41 @@ test("tenant creation normalizes payload before provisioning", async () => {
   assert.equal(created?.displayName, "New Academy");
   assert.equal(created?.institutionName, "New Academy");
   assert.equal(created?.legalName, "New Academy");
+  assert.equal(created?.primaryMode, "college");
+  assert.deepEqual(created?.supportedModes, ["college", "seminary"]);
   assert.equal(created?.lifecycleStatus, "demo");
   assert.equal(created?.isDemo, true);
   assert.equal(
     (created?.initialInstitutionAdmin as { email?: string } | undefined)?.email,
     "admin@example.com",
+  );
+});
+
+test("tenant creation rejects mixed as a selected institution mode", async () => {
+  const repository: PlatformAdminRepository = {
+    saveActiveTenantSelection: async () => undefined,
+    provisionTenant: async () => {
+      throw new Error("not used");
+    },
+    deleteTenant: async () => {
+      throw new Error("not used");
+    },
+  };
+
+  const service = new PlatformAdminService(repository);
+
+  await assert.rejects(
+    () =>
+      service.createTenant({
+        externalSubject: "supabase-user-1",
+        platformRoles: ["platform_admin"],
+        tenantId: "new-tenant",
+        displayName: "New Academy",
+        selectedModes: ["mixed", "college"] as never,
+        initialInstitutionAdmin: {
+          displayName: "Admin User",
+        },
+      }),
+    /mixed is derived from selected concrete modes/,
   );
 });

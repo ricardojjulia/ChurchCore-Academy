@@ -126,6 +126,8 @@ test("learner gradebook read model filters to the authenticated learner only", a
   await repository.fetchLearnerGradebook("tenant-1", "student-1");
 
   assert.match(queries[0].sql, /record\.learner_person_id = \$2/i);
+  assert.match(queries[0].sql, /record\.posting_status = 'posted'/i);
+  assert.match(queries[0].sql, /record\.released_to_student_at is not null/i);
   assert.deepEqual(queries[0].values, ["tenant-1", "student-1"]);
   assert.doesNotMatch(queries[0].sql, /behavioral_signal/i);
 });

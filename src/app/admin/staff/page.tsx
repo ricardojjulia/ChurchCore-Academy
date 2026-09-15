@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeactivateStaffButton } from "@/components/deactivate-staff-button";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,8 @@ interface StaffRow {
 }
 
 export default async function StaffDirectoryPage() {
-  const { actor } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
   const staff = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(
@@ -93,6 +94,14 @@ export default async function StaffDirectoryPage() {
                 </Link>
               </CardDescription>
             </div>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+              disabled
+              title="Coming soon"
+            >
+              + New Staff Member
+            </button>
           </div>
         </CardHeader>
         <CardContent>

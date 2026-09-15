@@ -45,6 +45,22 @@ export interface StudentDashboardLearningLinkSource extends StudentDashboardSour
   refreshToken?: string;
 }
 
+export type StudentSelfServiceStatus = "available" | "disabled" | "unavailable";
+
+export interface StudentSelfServiceCapability {
+  status: StudentSelfServiceStatus;
+  reason?: string;
+}
+
+export interface StudentSelfServiceSource {
+  registration: StudentSelfServiceCapability;
+  billing: StudentSelfServiceCapability;
+  transcripts: StudentSelfServiceCapability;
+  financialAid: StudentSelfServiceCapability;
+  contact: StudentSelfServiceCapability;
+  notifications: StudentSelfServiceCapability;
+}
+
 export interface StudentDashboardSource {
   tenantId: string;
   institutionName: string;
@@ -54,6 +70,7 @@ export interface StudentDashboardSource {
   progress: StudentDashboardProgressSource[];
   documents: StudentDashboardDocumentSource[];
   learningLinks: StudentDashboardLearningLinkSource[];
+  selfService?: StudentSelfServiceSource;
 }
 
 export interface StudentDashboardReadModel {
@@ -94,6 +111,7 @@ export interface StudentDashboardReadModel {
     status: "available" | "unavailable";
     availableCourseCount: number;
   };
+  selfService: StudentSelfServiceSource;
 }
 
 function isReleasedForStudent(item: StudentDashboardSourceItem, tenantId: string, studentPersonId: string) {
@@ -155,6 +173,18 @@ export function buildStudentDashboardReadModel(
       ? source.learningLinks.filter((item) => isReleasedForStudent(item, source.tenantId, targetStudentPersonId)).length
       : 0;
 
+  const defaultSelfService: StudentSelfServiceSource = {
+    registration: {
+      status: courses.length > 0 ? "available" : "unavailable",
+      reason: courses.length > 0 ? undefined : "No released course registrations are available.",
+    },
+    billing: { status: access.accessMode === "student_self" ? "available" : "disabled" },
+    transcripts: { status: canReadDocuments ? "available" : "disabled" },
+    financialAid: { status: access.accessMode === "student_self" ? "available" : "disabled" },
+    contact: { status: access.accessMode === "student_self" ? "available" : "disabled" },
+    notifications: { status: access.accessMode === "student_self" ? "available" : "disabled" },
+  };
+
   return {
     institutionName: source.institutionName,
     accessMode: access.accessMode,
@@ -172,5 +202,6 @@ export function buildStudentDashboardReadModel(
       status: availableCourseCount > 0 ? "available" : "unavailable",
       availableCourseCount,
     },
+    selfService: source.selfService ?? defaultSelfService,
   };
 }

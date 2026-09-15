@@ -36,3 +36,23 @@ test("loads the Student PWA page model for a signed-in student actor", async () 
   assert.ok(result.progress.length >= 1);
   assert.ok(result.documents.length >= 1);
 });
+
+test("loadStudentPwaPageModel exposes self-service capability status from the student source", async () => {
+  const result = await loadStudentPwaPageModel({
+    loadProtectedDataset: async () => ({
+      actor: {
+        userId: "person-lena-rivera",
+        tenantId: "cca-main",
+        roles: ["student"],
+      },
+      dataset: academyDataset,
+    }),
+  });
+
+  assert.equal(result.selfService.registration.status, "available");
+  assert.equal(result.selfService.billing.status, "available");
+  assert.equal(result.selfService.transcripts.status, "available");
+  assert.equal(result.selfService.financialAid.status, "available");
+  assert.equal(result.selfService.contact.status, "available");
+  assert.equal(result.selfService.notifications.status, "available");
+});

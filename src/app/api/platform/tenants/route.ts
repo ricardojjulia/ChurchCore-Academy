@@ -3,6 +3,7 @@ import { AcademyAuthenticationError } from "@/modules/academy-auth/errors";
 import { resolvePlatformSessionForServerComponent } from "@/modules/academy-auth/request-context";
 import { PostgresPlatformAdminRepository } from "@/modules/platform-admin/postgres-repository";
 import { PlatformAdminService } from "@/modules/platform-admin/service";
+import type { InstitutionMode } from "@/modules/academy-config/types";
 
 interface CreateTenantRouteDependencies {
   resolveSession(): Promise<{
@@ -16,21 +17,9 @@ interface CreateTenantRouteDependencies {
     displayName: string;
     institutionName?: string;
     legalName?: string;
-    primaryMode:
-      | "bible_school"
-      | "childrens_school"
-      | "seminary"
-      | "college"
-      | "university"
-      | "mixed";
-    supportedModes?: Array<
-      | "bible_school"
-      | "childrens_school"
-      | "seminary"
-      | "college"
-      | "university"
-      | "mixed"
-    >;
+    primaryMode?: InstitutionMode;
+    selectedModes?: InstitutionMode[];
+    supportedModes?: InstitutionMode[];
     lifecycleStatus?: "demo" | "development" | "trial" | "active" | "suspended" | "archived";
     isDemo?: boolean;
     initialInstitutionAdmin: {
@@ -95,23 +84,9 @@ export async function createPlatformTenant(
       displayName: asString(payload.displayName),
       institutionName: asString(payload.institutionName) || undefined,
       legalName: asString(payload.legalName) || undefined,
-      primaryMode: asString(payload.primaryMode) as
-        | "bible_school"
-        | "childrens_school"
-        | "seminary"
-        | "college"
-        | "university"
-        | "mixed",
-      supportedModes: asStringArray(payload.supportedModes) as
-        | Array<
-            | "bible_school"
-            | "childrens_school"
-            | "seminary"
-            | "college"
-            | "university"
-            | "mixed"
-          >
-        | undefined,
+      primaryMode: asString(payload.primaryMode) as InstitutionMode | undefined,
+      selectedModes: asStringArray(payload.selectedModes) as InstitutionMode[] | undefined,
+      supportedModes: asStringArray(payload.supportedModes) as InstitutionMode[] | undefined,
       lifecycleStatus: asString(payload.lifecycleStatus) as
         | "demo"
         | "development"

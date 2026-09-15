@@ -89,24 +89,8 @@ export function AcademyShell({
             </div>
           </div>
           {signOutAction ? (
-            <form action={signOutAction} style={{ width: "100%" }}>
-              <button
-                type="submit"
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                  padding: "0.65rem 1rem",
-                  border: "1px solid rgba(94, 136, 187, 0.44)",
-                  borderRadius: "0.5rem",
-                  background: "rgba(34, 63, 96, 0.6)",
-                  color: "#9ca3af",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
+            <form action={signOutAction}>
+              <button type="submit">
                 <LogOut size={18} />
                 Log out
               </button>

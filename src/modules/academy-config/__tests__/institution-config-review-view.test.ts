@@ -8,16 +8,18 @@ test("builds readable review sections for a mixed faith-based institution", () =
     tenantId: "tenant-review",
     institutionName: "Kingdom Learning Institute",
     legalName: "Kingdom Learning Institute",
-    primaryMode: "mixed",
-    supportedModes: ["mixed", "bible_school", "childrens_school", "college"],
+    primaryMode: "college",
+    supportedModes: ["bible_school", "childrens_school", "college"],
     lmsProvider: "moodle",
   });
 
   const model = buildInstitutionReviewModel(profile);
 
   assert.equal(model.identity.institutionName, "Kingdom Learning Institute");
-  assert.equal(model.identity.primaryMode, "Mixed");
-  assert.deepEqual(model.identity.supportedModes, ["Mixed", "Bible school", "Children's school", "College"]);
+  assert.equal(model.identity.institutionModel, "Multi-mode");
+  assert.equal(model.identity.primaryMode, "College");
+  assert.deepEqual(model.identity.supportedModes, ["Bible school", "Children's school", "College"]);
+  assert.deepEqual(model.identity.modePacks, ["Bible school", "Children's school", "College"]);
   assert.equal(model.operatingRules.find((item) => item.label === "Calendar")?.value, "Academic year");
   assert.equal(model.capabilities.find((item) => item.label === "Student PWA")?.status, "enabled");
   assert.equal(model.lms.provider, "Moodle");

@@ -1,16 +1,28 @@
 import { MessageSquare, ShieldCheck } from "lucide-react";
+import { RecipientMessageCenter } from "@/components/recipient-message-center";
 import { StudentPwaShell } from "@/components/student-pwa-shell";
-import { loadStudentPwaPageModel } from "@/modules/student-pwa/server-read-model";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { requireActor } from "@/lib/require-actor";
+import {
+  CommunicationsDatabase,
+  PostgresCommunicationsRepository,
+} from "@/modules/communications/postgres-repository";
+import { CommunicationsService } from "@/modules/communications/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudentMessagesPage() {
-  // Confirm session is valid; no system-generated messages to show yet.
-  await loadStudentPwaPageModel();
+  const actor = await requireActor();
+  const messages = await withAcademyDatabaseContext(actor, async (client) => {
+    const repository = new PostgresCommunicationsRepository(
+      asAcademyDatabase<CommunicationsDatabase>(client),
+    );
+    const service = new CommunicationsService(repository);
+    return service.listMyMessages(actor);
+  });
 
   return (
     <StudentPwaShell
-      activeHref="/student/messages"
       title="Messages"
       description="Administrative messages and Academy action reminders."
     >
@@ -18,20 +30,11 @@ export default async function StudentMessagesPage() {
         <div className="student-pwa-surface-heading">
           <div>
             <p>Academy reminders</p>
-            <h2 id="student-messages-heading">No messages</h2>
+            <h2 id="student-messages-heading">Messages</h2>
           </div>
           <MessageSquare />
         </div>
-        <div className="student-pwa-surface-list">
-          <div className="student-pwa-empty">
-            <MessageSquare />
-            <p>No administrative messages at this time.</p>
-            <small>
-              When your institution sends enrollment confirmations, document
-              requests, or deadline reminders, they will appear here.
-            </small>
-          </div>
-        </div>
+        <RecipientMessageCenter initialMessages={messages} />
         <div className="student-pwa-safe-state">
           <ShieldCheck />
           <span>Messages are generated from student-visible Academy state. Staff-only workflow notes stay hidden.</span>

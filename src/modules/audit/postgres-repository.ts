@@ -78,3 +78,6 @@ export class PostgresAcademyAuditRepository {
     };
   }
 }
+
+export { PostgresAcademyAuditRepository as PostgresAuditRepository };
+

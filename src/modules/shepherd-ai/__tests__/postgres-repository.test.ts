@@ -105,3 +105,58 @@ test("fetchWorkflowActions and feedback scope joins to tenant workflows", async 
   assert.deepEqual(calls[0].params, ["tenant-shepherd"]);
   assert.deepEqual(calls[1].params, ["tenant-shepherd"]);
 });
+
+test("fetchSuggestions excludes dismissed suggestions by default", async () => {
+  const calls: { sql: string; params: unknown[] | undefined }[] = [];
+  const repository = new ShepherdAiPostgresRepository({
+    query: async (sql: string, params?: unknown[]) => {
+      calls.push({ sql, params });
+      return { rowCount: 0, rows: [] };
+    },
+  });
+
+  await repository.fetchSuggestions("tenant-shepherd");
+
+  assert.match(calls[0].sql, /where tenant_id = \$1/i);
+  assert.match(calls[0].sql, /and status not in \('dismissed'\)/i);
+  assert.deepEqual(calls[0].params, ["tenant-shepherd"]);
+});
+
+test("fetchSuggestions maps dismiss_note and snooze_until fields", async () => {
+  const repository = new ShepherdAiPostgresRepository({
+    query: async () => {
+      return {
+        rowCount: 1,
+        rows: [
+          {
+            id: "suggestion-with-fields",
+            tenant_id: "tenant-shepherd",
+            product_area: "academy",
+            workflow_type: "academic",
+            workflow_code: "calendar_setup_review",
+            entity_type: "institution",
+            entity_id: "tenant-shepherd",
+            title: "Calendar setup review",
+            summary: "Review calendar setup gaps.",
+            confidence_score: 92,
+            urgency: "high",
+            suggested_actions: JSON.stringify([]),
+            explanation_json: JSON.stringify({ detected: [], whySurfaced: [], sourceSignalCategories: [], limitations: [] }),
+            boundary_note: "Human review required.",
+            message_draft: null,
+            status: "deferred",
+            generated_at: new Date("2026-06-12T00:00:00.000Z"),
+            dismiss_note: "Handled externally",
+            snooze_until: new Date("2026-06-30T00:00:00.000Z"),
+          },
+        ],
+      };
+    },
+  });
+
+  const suggestions = await repository.fetchSuggestions("tenant-shepherd");
+
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].dismissNote, "Handled externally");
+  assert.equal(suggestions[0].snoozeUntil, "2026-06-30T00:00:00.000Z");
+});

@@ -5,7 +5,7 @@ export type StudentPwaDestination = {
   label: string;
   title: string;
   description: string;
-  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance";
+  icon: "home" | "courses" | "schedule" | "progress" | "documents" | "messages" | "learning" | "privacy" | "attendance" | "account" | "aid" | "formation";
 };
 
 export const studentPwaDestinations: StudentPwaDestination[] = [
@@ -66,11 +66,32 @@ export const studentPwaDestinations: StudentPwaDestination[] = [
     icon: "attendance",
   },
   {
+    href: "/student/account",
+    label: "Account",
+    title: "My Account",
+    description: "Your released student account balance, charges, credits, and payments appear here.",
+    icon: "account",
+  },
+  {
+    href: "/student/aid",
+    label: "Aid",
+    title: "My Aid",
+    description: "Your released institutional aid awards, disbursements, and holds appear here.",
+    icon: "aid",
+  },
+  {
     href: "/student/privacy",
     label: "Privacy",
     title: "My Privacy",
     description: "Review and update your consent for learning intelligence features.",
     icon: "privacy",
+  },
+  {
+    href: "/student/formation",
+    label: "Formation",
+    title: "Ministry Formation",
+    description: "Your practicum hours, faith milestones, and formation evaluations appear here once endorsed.",
+    icon: "formation",
   },
 ];
 

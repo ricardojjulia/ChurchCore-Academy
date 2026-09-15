@@ -6,13 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type PrimaryMode =
+type ConcreteMode =
   | "bible_school"
-  | "childrens_school"
   | "seminary"
   | "college"
   | "university"
-  | "mixed";
+  | "childrens_school"
+  | "youth_seminary"
+  | "ministry_training_center"
+  | "continuing_education"
+  | "homeschool_hybrid";
 
 interface PlatformTenantMembership {
   personId: string;
@@ -31,14 +34,19 @@ interface TenantControlPanelProps {
   initialSession: PlatformSessionPayload;
 }
 
-const modeOptions: Array<{ value: PrimaryMode; label: string }> = [
-  { value: "mixed", label: "Mixed" },
+const modeOptions: Array<{ value: ConcreteMode; label: string }> = [
   { value: "bible_school", label: "Bible School" },
-  { value: "childrens_school", label: "Children's School" },
   { value: "seminary", label: "Seminary" },
   { value: "college", label: "College" },
   { value: "university", label: "University" },
+  { value: "childrens_school", label: "Children's School" },
+  { value: "youth_seminary", label: "Youth Seminary" },
+  { value: "ministry_training_center", label: "Ministry Training Center" },
+  { value: "continuing_education", label: "Continuing Education" },
+  { value: "homeschool_hybrid", label: "Homeschool Hybrid" },
 ];
+
+const demoModes: ConcreteMode[] = ["bible_school", "seminary", "childrens_school"];
 
 function formatRoleSummary(roles: string[]) {
   return roles.length > 0 ? roles.join(", ") : "none";
@@ -55,7 +63,7 @@ export function TenantControlPanel({ defaultAdminEmail, initialSession }: Tenant
   const [displayName, setDisplayName] = useState("ChurchCore Academy Demo");
   const [institutionName, setInstitutionName] = useState("ChurchCore Academy Demo");
   const [legalName, setLegalName] = useState("ChurchCore Academy Demo");
-  const [primaryMode, setPrimaryMode] = useState<PrimaryMode>("mixed");
+  const [selectedModes, setSelectedModes] = useState<ConcreteMode[]>(demoModes);
   const [adminDisplayName, setAdminDisplayName] = useState("Platform Admin");
   const [adminEmail, setAdminEmail] = useState(defaultAdminEmail ?? "admin@churchcore.academy");
   const [isDemo, setIsDemo] = useState(true);
@@ -143,7 +151,7 @@ export function TenantControlPanel({ defaultAdminEmail, initialSession }: Tenant
           displayName,
           institutionName,
           legalName,
-          primaryMode,
+          selectedModes,
           lifecycleStatus: isDemo ? "demo" : "development",
           isDemo,
           initialInstitutionAdmin: {
@@ -169,6 +177,15 @@ export function TenantControlPanel({ defaultAdminEmail, initialSession }: Tenant
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function toggleMode(mode: ConcreteMode) {
+    setSelectedModes((previous) => {
+      if (previous.includes(mode)) {
+        return previous.length === 1 ? previous : previous.filter((item) => item !== mode);
+      }
+      return [...previous, mode];
+    });
   }
 
   async function deleteTenant(tenantIdToDelete: string) {
@@ -285,17 +302,25 @@ export function TenantControlPanel({ defaultAdminEmail, initialSession }: Tenant
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="primary-mode">Primary mode</Label>
-            <select
-              id="primary-mode"
-              value={primaryMode}
-              onChange={(event) => setPrimaryMode(event.currentTarget.value as PrimaryMode)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-            >
+            <Label>Institution modes</Label>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {modeOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <label
+                  key={option.value}
+                  className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedModes.includes(option.value)}
+                    onChange={() => toggleMode(option.value)}
+                  />
+                  {option.label}
+                </label>
               ))}
-            </select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {selectedModes.length > 1 ? "Multi-mode institution" : "Single-mode institution"}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -331,7 +356,7 @@ export function TenantControlPanel({ defaultAdminEmail, initialSession }: Tenant
                 setDisplayName("ChurchCore Academy Demo");
                 setInstitutionName("ChurchCore Academy Demo");
                 setLegalName("ChurchCore Academy Demo");
-                setPrimaryMode("mixed");
+                setSelectedModes(demoModes);
                 setIsDemo(true);
               }}
             >

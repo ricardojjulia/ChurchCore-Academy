@@ -19,7 +19,7 @@ This master plan has been reviewed through the ChurchCore Academy software facto
 - ShepherdAI guardrails: identified
 - Execution readiness: portfolio-level pass; each roadmap item still requires a detailed factory implementation plan before code
 
-The production MVP remediation design dated 2026-06-13 supersedes any interpretation that earlier prototype phases are production complete. Release 1 security work is implemented but still requires live RLS, browser-role, dependency, and runtime verification. The first admissions vertical slice now supports persistent draft, submission, and staff decision records with tenant constraints, RLS, idempotency, audit events, APIs, and a review page. Enrollment conversion, registration, attendance, grade entry, operational transcripts, billing, payments, financial aid, reporting, communications, persistent Student PWA workflows, and executable provider workers remain later release work.
+The production MVP remediation design dated 2026-06-13 supersedes any interpretation that earlier prototype phases are production complete. The Release 1 security foundation exit gate is closed for verified-session identity, request-scoped RLS, immutable audit, and seeded-runtime-data removal. The first admissions vertical slice now supports persistent draft, submission, and staff decision records with tenant constraints, RLS, idempotency, audit events, APIs, and a review page. Enrollment conversion exists as a secured vertical slice, while registration, attendance, grade entry, operational transcripts, billing, payments, financial aid, reporting, communications, persistent Student PWA workflows, and executable provider workers remain later release work.
 
 ## Core Product Principles
 

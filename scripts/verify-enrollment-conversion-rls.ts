@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import pg from "pg";
+import { Client } from "pg";
 import { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 import { PostgresAcademyAuditRepository } from "@/modules/audit/postgres-repository";
 import { PostgresEnrollmentConversionRepository } from "@/modules/enrollment-conversion/postgres-repository";
 import { EnrollmentConversionService } from "@/modules/enrollment-conversion/service";
 
 async function setActor(
-  client: pg.Client,
+  client: Client,
   role: "anon" | "authenticated",
   tenantId = "",
   personId = "",
@@ -36,7 +36,7 @@ async function main() {
     throw new Error("DATABASE_URL is required.");
   }
 
-  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
 
   try {

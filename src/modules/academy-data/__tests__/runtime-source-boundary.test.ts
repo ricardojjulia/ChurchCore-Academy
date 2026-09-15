@@ -19,10 +19,11 @@ async function collectSourceFiles(directory: string): Promise<string[]> {
   return files.flat();
 }
 
-test("runtime UI and Student PWA modules cannot import seeded Academy records", async () => {
+test("runtime UI, shared lib, and Student PWA modules cannot import seeded Academy records", async () => {
   const roots = [
     path.join(process.cwd(), "src/app"),
     path.join(process.cwd(), "src/components"),
+    path.join(process.cwd(), "src/lib"),
     path.join(process.cwd(), "src/modules/student-pwa"),
   ];
   const files = (await Promise.all(roots.map(collectSourceFiles))).flat();
@@ -34,7 +35,10 @@ test("runtime UI and Student PWA modules cannot import seeded Academy records", 
     }
 
     const source = await readFile(file, "utf8");
-    if (source.includes("@/modules/academy-data/mock-data")) {
+    if (
+      source.includes("@/modules/academy-data/mock-data") ||
+      source.includes("@/modules/academy-data/server-dataset")
+    ) {
       violations.push(path.relative(process.cwd(), file));
     }
   }

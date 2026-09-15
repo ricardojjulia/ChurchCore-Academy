@@ -4,17 +4,14 @@
 }
 
 html {
-  background: var(--background);
+  background: var(--sis-bg-canvas);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  color: var(--foreground);
-  background:
-    linear-gradient(140deg, rgba(244, 248, 252, 0.95) 0%, rgba(228, 235, 244, 0.96) 48%, rgba(213, 224, 236, 0.95) 100%),
-    radial-gradient(circle at 15% 12%, rgba(255, 255, 255, 0.8) 0%, transparent 46%),
-    radial-gradient(circle at 88% 88%, rgba(255, 255, 255, 0.45) 0%, transparent 42%);
+  color: var(--sis-text-primary);
+  background: var(--sis-bg-canvas);
   background-attachment: fixed;
 }
 
@@ -94,7 +91,7 @@ a {
 }
 
 .text-muted-foreground {
-  color: var(--muted-foreground);
+  color: var(--sis-text-secondary);
 }
 
 .capitalize {
@@ -106,11 +103,11 @@ a {
 }
 
 .rounded-lg {
-  border-radius: 0.75rem;
+  border-radius: var(--sis-radius-md);
 }
 
 .border {
-  border: 1px solid var(--border);
+  border: 1px solid var(--sis-border);
 }
 
 .border-dashed {
@@ -139,4 +136,3 @@ a {
 .line-clamp-2 {
   -webkit-line-clamp: 2;
 }
-

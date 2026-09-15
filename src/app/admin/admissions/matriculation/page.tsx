@@ -4,12 +4,12 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
 import {
   asAcademyDatabase,
   withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
-import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/request-context";
+import { requireActor } from "@/lib/require-actor";
+import { fetchStudentRecords } from "@/lib/academy-read-models";
 import {
   AdmissionsDatabase,
   PostgresAdmissionsRepository,
@@ -17,62 +17,62 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function MatriculationPage() {
-  const actor = await resolveAcademyActorForServerComponent();
+export default async function AdmissionsEnrollmentPage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "admissions"]);
 
-  const [applications, { dataset }] = await Promise.all([
-    withAcademyDatabaseContext(actor, (client) =>
-      new PostgresAdmissionsRepository(
-        asAcademyDatabase<AdmissionsDatabase>(client),
-      ).list(actor.tenantId),
-    ),
-    loadProtectedAcademyDataset(),
-  ]);
+  const { applications, students } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [apps, allStudents] = await Promise.all([
+      new PostgresAdmissionsRepository(asAcademyDatabase<AdmissionsDatabase>(client)).list(actor.tenantId),
+      fetchStudentRecords(actor.tenantId, client),
+    ]);
+    return { applications: apps, students: allStudents };
+  });
 
   const accepted = applications.filter((a) => a.status === "accepted");
 
   // Determine which accepted applicants have an active enrollment
   const enrolledPersonIds = new Set(
-    dataset.students
+    students
       .filter((s) => s.enrollmentStatus === "active")
       .map((s) => s.id),
   );
 
-  const pendingMatriculation = accepted.filter(
+  const pendingAdmission = accepted.filter(
     (a) => !enrolledPersonIds.has(a.applicantPersonId),
   );
-  const matriculated = accepted.filter(
+  const admitted = accepted.filter(
     (a) => enrolledPersonIds.has(a.applicantPersonId),
   );
 
-  const studentById = new Map(dataset.students.map((s) => [s.id, s]));
+  const studentById = new Map(students.map((s) => [s.id, s]));
 
   return (
     <AdminShell
       activeSection="admissions"
       eyebrow="Admissions"
-      title="Matriculation"
+      title="Admissions Enrollment"
       subtitle="Track accepted applicants through enrollment completion."
     >
       <section className="ops-stats-grid">
         <MetricCard label="Accepted" value={accepted.length} icon={<CheckCircle2 />} detail="Total accepted applicants" />
-        <MetricCard label="Awaiting enrollment" value={pendingMatriculation.length} icon={<UserCheck />} detail="Accepted but not yet enrolled" />
-        <MetricCard label="Matriculated" value={matriculated.length} icon={<GraduationCap />} detail="Accepted and enrolled" />
+        <MetricCard label="Awaiting enrollment" value={pendingAdmission.length} icon={<UserCheck />} detail="Accepted but not yet enrolled" />
+        <MetricCard label="Enrolled" value={admitted.length} icon={<GraduationCap />} detail="Accepted and enrolled" />
         <MetricCard
-          label="Matriculation rate"
-          value={accepted.length > 0 ? `${Math.round((matriculated.length / accepted.length) * 100)}%` : "—"}
+          label="Enrollment rate"
+          value={accepted.length > 0 ? `${Math.round((admitted.length / accepted.length) * 100)}%` : "—"}
           icon={<GraduationCap />}
           detail="Of accepted applicants enrolled"
         />
       </section>
 
-      {pendingMatriculation.length > 0 && (
+      {pendingAdmission.length > 0 && (
         <Card className="ops-panel">
           <CardHeader>
             <div className="ops-heading">
               <div className="ops-icon"><UserCheck /></div>
               <div>
-                <CardTitle>Pending Matriculation</CardTitle>
+                <CardTitle>Pending Enrollment</CardTitle>
                 <CardDescription>Accepted applicants who have not yet been enrolled in a program.</CardDescription>
               </div>
             </div>
@@ -88,7 +88,7 @@ export default async function MatriculationPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingMatriculation.map((app) => {
+                {pendingAdmission.map((app) => {
                   const student = studentById.get(app.applicantPersonId);
                   return (
                     <TableRow key={app.id}>
@@ -118,13 +118,13 @@ export default async function MatriculationPage() {
         </Card>
       )}
 
-      {matriculated.length > 0 && (
+      {admitted.length > 0 && (
         <Card className="ops-panel">
           <CardHeader>
             <div className="ops-heading">
               <div className="ops-icon"><GraduationCap /></div>
               <div>
-                <CardTitle>Matriculated</CardTitle>
+                <CardTitle>Enrolled</CardTitle>
                 <CardDescription>Accepted applicants who are now enrolled students.</CardDescription>
               </div>
             </div>
@@ -140,7 +140,7 @@ export default async function MatriculationPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {matriculated.map((app) => {
+                {admitted.map((app) => {
                   const student = studentById.get(app.applicantPersonId);
                   return (
                     <TableRow key={app.id}>

@@ -18,6 +18,7 @@ test("tenant provisioning writes baseline tenant records in a transaction", asyn
     institutionName: "North Academy",
     legalName: "North Academy LLC",
     primaryMode: "college",
+    supportedModes: ["college"],
     lifecycleStatus: "development",
     isDemo: false,
     initialInstitutionAdmin: {
@@ -109,6 +110,7 @@ test("tenant provisioning rolls back and maps duplicate key errors", async () =>
         institutionName: "North Academy",
         legalName: "North Academy LLC",
         primaryMode: "college",
+        supportedModes: ["college"],
         lifecycleStatus: "development",
         isDemo: false,
         initialInstitutionAdmin: {
@@ -145,6 +147,7 @@ test("tenant provisioning does not map non-duplicate SQL unique-word errors", as
         institutionName: "North Academy",
         legalName: "North Academy LLC",
         primaryMode: "college",
+        supportedModes: ["college"],
         lifecycleStatus: "development",
         isDemo: false,
         initialInstitutionAdmin: {

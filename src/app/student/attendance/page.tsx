@@ -2,8 +2,9 @@ import { ClipboardCheck } from "lucide-react";
 import { StudentPwaShell } from "@/components/student-pwa-shell";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchSectionList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +22,12 @@ function statusVariant(status: string) {
 }
 
 export default async function StudentAttendancePage() {
-  const { actor, dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
 
-  const sectionById = new Map(
-    dataset.sections.map((s) => [s.id, s]),
+  const sections = await withAcademyDatabaseContext(actor, (client) =>
+    fetchSectionList(actor.tenantId, client),
   );
+  const sectionById = new Map(sections.map((s) => [s.id, s]));
 
   const records = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(
@@ -53,7 +55,7 @@ export default async function StudentAttendancePage() {
 
   return (
     <StudentPwaShell
-      activeHref="/student/attendance"
+     
       title="My Attendance"
       description="Your attendance records by section and session date as submitted by faculty."
     >

@@ -27,10 +27,24 @@ After applying migrations and running the local seed, these demo accounts are av
 | Role | Email | Password | Expected route |
 | --- | --- | --- | --- |
 | Platform and institution admin | `admin@churchcore.academy` | `ChurchCore2026!` | `/` |
-| Teacher | `teacher@churchcore.academy` | `ChurchCore2026!` | `/dashboard/faculty/gradebook` |
+| Institution admin acceptance persona | `institution.admin@churchcore.academy` | `ChurchCore2026!` | `/admin` |
+| Registrar acceptance persona | `registrar@churchcore.academy` | `ChurchCore2026!` | `/admin/transcripts` |
+| Faculty acceptance persona | `faculty@churchcore.academy` | `ChurchCore2026!` | `/faculty` |
+| Teacher demo persona | `teacher@churchcore.academy` | `ChurchCore2026!` | `/dashboard/faculty/gradebook` |
 | Student | `student@churchcore.academy` | `ChurchCore2026!` | `/student` |
+| Guardian acceptance persona | `guardian@churchcore.academy` | `ChurchCore2026!` | `/guardian` |
+| Finance acceptance persona | `finance@churchcore.academy` | `ChurchCore2026!` | `/admin/billing` |
+| Admissions acceptance persona | `admissions@churchcore.academy` | `ChurchCore2026!` | `/admin/admissions` |
 
 The login flow always lands on `/`; use the dashboard navigation or direct route above to verify role-specific surfaces.
+
+Generate the role walkthrough evidence template with:
+
+```bash
+npm run verify:role-walkthrough
+```
+
+Then run the login and route commands recorded in `docs/acceptance/authenticated-role-walkthrough-evidence.md` for the target tenant.
 
 ## Access failures
 
@@ -70,4 +84,5 @@ Never enable this flag in preview or production.
 
 - The security and enrollment migrations validate through a clean local Supabase reset.
 - Live admissions and enrollment-conversion role matrices run inside rolled-back transactions.
-- Production approval requires live policy and browser-role verification.
+- The Release 1 security exit gate is closed for verified-session identity, request-scoped RLS, and seeded-runtime-data removal.
+- New Release 2+ workflow surfaces still require live policy and browser-role verification before production tenant onboarding.

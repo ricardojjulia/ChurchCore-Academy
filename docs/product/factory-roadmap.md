@@ -7,6 +7,21 @@ The trust boundary and conditions are recorded in
 `docs/adr/0022-living-learner-intelligence-trust-boundary.md` and
 `docs/reviews/2026-06-14-llis-council-review.md`.
 
+Council Review VII approved the Full SIS Competitive MVP release program on
+June 21, 2026. The governing decision and execution prompts are recorded in
+`docs/adr/0033-full-sis-competitive-mvp-release-program.md`,
+`docs/reviews/2026-06-21-council-review-7-full-sis-mvp-competitiveness.md`,
+`docs/change-management/2026-06-21-full-sis-mvp-change-management.md`, and
+`docs/prompts/2026-06-21-full-sis-mvp-factory-prompts.md`.
+
+Council Review VIII approved the Competitive Acceptance And Deployment
+Readiness program on June 21, 2026. The current readiness decision and execution
+prompts are recorded in
+`docs/adr/0038-competitive-acceptance-and-deployment-readiness.md`,
+`docs/reviews/2026-06-21-council-review-8-post-slice-9-mvp-competitiveness.md`,
+`docs/change-management/2026-06-21-competitive-acceptance-deployment-readiness.md`,
+and `docs/prompts/2026-06-21-competitive-acceptance-deployment-prompts.md`.
+
 Current delivery sequence:
 
 1. Governed foundation: verified identity, tenant RLS, learner-owned consent,
@@ -17,7 +32,7 @@ Current delivery sequence:
 5. Learner mirror and social intelligence only after separate Council review.
 
 Deterministic identity snapshot work may begin. Model-generated prediction and
-autonomous intervention remain blocked pending separate Council approval.
+autonomous intervention are external governance gates requiring separate Council approval.
 
 ## Current Position
 
@@ -52,23 +67,100 @@ Completed:
 - Release 1 verified-session authentication and safe API error mapping
 - Release 1 RLS and immutable audit migration
 - Release 1 protected-page removal of seeded runtime records
+- Release 1 production security exit gate closeout
 - Release 2 Slice 1 persistent admissions application-to-decision workflow
 - Release 2 Slice 1 authenticated admissions APIs and staff review page
 - Release 2 Slice 1 tenant-aware admissions constraints, forced RLS, idempotency, and immutable events
 - Release 2 Slice 2 accepted-application conversion into student profile, program enrollment, and period registration
 - Release 2 Slice 2 tenant-scoped student numbers, immutable conversion events, API/UI action, and live role matrix
 - clean local Supabase migration replay
+- ADR-0033 Slice 1 course-section registration eligibility and enrollment confirmation
+- ADR-0033 Slice 1 Admin Sections registration review surface
+- ADR-0033 Slice 1 Student PWA schedule/courses backed by persisted registrations
+- ADR-0033 Slice 2 attendance service authorization and active-registration enforcement
+- ADR-0033 Slice 2 registrar grade posting state, immutable posting events, and student release filtering
+- ADR-0033 Slice 3 transcript request, issuance, hold, release, revoke, and print/export filtering
+- ADR-0033 Slice 4 billing ledger, payment-intent boundary, and student account view
+- ADR-0033 Slice 5 institutional financial-aid foundation with regulated-aid activation gate
+- ADR-0033 Slice 6 reporting dashboard and CSV export foundation
+- ADR-0033 Slice 7 persisted communications queue, templates, message centers, and provider-safe email boundary
+- ADR-0033 Slice 8 Student PWA workflow completion across courses, schedule, progress, documents, account, aid, messages, LMS, attendance, and privacy controls
+- ADR-0033 Slice 9 LMS execution-worker boundary for Moodle/Canvas normalized operations, retry/idempotency handling, and reviewed imports
+- ADR-0038 Prompt 1 role-matrix acceptance inventory, checklist, finance role mapping, and executable acceptance tests
+- ADR-0038 Prompt 2 migration, seed, and rehearsal verifier package
+- ADR-0038 Prompt 3 deployment operations, incident response, and backup/restore runbooks
+- ADR-0038 Prompt 4 provider activation checklist for payments, communications, Moodle, Canvas, and regulated aid
+- ADR-0038 Prompt 5 Council Review IX split release decision and controlled-pilot release notes
+- Post-closeout authenticated role walkthrough harness and seeded acceptance personas
+- Post-closeout production observability foundation for controlled-pilot failures
+- ADR-0059 full Moodle and Canvas integration implementation through activation boundary, live Moodle transport, live Canvas transport, durable worker, Student PWA launch parity, reviewed-import parity, reconciliation parity, and readiness surface
 
-In progress:
+Implementation status: closed.
 
-- browser acceptance for the converted admissions workflow
-- dependency and supported Node runtime remediation
+External release gates:
 
-Next:
+- Attach Moodle and Canvas sandbox evidence to `docs/releases/2026-06-26-full-lms-integration-readiness.md` before production activation.
+- Execute provider production activation only after sandbox evidence, tenant owner approval, and rollback review.
+- Attach deployment-specific observability export, dashboards, and alert routing to the structured event boundary before expanding beyond controlled pilot.
+- Run the generated authenticated role walkthrough against each pilot tenant and attach screenshots/console evidence to the tenant onboarding record.
 
-- close the Release 1 production security exit gate
-- build course-section registration and enrollment confirmation
-- execute attendance, grade entry, transcript issuance, and persistent Student PWA slices
+## Full SIS Competitive MVP Program
+
+ADR-0033 is now the governing release program for moving from foundations and
+vertical slices to a fully working competitive SIS MVP.
+
+Approved sequence:
+
+1. Course-section registration and enrollment confirmation.
+2. Attendance and production grade posting.
+3. Transcript request, issuance, hold, release, revoke.
+4. Billing, payments, and student account ledger.
+5. Financial aid foundation.
+6. Reporting and exports.
+7. Notifications and communications.
+8. Student PWA workflow completion.
+9. LMS execution workers and reconciliation acceptance.
+10. Competitive acceptance and onboarding readiness.
+
+Each item must move through the software factory: intake, discovery, spec, plan,
+implementation, verification, review, and delivery. Screen-only completion does
+not satisfy the release gate.
+
+Status: Slices 1-9 are shipped. Slice 10 is superseded by ADR-0038 and becomes
+the acceptance/deployment readiness program.
+
+## Competitive Acceptance And Deployment Readiness Program
+
+ADR-0038 is the current governing program for moving from pre-production MVP to
+controlled pilot release.
+
+Approved sequence:
+
+1. Acceptance checklist and role matrix. Status: implemented as `docs/acceptance/role-matrix-checklist.md` and `src/modules/acceptance/role-matrix.ts`.
+2. Migration, seed, and live-tenant rehearsal. Status: implemented as `docs/runbooks/migration-seed-rehearsal.md` and `scripts/verify-migration-seed-rehearsal.ts`.
+3. Deployment operations runbook. Status: implemented as `docs/runbooks/deployment-operations.md`, `docs/runbooks/incident-response.md`, and `docs/runbooks/backup-restore.md`.
+4. Provider activation checklists. Status: implemented as `docs/runbooks/provider-activation.md`.
+5. Final council closeout and release package. Status: implemented as `docs/reviews/2026-06-21-council-review-9-release-closeout.md` and `docs/releases/2026-06-21-controlled-pilot-release-notes.md`.
+
+Each item must use the software factory and must end with verifiable evidence.
+
+## Full Moodle And Canvas LMS Integration Program
+
+ADR-0059 governs the current Moodle and Canvas live integration program.
+
+Status:
+
+- Provider activation boundary: merged.
+- Moodle live transport: merged.
+- Canvas live transport: merged.
+- Durable LMS worker and idempotent queue boundary: merged.
+- Student PWA launch, reviewed imports, and reconciliation parity: merged.
+- Activation UI, runbook, and release readiness closeout: implemented in the current closeout slice.
+- Production readiness: deferred until Moodle and Canvas sandbox evidence is attached.
+
+Truthful readiness statement:
+
+ChurchCore Academy now has the Academy-owned code and operational surfaces needed for Moodle and Canvas integration, but full production activation is not complete until both provider sandboxes prove credential validation, course shell sync, roster sync, launch, grade return, progress return, reconciliation, rollback, and secret-redaction behavior.
 
 ## Sprint Cadence
 
@@ -167,6 +259,7 @@ Required ADRs:
 
 - institution type model
 - tenant isolation strategy for Academy configuration
+- concrete institution mode packs, accepted in ADR 0060: `mixed` is no longer selectable and multi-mode status is derived from selected concrete modes.
 
 ### Phase 2: Academic Calendar And Sub-Divisions
 
@@ -250,6 +343,7 @@ Suggested 1-week sprints:
 3. Student dashboard read models - complete
 4. Student documents and progress surface - complete
 5. PWA installability and offline verification - complete
+6. Student workflow completion and self-service actions - complete
 
 Required ADRs:
 
@@ -277,6 +371,8 @@ Required ADRs:
 
 Goal: implement Moodle as the first LMS provider through the provider-neutral contract.
 
+Status: live-integration program approved by ADR-0059. Existing Moodle adapter foundations remain valid; full production-ready status requires the ADR-0059 activation, live HTTP, worker, reconciliation, and sandbox evidence gates.
+
 Suggested 1-week sprints:
 
 1. Moodle adapter design package - complete
@@ -294,7 +390,7 @@ Required ADRs:
 
 Goal: implement Canvas as the second LMS provider through the same contract.
 
-Status: substantially complete (Sprints 1–7 delivered — launch mapping, course/roster sync, grade/progress return, reconciliation, Student PWA bridge, runtime orchestration, and production auth wiring).
+Status: live-integration program approved by ADR-0059. Canvas remains foundation-only until the ADR-0059 OAuth/token, live HTTP, worker, reconciliation, activation, and sandbox evidence gates are complete.
 
 Required ADRs:
 
@@ -412,6 +508,8 @@ Required ADRs:
 ### Phase 16: Compliance and Accreditation Reporting
 
 Goal: native ATS Standards and IPEDS reporting for accredited institutions.
+
+Status: foundation started. Sprint C / ADR-0058 shipped the IPEDS review-required export foundation and scheduled-report schema; ATS templates, full scheduled-report delivery, custom report builder, persistent IPEDS configuration, and FERPA consent/access-log reporting remain open.
 
 Suggested 1-week sprints:
 

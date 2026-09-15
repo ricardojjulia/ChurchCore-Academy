@@ -93,3 +93,31 @@ test("platform session route returns platform roles even without tenant membersh
     tenants: [],
   });
 });
+
+test("platform session route rejects tenant-only users", async () => {
+  const response = await getPlatformSession(
+    new Request("http://localhost/api/platform/session"),
+    {
+      resolveSession: async () => ({
+        platformRoles: [],
+        activeTenant: {
+          personId: "person-admin",
+          tenantId: "cca-main",
+          roles: ["institution_admin"],
+        },
+        tenants: [
+          {
+            personId: "person-admin",
+            tenantId: "cca-main",
+            roles: ["institution_admin"],
+          },
+        ],
+      }),
+    },
+  );
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error: "Forbidden platform staff access.",
+  });
+});

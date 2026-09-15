@@ -7,8 +7,8 @@ test("builds readable calendar review sections for a mixed faith-based instituti
   const model = buildAcademicCalendarReviewModel(academyDataset.academicCalendar);
 
   assert.equal(model.summary.institutionName, "ChurchCore Academy");
-  assert.equal(model.summary.calendarSystem, "Rolling enrollment");
-  assert.equal(model.summary.termStructure, "Module");
+  assert.equal(model.summary.calendarSystem, "Academic year");
+  assert.equal(model.summary.termStructure, "Semester");
   assert.equal(model.summary.timezone, "America/New_York");
   assert.equal(model.academicYears[0].subdivision, "Bible School");
   assert.equal(model.periods[0].academicYear, "2026 Ministry Training Reporting Year");
@@ -30,7 +30,7 @@ test("resolves enrollment grading and transcript windows to their academic perio
 
   assert.equal(model.enrollmentWindows[0].period, "Acts Ministry Module");
   assert.equal(model.enrollmentWindows[0].type, "Application");
-  assert.equal(model.enrollmentWindows[0].range, "Mar 1, 2026 - Open ended");
+  assert.equal(model.enrollmentWindows[0].range, "Mar 1, 2026 - Apr 1, 2026");
   assert.equal(model.gradingWindows[0].period, "Acts Ministry Module");
   assert.equal(model.gradingWindows[0].policy, "Registrar posting");
   assert.equal(model.transcriptPeriods[0].period, "Acts Ministry Module");

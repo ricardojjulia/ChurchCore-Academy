@@ -31,3 +31,36 @@ test("demo persona migration creates Supabase auth users and Academy links", asy
   assert.match(sql, /student/i);
   assert.doesNotMatch(sql, /supabase_auth/i);
 });
+
+test("acceptance walkthrough migration creates pure role accounts", async () => {
+  const sql = await readFile(
+    join(
+      process.cwd(),
+      "supabase/migrations/20260621193000_seed_acceptance_role_walkthrough_accounts.sql",
+    ),
+    "utf8",
+  );
+
+  for (const email of [
+    "institution.admin@churchcore.academy",
+    "registrar@churchcore.academy",
+    "faculty@churchcore.academy",
+    "guardian@churchcore.academy",
+    "finance@churchcore.academy",
+    "admissions@churchcore.academy",
+  ]) {
+    assert.match(sql, new RegExp(email, "i"));
+  }
+
+  assert.match(sql, /person-acceptance-admin/i);
+  assert.match(sql, /person-acceptance-registrar/i);
+  assert.match(sql, /person-acceptance-finance/i);
+  assert.match(sql, /person-marisol-rivera/i);
+  assert.match(sql, /auth\.users/i);
+  assert.match(sql, /auth\.identities/i);
+  assert.match(sql, /academy_account_links/i);
+  assert.match(sql, /academy_person_role_assignments/i);
+  assert.match(sql, /finance/i);
+  assert.match(sql, /admissions/i);
+  assert.doesNotMatch(sql, /supabase_auth/i);
+});

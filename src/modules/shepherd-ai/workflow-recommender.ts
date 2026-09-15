@@ -130,6 +130,21 @@ function recommendationForSignal(signal: AiSignalRecord, context: AcademyContext
           "This suggestion is for administrative setup completion. It does not impact currently active academic operations unless the issues directly affect current periods.",
         whyItSurfaced: "Academic calendar validation detected configuration errors that should be resolved before relying on the calendar for enrollment, grading, and institutional decisions.",
       };
+    case "attendance_threshold_exceeded":
+      return {
+        workflowCode: "academic_standing_or_credit_progress_review",
+        title: "Possible Finding: attendance threshold exceeded",
+        summary: `${context.entityLabel} may require advisor or registrar review because absence rate has crossed a configured threshold.`,
+        suggestedActions: actions([
+          "Review attendance record",
+          "Contact student or guardian",
+          "Assign advisor follow-up",
+          "Document attendance concern",
+        ]),
+        boundaryNote:
+          "This suggestion is based on Academy attendance records only. It does not infer reasons for absence, student motivation, personal circumstances, or spiritual condition.",
+        whyItSurfaced: "Absence rate for one or more course sections exceeded the configured warning or alert threshold.",
+      };
   }
 }
 

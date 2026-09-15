@@ -8,7 +8,7 @@ export default async function StudentDocumentsPage() {
   const model = await loadStudentPwaPageModel();
 
   return (
-    <StudentPwaShell activeHref="/student/documents" title="Documents" description="Review Academy-owned documents and requests.">
+    <StudentPwaShell title="Documents" description="Review Academy-owned documents and requests.">
       <StudentDocumentsView model={model} />
     </StudentPwaShell>
   );

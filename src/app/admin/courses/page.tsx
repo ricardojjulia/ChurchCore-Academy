@@ -4,12 +4,21 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
+import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 import type { Course, CourseSection } from "@/modules/course-catalog/types";
 import type { InstitutionSubdivision } from "@/modules/academic-calendar/types";
-import type { Person } from "@/modules/people/types";
+import { NewCourseButton } from "./course-actions";
+import { NewSectionButton } from "./section-actions";
+import { CourseRowActions } from "./CourseRowActions";
 
 export const dynamic = "force-dynamic";
+
+interface Queryable {
+  query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+}
 
 function titleize(s: string) {
   return s.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -33,18 +42,19 @@ function subdivisionLabel(subdivisions: InstitutionSubdivision[], id?: string) {
   return subdivisions.find((s) => s.id === id)?.name ?? "—";
 }
 
-function instructorLabel(people: Person[], instructorId?: string) {
+function instructorLabel(people: { id: string; displayName: string }[], instructorId?: string) {
   if (!instructorId) return "Unassigned";
   return people.find((p) => p.id === instructorId)?.displayName ?? "Unknown";
 }
 
 function periodLabel(
-  periods: { id: string; name: string }[],
+  periods: { id: string; name: string; academicYearId: string }[],
   years: { id: string; name: string }[],
   section: CourseSection,
 ) {
-  const period = periods.find((p) => p.id === section.academicPeriodId)?.name ?? "Unknown period";
-  const year = years.find((y) => y.id === section.academicYearId)?.name ?? "";
+  const periodObj = periods.find((p) => p.id === section.academicPeriodId);
+  const period = periodObj?.name ?? "Unknown period";
+  const year = periodObj ? (years.find((y) => y.id === periodObj.academicYearId)?.name ?? "") : "";
   return year ? `${period} · ${year}` : period;
 }
 
@@ -60,14 +70,36 @@ function sectionStatusVariant(status: CourseSection["status"]): "default" | "sec
   return "outline";
 }
 
+type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }> };
+
 export default async function CoursesPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
-  const catalog = dataset.courseCatalog;
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+
+  const { catalog, people, selectedPeriodId } = await withAcademyDatabaseContext(actor, async (client) => {
+    const db = asAcademyDatabase<Queryable>(client);
+
+    const courseCatalog = await new AcademyCourseCatalogRepository(asAcademyDatabase<RepoPool>(client)).fetchCourseCatalogConfiguration(actor.tenantId);
+    const peopleResult = await client.query(
+      `select id::text, display_name as "displayName" from academy_people where tenant_id = $1`,
+      [actor.tenantId],
+    ) as { rows: { id: string; displayName: string }[] };
+    const contextResult = await resolveAcademicContext(actor.userId, actor.tenantId, db);
+
+    return {
+      catalog: courseCatalog,
+      people: peopleResult.rows,
+      selectedPeriodId: contextResult.context.periodId,
+    };
+  });
   const { courses, sections, subdivisions, academicPeriods, academicYears } = catalog;
-  const people = dataset.peopleConfiguration.people;
 
   const activeCourses = courses.filter((c) => c.status === "active");
-  const scheduledSections = sections.filter((s) => s.status !== "cancelled" && s.status !== "archived");
+  const scheduledSections = sections.filter((s) => {
+    const isNotCancelledOrArchived = s.status !== "cancelled" && s.status !== "archived";
+    const matchesPeriod = selectedPeriodId ? s.academicPeriodId === selectedPeriodId : true;
+    return isNotCancelledOrArchived && matchesPeriod;
+  });
   const staffedSections = scheduledSections.filter((s) => s.primaryInstructorId);
   const courseById = new Map(courses.map((c) => [c.id, c]));
 
@@ -78,7 +110,7 @@ export default async function CoursesPage() {
       title="Course Catalog"
       subtitle="Active courses, scheduled sections, instructor assignments, and catalog readiness."
     >
-      <section className="ops-stats-grid">
+      <section className="sis-route-stats-grid">
         <MetricCard label="Courses" value={activeCourses.length} detail="Active in catalog" icon={<BookOpen />} />
         <MetricCard label="Sections" value={scheduledSections.length} detail="Scheduled this term" icon={<Layers3 />} />
         <MetricCard label="Staffed" value={staffedSections.length} detail="Sections with instructors" icon={<Users />} />
@@ -90,24 +122,25 @@ export default async function CoursesPage() {
         />
       </section>
 
-      <Card className="ops-panel">
+      <Card className="sis-route-card">
         <CardHeader>
-          <div className="ops-heading">
-            <div className="ops-icon">
+          <div className="sis-route-heading">
+            <div className="sis-route-icon">
               <BookOpenCheck />
             </div>
             <div>
               <CardTitle>Courses</CardTitle>
               <CardDescription>All catalog courses across Bible school, children&apos;s school, seminary, and college programs.</CardDescription>
             </div>
+            <NewCourseButton />
           </div>
         </CardHeader>
         <CardContent>
           {courses.length === 0 ? (
-            <div className="student-empty-state">
+            <div className="sis-route-empty">
               <BookOpen />
               <span>No courses configured for this tenant.</span>
-              <Link href="/admin/settings/courses" className="academy-action-link">
+              <Link href="/admin/settings/courses" className="sis-route-action-link">
                 Open course settings <ArrowRight />
               </Link>
             </div>
@@ -122,6 +155,7 @@ export default async function CoursesPage() {
                   <TableHead>Duration</TableHead>
                   <TableHead>Subdivision</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -141,6 +175,9 @@ export default async function CoursesPage() {
                     <TableCell>
                       <Badge variant={courseTypeVariant(course.status)}>{titleize(course.status)}</Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <CourseRowActions course={course} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -149,24 +186,30 @@ export default async function CoursesPage() {
         </CardContent>
       </Card>
 
-      <Card className="ops-panel">
+      <Card className="sis-route-card">
         <CardHeader>
-          <div className="ops-heading">
-            <div className="ops-icon">
+          <div className="sis-route-heading">
+            <div className="sis-route-icon">
               <Layers3 />
             </div>
             <div>
               <CardTitle>Sections</CardTitle>
               <CardDescription>Scheduled offerings with period, instructor, and capacity assignments.</CardDescription>
             </div>
+            <NewSectionButton
+              courses={courses.map((c) => ({ id: c.id, code: c.code, title: c.title }))}
+              periods={academicPeriods.map((p) => ({ id: p.id, name: p.name, academicYearId: p.academicYearId }))}
+              years={academicYears.map((y) => ({ id: y.id, name: y.name }))}
+              staff={people.map((p) => ({ personId: p.id, displayName: p.displayName }))}
+            />
           </div>
         </CardHeader>
         <CardContent>
           {sections.length === 0 ? (
-            <div className="student-empty-state">
+            <div className="sis-route-empty">
               <Layers3 />
               <span>No sections scheduled for this tenant.</span>
-              <Link href="/admin/settings/courses" className="academy-action-link">
+              <Link href="/admin/settings/courses" className="sis-route-action-link">
                 Open course settings <ArrowRight />
               </Link>
             </div>
@@ -218,10 +261,10 @@ export default async function CoursesPage() {
       </Card>
 
       <div className="ops-action-row">
-        <Link href="/admin/sections" className="academy-action-link">
+        <Link href="/admin/sections" className="sis-route-action-link">
           Roster view <ArrowRight />
         </Link>
-        <Link href="/admin/settings/courses" className="academy-action-link">
+        <Link href="/admin/settings/courses" className="sis-route-action-link">
           Full catalog review <ArrowRight />
         </Link>
       </div>
@@ -231,11 +274,11 @@ export default async function CoursesPage() {
 
 function MetricCard({ label, value, detail, icon }: { label: string; value: number; detail: string; icon: React.ReactNode }) {
   return (
-    <Card className="ops-metric">
+    <Card className="sis-route-metric">
       <CardContent>
-        <div className="ops-metric-label">{label}</div>
-        <div className="ops-metric-value">{value}</div>
-        <div className="ops-metric-detail">
+        <div className="sis-route-metric-label">{label}</div>
+        <div className="sis-route-metric-value">{value}</div>
+        <div className="sis-route-metric-detail">
           <span>{icon}</span>
           {detail}
         </div>

@@ -1,5 +1,6 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { requireActor } from "@/lib/require-actor";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import {
   PostgresAcademicProgramRepository,
@@ -32,11 +33,18 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
     const { actor } = await resolveAcademyActorFromSession(request);
+    requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
     return withAcademyDatabaseContext(actor, async (client) => {
       const repo = new PostgresAcademicProgramRepository(
         asAcademyDatabase<AcademicProgramDatabase>(client),
       );
+
+      // Handle archive action
+      if (body.action === "archive") {
+        return repo.archive(actor.tenantId, id);
+      }
+
       return repo.update(actor.tenantId, id, {
         title: typeof body.title === "string" ? body.title : undefined,
         shortTitle: typeof body.shortTitle === "string" ? body.shortTitle : undefined,
@@ -51,6 +59,25 @@ export async function PATCH(
         effectiveFrom: typeof body.effectiveFrom === "string" ? body.effectiveFrom : undefined,
         effectiveTo: typeof body.effectiveTo === "string" ? body.effectiveTo : undefined,
       });
+    });
+  });
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  return handleApi(async () => {
+    const { id } = await params;
+    const { actor } = await resolveAcademyActorFromSession(request);
+    requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+
+    return withAcademyDatabaseContext(actor, async (client) => {
+      const repo = new PostgresAcademicProgramRepository(
+        asAcademyDatabase<AcademicProgramDatabase>(client),
+      );
+      await repo.delete(actor.tenantId, id);
+      return { ok: true };
     });
   });
 }

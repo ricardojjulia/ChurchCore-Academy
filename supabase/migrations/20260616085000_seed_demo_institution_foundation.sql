@@ -21,8 +21,8 @@ values (
   'cca-main',
   'ChurchCore Academy',
   'ChurchCore Academy',
-  'mixed',
-  '["mixed","bible_school","childrens_school","seminary","college","university"]'::jsonb,
+  'bible_school',
+  '["bible_school","childrens_school","seminary","college","university"]'::jsonb,
   '{
     "academicYearLabel": "Academic Year",
     "defaultCalendarSystem": "academic_year",
@@ -529,3 +529,24 @@ values ('cca-main', 2026003, now())
 on conflict (tenant_id) do update
   set next_value = greatest(academy_student_number_sequences.next_value, excluded.next_value),
       updated_at = now();
+
+-- ==========================================================
+-- 24. POPULATE TENANT REGISTRY (from platform control plane)
+-- ==========================================================
+insert into public.academy_tenant_registry (
+  tenant_id,
+  display_name,
+  tenant_kind,
+  lifecycle_status,
+  is_demo,
+  provisioning_status
+)
+select
+  profile.tenant_id,
+  profile.institution_name,
+  profile.primary_mode,
+  case when profile.tenant_id = 'cca-main' then 'demo' else 'development' end,
+  profile.tenant_id = 'cca-main',
+  'ready'
+from public.academy_institution_profiles profile
+on conflict (tenant_id) do nothing;

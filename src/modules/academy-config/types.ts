@@ -1,4 +1,16 @@
-export type InstitutionMode = "bible_school" | "childrens_school" | "seminary" | "college" | "university" | "mixed";
+export type ConcreteInstitutionMode =
+  | "bible_school"
+  | "seminary"
+  | "college"
+  | "university"
+  | "childrens_school"
+  | "youth_seminary"
+  | "ministry_training_center"
+  | "continuing_education"
+  | "homeschool_hybrid";
+
+export type InstitutionMode = ConcreteInstitutionMode | "mixed";
+export type InstitutionModel = "single_mode" | "multi_mode";
 
 export type CalendarSystem = "school_year" | "academic_year" | "rolling_enrollment";
 export type TermStructure = "semester" | "quarter" | "trimester" | "module" | "year_round" | "custom";
@@ -32,10 +44,22 @@ export interface InstitutionCapabilitySet {
   admissionsWorkflows: boolean;
   transcriptWorkflows: boolean;
   graduationWorkflows: boolean;
+  ministryFormation: boolean;
   lmsLaunch: boolean;
   lmsRosterSync: boolean;
   lmsGradeReturn: boolean;
   shepherdAiRecommendations: boolean;
+  covenantRecords: boolean;
+}
+
+export interface InstitutionModePack {
+  mode: ConcreteInstitutionMode;
+  label: string;
+  description: string;
+  operatingRules: InstitutionOperatingRules;
+  capabilities: InstitutionCapabilitySet;
+  recommendedSubdivisionTypes: string[];
+  workflowTemplates: string[];
 }
 
 export interface InstitutionLmsPreference {

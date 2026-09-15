@@ -4,7 +4,7 @@ import { StudentPwaShell } from "@/components/student-pwa-shell";
 export default function StudentPrivacyPage() {
   return (
     <StudentPwaShell
-      activeHref="/student/privacy"
+     
       title="Privacy controls"
       description="Choose which learner intelligence features may use your Academy activity."
     >

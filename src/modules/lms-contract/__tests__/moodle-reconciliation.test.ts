@@ -106,6 +106,15 @@ test("Moodle reconciliation reports mapping roster return and capability drift w
     "Moodle capability progress_return is required by Academy but unavailable in the observed provider snapshot.",
     "Moodle capability reconciliation is required by Academy but unavailable in the observed provider snapshot.",
   ]);
+  assert.deepEqual(report.parity, {
+    expectedCourseShells: 2,
+    observedCourseShells: 3,
+    rosterDrift: 2,
+    gradeReturnDrift: 2,
+    progressReturnDrift: 2,
+    capabilityDrift: 2,
+    credentialHealth: "valid",
+  });
   assert.deepEqual(report.requiredActions, [
     "Review Moodle course shell mappings before the next sync.",
     "Review Moodle roster membership drift before the next sync.",

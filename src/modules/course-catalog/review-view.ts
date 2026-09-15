@@ -224,6 +224,7 @@ function buildSectionItems(
 ): CourseReviewSectionItem[] {
   return config.sections.map((section) => {
     const course = coursesById.get(section.courseId);
+    const period = periodsById.get(section.academicPeriodId);
 
     return {
       id: section.id,
@@ -236,7 +237,7 @@ function buildSectionItems(
       capacity: section.capacity ? String(section.capacity) : "Not configured",
       instructorRole: titleize(section.primaryInstructorRole),
       instructorStatus: section.primaryInstructorId ? "Assigned" : "Needs assignment",
-      academicYear: academicYearName(yearsById, section.academicYearId),
+      academicYear: period ? academicYearName(yearsById, period.academicYearId) : "Unknown year",
       period: periodName(periodsById, section.academicPeriodId),
       subdivision: subdivisionName(subdivisionsById, section.subdivisionId),
     };

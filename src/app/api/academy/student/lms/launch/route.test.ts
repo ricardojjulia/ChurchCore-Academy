@@ -179,6 +179,59 @@ test("route returns available launch for Canvas tenant when launch config env is
   }
 });
 
+test("route returns available launch for Moodle tenant when launch config env is present", async () => {
+  process.env.ACADEMY_LOCAL_BOOTSTRAP_ENABLED = "true";
+  process.env.MOODLE_LAUNCH_BASE_URL = "https://moodle.example.edu/auth/oidc/";
+  process.env.MOODLE_LAUNCH_MODE = "oidc";
+
+  try {
+    const request = new Request("http://localhost/api/academy/student/lms/launch", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-academy-user-id": "student-one",
+        "x-academy-tenant-id": "tenant-student-launch",
+        "x-academy-roles": "student",
+      },
+      body: JSON.stringify({
+        targetStudentPersonId: "student-one",
+        redirectPath: "/student/lms",
+      }),
+    });
+
+    const response = await launchStudentLmsRequest(request, {
+      fetchPeopleConfiguration: async () => peopleConfig("moodle"),
+    });
+    const body = (await response.json()) as {
+      launch: {
+        status: string;
+        displayLabel: string;
+        launchUrl?: string;
+        expiresAt?: string;
+        auditReference: string;
+      };
+    };
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(Object.keys(body.launch).sort(), [
+      "auditReference",
+      "displayLabel",
+      "expiresAt",
+      "launchUrl",
+      "status",
+    ]);
+    assert.equal(body.launch.status, "available");
+    assert.equal(body.launch.displayLabel, "Moodle");
+    assert.match(body.launch.auditReference, /:moodle:identity_launch$/);
+    assert.match(body.launch.launchUrl ?? "", /^https:\/\/moodle\.example\.edu/);
+    assert.doesNotMatch(JSON.stringify(body), /token|secret|rawProviderPayload|externalSubject/i);
+  } finally {
+    delete process.env.ACADEMY_LOCAL_BOOTSTRAP_ENABLED;
+    delete process.env.MOODLE_LAUNCH_BASE_URL;
+    delete process.env.MOODLE_LAUNCH_MODE;
+  }
+});
+
 test("route returns 400 for malformed JSON payload", async () => {
   await withBootstrapFallback(async () => {
     const request = new Request("http://localhost/api/academy/student/lms/launch", {

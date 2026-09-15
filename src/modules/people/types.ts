@@ -113,6 +113,30 @@ export interface AccountLink {
   updatedAt: string;
 }
 
+export type BaptismForm = 'immersion' | 'sprinkling' | 'pouring' | 'none' | 'unknown';
+export type CovenantStatus = 'active' | 'inactive' | 'pending';
+
+export interface CovenantFields {
+  faithDecisionDate?: string;       // ISO date
+  baptismDate?: string;             // ISO date
+  baptismForm?: BaptismForm;
+  homeChurch?: string;
+  denominationalAffiliation?: string;
+  covenantStatus?: CovenantStatus;
+  formationTrack?: string;
+  congregationMemberSince?: string; // ISO date
+  notes?: string;                   // restricted — admin/dean only
+}
+
+export interface CovenantRecord {
+  id: string;
+  tenantId: string;
+  personId: string;
+  covenantFields: CovenantFields;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PeopleConfiguration {
   institutionProfile: InstitutionProfile;
   people: Person[];

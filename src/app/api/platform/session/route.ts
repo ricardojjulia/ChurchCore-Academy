@@ -1,4 +1,5 @@
 import { handleApi } from "@/app/api/academy/api-utils";
+import { assertPlatformStaffWorkspaceAccess } from "@/modules/academy-auth/policy";
 import { resolvePlatformSessionForServerComponent } from "@/modules/academy-auth/request-context";
 import { PlatformSessionRepository } from "@/modules/academy-auth/session-resolver";
 
@@ -51,6 +52,7 @@ export async function getPlatformSession(
   return handleApi(async () => {
     const preferredTenantId = readPreferredTenantId(request);
     const session = await routeDependencies.resolveSession(preferredTenantId);
+    assertPlatformStaffWorkspaceAccess(session.platformRoles);
 
     return {
       platformRoles: session.platformRoles,

@@ -1,16 +1,21 @@
+import type { InstitutionCapabilitySet } from "@/modules/academy-config/types";
+
 export type AcademyRole =
   | "institution_admin"
   | "dean"
   | "registrar"
   | "academic_admin"
   | "admissions"
+  | "finance"
   | "applicant"
   | "advisor"
   | "faculty"
   | "teacher"
   | "professor"
   | "student"
-  | "guardian";
+  | "guardian"
+  | "alumni_relations"
+  | "ministry_formation_reviewer";
 
 export type PlatformRole = "platform_staff" | "platform_admin";
 
@@ -77,8 +82,30 @@ export function assertPlatformStaffWorkspaceAccess(roles: string[]) {
   }
 }
 
-export function assertStudentPortalAccess(actor: AcademyActor) {
+export function assertStudentPortalAccess(
+  actor: AcademyActor,
+  capabilities?: InstitutionCapabilitySet,
+): void {
   if (!actor.roles.includes("student")) {
     throw new Error("Forbidden student portal access.");
+  }
+  if (capabilities) {
+    assertCapability(capabilities, "studentPwa");
+  }
+}
+
+export class CapabilityDisabledError extends Error {
+  readonly statusCode = 451;
+  constructor(readonly capability: string) {
+    super(`Capability '${capability}' is not enabled for this institution.`);
+  }
+}
+
+export function assertCapability(
+  capabilities: InstitutionCapabilitySet,
+  key: keyof InstitutionCapabilitySet,
+): void {
+  if (!capabilities[key]) {
+    throw new CapabilityDisabledError(key);
   }
 }

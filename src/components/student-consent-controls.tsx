@@ -44,12 +44,12 @@ const consentOptions: Array<{
   {
     key: "consentLearnerMirror",
     title: "Learner mirror",
-    description: "Prepare future learner-visible reflections. This feature is not active yet.",
+    description: "Allow learner-visible reflections when your institution enables them.",
   },
   {
     key: "consentSocialGraph",
     title: "Learning relationships",
-    description: "Allow future analysis of learning collaboration. This feature is not active yet.",
+    description: "Allow reviewed collaboration insights when your institution enables them.",
   },
 ];
 

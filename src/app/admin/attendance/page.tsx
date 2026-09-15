@@ -7,8 +7,9 @@ import { ClipboardCheck, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchSectionList } from "@/lib/academy-read-models";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ interface SectionAttendanceSummary {
 }
 
 export default async function AdminAttendancePage() {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -31,8 +34,9 @@ export default async function AdminAttendancePage() {
     redirect("/login");
   }
 
-  const { actor, dataset } = await loadProtectedAcademyDataset();
-  const sections = dataset.sections;
+  const sections = await withAcademyDatabaseContext(actor, (client) =>
+    fetchSectionList(actor.tenantId, client),
+  );
 
   const summaries = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(

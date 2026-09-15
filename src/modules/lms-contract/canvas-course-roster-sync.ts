@@ -7,6 +7,8 @@ import {
 } from "./contract";
 import { createLmsAuditEvent } from "./sync-audit-reconciliation";
 import { ResolvedTenantLmsProvider } from "./tenant-provider-selection";
+import { CanvasHttpClient } from "./canvas-http-client";
+import { CircuitBreakerDb, getCircuitState, recordSuccess, recordFailure } from "./circuit-breaker";
 
 export interface CanvasSyncConfiguration {
   tenantId: string;
@@ -296,4 +298,139 @@ export function createCanvasRosterSyncPlan(input: CreateCanvasRosterSyncPlanInpu
       },
     ],
   };
+}
+
+export interface ExecuteCanvasRosterSyncInput {
+  plan: CanvasSyncPlan<CanvasRosterSyncOperation>;
+  httpClient: CanvasHttpClient;
+  db: CircuitBreakerDb;
+  canvasCourseId: string;
+  personIdToCanvasUserId: Map<string, number>;
+}
+
+export interface ExecuteCanvasRosterSyncResult {
+  result: LmsOperationResult;
+  auditEvent: LmsAuditEvent;
+}
+
+export async function executeCanvasRosterSync(
+  input: ExecuteCanvasRosterSyncInput,
+): Promise<ExecuteCanvasRosterSyncResult> {
+  const tenantId = input.plan.auditEvent.tenantId;
+  const correlationId = input.plan.result.correlationId;
+
+  const circuitState = await getCircuitState(tenantId, "canvas", input.db);
+
+  if (circuitState === "open") {
+    return {
+      result: {
+        status: "retryable_failure",
+        providerId: "canvas",
+        capability: "roster_sync",
+        tenantId,
+        correlationId,
+        operationId: input.plan.result.operationId,
+        retryable: true,
+        safeMessage: "Canvas circuit breaker is open; operation skipped pending recovery.",
+      },
+      auditEvent: {
+        ...input.plan.auditEvent,
+        resultStatus: "retryable_failure",
+        redactedMetadata: {
+          ...input.plan.auditEvent.redactedMetadata,
+          circuitState: "open",
+        },
+      },
+    };
+  }
+
+  if (input.plan.providerOperations.length === 0) {
+    return {
+      result: input.plan.result,
+      auditEvent: input.plan.auditEvent,
+    };
+  }
+
+  const operation = input.plan.providerOperations[0];
+
+  try {
+    const activeMemberships = operation.memberships.filter(
+      (m) => m.enrollmentState === "active" || m.enrollmentState === "paused",
+    );
+    const withdrawnMemberships = operation.memberships.filter((m) => m.enrollmentState === "withdrawn");
+
+    for (const membership of activeMemberships) {
+      const canvasUserId = input.personIdToCanvasUserId.get(membership.personId);
+      if (!canvasUserId) {
+        continue;
+      }
+
+      const enrollmentType = membership.role === "student" ? "StudentEnrollment" : "TeacherEnrollment";
+
+      await input.httpClient.post(`/courses/${input.canvasCourseId}/enrollments`, {
+        enrollment: {
+          user_id: canvasUserId,
+          type: enrollmentType,
+          enrollment_state: "active",
+        },
+      });
+    }
+
+    for (const membership of withdrawnMemberships) {
+      const canvasUserId = input.personIdToCanvasUserId.get(membership.personId);
+      if (!canvasUserId) {
+        continue;
+      }
+
+      try {
+        await input.httpClient.post(`/courses/${input.canvasCourseId}/enrollments/${canvasUserId}`, {
+          task: "delete",
+        });
+      } catch {
+        // Gracefully handle if enrollment not found
+      }
+    }
+
+    await recordSuccess(tenantId, "canvas", input.db);
+
+    return {
+      result: {
+        status: "success",
+        providerId: "canvas",
+        capability: "roster_sync",
+        tenantId,
+        correlationId,
+        operationId: input.plan.result.operationId,
+        retryable: false,
+        safeMessage: "Canvas roster sync completed successfully.",
+      },
+      auditEvent: {
+        ...input.plan.auditEvent,
+        resultStatus: "success",
+      },
+    };
+  } catch (error) {
+    await recordFailure(tenantId, "canvas", input.db);
+
+    return {
+      result: {
+        status: "retryable_failure",
+        providerId: "canvas",
+        capability: "roster_sync",
+        tenantId,
+        correlationId,
+        operationId: input.plan.result.operationId,
+        retryable: true,
+        safeMessage: error instanceof Error ? error.message : "Canvas roster sync failed.",
+      },
+      auditEvent: {
+        ...input.plan.auditEvent,
+        resultStatus: "retryable_failure",
+        redactedMetadata: {
+          ...input.plan.auditEvent.redactedMetadata,
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+        },
+      },
+    };
+  }
 }

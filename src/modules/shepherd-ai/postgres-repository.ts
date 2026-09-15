@@ -184,7 +184,10 @@ export class ShepherdAiPostgresRepository {
 
   async fetchSuggestions(tenantId: string) {
     const result = await this.database.query(
-      "select * from ai_suggestions where tenant_id = $1 order by generated_at desc, confidence_score desc",
+      `select * from ai_suggestions
+       where tenant_id = $1
+         and status not in ('dismissed')
+       order by generated_at desc, confidence_score desc`,
       [tenantId],
     );
     return result.rows.map(
@@ -208,6 +211,8 @@ export class ShepherdAiPostgresRepository {
           messageDraft: row.message_draft ?? undefined,
           status: row.status,
           generatedAt: row.generated_at.toISOString(),
+          dismissNote: row.dismiss_note ?? undefined,
+          snoozeUntil: row.snooze_until?.toISOString(),
         };
       },
     );
@@ -318,6 +323,8 @@ type SuggestionRow = {
   message_draft: string | null;
   status: ShepherdAiSuggestion["status"];
   generated_at: Date;
+  dismiss_note: string | null;
+  snooze_until?: Date | null;
 };
 
 type WorkflowRow = {

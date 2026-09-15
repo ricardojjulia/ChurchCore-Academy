@@ -6,13 +6,15 @@ import { cn } from "@/lib/utils";
 type ButtonVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
 type ButtonSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
 
+// Nocturne: primary actions are an accent outline on transparent, never a
+// filled background — https://nocturne design system, .btn-primary.
 const variantMap: Record<ButtonVariant, string> = {
-  default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
-  outline: "border border-input bg-background hover:bg-muted hover:text-foreground",
-  secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-  ghost: "hover:bg-muted hover:text-foreground",
-  destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  link: "h-auto p-0 text-primary underline-offset-4 hover:underline",
+  default: "border border-accent text-accent bg-transparent hover:bg-accent/10 active:bg-accent/20",
+  outline: "border border-border bg-transparent text-foreground hover:bg-foreground/[0.07] active:bg-foreground/[0.14]",
+  secondary: "border border-border bg-transparent text-foreground hover:bg-foreground/[0.07] active:bg-foreground/[0.14]",
+  ghost: "text-accent hover:bg-accent/10 active:bg-accent/[0.18]",
+  destructive: "border border-destructive text-destructive bg-transparent hover:bg-destructive/10 active:bg-destructive/20",
+  link: "h-auto p-0 text-accent underline-offset-4 hover:underline",
 };
 
 const sizeMap: Record<ButtonSize, string> = {
@@ -52,7 +54,7 @@ function Button({
 }: ButtonProps) {
   void nativeButton;
   const buttonClassName = cn(
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
     variantMap[variant],
     sizeMap[size],
     className,
@@ -82,3 +84,4 @@ function Button({
 }
 
 export { Button };
+export type { ButtonProps };

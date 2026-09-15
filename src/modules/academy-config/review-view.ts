@@ -1,3 +1,8 @@
+import {
+  getInstitutionModePack,
+  normalizeSelectedInstitutionModes,
+  resolveInstitutionModel,
+} from "@/modules/academy-config/mode-packs";
 import { InstitutionCapabilitySet, InstitutionOperatingRules, InstitutionProfile } from "@/modules/academy-config/types";
 import { validateInstitutionProfile } from "@/modules/academy-config/validation";
 
@@ -18,8 +23,10 @@ export interface InstitutionReviewModel {
     tenantId: string;
     institutionName: string;
     legalName: string;
+    institutionModel: string;
     primaryMode: string;
     supportedModes: string[];
+    modePacks: string[];
     updatedAt: string;
   };
   operatingRules: InstitutionReviewItem[];
@@ -43,6 +50,12 @@ const labelOverrides: Record<string, string> = {
   usesGpa: "GPA",
   moodle: "Moodle",
   canvas: "Canvas",
+  youth_seminary: "Youth seminary",
+  ministry_training_center: "Ministry training center",
+  continuing_education: "Continuing education",
+  homeschool_hybrid: "Homeschool hybrid",
+  single_mode: "Single-mode",
+  multi_mode: "Multi-mode",
 };
 
 function titleize(value: string) {
@@ -87,13 +100,18 @@ function buildOperatingRules(rules: InstitutionOperatingRules): InstitutionRevie
 }
 
 export function buildInstitutionReviewModel(profile: InstitutionProfile): InstitutionReviewModel {
+  const supportedModes = normalizeSelectedInstitutionModes(profile.supportedModes);
+  const institutionModel = resolveInstitutionModel(supportedModes);
+
   return {
     identity: {
       tenantId: profile.tenantId,
       institutionName: profile.institutionName,
       legalName: profile.legalName,
+      institutionModel: titleize(institutionModel),
       primaryMode: titleize(profile.primaryMode),
-      supportedModes: profile.supportedModes.map(titleize),
+      supportedModes: supportedModes.map(titleize),
+      modePacks: supportedModes.map((mode) => getInstitutionModePack(mode).label),
       updatedAt: profile.updatedAt,
     },
     operatingRules: buildOperatingRules(profile.operatingRules),

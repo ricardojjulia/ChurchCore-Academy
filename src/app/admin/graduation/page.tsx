@@ -4,9 +4,22 @@ import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadProtectedAcademyDataset } from "@/modules/academy-data/server-dataset";
+import { requireActor } from "@/lib/require-actor";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchCapabilitySet } from "@/lib/capability-context";
+import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
+import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import { CapabilityDisabledError, assertCapability } from "@/modules/academy-auth/policy";
+import type { FormationSummary } from "@/modules/ministry-formation/types";
 
 export const dynamic = "force-dynamic";
+
+const GRADUATION_CREDIT_THRESHOLD = 0.95;
+
+interface CapabilityQueryable {
+  query(sql: string, params: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+}
 
 function credentialLabel(credential: string) {
   const map: Record<string, string> = {
@@ -23,21 +36,50 @@ function credentialLabel(credential: string) {
 }
 
 export default async function GraduationPage() {
-  const { dataset } = await loadProtectedAcademyDataset();
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+  const { students, programs, formationSummaries } = await withAcademyDatabaseContext(actor, async (client) => {
+    const [s, p] = await Promise.all([
+      fetchStudentRecords(actor.tenantId, client),
+      fetchProgramList(actor.tenantId, client),
+    ]);
 
-  const activeStudents = dataset.students.filter((s) => s.enrollmentStatus === "active");
+    // Fetch formation summaries using the SAME client to avoid double pool usage
+    let formationSummaries: FormationSummary[] = [];
+
+    try {
+      const capabilities = await fetchCapabilitySet(client as unknown as CapabilityQueryable, actor.tenantId);
+      assertCapability(capabilities, "ministryFormation");
+      formationSummaries = await listStudentsWithFormationSummary(actor, client);
+    } catch (error) {
+      // If actor lacks formation-viewer access or capability is disabled, that's fine — just don't show formation column
+      if (!(error instanceof AcademyAuthorizationError) && !(error instanceof CapabilityDisabledError)) {
+        // Any other error (e.g., DB failure) should propagate
+        throw error;
+      }
+    }
+
+    return { students: s, programs: p, formationSummaries };
+  });
+
+  const activeStudents = students.filter((s) => s.enrollmentStatus === "active");
 
   const candidateRows = activeStudents.map((student) => {
-    const program = dataset.programs.find((p) => p.id === student.programId);
+    const program = programs.find((p) => p.id === student.programId);
     const progressPct = program && program.requiredCredits > 0
       ? Math.min(100, Math.round((student.creditsEarned / program.requiredCredits) * 100))
       : null;
     const holds = student.graduationAdministrativeHolds;
     const readyToReview =
       student.allProgramCoursesCompleted ||
-      (progressPct !== null && progressPct >= Math.round(dataset.thresholds.graduationCreditThreshold * 100));
+      (progressPct !== null && progressPct >= Math.round(GRADUATION_CREDIT_THRESHOLD * 100));
 
-    return { student, program, progressPct, holds, readyToReview };
+    // formationSummaries key on academy_people.id (studentPersonId); StudentRecord.id is the
+    // academy_student_profiles row's own id, a different identifier — match on personId instead.
+    const formation = formationSummaries.find((f) => f.studentPersonId === student.personId);
+    const formationComplete = formation?.formationComplete ?? null;
+
+    return { student, program, progressPct, holds, readyToReview, formationComplete };
   });
 
   const reviewReady = candidateRows.filter((r) => r.readyToReview && r.holds.length === 0);
@@ -47,7 +89,7 @@ export default async function GraduationPage() {
   return (
     <AdminShell
       activeSection="records"
-      eyebrow="Records"
+      eyebrow="Registrar"
       title="Graduation Audit"
       subtitle="Academic readiness, credit completion, holds, and registrar review entry points for graduation candidates."
     >
@@ -55,7 +97,7 @@ export default async function GraduationPage() {
         <MetricCard label="Active students" value={activeStudents.length} detail="Eligible for graduation review" icon={<GraduationCap />} />
         <MetricCard label="Review ready" value={reviewReady.length} detail="No holds, near or at credit threshold" icon={<CheckCircle2 />} />
         <MetricCard label="Administrative holds" value={withHolds.length} detail="Must be cleared before graduation" icon={<TriangleAlert />} />
-        <MetricCard label="Credit threshold" value={`${Math.round(dataset.thresholds.graduationCreditThreshold * 100)}%`} detail="Required credit completion for review" icon={<ShieldCheck />} />
+        <MetricCard label="Credit threshold" value={`${Math.round(GRADUATION_CREDIT_THRESHOLD * 100)}%`} detail="Required credit completion for review" icon={<ShieldCheck />} />
       </section>
 
       {reviewReady.length > 0 && (
@@ -132,6 +174,7 @@ type CandidateRow = {
   progressPct: number | null;
   holds: string[];
   readyToReview: boolean;
+  formationComplete: boolean | null;
 };
 
 function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?: boolean }) {
@@ -144,12 +187,13 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
           <TableHead>Credits</TableHead>
           <TableHead>Progress</TableHead>
           <TableHead>GPA</TableHead>
+          <TableHead>Formation Status</TableHead>
           {showHolds && <TableHead>Holds</TableHead>}
           <TableHead>Profile</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map(({ student, program, progressPct, holds }) => (
+        {rows.map(({ student, program, progressPct, holds, formationComplete }) => (
           <TableRow key={student.id}>
             <TableCell className="whitespace-normal">
               <div className="font-medium">{student.fullName}</div>
@@ -177,6 +221,15 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
               )}
             </TableCell>
             <TableCell>{student.gpa ?? "—"}</TableCell>
+            <TableCell>
+              {formationComplete === null ? (
+                <span className="text-sm text-muted-foreground">—</span>
+              ) : formationComplete ? (
+                <Badge variant="secondary">Complete</Badge>
+              ) : (
+                <Badge variant="outline">Incomplete</Badge>
+              )}
+            </TableCell>
             {showHolds && (
               <TableCell className="whitespace-normal">
                 <div className="flex flex-wrap gap-1">

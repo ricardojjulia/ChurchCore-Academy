@@ -34,12 +34,15 @@ export interface Program {
 
 export interface StudentRecord {
   id: string;
+  /** academy_people.id — distinct from `id` (the academy_student_profiles row's own primary key). */
+  personId: string;
   tenantId: string;
   fullName: string;
   email: string;
   enrollmentStatus: EnrollmentStatus;
   applicationStartedAt?: string;
   admittedAt?: string;
+  activePeriodId?: string;
   activeTerm?: string;
   programId?: string;
   advisorUserId?: string;
@@ -73,6 +76,7 @@ export interface CourseSection {
   code: string;
   title: string;
   programId: string;
+  academicPeriodId?: string;
   instructorFacultyId?: string;
   rosterCount: number;
   rosterCapacity: number;

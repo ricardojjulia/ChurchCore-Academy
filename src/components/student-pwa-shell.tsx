@@ -1,18 +1,26 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import {
+  Award,
   Bell,
   BookOpen,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  CreditCard,
   FileText,
   GraduationCap,
+  HandCoins,
   Home,
   LibraryBig,
   MessageSquare,
   ShieldCheck,
 } from "lucide-react";
 import { studentPwaDestinations, type StudentPwaDestination } from "@/modules/student-pwa/shell-config";
+import { useStudentCapabilities } from "@/components/student-capability-context";
 
 const iconByName = {
   home: Home,
@@ -24,19 +32,32 @@ const iconByName = {
   learning: LibraryBig,
   attendance: ClipboardCheck,
   privacy: ShieldCheck,
+  account: CreditCard,
+  aid: HandCoins,
+  formation: Award,
 };
 
 export function StudentPwaShell({
-  activeHref,
   title,
   description,
   children,
 }: {
-  activeHref: string;
   title: string;
   description: string;
   children: React.ReactNode;
 }) {
+  const { ministryFormationEnabled } = useStudentCapabilities();
+
+  const visibleDestinations = useMemo(() => {
+    return studentPwaDestinations.filter((destination) => {
+      // Filter out formation destination if capability is disabled
+      if (destination.href === "/student/formation" && !ministryFormationEnabled) {
+        return false;
+      }
+      return true;
+    });
+  }, [ministryFormationEnabled]);
+
   return (
     <div className="student-pwa">
       <header className="student-pwa-header">
@@ -58,7 +79,7 @@ export function StudentPwaShell({
       <div className="student-pwa-frame">
         <aside className="student-pwa-sidebar">
           <p className="student-pwa-nav-label">My Academy</p>
-          <StudentPwaNavigation activeHref={activeHref} />
+          <StudentPwaNavigation destinations={visibleDestinations} />
           <div className="student-pwa-sidebar-note">
             <CheckCircle2 />
             <div>
@@ -75,58 +96,29 @@ export function StudentPwaShell({
               <h1>{title}</h1>
               <span>{description}</span>
             </div>
-            <button className="student-pwa-alert-button" type="button" aria-label="Notifications unavailable">
+            <Link className="student-pwa-alert-button" href="/student/messages" aria-label="Open messages">
               <Bell />
-              <span>Notifications</span>
-            </button>
+              <span>Messages</span>
+            </Link>
           </section>
           {children}
         </main>
       </div>
 
       <nav className="student-pwa-bottom-nav" aria-label="Student mobile navigation">
-        {studentPwaDestinations.map((destination) => (
-          <StudentPwaNavLink key={destination.href} destination={destination} activeHref={activeHref} compact />
+        {visibleDestinations.map((destination) => (
+          <StudentPwaNavLink key={destination.href} destination={destination} compact />
         ))}
       </nav>
     </div>
   );
 }
 
-export function StudentPwaPlaceholder({
-  activeHref,
-  actionLabel,
-}: {
-  activeHref: string;
-  actionLabel: string;
-}) {
-  const destination = studentPwaDestinations.find(({ href }) => href === activeHref);
-
-  if (!destination) return null;
-
-  const Icon = iconByName[destination.icon];
-
-  return (
-    <section className="student-pwa-placeholder" aria-labelledby="placeholder-title">
-      <div className="student-pwa-placeholder-icon">
-        <Icon />
-      </div>
-      <p>Student records are not connected in this sprint</p>
-      <h2 id="placeholder-title">{actionLabel}</h2>
-      <span>{destination.description}</span>
-      <div className="student-pwa-safe-state">
-        <ShieldCheck />
-        <span>This page does not expose draft, held, provider-secret, or cross-student records.</span>
-      </div>
-    </section>
-  );
-}
-
-function StudentPwaNavigation({ activeHref }: { activeHref: string }) {
+function StudentPwaNavigation({ destinations }: { destinations: StudentPwaDestination[] }) {
   return (
     <nav className="student-pwa-nav" aria-label="Student">
-      {studentPwaDestinations.map((destination) => (
-        <StudentPwaNavLink key={destination.href} destination={destination} activeHref={activeHref} />
+      {destinations.map((destination) => (
+        <StudentPwaNavLink key={destination.href} destination={destination} />
       ))}
     </nav>
   );
@@ -134,15 +126,15 @@ function StudentPwaNavigation({ activeHref }: { activeHref: string }) {
 
 function StudentPwaNavLink({
   destination,
-  activeHref,
   compact = false,
 }: {
   destination: StudentPwaDestination;
-  activeHref: string;
   compact?: boolean;
 }) {
+  const pathname = usePathname();
   const Icon = iconByName[destination.icon];
-  const isActive = destination.href === activeHref;
+  const isActive =
+    pathname === destination.href || pathname.startsWith(destination.href + "/");
 
   return (
     <Link

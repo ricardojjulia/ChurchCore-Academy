@@ -12,13 +12,38 @@ Before activating Moodle for a tenant:
 
 - Confirm the tenant selected Moodle as the active LMS provider.
 - Confirm the Moodle base URL uses HTTPS in production.
+- Store non-secret activation settings in `lms_provider_configs` with provider `moodle`, launch mode, enabled operation families, Moodle context identifiers, and validation evidence.
+- Store only secret references in `lms_provider_secret_refs`; the actual Moodle token or launch secret must remain in the encrypted provider secret layer.
 - Configure identity launch separately from server-to-server sync credentials.
 - Enable Moodle Web Services only if the tenant uses course, roster, grade, progress, or reconciliation sync.
 - Enable only the Moodle protocol required by the selected adapter path.
 - Create a custom External Service with only the functions required by enabled sync families.
 - Assign least-privilege Moodle capabilities to the service user.
 - Create service credentials through the tenant-scoped secret layer, not Academy domain records.
+- Run `assertProviderCanActivate` successfully before setting the tenant provider to active. Activation requires passed validation evidence and the required Moodle secret reference, including `moodleWebServiceToken` for server-to-server Web Services.
 - Run reconciliation after launch, course shell, roster, grade, or progress configuration changes.
+
+## Web Service Function Checklist
+
+Enable only the Moodle functions needed by the tenant's selected operation families:
+
+- Course shell lookup/provisioning support: `core_course_get_courses_by_field`
+- Roster enrollment: `enrol_manual_enrol_users`
+- Roster withdrawal: `enrol_manual_unenrol_users`
+- Grade return: `gradereport_user_get_grade_items`
+
+Moodle may return Web Service exceptions inside HTTP 200 responses. Academy treats those payloads as provider errors, classifies them as non-retryable unless a future adapter explicitly marks the condition transient, and redacts token/raw-payload text before surfacing safe messages.
+
+## Least-Privilege Capability Checklist
+
+The Moodle service user should be scoped to the minimum context and capabilities required by the enabled functions:
+
+- view course metadata for mapped courses/categories;
+- create or update course shells only when course shell sync is enabled;
+- manually enroll and unenroll users only when roster sync is enabled;
+- read grade items only when grade return is enabled;
+- read completion/progress data only when progress return is enabled;
+- no site administration rights unless the tenant's Moodle instance requires them for a documented sandbox exception.
 
 ## Secret Handling
 
@@ -30,6 +55,8 @@ Store the following only in the tenant-scoped secret layer:
 - webhook secrets
 - refresh tokens
 - private signing keys
+
+`lms_provider_configs` may store only non-secret values such as base URL, launch mode, enabled operations, account/context identifiers, provider status, and validation evidence. Any token, credential, password, private key, signature, authorization header, or raw provider payload belongs outside that table.
 
 Never expose Moodle tokens, raw provider payloads, provider error bodies, internal Moodle user ids, or raw Moodle course ids through:
 
@@ -78,6 +105,10 @@ Reconciliation compares Academy-expected mappings, roster memberships, grade ret
 Moodle names and marks should be used only to describe interoperability. ChurchCore Academy materials must not imply Moodle endorsement, certification, partnership, or sponsorship unless a separate written agreement exists.
 
 Keep ChurchCore Academy branding distinct from Moodle branding in tenant-facing materials.
+
+## Readiness Surface
+
+Administrators review Moodle activation status at `/admin/settings/lms`. Production activation remains deferred until the Moodle sandbox evidence section in `docs/releases/2026-06-26-full-lms-integration-readiness.md` is complete.
 
 ## Review Checklist
 
