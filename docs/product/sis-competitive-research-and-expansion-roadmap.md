@@ -177,6 +177,9 @@ These are features that Populi has and ChurchCore Academy needs to match before 
 These are ChurchCore Academy's exclusive territory.
 
 #### 3.7 Ministry Formation and Spiritual Development Records
+
+**Status (corrected 2026-09-15):** mostly built. `src/modules/ministry-formation/` backend, admin UI (`/admin/formation`), student dashboard (`/student/formation`), and formation-advisor assignment are shipped and browser-verified. Formation-aware graduation readiness and the ShepherdAI formation-gap signal below were not verified this pass. This section previously carried no status marker and read as a pure gap list, which understated actual progress — see `docs/superpowers/plans/2026-09-13-competitive-feature-closure-plan.md` for the fuller correction and evidence.
+
 - Non-graded formation record categories separate from academic transcripts
 - Categories: chapel attendance, service hours, spiritual direction sessions, ministry practica, mission trips, mentorship records
 - Institution-configurable formation requirements per program

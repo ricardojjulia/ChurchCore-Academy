@@ -40,13 +40,15 @@ Before any new backend work, close these — each is a UI-only or thin-integrati
 
 | Feature | Backend evidence | What's missing |
 |---|---|---|
-| Ministry formation records (practicum, faith milestones, formation evaluations, endorsement) | `src/modules/ministry-formation/service.ts`, full test coverage, API routes live | Admin UI, student/advisor formation dashboard, formation-advisor assignment, graduation-readiness integration |
-| Denomination & ordination tracking | `src/modules/people/denomination.ts`, full test coverage, API routes live | Admin UI, roster views |
-| Alumni & giving | `src/modules/people/alumni.ts`, full test coverage, API routes live | Admin UI, directory, campaign layer |
+| ~~Ministry formation records (practicum, faith milestones, formation evaluations, endorsement)~~ | `src/modules/ministry-formation/service.ts`, full test coverage, API routes live | **Built and working, corrected 2026-09-15.** Admin UI (`/admin/formation`, `/admin/formation/[studentId]`), student dashboard (`/student/formation`), and role-gated formation-advisor assignment (`canAssignAdvisor`) all exist and were browser-verified logged in as the demo admin. Graduation-readiness integration status not verified this pass — treat as open until checked. |
+| Denomination & ordination tracking | `src/modules/people/denomination.ts`, full test coverage, API routes live | Admin UI, roster views — confirmed still missing 2026-09-15 (no `/admin/denomination*` route, no nav entry) |
+| Alumni & giving | `src/modules/people/alumni.ts`, full test coverage, API routes live | Admin UI, directory, campaign layer — confirmed still missing 2026-09-15 (no `/admin/alumni*` route, no nav entry) |
 | Competency/narrative evaluation | `EvaluationType`, `CompetencyPolicy`, `NarrativePolicy` in `grading-records/types.ts` | Framework builder UI, competency transcript format |
 | Academic standing automation | `academic-standing-evaluator.ts` | Wire to registration holds and SAP; standing-change notification workflow |
 
-**Recommendation: sequence a "Surface the Built Differentiators" work package before the net-new features in Section 3.** It's the cheapest, fastest path to a materially stronger competitive story, and it should go through the factory first.
+**Recommendation: sequence a "Surface the Built Differentiators" work package before the net-new features in Section 3.** It's the cheapest, fastest path to a materially stronger competitive story, and it should go through the factory first. **Updated 2026-09-15: ministry formation is done — this package now only needs denomination/ordination and alumni/giving admin UI, plus the still-unverified competency framework builder and academic-standing wiring.**
+
+**Correction note (2026-09-15):** this table's ministry-formation row was wrong when written — the admin UI, student dashboard, and advisor assignment it listed as "missing" already existed in the codebase on 2026-09-13 (or shipped very shortly after) and were not checked before writing "what's missing." This is the same doc-drift pattern flagged in `docs/product/product-context.md`'s "Current Honest State" history and the [[project_feature_audit_2026_09_12]] memory: verify against running code/browser before asserting a feature's UI status, don't infer it from the backend module list alone.
 
 ## 3. Detailed work packages for the 13 requested features
 
