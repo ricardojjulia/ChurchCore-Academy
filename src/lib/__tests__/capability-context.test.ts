@@ -21,6 +21,7 @@ describe("fetchCapabilitySet", () => {
       lmsGradeReturn: false,
       shepherdAiRecommendations: true,
       covenantRecords: false,
+      competencyNarrativeGrading: false,
     };
 
     const mockClient = {
@@ -105,6 +106,7 @@ describe("withCapabilityContext", () => {
       lmsGradeReturn: true,
       shepherdAiRecommendations: false,
       covenantRecords: false,
+      competencyNarrativeGrading: false,
     };
 
     const mockClient = {

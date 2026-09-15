@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AcademyGradingRecordsRepository } from "@/modules/grading-records/postgres-repository";
 import { requireActor } from "@/lib/require-actor";
 import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
+import { fetchCapabilitySet } from "@/lib/capability-context";
+import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import {
   AcademicStandingRuleReviewItem,
   EvaluationRuleSetReviewItem,
@@ -16,14 +18,53 @@ import {
   OfficialRecordRuleReviewItem,
   buildGradingRecordsReviewModel,
 } from "@/modules/grading-records/review-view";
+import { GradingConfigActions } from "./GradingConfigActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function GradingSettingsPage() {
   const actor = await requireActor();
   assertInstitutionConfigAccess(actor, actor.tenantId, "read");
-  const repository = new AcademyGradingRecordsRepository();
-  const config = await repository.fetchGradingRecordsConfiguration(actor.tenantId);
+
+  // This page reviews an institution's grading configuration in general (GPA policy, credit
+  // policy, evaluation scales, etc.) — that's universal to every institution mode and was never
+  // gated by a capability before this feature existed. The `competencyNarrativeGrading`
+  // capability only governs whether an admin can WRITE competency/narrative-specific policy
+  // through the new edit affordances below; it must not hide the whole review page from every
+  // institution that doesn't have competency/narrative grading enabled (e.g. every college or
+  // university tenant). Found via review before this shipped.
+  const canEditRole = actor.roles.some((role) => ["institution_admin", "academic_admin"].includes(role));
+
+  const { config, availableCourses, canEdit } = await withAcademyDatabaseContext(
+    actor,
+    async (client) => {
+      const repository = new AcademyGradingRecordsRepository(
+        client as ConstructorParameters<typeof AcademyGradingRecordsRepository>[0],
+      );
+      const gradingConfig = await repository.fetchGradingRecordsConfiguration(actor.tenantId);
+
+      // Populates the rule-set form's course picker: courseId is the course's internal id
+      // (e.g. "course-acts-ministry"), not its human-readable code (e.g. "ACTS-MIN") — a free-text
+      // field asking the admin to type an id they can't see anywhere else in the UI would fail on
+      // nearly every real submission. Found via review before this shipped.
+      const coursesResult = (await client.query(
+        "SELECT id, code, title FROM academy_courses WHERE tenant_id = $1 ORDER BY code",
+        [actor.tenantId]
+      )) as { rows: Array<{ id: string; code: string; title: string }> };
+
+      const capabilities = await fetchCapabilitySet(
+        client as Parameters<typeof fetchCapabilitySet>[0],
+        actor.tenantId,
+      );
+
+      return {
+        config: gradingConfig,
+        availableCourses: coursesResult.rows,
+        canEdit: canEditRole && capabilities.competencyNarrativeGrading === true,
+      };
+    },
+  );
+
   const model = buildGradingRecordsReviewModel(config);
 
   return (
@@ -157,6 +198,12 @@ export default async function GradingSettingsPage() {
 
         <ValidationPanel model={model} />
       </section>
+
+      {canEdit && (
+        <section>
+          <GradingConfigActions config={config} canEdit={canEdit} availableCourses={availableCourses} />
+        </section>
+      )}
     </AdminShell>
   );
 }

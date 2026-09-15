@@ -52,6 +52,7 @@ export interface InstitutionCapabilitySet {
   lmsGradeReturn: boolean;
   shepherdAiRecommendations: boolean;
   covenantRecords: boolean;
+  competencyNarrativeGrading: boolean;
 }
 
 export interface InstitutionModePack {

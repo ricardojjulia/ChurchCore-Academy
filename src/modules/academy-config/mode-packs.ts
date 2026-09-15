@@ -37,6 +37,7 @@ const baseCapabilities: InstitutionCapabilitySet = {
   lmsGradeReturn: false,
   shepherdAiRecommendations: true,
   covenantRecords: false,
+  competencyNarrativeGrading: false,
 };
 
 const collegeOperatingRules: InstitutionOperatingRules = {
@@ -82,6 +83,7 @@ const modePacks: Record<ConcreteInstitutionMode, InstitutionModePack> = {
       ministryFormation: true,
       denominationTracking: true,
       alumniGiving: true,
+      competencyNarrativeGrading: true,
     },
     recommendedSubdivisionTypes: ["school", "cohort"],
     workflowTemplates: ["certificate_admissions", "cohort_enrollment", "completion_review"],
@@ -98,6 +100,7 @@ const modePacks: Record<ConcreteInstitutionMode, InstitutionModePack> = {
       ministryFormation: true,
       denominationTracking: true,
       alumniGiving: true,
+      competencyNarrativeGrading: true,
     },
     recommendedSubdivisionTypes: ["school", "department"],
     workflowTemplates: ["degree_admissions", "registration", "transcript_posting", "graduation_audit"],
@@ -358,6 +361,7 @@ export function aggregateModePackCapabilities(selectedModes: readonly Institutio
     admissionsWorkflows: false,
     shepherdAiRecommendations: false,
     covenantRecords: false,
+    competencyNarrativeGrading: false,
   };
 
   return packs.reduce<InstitutionCapabilitySet>(
@@ -377,6 +381,7 @@ export function aggregateModePackCapabilities(selectedModes: readonly Institutio
       lmsGradeReturn: capabilities.lmsGradeReturn || pack.capabilities.lmsGradeReturn,
       shepherdAiRecommendations: capabilities.shepherdAiRecommendations || pack.capabilities.shepherdAiRecommendations,
       covenantRecords: capabilities.covenantRecords || pack.capabilities.covenantRecords,
+      competencyNarrativeGrading: capabilities.competencyNarrativeGrading || pack.capabilities.competencyNarrativeGrading,
     }),
     initialCapabilities,
   );
