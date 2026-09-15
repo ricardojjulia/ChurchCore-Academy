@@ -117,18 +117,6 @@ export class PostgresEnrollmentConversionRepository {
       throw new Error("Admission application is already converted.");
     }
 
-    const sequenceResult = await this.database.query(
-      `insert into academy_student_number_sequences (
-         tenant_id, next_value, updated_at
-       ) values ($1, 2, now())
-       on conflict (tenant_id) do update
-       set next_value = academy_student_number_sequences.next_value + 1,
-           updated_at = now()
-       returning next_value - 1 as allocated_value`,
-      [input.tenantId],
-    );
-    const allocatedValue = Number(sequenceResult.rows[0].allocated_value);
-    const studentNumber = `S-${String(allocatedValue).padStart(6, "0")}`;
     const personId = String(application.applicant_person_id);
 
     await this.database.query(
@@ -143,60 +131,195 @@ export class PostgresEnrollmentConversionRepository {
       [input.tenantId, personId],
     );
 
-    const profileResult = await this.database.query(
-      `insert into academy_student_profiles (
-         id, tenant_id, person_id, student_number, student_type,
-         enrollment_status, program_id
-       ) values (
-         gen_random_uuid()::text, $1, $2, $3, 'new', 'active', $4
-       )
-       returning id, student_number`,
-      [
-        input.tenantId,
-        personId,
-        studentNumber,
-        String(application.program_id),
-      ],
+    const existingProfileResult = await this.database.query(
+      `select id, student_number
+       from academy_student_profiles
+       where tenant_id = $1 and person_id = $2
+       for update`,
+      [input.tenantId, personId],
     );
-    const profile = profileResult.rows[0];
+    let profile = existingProfileResult.rows[0];
 
-    const programEnrollmentResult = await this.database.query(
-      `insert into academy_program_enrollments (
-         tenant_id, student_profile_id, student_person_id, program_id,
-         source_application_id, status
-       ) values ($1, $2, $3, $4, $5, 'active')
-       returning id`,
+    if (!profile) {
+      const sequenceResult = await this.database.query(
+        `insert into academy_student_number_sequences (
+           tenant_id, next_value, updated_at
+         ) values ($1, 2, now())
+         on conflict (tenant_id) do update
+         set next_value = academy_student_number_sequences.next_value + 1,
+             updated_at = now()
+         returning next_value - 1 as allocated_value`,
+        [input.tenantId],
+      );
+      const allocatedValue = Number(sequenceResult.rows[0].allocated_value);
+      const studentNumber = `S-${String(allocatedValue).padStart(6, "0")}`;
+
+      const profileResult = await this.database.query(
+        `insert into academy_student_profiles (
+           id, tenant_id, person_id, student_number, student_type,
+           enrollment_status, program_id
+         ) values (
+           gen_random_uuid()::text, $1, $2, $3, 'new', 'active', $4
+         )
+         returning id, student_number`,
+        [
+          input.tenantId,
+          personId,
+          studentNumber,
+          String(application.program_id),
+        ],
+      );
+      profile = profileResult.rows[0];
+    }
+
+    const existingProgramEnrollmentResult = await this.database.query(
+      `select id
+       from academy_program_enrollments
+       where tenant_id = $1
+         and (
+           source_application_id = $2
+           or (student_profile_id = $3 and status = 'active')
+         )
+       order by case when source_application_id = $2 then 0 else 1 end
+       limit 1
+       for update`,
+      [input.tenantId, input.applicationId, profile.id],
+    );
+    let programEnrollmentId = existingProgramEnrollmentResult.rows[0]?.id;
+
+    if (programEnrollmentId) {
+      const updatedProgramEnrollmentResult = await this.database.query(
+        `update academy_program_enrollments
+         set source_application_id = coalesce(source_application_id, $2),
+             student_person_id = $3,
+             academic_program_id = coalesce(
+               academic_program_id,
+               (
+                 select academic_program.id
+                 from academy_academic_programs academic_program
+                 where academic_program.tenant_id = $1
+                   and academic_program.id::text = $4
+               )
+             ),
+             status = 'active',
+             updated_at = now()
+         where tenant_id = $1 and id = $5
+         returning id`,
+        [
+          input.tenantId,
+          input.applicationId,
+          personId,
+          application.program_id,
+          programEnrollmentId,
+        ],
+      );
+      programEnrollmentId = updatedProgramEnrollmentResult.rows[0].id;
+    } else {
+      const programEnrollmentResult = await this.database.query(
+        `insert into academy_program_enrollments (
+           tenant_id, student_profile_id, student_person_id, academic_program_id,
+           source_application_id, status
+         ) values (
+           $1, $2, $3,
+           (
+             select academic_program.id
+             from academy_academic_programs academic_program
+             where academic_program.tenant_id = $1
+               and academic_program.id::text = $4
+           ),
+           $5, 'active'
+         )
+         returning id`,
+        [
+          input.tenantId,
+          profile.id,
+          personId,
+          application.program_id,
+          input.applicationId,
+        ],
+      );
+      programEnrollmentId = programEnrollmentResult.rows[0].id;
+    }
+    const resolvedProgramEnrollmentId = String(programEnrollmentId);
+
+    const existingPeriodRegistrationResult = await this.database.query(
+      `select id, status, source_application_id
+       from academy_period_registrations
+       where tenant_id = $1
+         and (
+           source_application_id = $2
+           or (student_profile_id = $3 and academic_period_id = $4)
+         )
+       order by case when source_application_id = $2 then 0 else 1 end
+       limit 1
+       for update`,
       [
         input.tenantId,
-        profile.id,
-        personId,
-        application.program_id,
         input.applicationId,
-      ],
-    );
-    const programEnrollmentId = String(
-      programEnrollmentResult.rows[0].id,
-    );
-
-    const periodRegistrationResult = await this.database.query(
-      `insert into academy_period_registrations (
-         tenant_id, student_profile_id, student_person_id,
-         academic_period_id, program_enrollment_id, source_application_id,
-         status
-       ) values ($1, $2, $3, $4, $5, $6, 'registered')
-       returning id`,
-      [
-        input.tenantId,
         profile.id,
-        personId,
         application.application_term_id,
-        programEnrollmentId,
-        input.applicationId,
       ],
     );
-    const periodRegistrationId = String(
-      periodRegistrationResult.rows[0].id,
-    );
+    const existingPeriodRegistration = existingPeriodRegistrationResult.rows[0];
+
+    // A row belonging to a different application is only safe to reuse when it's still
+    // 'registered' (the idempotent-retry case this fallback exists for). A 'cancelled' or
+    // 'completed' row from a different application must keep its terminal status — silently
+    // resurrecting it to 'registered' would lose that history and misattribute it to this
+    // conversion. The (tenant_id, student_profile_id, academic_period_id) unique constraint
+    // means at most one row can exist for this student+period, so there's no row to fall back
+    // to in that case — converting this application requires resolving the conflict first.
+    if (
+      existingPeriodRegistration &&
+      existingPeriodRegistration.source_application_id !== input.applicationId &&
+      existingPeriodRegistration.status !== "registered"
+    ) {
+      throw new Error(
+        `Cannot convert this application: the student already has a ${String(existingPeriodRegistration.status)} period registration for this term from a different application.`,
+      );
+    }
+
+    let periodRegistrationId = existingPeriodRegistration?.id;
+
+    if (periodRegistrationId) {
+      const updatedPeriodRegistrationResult = await this.database.query(
+        `update academy_period_registrations
+         set source_application_id = coalesce(source_application_id, $2),
+             student_person_id = $3,
+             program_enrollment_id = $4,
+             status = 'registered',
+             updated_at = now()
+         where tenant_id = $1 and id = $5
+         returning id`,
+        [
+          input.tenantId,
+          input.applicationId,
+          personId,
+          resolvedProgramEnrollmentId,
+          periodRegistrationId,
+        ],
+      );
+      periodRegistrationId = updatedPeriodRegistrationResult.rows[0].id;
+    } else {
+      const periodRegistrationResult = await this.database.query(
+        `insert into academy_period_registrations (
+           tenant_id, student_profile_id, student_person_id,
+           academic_period_id, program_enrollment_id, source_application_id,
+           status
+         ) values ($1, $2, $3, $4, $5, $6, 'registered')
+         returning id`,
+        [
+          input.tenantId,
+          profile.id,
+          personId,
+          application.application_term_id,
+          resolvedProgramEnrollmentId,
+          input.applicationId,
+        ],
+      );
+      periodRegistrationId = periodRegistrationResult.rows[0].id;
+    }
+    const resolvedPeriodRegistrationId = String(periodRegistrationId);
 
     await this.database.query(
       `update academy_admission_applications
@@ -213,8 +336,8 @@ export class PostgresEnrollmentConversionRepository {
         input.convertedAt,
         input.actorPersonId,
         profile.id,
-        programEnrollmentId,
-        periodRegistrationId,
+        resolvedProgramEnrollmentId,
+        resolvedPeriodRegistrationId,
       ],
     );
 
@@ -230,8 +353,8 @@ export class PostgresEnrollmentConversionRepository {
         input.actorPersonId,
         profile.id,
         profile.student_number,
-        programEnrollmentId,
-        periodRegistrationId,
+        resolvedProgramEnrollmentId,
+        resolvedPeriodRegistrationId,
         input.correlationId,
         input.idempotencyKey,
         input.convertedAt,
@@ -242,8 +365,8 @@ export class PostgresEnrollmentConversionRepository {
       applicationId: input.applicationId,
       studentProfileId: String(profile.id),
       studentNumber: String(profile.student_number),
-      programEnrollmentId,
-      periodRegistrationId,
+      programEnrollmentId: resolvedProgramEnrollmentId,
+      periodRegistrationId: resolvedPeriodRegistrationId,
       convertedAt: input.convertedAt,
       idempotencyKey: input.idempotencyKey,
     };
