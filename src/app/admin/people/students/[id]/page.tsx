@@ -14,6 +14,7 @@ import { PersonEditTrigger } from "./PersonEditTrigger";
 import { EnrollmentStatusTrigger } from "./EnrollmentStatusTrigger";
 import { CovenantRecordTab } from "@/components/covenant-record-tab";
 import { DenominationRecordTab } from "@/components/denomination-record-tab";
+import { AlumniRecordTab } from "@/components/alumni-record-tab";
 import type { CovenantRecord } from "@/modules/people/types";
 
 export const dynamic = "force-dynamic";
@@ -211,6 +212,53 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       // denomination tracking feature not available
     }
 
+    // Load alumni & giving capability and data — gated to the roles that can also reach this
+    // page (see the page-level requireActor above). alumni_relations is deliberately excluded
+    // here even though the alumni module allows it as a reader: this page exposes full student
+    // PII, relationships, and audit history that a fundraising-scoped role shouldn't see just
+    // to reach the alumni tab. alumni_relations users read alumni/giving data through the
+    // dedicated /admin/alumni roster and detail pages instead, which are scoped to that data
+    // alone. Additionally, the tab must not appear for non-graduated students at all, regardless
+    // of role, since they're not alumni.
+    const canReadAlumniData = actor.roles.some((role) =>
+      ["institution_admin", "academic_admin", "registrar"].includes(role),
+    );
+    const isGraduated = profile && String(profile.enrollment_status) === "graduated";
+    let alumniGivingEnabled = false;
+    let alumniHasRecord = false;
+    let alumniGiftCount = 0;
+    let alumniTotalGivenCents = 0;
+    let alumniLastGiftDate: string | null = null;
+    try {
+      // Uses fetchCapabilitySet (not a raw capabilities-column read) — same reasoning as
+      // denomination/covenant capability loading above.
+      const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      alumniGivingEnabled = caps.alumniGiving === true && canReadAlumniData && isGraduated === true;
+      if (alumniGivingEnabled) {
+        const [alumniRecordResult, giftAggResult] = await Promise.all([
+          client.query(
+            `SELECT 1 FROM academy_alumni_records WHERE tenant_id = $1 AND person_id = $2 LIMIT 1`,
+            [actor.tenantId, id]
+          ) as Promise<{ rows: Array<Record<string, unknown>> }>,
+          client.query(
+            `SELECT COUNT(*) as count, COALESCE(SUM(gift_amount_cents), 0) as total, MAX(gift_date) as last_gift
+             FROM academy_giving_records WHERE tenant_id = $1 AND alumni_person_id = $2`,
+            [actor.tenantId, id]
+          ) as Promise<{ rows: Array<{ count: string; total: string; last_gift: unknown }> }>,
+        ]);
+        alumniHasRecord = alumniRecordResult.rows.length > 0;
+        if (giftAggResult.rows[0]) {
+          alumniGiftCount = parseInt(giftAggResult.rows[0].count || "0", 10);
+          alumniTotalGivenCents = parseInt(giftAggResult.rows[0].total || "0", 10);
+          alumniLastGiftDate = giftAggResult.rows[0].last_gift instanceof Date
+            ? giftAggResult.rows[0].last_gift.toISOString().slice(0, 10)
+            : (giftAggResult.rows[0].last_gift ? String(giftAggResult.rows[0].last_gift) : null);
+        }
+      }
+    } catch {
+      // alumni giving feature not available
+    }
+
     return {
       person: {
         id: String(person.id),
@@ -254,6 +302,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       denominationOrdinationCount,
       denominationNames,
       denominationHasActiveOrdination,
+      alumniGivingEnabled,
+      alumniHasRecord,
+      alumniGiftCount,
+      alumniTotalGivenCents,
+      alumniLastGiftDate,
     };
   });
 
@@ -261,7 +314,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination } = data;
+  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination, alumniGivingEnabled, alumniHasRecord, alumniGiftCount, alumniTotalGivenCents, alumniLastGiftDate } = data;
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
 
   return (
@@ -293,6 +346,9 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           )}
           {denominationTrackingEnabled && (
             <TabsTrigger value="denomination">Denomination</TabsTrigger>
+          )}
+          {alumniGivingEnabled && (
+            <TabsTrigger value="alumni">Alumni</TabsTrigger>
           )}
           <TabsTrigger value="audit">Audit</TabsTrigger>
         </TabsList>
@@ -466,6 +522,17 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             ordinationCount={denominationOrdinationCount}
             hasActiveOrdination={denominationHasActiveOrdination}
             denominationNames={denominationNames}
+          />
+        </TabsContent>
+
+        <TabsContent value="alumni">
+          <AlumniRecordTab
+            enabled={alumniGivingEnabled}
+            personId={person.id}
+            hasAlumniRecord={alumniHasRecord}
+            giftCount={alumniGiftCount}
+            totalGivenCents={alumniTotalGivenCents}
+            lastGiftDate={alumniLastGiftDate}
           />
         </TabsContent>
 

@@ -34,9 +34,16 @@ const covenantStatusOptions: SelectOption[] = [
   { value: "pending", label: "Pending" },
 ];
 
+// dateString here is always a date-only value, never a timestamp. `new Date(dateString)`
+// parses that as UTC midnight, so `.toLocaleDateString()` in any timezone behind UTC displays
+// the day BEFORE the one actually recorded. Found via live browser testing on the alumni/
+// giving feature (same bug pattern); applied here too since this component has the identical
+// helper.
 function formatDate(dateString: string | undefined): string {
   if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString();
+  const [year, month, day] = dateString.split("-").map(Number);
+  if (!year || !month || !day) return "—";
+  return new Date(year, month - 1, day).toLocaleDateString();
 }
 
 function getStatusVariant(status: CovenantStatus | undefined): "default" | "secondary" | "outline" {

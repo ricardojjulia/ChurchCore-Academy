@@ -163,6 +163,9 @@ These are features that Populi has and ChurchCore Academy needs to match before 
 - Faculty qualification records (degree, ordination, credentials)
 
 #### 3.6 Alumni and Donor Relationship Management
+
+**Status (corrected 2026-09-15):** mostly built. `src/modules/people/alumni.ts` backend and admin UI (`/admin/alumni`, `/admin/alumni/[personId]`, a capability-gated tab on the student detail page for graduated students) are shipped and browser-verified against real Postgres — see PR #116. Campaign management shipped scoped down to filtering by a free-text fund-designation field, not a first-class campaign entity with goals/date ranges. Opt-in public alumni directory and ministry-placement board below were not built this pass — those remain real gaps, not just missing UI. This section previously carried no status marker; see `docs/superpowers/plans/2026-09-13-competitive-feature-closure-plan.md` for the fuller correction and evidence, including a serious schema bug (wrong column types) found and fixed along the way.
+
 - Alumni profile with ministry placement tracking
 - Donation collection (one-time, recurring)
 - Campaign management

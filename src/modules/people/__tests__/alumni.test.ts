@@ -13,6 +13,8 @@ import {
   recordGift,
   getAlumniGivingHistory,
   getGivingSummary,
+  markGiftAcknowledged,
+  getAlumniRoster,
 } from "@/modules/people/alumni";
 
 const adminActor: AcademyActor = {
@@ -74,6 +76,8 @@ function mockGift(overrides: Partial<GivingRecord> = {}): GivingRecord {
   };
 }
 
+// Mock DB helpers now return real Date objects for date/timestamp columns (as `pg` actually does)
+// rather than pre-formatted strings, so the tests actually exercise the date serialization bug fix.
 function alumniToRow(a: AlumniRecord): Record<string, unknown> {
   return {
     id: a.id,
@@ -87,8 +91,8 @@ function alumniToRow(a: AlumniRecord): Record<string, unknown> {
     location: a.location,
     contact_preferences: JSON.stringify(a.contactPreferences),
     status: a.status,
-    created_at: a.createdAt,
-    updated_at: a.updatedAt,
+    created_at: new Date(a.createdAt),
+    updated_at: new Date(a.updatedAt),
   };
 }
 
@@ -98,22 +102,41 @@ function giftToRow(g: GivingRecord): Record<string, unknown> {
     tenant_id: g.tenantId,
     alumni_person_id: g.alumniPersonId,
     gift_amount_cents: g.giftAmountCents,
-    gift_date: g.giftDate,
+    gift_date: new Date(g.giftDate),
     gift_type: g.giftType,
     fund_designation: g.fundDesignation,
-    acknowledgment_sent_at: g.acknowledgmentSentAt,
+    acknowledgment_sent_at: g.acknowledgmentSentAt ? new Date(g.acknowledgmentSentAt) : null,
     notes: g.notes,
-    created_at: g.createdAt,
+    created_at: new Date(g.createdAt),
   };
 }
 
-function createMockDb(alumni: AlumniRecord[] = [], gifts: GivingRecord[] = []): AlumniDatabase {
+function createMockDb(
+  alumni: AlumniRecord[] = [],
+  gifts: GivingRecord[] = [],
+  options: { nonGraduatedPersonIds?: Set<string>; unknownPersonIds?: Set<string> } = {},
+): AlumniDatabase {
   const storedAlumni = [...alumni];
   const storedGifts = [...gifts];
+  const nonGraduatedPersonIds = options.nonGraduatedPersonIds ?? new Set<string>();
+  const unknownPersonIds = options.unknownPersonIds ?? new Set<string>();
 
   return {
     query: async (sql: string, values?: unknown[]) => {
       const sqlLower = sql.toLowerCase();
+
+      // createAlumniRecord's tenant + graduated-status check — defaults to "found and
+      // graduated" for any personId not explicitly configured otherwise, so existing tests
+      // that don't care about this check keep passing.
+      if (sqlLower.includes("join academy_student_profiles sp") && sqlLower.includes("enrollment_status")) {
+        const personId = String(values?.[0]);
+        const tenantId = values?.[1];
+        if (tenantId !== "tenant-1" || unknownPersonIds.has(personId)) {
+          return { rowCount: 0, rows: [] };
+        }
+        const enrollmentStatus = nonGraduatedPersonIds.has(personId) ? "enrolled" : "graduated";
+        return { rowCount: 1, rows: [{ enrollment_status: enrollmentStatus }] };
+      }
 
       if (sqlLower.includes("insert into academy_alumni_records")) {
         const newAlumni = mockAlumni({
@@ -207,6 +230,61 @@ function createMockDb(alumni: AlumniRecord[] = [], gifts: GivingRecord[] = []): 
         };
       }
 
+      if (sqlLower.includes("update academy_giving_records") && sqlLower.includes("acknowledgment_sent_at")) {
+        const tenantId = values?.[0];
+        const giftId = values?.[1];
+        const idx = storedGifts.findIndex(g => g.tenantId === tenantId && g.id === giftId);
+        if (idx < 0) return { rowCount: 0, rows: [] };
+        const updated = { ...storedGifts[idx]!, acknowledgmentSentAt: new Date().toISOString() };
+        storedGifts[idx] = updated;
+        return { rowCount: 1, rows: [giftToRow(updated)] };
+      }
+
+      if (sqlLower.includes("from academy_alumni_records aa") && sqlLower.includes("join academy_people p")) {
+        const tenantId = values?.[0];
+        let filtered = storedAlumni.filter(a => a.tenantId === tenantId);
+
+        // Apply graduation year filter if present
+        const hasYearFilter = values && values.length > 1 && typeof values[1] === "number";
+        if (hasYearFilter) {
+          const yearFilter = values[1] as number;
+          filtered = filtered.filter(a => a.graduationYear === yearFilter);
+        }
+
+        // Apply status filter if present
+        const hasStatusFilter = values && values.length > 1 && typeof values[values.length - 1] === "string" &&
+          ["active", "lost_contact", "deceased"].includes(values[values.length - 1] as string);
+        if (hasStatusFilter) {
+          const statusFilter = values[values.length - 1] as string;
+          filtered = filtered.filter(a => a.status === statusFilter);
+        }
+
+        return {
+          rowCount: null,
+          rows: filtered.map(a => {
+            const personGifts = storedGifts.filter(g => g.alumniPersonId === a.personId);
+            const giftCount = personGifts.length;
+            const totalGivenCents = personGifts.reduce((sum, g) => sum + g.giftAmountCents, 0);
+            const lastGiftDate = personGifts.length > 0
+              ? new Date(Math.max(...personGifts.map(g => new Date(g.giftDate).getTime())))
+              : null;
+
+            return {
+              person_id: a.personId,
+              display_name: `Person ${a.personId}`,
+              email: `${a.personId}@example.com`,
+              graduation_year: a.graduationYear,
+              degree_earned: a.degreeEarned,
+              employer: a.employer,
+              status: a.status,
+              gift_count: giftCount,
+              total_given_cents: totalGivenCents,
+              last_gift_date: lastGiftDate,
+            };
+          }),
+        };
+      }
+
       return { rowCount: 0, rows: [] };
     },
   };
@@ -246,6 +324,59 @@ test("createAlumniRecord — rejects invalid graduationYear", async () => {
     () => createAlumniRecord(adminActor, { personId: "p-1", graduationYear: 99, degreeEarned: "BA" }, db),
     /graduationYear must be a valid 4-digit year/,
   );
+});
+
+// Regression tests for a real bug found via code review: the module had no foreign key and no
+// application-level check tying academy_alumni_records.person_id to a real, in-tenant,
+// graduated student — createAlumniRecord would silently succeed for a nonexistent person, a
+// person in a different tenant, or a current student/staff member. The UI's own 404/graduated
+// check on the detail page is not a substitute for this: the module function is the actual
+// security and data-integrity boundary, reachable directly via the API.
+
+test("createAlumniRecord — rejects a person who is not a graduated student", async () => {
+  const db = createMockDb([], [], { nonGraduatedPersonIds: new Set(["person-enrolled-1"]) });
+  await assert.rejects(
+    () => createAlumniRecord(
+      adminActor,
+      { personId: "person-enrolled-1", graduationYear: 2026, degreeEarned: "BA" },
+      db,
+    ),
+    /Alumni records can only be created for graduated students/,
+  );
+});
+
+test("createAlumniRecord — rejects a person not found in the tenant", async () => {
+  const db = createMockDb([], [], { unknownPersonIds: new Set(["person-ghost"]) });
+  await assert.rejects(
+    () => createAlumniRecord(
+      adminActor,
+      { personId: "person-ghost", graduationYear: 2023, degreeEarned: "BA" },
+      db,
+    ),
+    { name: "AcademyAuthorizationError" },
+  );
+});
+
+test("createAlumniRecord — rejects a person belonging to a different tenant", async () => {
+  const db = createMockDb();
+  await assert.rejects(
+    () => createAlumniRecord(
+      crossTenantActor,
+      { personId: "person-grad-1", graduationYear: 2023, degreeEarned: "BA" },
+      db,
+    ),
+    { name: "AcademyAuthorizationError" },
+  );
+});
+
+test("createAlumniRecord — succeeds for a graduated student in the actor's tenant", async () => {
+  const db = createMockDb();
+  const alumni = await createAlumniRecord(
+    adminActor,
+    { personId: "person-grad-2", graduationYear: 2024, degreeEarned: "BTh" },
+    db,
+  );
+  assert.equal(alumni.tenantId, "tenant-1");
 });
 
 test("listAlumni — returns all active alumni for tenant", async () => {
@@ -369,4 +500,207 @@ test("getGivingSummary — rejects non-admin", async () => {
     () => getGivingSummary(alumniStaffActor, db),
     { name: "AcademyAuthorizationError" },
   );
+});
+
+test("markGiftAcknowledged — success", async () => {
+  const gift = mockGift({ id: "gift-1", acknowledgmentSentAt: null });
+  const db = createMockDb([], [gift]);
+
+  const result = await markGiftAcknowledged(adminActor, "gift-1", db);
+
+  assert.ok(result.acknowledgmentSentAt !== null);
+  assert.equal(typeof result.acknowledgmentSentAt, "string");
+});
+
+test("markGiftAcknowledged — rejects student", async () => {
+  const db = createMockDb();
+  await assert.rejects(
+    () => markGiftAcknowledged(studentActor, "gift-1", db),
+    { name: "AcademyAuthorizationError" },
+  );
+});
+
+test("markGiftAcknowledged — cross-tenant rejection", async () => {
+  const gift = mockGift({ id: "gift-1", tenantId: "tenant-1" });
+  const db = createMockDb([], [gift]);
+
+  await assert.rejects(
+    () => markGiftAcknowledged(crossTenantActor, "gift-1", db),
+    /not found or access denied/,
+  );
+});
+
+test("getAlumniRoster — returns aggregated gift stats per person", async () => {
+  const alumni = [
+    mockAlumni({ id: "a-1", personId: "person-1", graduationYear: 2023 }),
+    mockAlumni({ id: "a-2", personId: "person-2", graduationYear: 2022 }),
+  ];
+  const gifts = [
+    mockGift({ id: "g-1", alumniPersonId: "person-1", giftAmountCents: 10000, giftDate: "2026-01-01" }),
+    mockGift({ id: "g-2", alumniPersonId: "person-1", giftAmountCents: 5000, giftDate: "2026-02-01" }),
+    mockGift({ id: "g-3", alumniPersonId: "person-2", giftAmountCents: 20000, giftDate: "2026-03-01" }),
+  ];
+  const db = createMockDb(alumni, gifts);
+
+  const roster = await getAlumniRoster(adminActor, {}, db);
+
+  assert.equal(roster.length, 2);
+
+  const person1Entry = roster.find(r => r.personId === "person-1");
+  assert.ok(person1Entry);
+  assert.equal(person1Entry.giftCount, 2);
+  assert.equal(person1Entry.totalGivenCents, 15000);
+  assert.equal(person1Entry.lastGiftDate, "2026-02-01");
+
+  const person2Entry = roster.find(r => r.personId === "person-2");
+  assert.ok(person2Entry);
+  assert.equal(person2Entry.giftCount, 1);
+  assert.equal(person2Entry.totalGivenCents, 20000);
+  assert.equal(person2Entry.lastGiftDate, "2026-03-01");
+});
+
+test("getAlumniRoster — includes alumni with zero gifts", async () => {
+  const alumni = [
+    mockAlumni({ id: "a-1", personId: "person-1" }),
+    mockAlumni({ id: "a-2", personId: "person-2" }),
+  ];
+  const gifts = [
+    mockGift({ id: "g-1", alumniPersonId: "person-1", giftAmountCents: 10000 }),
+  ];
+  const db = createMockDb(alumni, gifts);
+
+  const roster = await getAlumniRoster(adminActor, {}, db);
+
+  assert.equal(roster.length, 2);
+
+  const person2Entry = roster.find(r => r.personId === "person-2");
+  assert.ok(person2Entry);
+  assert.equal(person2Entry.giftCount, 0);
+  assert.equal(person2Entry.totalGivenCents, 0);
+  assert.equal(person2Entry.lastGiftDate, null);
+});
+
+test("getAlumniRoster — filters by graduation year", async () => {
+  const alumni = [
+    mockAlumni({ id: "a-1", personId: "person-1", graduationYear: 2022 }),
+    mockAlumni({ id: "a-2", personId: "person-2", graduationYear: 2023 }),
+  ];
+  const db = createMockDb(alumni, []);
+
+  const roster = await getAlumniRoster(adminActor, { graduationYear: 2022 }, db);
+
+  assert.equal(roster.length, 1);
+  assert.equal(roster[0].graduationYear, 2022);
+});
+
+test("getAlumniRoster — filters by status", async () => {
+  const alumni = [
+    mockAlumni({ id: "a-1", personId: "person-1", status: "active" }),
+    mockAlumni({ id: "a-2", personId: "person-2", status: "lost_contact" }),
+  ];
+  const db = createMockDb(alumni, []);
+
+  const roster = await getAlumniRoster(adminActor, { status: "active" }, db);
+
+  assert.equal(roster.length, 1);
+  assert.equal(roster[0].status, "active");
+});
+
+test("getAlumniRoster — cross-tenant sees empty roster", async () => {
+  const alumni = [mockAlumni()];
+  const db = createMockDb(alumni, []);
+
+  const roster = await getAlumniRoster(crossTenantActor, {}, db);
+
+  assert.equal(roster.length, 0);
+});
+
+test("getAlumniRoster — rejects student", async () => {
+  const db = createMockDb();
+  await assert.rejects(
+    () => getAlumniRoster(studentActor, {}, db),
+    { name: "AcademyAuthorizationError" },
+  );
+});
+
+test("createAlumniRecord — maps a raw snake_case pg row (with real Date objects) to typed camelCase", async () => {
+  const rawRow = {
+    id: "alumni-raw-001",
+    tenant_id: "tenant-1",
+    person_id: "person-raw-1",
+    graduation_year: 2021,
+    degree_earned: "Master of Theology",
+    program_id: null,
+    employer: "Test Church",
+    job_title: "Pastor",
+    location: "Test City",
+    contact_preferences: JSON.stringify({}),
+    status: "active",
+    created_at: new Date("2026-06-24T10:00:00.000Z"),
+    updated_at: new Date("2026-06-24T10:00:00.000Z"),
+  };
+
+  const db: AlumniDatabase = {
+    query: async (sql: string) => {
+      const sqlLower = sql.toLowerCase();
+      if (sqlLower.includes("join academy_student_profiles sp") && sqlLower.includes("enrollment_status")) {
+        return { rowCount: 1, rows: [{ enrollment_status: "graduated" }] };
+      }
+      if (sqlLower.includes("insert into academy_alumni_records")) {
+        return { rowCount: 1, rows: [rawRow] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+  };
+
+  const result = await createAlumniRecord(
+    adminActor,
+    { personId: "person-raw-1", graduationYear: 2021, degreeEarned: "Master of Theology" },
+    db,
+  );
+
+  assert.equal(result.degreeEarned, "Master of Theology", "degreeEarned must not be undefined");
+  assert.equal(result.employer, "Test Church");
+  assert.equal(result.graduationYear, 2021);
+  assert.equal(result.createdAt, "2026-06-24T10:00:00.000Z", "real Date object must normalize to ISO string");
+  assert.equal(result.updatedAt, "2026-06-24T10:00:00.000Z", "real Date object must normalize to ISO string");
+  assert.equal(typeof result.createdAt, "string");
+  assert.equal(typeof result.updatedAt, "string");
+});
+
+test("recordGift — maps a raw snake_case pg row (with real Date objects) to typed camelCase", async () => {
+  const rawRow = {
+    id: "gift-raw-001",
+    tenant_id: "tenant-1",
+    alumni_person_id: "person-1",
+    gift_amount_cents: 50000,
+    gift_date: new Date("2026-05-15T00:00:00.000Z"),
+    gift_type: "one_time",
+    fund_designation: "Scholarship",
+    acknowledgment_sent_at: new Date("2026-05-20T14:30:00.000Z"),
+    notes: "Test gift",
+    created_at: new Date("2026-05-15T12:00:00.000Z"),
+  };
+
+  const db: AlumniDatabase = {
+    query: async (sql: string) => {
+      if (sql.toLowerCase().includes("insert into academy_giving_records")) {
+        return { rowCount: 1, rows: [rawRow] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+  };
+
+  const result = await recordGift(
+    adminActor,
+    { alumniPersonId: "person-1", giftAmountCents: 50000, giftDate: "2026-05-15" },
+    db,
+  );
+
+  assert.equal(result.giftAmountCents, 50000);
+  assert.equal(result.giftDate, "2026-05-15", "real Date object for date column must normalize to plain date string");
+  assert.equal(result.acknowledgmentSentAt, "2026-05-20T14:30:00.000Z", "real Date object for timestamptz must normalize to ISO string");
+  assert.equal(result.createdAt, "2026-05-15T12:00:00.000Z", "real Date object for timestamptz must normalize to ISO string");
+  assert.equal(typeof result.giftDate, "string");
+  assert.equal(typeof result.createdAt, "string");
 });
