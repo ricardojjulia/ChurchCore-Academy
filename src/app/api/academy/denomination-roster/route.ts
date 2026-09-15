@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { getDenominationRoster } from "@/modules/people/denomination";
 
 export async function GET(request: Request) {
@@ -9,11 +10,8 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const denomination = url.searchParams.get("denomination");
 
-    if (!denomination) {
-      throw new Error("denomination query parameter is required.");
-    }
-
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "denominationTracking");
       return getDenominationRoster(actor, denomination, client);
     });
   });

@@ -43,10 +43,10 @@ interface AuditEvent {
   created_at: string;
 }
 
-export default async function AdvisorDetailPage({ params }: { params: { id: string } }) {
+export default async function AdvisorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireActor();
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
-  const personId = params.id;
+  const { id: personId } = await params;
 
   const data = await withAcademyDatabaseContext(actor, async (client) => {
     const personResult = await client.query(
@@ -85,10 +85,10 @@ export default async function AdvisorDetailPage({ params }: { params: { id: stri
     let auditEvents: AuditEvent[] = [];
     try {
       const auditResult = await client.query(
-        `select id, action, created_at
-         from academy_audit_log
+        `select id, action, occurred_at as created_at
+         from academy_audit_events
          where entity_id = $1 and tenant_id = $2
-         order by created_at desc
+         order by occurred_at desc
          limit 30`,
         [personId, actor.tenantId],
       ) as { rows: AuditEvent[] };

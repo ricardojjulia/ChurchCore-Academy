@@ -84,10 +84,10 @@ export default async function GuardianDetailPage(props: PageProps) {
       let auditEvents: AuditEventRecord[] = [];
       try {
         const auditResult = await client.query(
-          `SELECT id, action, actor_person_id, created_at
-           FROM academy_audit_log
+          `SELECT id, action, actor_person_id, occurred_at as created_at
+           FROM academy_audit_events
            WHERE entity_id = $2 AND tenant_id = $1
-           ORDER BY created_at DESC
+           ORDER BY occurred_at DESC
            LIMIT 30`,
           [actor.tenantId, params.id],
         );
