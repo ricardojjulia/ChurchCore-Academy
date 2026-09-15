@@ -1,10 +1,10 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import {
   createAlumniRecord,
   listAlumni,
-  type AlumniDatabase,
   type AlumniStatus,
 } from "@/modules/people/alumni";
 
@@ -20,9 +20,10 @@ export async function GET(request: Request) {
     if (yearParam) filters.graduationYear = parseInt(yearParam, 10);
     if (statusParam) filters.status = statusParam as AlumniStatus;
 
-    return withAcademyDatabaseContext(actor, (client) =>
-      listAlumni(actor, filters, asAcademyDatabase<AlumniDatabase>(client)),
-    );
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "alumniGiving");
+      return listAlumni(actor, filters, client);
+    });
   });
 }
 
@@ -39,8 +40,9 @@ export async function POST(request: Request) {
     if (!degreeEarned) throw new Error("degreeEarned is required.");
     if (!graduationYear) throw new Error("graduationYear is required.");
 
-    return withAcademyDatabaseContext(actor, (client) =>
-      createAlumniRecord(
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "alumniGiving");
+      return createAlumniRecord(
         actor,
         {
           personId,
@@ -51,8 +53,8 @@ export async function POST(request: Request) {
           jobTitle: body.jobTitle ? String(body.jobTitle) : undefined,
           location: body.location ? String(body.location) : undefined,
         },
-        asAcademyDatabase<AlumniDatabase>(client),
-      ),
-    );
+        client,
+      );
+    });
   });
 }

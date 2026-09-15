@@ -1,10 +1,10 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import {
   recordGift,
   getAlumniGivingHistory,
-  type AlumniDatabase,
   type GiftType,
 } from "@/modules/people/alumni";
 
@@ -16,9 +16,10 @@ export async function GET(
     const { actor } = await resolveAcademyActorFromSession(request);
     const { id: alumniPersonId } = await params;
 
-    return withAcademyDatabaseContext(actor, (client) =>
-      getAlumniGivingHistory(actor, alumniPersonId, asAcademyDatabase<AlumniDatabase>(client)),
-    );
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "alumniGiving");
+      return getAlumniGivingHistory(actor, alumniPersonId, client);
+    });
   });
 }
 
@@ -39,8 +40,9 @@ export async function POST(
     }
     if (!giftDate) throw new Error("giftDate is required.");
 
-    return withAcademyDatabaseContext(actor, (client) =>
-      recordGift(
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "alumniGiving");
+      return recordGift(
         actor,
         {
           alumniPersonId,
@@ -50,8 +52,8 @@ export async function POST(
           fundDesignation: body.fundDesignation ? String(body.fundDesignation) : undefined,
           notes: body.notes ? String(body.notes) : undefined,
         },
-        asAcademyDatabase<AlumniDatabase>(client),
-      ),
-    );
+        client,
+      );
+    });
   });
 }

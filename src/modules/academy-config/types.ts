@@ -46,6 +46,7 @@ export interface InstitutionCapabilitySet {
   graduationWorkflows: boolean;
   ministryFormation: boolean;
   denominationTracking: boolean;
+  alumniGiving: boolean;
   lmsLaunch: boolean;
   lmsRosterSync: boolean;
   lmsGradeReturn: boolean;

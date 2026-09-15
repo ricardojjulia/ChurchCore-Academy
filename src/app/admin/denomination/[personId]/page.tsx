@@ -19,9 +19,16 @@ import type { DenominationMembershipRecord, OrdinationRecord } from "@/modules/p
 
 export const dynamic = "force-dynamic";
 
+// dateString here is always a date-only value (membershipDate, transferDate, ordinationDate,
+// renewalDate), never a timestamp. `new Date(dateString)` parses that as UTC midnight, so
+// `.toLocaleDateString()` in any timezone behind UTC displays the day BEFORE the one actually
+// recorded. Found via live browser testing on the alumni/giving feature (same bug pattern);
+// applied here too since this page has the identical helper.
 function formatDate(dateString: string | null): string {
   if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString();
+  const [year, month, day] = dateString.split("-").map(Number);
+  if (!year || !month || !day) return "—";
+  return new Date(year, month - 1, day).toLocaleDateString();
 }
 
 function getMembershipStatusVariant(

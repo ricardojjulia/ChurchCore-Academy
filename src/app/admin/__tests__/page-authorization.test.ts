@@ -24,6 +24,8 @@ const requireActorPages: Array<{ path: string; roles: string[] }> = [
   { path: "src/app/admin/admissions/decisions/page.tsx", roles: ["institution_admin", "dean", "registrar", "admissions"] },
   { path: "src/app/admin/admissions/matriculation/page.tsx", roles: ["institution_admin", "dean", "registrar", "admissions"] },
   { path: "src/app/admin/admissions/page.tsx", roles: ["institution_admin", "dean", "registrar", "admissions"] },
+  { path: "src/app/admin/alumni/page.tsx", roles: ["institution_admin", "academic_admin", "alumni_relations", "registrar"] },
+  { path: "src/app/admin/alumni/[personId]/page.tsx", roles: ["institution_admin", "academic_admin", "alumni_relations", "registrar"] },
   { path: "src/app/admin/attendance/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/billing/page.tsx", roles: ["institution_admin", "finance", "registrar"] },
   { path: "src/app/admin/communications/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions", "finance"] },
