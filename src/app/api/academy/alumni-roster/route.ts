@@ -4,6 +4,8 @@ import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-c
 import { assertCapability } from "@/modules/academy-auth/policy";
 import { getAlumniRoster, type AlumniStatus } from "@/modules/people/alumni";
 
+const ALUMNI_STATUSES: AlumniStatus[] = ["active", "lost_contact", "deceased"];
+
 export async function GET(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
@@ -13,8 +15,19 @@ export async function GET(request: Request) {
     const statusParam = searchParams.get("status");
 
     const filters: { graduationYear?: number; status?: AlumniStatus } = {};
-    if (yearParam) filters.graduationYear = parseInt(yearParam, 10);
-    if (statusParam) filters.status = statusParam as AlumniStatus;
+    if (yearParam) {
+      const graduationYear = Number(yearParam);
+      if (!Number.isInteger(graduationYear)) {
+        throw new Error(`Invalid graduationYear: ${yearParam}`);
+      }
+      filters.graduationYear = graduationYear;
+    }
+    if (statusParam) {
+      if (!ALUMNI_STATUSES.includes(statusParam as AlumniStatus)) {
+        throw new Error(`Invalid status: ${statusParam}`);
+      }
+      filters.status = statusParam as AlumniStatus;
+    }
 
     return withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "alumniGiving");

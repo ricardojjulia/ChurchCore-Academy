@@ -210,24 +210,36 @@ test("CRITERION 2 — /admin/alumni/[personId]/page.tsx verifies BOTH person exi
   );
 });
 
-test("CRITERION 2 — /admin/alumni/[personId]/page.tsx returns notFound() for both failure cases", async () => {
+test("CRITERION 2 — /admin/alumni/[personId]/page.tsx returns notFound() only for invalid access, and renders CreateAlumniForm for a graduated student with no record yet", async () => {
   const source = await readPage("src/app/admin/alumni/[personId]/page.tsx");
 
-  // Verify there are TWO notFound() calls:
-  // 1. When person doesn't exist OR isn't graduated (early check)
-  // 2. When alumni record doesn't exist (later check)
-  const notFoundMatches = source.match(/notFound\(\)/g);
-  assert.ok(notFoundMatches, "detail page must call notFound()");
-  assert.ok(
-    notFoundMatches.length >= 2,
-    "detail page must have at least 2 notFound() calls (person check + alumni record check)"
-  );
-
-  // Verify the condition: personResult.rows.length === 0 OR enrollment_status !== "graduated"
+  // Invalid access (person doesn't exist, or isn't graduated) must still 404.
   assert.match(
     source,
     /personResult\.rows\.length === 0 \|\| personResult\.rows\[0\]\.enrollment_status !== ["']graduated["']/,
-    "detail page must check BOTH conditions (person exists AND enrollment_status === 'graduated')"
+    "detail page must check BOTH conditions (person exists AND enrollment_status === 'graduated') before treating access as invalid"
+  );
+  assert.match(source, /notFound\(\)/, "detail page must call notFound() for invalid access");
+
+  // A valid, graduated student with no alumni record yet is NOT a 404 — it's the creation flow.
+  assert.match(
+    source,
+    /needsCreation\s*:\s*true/,
+    "detail page must distinguish 'no alumni record yet' from invalid access via a needsCreation result, not notFound()"
+  );
+  assert.match(
+    source,
+    /<CreateAlumniForm/,
+    "detail page must render CreateAlumniForm when a graduated student has no alumni record yet"
+  );
+
+  // The needsCreation check must happen BEFORE the invalid-access notFound() is reachable for
+  // that case — i.e. it's a distinct branch, not folded into the same failure path.
+  const needsCreationIndex = source.indexOf("needsCreation: true");
+  const alumniRecordIndex = source.indexOf("academy_alumni_records");
+  assert.ok(
+    needsCreationIndex > alumniRecordIndex && alumniRecordIndex > 0,
+    "detail page must check for an existing alumni record before deciding whether creation is needed"
   );
 });
 
@@ -259,7 +271,11 @@ test("CRITERION 4 — /admin/people/students/[id]/page.tsx shows alumni tab only
     "student detail page must define canReadAlumniData role check"
   );
 
-  const alumniReadRoles = ["institution_admin", "academic_admin", "alumni_relations", "registrar"];
+  // alumni_relations is deliberately NOT in this list: this page exposes full student PII,
+  // relationships, and audit history, and alumni_relations already reads alumni/giving data
+  // through the dedicated /admin/alumni roster and detail pages, which are scoped to that data
+  // alone. Granting page-level access here would be a privacy overreach for that role.
+  const alumniReadRoles = ["institution_admin", "academic_admin", "registrar"];
   for (const role of alumniReadRoles) {
     assert.match(
       source,
@@ -267,6 +283,11 @@ test("CRITERION 4 — /admin/people/students/[id]/page.tsx shows alumni tab only
       `student detail page must include alumni read role "${role}" in canReadAlumniData check`
     );
   }
+  assert.doesNotMatch(
+    source.slice(source.indexOf("canReadAlumniData"), source.indexOf("isGraduated")),
+    /alumni_relations/,
+    "canReadAlumniData on the student page must NOT include alumni_relations — that role reads alumni data via the dedicated /admin/alumni pages instead"
+  );
 
   // Verify the graduation status check
   assert.match(

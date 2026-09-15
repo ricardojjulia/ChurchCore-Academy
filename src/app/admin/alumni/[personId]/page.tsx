@@ -136,7 +136,7 @@ export default async function AlumniDetailPage({
       let fetchedProgramName: string | null = null;
       if (record.programId) {
         const programResult = (await client.query(
-          `SELECT program_name FROM academy_programs WHERE id = $1 AND tenant_id = $2`,
+          `SELECT name AS program_name FROM academy_programs WHERE id = $1 AND tenant_id = $2`,
           [record.programId, actor.tenantId]
         )) as { rows: Array<{ program_name: string }> };
         fetchedProgramName = programResult.rows[0]?.program_name ?? null;

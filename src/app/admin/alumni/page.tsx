@@ -257,9 +257,18 @@ export default async function AlumniRosterPage({
           </div>
 
           {roster.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No alumni records found.
-            </p>
+            <div className="grid gap-2">
+              <p className="text-sm text-muted-foreground">
+                No alumni records found.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                To create the first one, open a graduated student under{" "}
+                <Link href="/admin/people/students" className="text-accent hover:underline">
+                  People &rarr; Students
+                </Link>{" "}
+                and use the &ldquo;Create alumni record&rdquo; link on their profile.
+              </p>
+            </div>
           ) : (
             <Table>
               <TableHeader>

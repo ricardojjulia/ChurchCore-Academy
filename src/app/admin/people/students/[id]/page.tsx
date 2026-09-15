@@ -212,13 +212,16 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       // denomination tracking feature not available
     }
 
-    // Load alumni & giving capability and data — gated to the same reader roles the alumni
-    // module itself enforces (institution_admin, academic_admin, alumni_relations, registrar).
-    // Other roles (dean, admissions, advisor, faculty) can view this page for other reasons but
-    // have no read access to alumni/giving data. Additionally, the tab must not appear for
-    // non-graduated students at all, regardless of role, since they're not alumni.
+    // Load alumni & giving capability and data — gated to the roles that can also reach this
+    // page (see the page-level requireActor above). alumni_relations is deliberately excluded
+    // here even though the alumni module allows it as a reader: this page exposes full student
+    // PII, relationships, and audit history that a fundraising-scoped role shouldn't see just
+    // to reach the alumni tab. alumni_relations users read alumni/giving data through the
+    // dedicated /admin/alumni roster and detail pages instead, which are scoped to that data
+    // alone. Additionally, the tab must not appear for non-graduated students at all, regardless
+    // of role, since they're not alumni.
     const canReadAlumniData = actor.roles.some((role) =>
-      ["institution_admin", "academic_admin", "alumni_relations", "registrar"].includes(role),
+      ["institution_admin", "academic_admin", "registrar"].includes(role),
     );
     const isGraduated = profile && String(profile.enrollment_status) === "graduated";
     let alumniGivingEnabled = false;

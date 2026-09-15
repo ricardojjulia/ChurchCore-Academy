@@ -38,9 +38,12 @@ export function UpdateAlumniForm({ currentRecord }: UpdateAlumniFormProps) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          employer: employer || undefined,
-          jobTitle: jobTitle || undefined,
-          location: location || undefined,
+          // Explicit null (not undefined) for a blanked field: updateAlumniRecord treats
+          // undefined as "leave unchanged" and null as "clear it" — this form always submits
+          // the full current state, so a blank field means the admin cleared it.
+          employer: employer || null,
+          jobTitle: jobTitle || null,
+          location: location || null,
           status,
         }),
       });

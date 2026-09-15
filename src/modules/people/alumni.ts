@@ -58,9 +58,9 @@ export interface CreateAlumniInput {
 }
 
 export interface UpdateAlumniInput {
-  employer?: string;
-  jobTitle?: string;
-  location?: string;
+  employer?: string | null;
+  jobTitle?: string | null;
+  location?: string | null;
   status?: AlumniStatus;
   contactPreferences?: Record<string, unknown>;
 }
@@ -156,11 +156,11 @@ export async function createAlumniRecord(
   }
 
   // Verify the person belongs to this tenant AND is a graduated student — the module layer,
-  // not just the UI, is the real security/data-integrity boundary. There is no foreign key
-  // from academy_alumni_records.person_id to academy_people, so without this check the insert
-  // below would silently succeed for a nonexistent person, a person in a different tenant, or
-  // a current student/staff member — alumni records are scoped to graduated students only,
-  // per the approved story. Found via code review.
+  // not just the UI, is the real security/data-integrity boundary. The (tenant_id, person_id)
+  // foreign key on academy_alumni_records stops a nonexistent or cross-tenant person, but it
+  // can't enforce "graduated" — that check has to live here. Without it, the insert below would
+  // silently succeed for a current student or staff member; alumni records are scoped to
+  // graduated students only, per the approved story. Found via code review.
   const personCheck = await db.query(
     `select sp.enrollment_status
      from academy_people p

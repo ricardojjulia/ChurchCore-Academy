@@ -15,13 +15,15 @@ export async function PATCH(
 
     return withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "alumniGiving");
+      const toNullableString = (value: unknown): string | null | undefined =>
+        value === undefined ? undefined : value === null ? null : String(value);
       return updateAlumniRecord(
         actor,
         id,
         {
-          employer: body.employer !== undefined ? String(body.employer) : undefined,
-          jobTitle: body.jobTitle !== undefined ? String(body.jobTitle) : undefined,
-          location: body.location !== undefined ? String(body.location) : undefined,
+          employer: toNullableString(body.employer),
+          jobTitle: toNullableString(body.jobTitle),
+          location: toNullableString(body.location),
           status: body.status !== undefined ? (body.status as AlumniStatus) : undefined,
         },
         client,
