@@ -171,7 +171,7 @@ const baseCourseInput: CreateCourseInput = {
   description: "A foundational course in biblical interpretation.",
   courseType: "bible_course",
   courseLevel: "undergraduate",
-  recordType: "official_transcript",
+  recordType: "transcript",
   defaultDuration: {
     durationUnit: "credit_hour",
     durationValue: 3,

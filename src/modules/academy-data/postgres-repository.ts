@@ -102,7 +102,7 @@ export class AcademyDataRepository {
     // Students: profile + person join for the full StudentRecord shape
     const studentsResult = await pool.query(
       `select
-         sp.id, sp.tenant_id, sp.enrollment_status,
+         sp.id, sp.person_id, sp.tenant_id, sp.enrollment_status,
          sp.program_id, sp.advisor_person_id, sp.created_at as enrolled_at,
          p.display_name as full_name, p.email,
          (select max(aa.submitted_at)
@@ -307,6 +307,7 @@ export class AcademyDataRepository {
       students: studentsResult.rows.map(
         (row): StudentRecord => ({
           id: String(row.id),
+          personId: String(row.person_id),
           tenantId: String(row.tenant_id),
           fullName: String(row.full_name),
           email: String(row.email ?? ""),

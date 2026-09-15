@@ -1,5 +1,5 @@
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
-import type { AcademyActor } from "@/modules/academy-auth/policy";
+import type { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 
 export type AlumniStatus = "active" | "lost_contact" | "deceased";
 export type GiftType = "one_time" | "recurring" | "pledge";
@@ -75,8 +75,8 @@ export interface AlumniDatabase {
   }>;
 }
 
-const ALUMNI_ROLES = new Set(["institution_admin", "academic_admin", "alumni_relations"]);
-const ADMIN_ROLES = new Set(["institution_admin", "academic_admin"]);
+const ALUMNI_ROLES = new Set<AcademyRole>(["institution_admin", "academic_admin", "alumni_relations"]);
+const ADMIN_ROLES = new Set<AcademyRole>(["institution_admin", "academic_admin"]);
 
 function assertAlumniAccess(actor: AcademyActor): void {
   if (!actor.roles.some((r) => ALUMNI_ROLES.has(r)) && !actor.roles.includes("registrar")) {

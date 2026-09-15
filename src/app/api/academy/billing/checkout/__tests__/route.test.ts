@@ -26,6 +26,7 @@ function intent(overrides: Partial<BillingPaymentIntent> = {}): BillingPaymentIn
     id: "intent-1",
     tenantId: "tenant-1",
     studentPersonId: "person-student",
+    academicPeriodId: "period-1",
     amountCents: 50000,
     currency: "USD",
     provider: "stripe",

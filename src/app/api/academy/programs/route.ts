@@ -1,5 +1,6 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { requireActor } from "@/lib/require-actor";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import {
   PostgresAcademicProgramRepository,
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
   return handleApi(async () => {
     const body = await request.json() as Record<string, unknown>;
     const { actor } = await resolveAcademyActorFromSession(request);
+    requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
 
     const input = validateCreateProgramInput({
       tenantId: actor.tenantId,

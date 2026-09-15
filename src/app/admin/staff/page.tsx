@@ -24,6 +24,7 @@ interface StaffRow {
 
 export default async function StaffDirectoryPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
   const staff = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(

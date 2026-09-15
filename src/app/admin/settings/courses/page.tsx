@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
+import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import {
   CourseCatalogReviewModel,
   CourseCoverageReviewItem,
@@ -20,6 +21,7 @@ type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: num
 
 export default async function CourseSettingsPage() {
   const actor = await requireActor();
+  assertInstitutionConfigAccess(actor, actor.tenantId, "read");
   const courseCatalog = await withAcademyDatabaseContext(actor, async (client) =>
     new AcademyCourseCatalogRepository(asAcademyDatabase<RepoPool>(client)).fetchCourseCatalogConfiguration(actor.tenantId),
   );

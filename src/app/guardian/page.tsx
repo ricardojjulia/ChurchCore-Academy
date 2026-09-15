@@ -69,7 +69,7 @@ export default async function GuardianDashboardPage() {
                   <div
                     key={ls.studentPersonId}
                     className="faculty-section-row"
-                    style={{ padding: "1rem", background: "var(--surface-subtle, #f8f9fb)", borderRadius: "0.5rem" }}
+                    style={{ padding: "1rem", background: "var(--surface-card-muted)", borderRadius: "0.5rem" }}
                   >
                     <div>
                       <div className="font-medium">{ls.studentName}</div>

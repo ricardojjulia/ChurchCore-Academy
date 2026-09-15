@@ -244,22 +244,24 @@ function mockCommunicationsService() {
   return {
     createCommunication: async (_actor: AcademyActor, input: CreateCommunicationInput) => {
       communications.push(input);
-      return {
-        id: `comm-${communications.length}`,
-        tenantId: _actor.tenantId,
-        recipientPersonId: "person-1",
-        recipientDisplayName: "Test User",
-        channel: input.channels[0],
-        templateKey: input.templateKey,
-        subject: "Test",
-        body: "Test body",
-        status: "queued" as const,
-        sourceType: input.sourceType,
-        sourceId: input.sourceId,
-        idempotencyKey: input.idempotencyKey,
-        retryCount: 0,
-        createdAt: new Date().toISOString(),
-      };
+      return [
+        {
+          id: `comm-${communications.length}`,
+          tenantId: _actor.tenantId,
+          recipientPersonId: "person-1",
+          recipientDisplayName: "Test User",
+          channel: input.channels[0],
+          templateKey: input.templateKey,
+          subject: "Test",
+          body: "Test body",
+          status: "queued" as const,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          idempotencyKey: input.idempotencyKey,
+          retryCount: 0,
+          createdAt: new Date().toISOString(),
+        },
+      ];
     },
     communications,
   };
