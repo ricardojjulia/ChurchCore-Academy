@@ -28,6 +28,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
 import { requireActor } from "@/lib/require-actor";
+import { STAFF_ROLES } from "@/app/admin/layout";
 import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import {
   ShepherdAiPostgresRepository,
@@ -87,19 +88,7 @@ export default async function AdminDashboard() {
   // The dashboard is a general landing page, not sensitive data — any staff role that
   // passes the layout's baseline gate should be able to see it (narrower pages further
   // down the tree restrict specific sensitive data, e.g. billing, separately).
-  requireActor(actor, [
-    "institution_admin",
-    "dean",
-    "registrar",
-    "academic_admin",
-    "admissions",
-    "finance",
-    "advisor",
-    "faculty",
-    "teacher",
-    "professor",
-    "alumni_relations",
-  ]);
+  requireActor(actor, STAFF_ROLES);
   const user = await getCurrentUser();
   const institution = await getInstitutionProfile(actor.tenantId);
   const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");

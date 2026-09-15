@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { AcademyAuthenticationError } from "@/modules/academy-auth/errors";
 import { PostgresAcademyIdentityRepository } from "@/modules/academy-auth/postgres-identity-repository";
-import { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
+import { ACADEMY_ROLES, AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 import {
   AcademyIdentityRepository,
   PlatformSession,
@@ -10,21 +10,7 @@ import {
   resolveAcademyIdentity,
 } from "@/modules/academy-auth/session-resolver";
 
-const allowedRoles = new Set<AcademyRole>([
-  "institution_admin",
-  "dean",
-  "registrar",
-  "academic_admin",
-  "admissions",
-  "finance",
-  "applicant",
-  "advisor",
-  "faculty",
-  "teacher",
-  "professor",
-  "student",
-  "guardian",
-]);
+const allowedRoles = new Set<AcademyRole>(ACADEMY_ROLES);
 
 function parseBootstrapRoles(value: string | null): AcademyRole[] {
   return (

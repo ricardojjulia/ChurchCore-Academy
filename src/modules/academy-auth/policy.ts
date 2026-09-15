@@ -1,21 +1,30 @@
 import type { InstitutionCapabilitySet } from "@/modules/academy-config/types";
 
-export type AcademyRole =
-  | "institution_admin"
-  | "dean"
-  | "registrar"
-  | "academic_admin"
-  | "admissions"
-  | "finance"
-  | "applicant"
-  | "advisor"
-  | "faculty"
-  | "teacher"
-  | "professor"
-  | "student"
-  | "guardian"
-  | "alumni_relations"
-  | "ministry_formation_reviewer";
+// Single source of truth for every valid AcademyRole value. Any code that needs to
+// validate, parse, or enumerate roles at runtime (e.g. filtering DB rows to known roles)
+// must derive from this array rather than hand-typing its own list — a hand-typed copy
+// silently drops new roles when this union grows, which previously caused any user whose
+// only role was "finance", "alumni_relations", or "ministry_formation_reviewer" to be
+// treated as roleless and hit an authentication-error redirect loop.
+export const ACADEMY_ROLES = [
+  "institution_admin",
+  "dean",
+  "registrar",
+  "academic_admin",
+  "admissions",
+  "finance",
+  "applicant",
+  "advisor",
+  "faculty",
+  "teacher",
+  "professor",
+  "student",
+  "guardian",
+  "alumni_relations",
+  "ministry_formation_reviewer",
+] as const;
+
+export type AcademyRole = (typeof ACADEMY_ROLES)[number];
 
 export type PlatformRole = "platform_staff" | "platform_admin";
 

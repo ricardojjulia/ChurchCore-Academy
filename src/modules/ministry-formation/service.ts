@@ -17,6 +17,31 @@ import type {
 } from "@/modules/ministry-formation/types";
 import { PermanentRecordError } from "@/modules/ministry-formation/errors";
 
+// pg returns `date`/`timestamptz` columns as JS Date objects by default, but every row type
+// in this file declares these fields `string` (matching every other module's convention) and
+// several client components render them directly into JSX — passing a raw Date through
+// crashes with "Objects are not valid as a React child (found: [object Date])". Real browser
+// testing caught this; mock-DB unit tests never do, since mocks hand back whatever string
+// literal the test wrote. Mirrors the same toDateString/toIsoString idiom already used in
+// course-catalog/postgres-repository.ts and other modules.
+// Exported for direct unit testing (see __tests__/date-normalization.test.ts) — the bug this
+// guards against only ever manifests when a real `pg` connection hands back a genuine Date
+// object, which the shared mock-DB test helper never does, so the only reliable way to prove
+// the fix is to test these functions directly against a real Date instance.
+export function toDateString(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+  return String(value);
+}
+
+export function toIsoString(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return String(value);
+}
+
 const practicumRecorderRoles = new Set<AcademyRole>([
   "faculty",
   "advisor",
@@ -44,6 +69,7 @@ const formationViewerRoles = new Set<AcademyRole>([
   "institution_admin",
   "registrar",
   "academic_admin",
+  "ministry_formation_reviewer",
 ]);
 
 const advisorAssignerRoles = new Set<AcademyRole>([
@@ -215,14 +241,14 @@ export async function logPracticumSession(
     hours: parseFloat(row.hours),
     siteName: row.site_name,
     supervisorName: row.supervisor_name,
-    sessionDate: row.session_date,
+    sessionDate: toDateString(row.session_date),
     reflectionNote: row.reflection_note ?? undefined,
     status: row.status as "draft" | "endorsed",
     endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-    endorsedAt: row.endorsed_at ?? undefined,
+    endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
     isTransferCredit: row.is_transfer_credit,
     sourceInstitution: row.source_institution ?? undefined,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -297,15 +323,15 @@ export async function recordMilestone(
     recordedByPersonId: row.recorded_by_person_id,
     milestoneType: row.milestone_type,
     customTypeLabel: row.custom_type_label ?? undefined,
-    milestoneDate: row.milestone_date,
+    milestoneDate: toDateString(row.milestone_date),
     witnessNames: row.witness_names ?? undefined,
     institutionNotes: row.institution_notes ?? undefined,
     status: row.status as "draft" | "endorsed",
     endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-    endorsedAt: row.endorsed_at ?? undefined,
+    endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
     isTransferCredit: row.is_transfer_credit,
     sourceInstitution: row.source_institution ?? undefined,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -382,9 +408,9 @@ export async function recordFormationEvaluation(
     pastoralNotes: row.pastoral_notes ?? undefined,
     status: row.status as "draft" | "endorsed",
     endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-    endorsedAt: row.endorsed_at ?? undefined,
-    evaluationDate: row.evaluation_date,
-    createdAt: row.created_at,
+    endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
+    evaluationDate: toDateString(row.evaluation_date),
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -464,14 +490,14 @@ export async function endorseRecord(
       hours: parseFloat(row.hours),
       siteName: row.site_name,
       supervisorName: row.supervisor_name,
-      sessionDate: row.session_date,
+      sessionDate: toDateString(row.session_date),
       reflectionNote: row.reflection_note ?? undefined,
       status: row.status as "draft" | "endorsed",
       endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-      endorsedAt: row.endorsed_at ?? undefined,
+      endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
       isTransferCredit: row.is_transfer_credit,
       sourceInstitution: row.source_institution ?? undefined,
-      createdAt: row.created_at,
+      createdAt: toIsoString(row.created_at),
     };
   } else if (input.recordType === "milestone") {
     const row = result.rows[0] as {
@@ -498,15 +524,15 @@ export async function endorseRecord(
       recordedByPersonId: row.recorded_by_person_id,
       milestoneType: row.milestone_type,
       customTypeLabel: row.custom_type_label ?? undefined,
-      milestoneDate: row.milestone_date,
+      milestoneDate: toDateString(row.milestone_date),
       witnessNames: row.witness_names ?? undefined,
       institutionNotes: row.institution_notes ?? undefined,
       status: row.status as "draft" | "endorsed",
       endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-      endorsedAt: row.endorsed_at ?? undefined,
+      endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
       isTransferCredit: row.is_transfer_credit,
       sourceInstitution: row.source_institution ?? undefined,
-      createdAt: row.created_at,
+      createdAt: toIsoString(row.created_at),
     };
   } else {
     const row = result.rows[0] as {
@@ -535,9 +561,9 @@ export async function endorseRecord(
       pastoralNotes: row.pastoral_notes ?? undefined,
       status: row.status as "draft" | "endorsed",
       endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-      endorsedAt: row.endorsed_at ?? undefined,
-      evaluationDate: row.evaluation_date,
-      createdAt: row.created_at,
+      endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
+      evaluationDate: toDateString(row.evaluation_date),
+      createdAt: toIsoString(row.created_at),
     };
   }
 }
@@ -650,7 +676,7 @@ export async function assignFormationAdvisor(
     tenantId: row.tenant_id,
     studentPersonId: row.student_person_id,
     advisorPersonId: row.advisor_person_id,
-    assignedAt: row.assigned_at,
+    assignedAt: toIsoString(row.assigned_at),
     assignedByPersonId: row.assigned_by_person_id,
   };
 }
@@ -675,7 +701,13 @@ export async function listStudentsWithFormationSummary(
   const isReviewer = hasReviewerAccess(actor);
   const isFaculty = actor.roles.some(r => r === "faculty" || r === "teacher" || r === "professor");
   const isAdvisor = actor.roles.includes("advisor");
-  const isRegistrar = actor.roles.includes("registrar");
+  // A reviewer (institution_admin or ministry_formation_reviewer) who also happens to hold the
+  // registrar role must keep full reviewer visibility, including drafts — the endorsed-only
+  // restriction exists to cap the *registrar* role specifically, not to narrow a broader role
+  // an actor also happens to hold. Without the `!isReviewer` guard, any dual-role actor (the
+  // demo institution_admin persona also holds registrar) would have every draft record they
+  // just created silently hidden from them, making endorsement impossible.
+  const isRegistrar = actor.roles.includes("registrar") && !isReviewer;
 
   // Scoping is expressed as an EXISTS subquery, not a JOIN, so it can never multiply the
   // one-row-per-student result (a JOIN to a one-to-many table like section registrations
@@ -951,14 +983,14 @@ export async function getStudentFormationRecord(
     hours: parseFloat(row.hours),
     siteName: row.site_name,
     supervisorName: row.supervisor_name,
-    sessionDate: row.session_date,
+    sessionDate: toDateString(row.session_date),
     reflectionNote: row.reflection_note ?? undefined,
     status: row.status as "draft" | "endorsed",
     endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-    endorsedAt: row.endorsed_at ?? undefined,
+    endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
     isTransferCredit: row.is_transfer_credit,
     sourceInstitution: row.source_institution ?? undefined,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   }));
 
   // Fetch milestones
@@ -992,15 +1024,15 @@ export async function getStudentFormationRecord(
     recordedByPersonId: row.recorded_by_person_id,
     milestoneType: row.milestone_type,
     customTypeLabel: row.custom_type_label ?? undefined,
-    milestoneDate: row.milestone_date,
+    milestoneDate: toDateString(row.milestone_date),
     witnessNames: row.witness_names ?? undefined,
     institutionNotes: row.institution_notes ?? undefined,
     status: row.status as "draft" | "endorsed",
     endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-    endorsedAt: row.endorsed_at ?? undefined,
+    endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
     isTransferCredit: row.is_transfer_credit,
     sourceInstitution: row.source_institution ?? undefined,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at),
   }));
 
   // Fetch evaluations
@@ -1040,8 +1072,10 @@ export async function getStudentFormationRecord(
 
   const advisorInfo = advisorResult.rows[0];
 
-  // Registrar sees only endorsed records (no drafts)
-  const isRegistrar = actor.roles.includes("registrar");
+  // Registrar sees only endorsed records (no drafts) — unless they also hold full reviewer
+  // access (institution_admin or ministry_formation_reviewer), which must not be narrowed by
+  // also holding the registrar role. See the matching guard in listStudentsWithFormationSummary.
+  const isRegistrar = actor.roles.includes("registrar") && !hasReviewerAccess(actor);
 
   // If student, strip pastoralNotes and filter to endorsed-only records
   if (isStudent) {
@@ -1055,9 +1089,9 @@ export async function getStudentFormationRecord(
       scores: row.scores,
       status: row.status as "draft" | "endorsed",
       endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-      endorsedAt: row.endorsed_at ?? undefined,
-      evaluationDate: row.evaluation_date,
-      createdAt: row.created_at,
+      endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
+      evaluationDate: toDateString(row.evaluation_date),
+      createdAt: toIsoString(row.created_at),
     }));
 
     // Students see only endorsed practicum sessions and milestones
@@ -1093,9 +1127,9 @@ export async function getStudentFormationRecord(
         pastoralNotes: showPastoralNotes ? (row.pastoral_notes ?? undefined) : undefined,
         status: row.status as "draft" | "endorsed",
         endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-        endorsedAt: row.endorsed_at ?? undefined,
-        evaluationDate: row.evaluation_date,
-        createdAt: row.created_at,
+        endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
+        evaluationDate: toDateString(row.evaluation_date),
+        createdAt: toIsoString(row.created_at),
       };
     });
 

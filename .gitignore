@@ -29,3 +29,9 @@ pnpm-debug.log*
 
 # FreeFileSync sync-tool artifact
 .sync.ffs_db
+
+# Playwright output
+test-results/
+e2e/report/
+playwright-report/
+blob-report/

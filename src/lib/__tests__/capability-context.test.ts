@@ -31,6 +31,44 @@ describe("fetchCapabilitySet", () => {
     assert.deepEqual(result, mockCapabilities);
   });
 
+  it("fills in a capability missing from a stale stored snapshot using the tenant's actual modes", async () => {
+    // Reproduces a real bug found via browser testing: a tenant's `capabilities` column is a
+    // one-time snapshot written by updateInstitutionModes(); it is never recomputed when
+    // mode-packs.ts gains a new capability, so every already-provisioned tenant is silently
+    // missing that key forever unless an admin happens to re-save their institution modes.
+    // The stored snapshot below predates `ministryFormation` (and `covenantRecords`) entirely,
+    // exactly like the real local `cca-main` tenant's row.
+    const staleStoredCapabilities = {
+      studentPwa: true,
+      guardianPortal: false,
+      facultyPortal: true,
+      registrarWorkflows: true,
+      admissionsWorkflows: true,
+      transcriptWorkflows: true,
+      graduationWorkflows: true,
+      lmsLaunch: false,
+      lmsRosterSync: false,
+      lmsGradeReturn: false,
+      shepherdAiRecommendations: true,
+      // ministryFormation and covenantRecords intentionally absent, as in a pre-existing row.
+    };
+
+    const mockClient = {
+      query: async (_sql: string, _params: unknown[]) => ({
+        rows: [{ capabilities: staleStoredCapabilities, supported_modes: JSON.stringify(["college"]) }],
+      }),
+    };
+
+    const result = await fetchCapabilitySet(mockClient, "tenant-stale");
+
+    // "college" mode defaults ministryFormation to true in mode-packs.ts — the merge must
+    // recover this from a fresh computation rather than silently defaulting to false/undefined.
+    assert.equal(result.ministryFormation, true, "missing capability must be backfilled from mode defaults, not silently false");
+    // Every key that WAS actually stored must still win over the freshly computed default.
+    assert.equal(result.admissionsWorkflows, true);
+    assert.equal(result.guardianPortal, false);
+  });
+
   it("should throw when institution profile is missing", async () => {
     const mockClient = {
       query: async (_sql: string, _params: unknown[]) => ({

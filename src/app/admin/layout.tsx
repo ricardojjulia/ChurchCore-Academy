@@ -18,7 +18,11 @@ export interface AdminLayoutProps {
 
 // Baseline staff roles - every AcademyRole except the non-staff roles (student, guardian, applicant),
 // which each have their own portal and are redirected there instead — see NON_STAFF_REDIRECTS below.
-const STAFF_ROLES: AcademyRole[] = [
+// Exported so pages under /admin/* that need their own narrower requireActor() check (e.g. the
+// dashboard) can build their list FROM this one instead of retyping it — a hand-typed copy here
+// previously drifted from this list, excluding ministry_formation_reviewer from the dashboard
+// despite this layout already granting it access to the whole /admin/* tree.
+export const STAFF_ROLES: AcademyRole[] = [
   "institution_admin",
   "dean",
   "registrar",
