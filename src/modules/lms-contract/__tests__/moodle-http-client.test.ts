@@ -201,7 +201,7 @@ test("MoodleHttpClient throws on non-JSON response", async () => {
       json: async () => {
         throw new Error("Invalid JSON");
       },
-    } as Response;
+    } as unknown as Response;
   });
 
   const client = new MoodleHttpClient("https://moodle.example.edu", "test-token");

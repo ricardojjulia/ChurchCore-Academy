@@ -282,13 +282,14 @@ const baseYearInput: CreateAcademicYearInput = {
   code: "AY2025",
   startsOn: "2025-09-01",
   endsOn: "2026-06-30",
-  calendarSystem: "semester",
+  calendarSystem: "academic_year",
 };
 
 const baseTermInput: CreateTermInput = {
   academicYearId: "year-1",
   name: "Fall 2025",
   code: "FALL2025",
+  periodType: "term",
   startsOn: "2025-09-01",
   endsOn: "2025-12-15",
   sequence: 1,
@@ -413,7 +414,7 @@ describe("academic-calendar/mutations", () => {
     // regardless of when CI runs.
     const year = await createAcademicYear(
       mockActor,
-      { name: "Wide Year", code: "WIDE", startsOn: "2020-01-01", endsOn: "2099-12-31", calendarSystem: "semester" },
+      { name: "Wide Year", code: "WIDE", startsOn: "2020-01-01", endsOn: "2099-12-31", calendarSystem: "academic_year" },
       db,
     );
 

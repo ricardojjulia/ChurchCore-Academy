@@ -6,8 +6,14 @@ import { InstitutionProfile, LmsSelectionStatus } from "@/modules/academy-config
 import { PeopleConfiguration } from "@/modules/people/types";
 import { createMoodleLaunchResponse, MoodleLaunchConfiguration } from "../moodle-launch";
 import { resolveTenantLmsProvider } from "../tenant-provider-selection";
+import type { LmsLaunchResponse } from "../contract";
 
 const now = "2026-06-04T12:00:00.000Z";
+
+function unavailableReasonOf(response: LmsLaunchResponse): string {
+  assert.equal(response.status, "unavailable");
+  return (response as Extract<LmsLaunchResponse, { status: "unavailable" }>).unavailableReason;
+}
 
 function profile(selectionStatus: LmsSelectionStatus = "active"): InstitutionProfile {
   const base = createInstitutionProfileDefaults({
@@ -183,30 +189,30 @@ test("Moodle launch returns safe unavailable reasons for credential circuit and 
   };
 
   assert.equal(
-    createMoodleLaunchResponse({
+    unavailableReasonOf(createMoodleLaunchResponse({
       resolvedProvider: resolved,
       configuration: launchConfig({ credentialStatus: "invalid" }),
       request,
       now,
-    }).unavailableReason,
+    })),
     "Moodle credentials need administrator review before launch.",
   );
   assert.equal(
-    createMoodleLaunchResponse({
+    unavailableReasonOf(createMoodleLaunchResponse({
       resolvedProvider: resolved,
       configuration: launchConfig({ circuitState: "open" }),
       request,
       now,
-    }).unavailableReason,
+    })),
     "Moodle is temporarily paused while provider health recovers.",
   );
   assert.equal(
-    createMoodleLaunchResponse({
+    unavailableReasonOf(createMoodleLaunchResponse({
       resolvedProvider: resolved,
       configuration: launchConfig({ mappedCourseIds: ["course-other"], mappedSectionIds: ["section-other"] }),
       request,
       now,
-    }).unavailableReason,
+    })),
     "Moodle course mapping is missing for this launch.",
   );
 });

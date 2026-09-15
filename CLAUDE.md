@@ -7,7 +7,7 @@ Keep it under 300 lines. Move procedures to `.claude/skills/`. Move architecture
 ## Stack
 
 - **Framework:** Next.js 16 (App Router, Turbopack) with TypeScript strict mode
-- **UI:** Mantine 7 (`@mantine/core`, `@mantine/modals`, `@mantine/notifications`)
+- **UI:** Tailwind CSS 4 + Radix UI primitives + Lucide icons, styled with the Nocturne dark design system (`src/styles/tokens.css`, `src/components/ui/*`). No Mantine — do not add it or assume it's present.
 - **Auth:** Supabase SSR (`@supabase/ssr`) — session in `src/lib/supabase/server.ts`
 - **DB:** Supabase/Postgres — direct pool via `src/lib/database.ts` for repository/migration paths
 - **Testing:** Node.js built-in test runner (`node:test` + `node:assert/strict`)
@@ -205,3 +205,13 @@ When adding a stack, document:
 5. institution configuration model
 6. SIS-to-LMS integration points
 7. student PWA impact
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -81,7 +81,7 @@ function mockDatabase(options: {
 function mockShepherdRepo() {
   const suggestions: ShepherdAiSuggestion[] = [];
   const repo: ShepherdAiPostgresRepository = {
-    async saveSuggestions(s) {
+    async saveSuggestions(s: ShepherdAiSuggestion[]) {
       suggestions.push(...s);
     },
   } as unknown as ShepherdAiPostgresRepository;
@@ -92,7 +92,7 @@ function mockShepherdRepo() {
 function mockCommunicationsService() {
   const communications: CreateCommunicationInput[] = [];
   const service: CommunicationsService = {
-    async createCommunication(_actor, input) {
+    async createCommunication(_actor: AcademyActor, input: CreateCommunicationInput) {
       communications.push(input);
       return [] as CommunicationMessage[];
     },
@@ -494,10 +494,10 @@ function mockShepherdRepoWithUpdates() {
   const updates: Array<{ tenantId: string; suggestionId: string; status: string }> = [];
 
   const repo: ShepherdAiPostgresRepository = {
-    async saveSuggestions(s) {
+    async saveSuggestions(s: ShepherdAiSuggestion[]) {
       suggestions.push(...s);
     },
-    async updateSuggestionStatus(tenantId, suggestionId, status) {
+    async updateSuggestionStatus(tenantId: string, suggestionId: string, status: string) {
       updates.push({ tenantId, suggestionId, status });
     },
   } as unknown as ShepherdAiPostgresRepository;

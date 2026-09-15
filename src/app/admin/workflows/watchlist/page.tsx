@@ -10,9 +10,9 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 const URGENCY_COLORS: Record<string, string> = {
-  high: "#c0392b",
-  medium: "#d68910",
-  low: "#2e86c1",
+  high: "var(--status-danger)",
+  medium: "var(--status-warning)",
+  low: "var(--color-accent)",
 };
 
 export default async function WatchlistPage({
@@ -20,6 +20,8 @@ export default async function WatchlistPage({
 }: {
   searchParams: Promise<{ signalType?: string; urgency?: string; page?: string }>;
 }) {
+  const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "registrar", "academic_admin", "advisor", "faculty"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -29,7 +31,6 @@ export default async function WatchlistPage({
     redirect("/login");
   }
 
-  const actor = await requireActor();
   const params = await searchParams;
   const page = params.page ? Number(params.page) : 1;
   const pageSize = 50;
@@ -62,19 +63,19 @@ export default async function WatchlistPage({
         <span style={{ flex: 1 }} />
         <a
           href="/api/academy/shepherd-ai/watchlist?format=csv"
-          style={{ fontSize: "0.875rem", color: "#2e86c1" }}
+          style={{ fontSize: "0.875rem", color: "var(--color-accent)" }}
         >
           Export CSV
         </a>
       </div>
 
       {entries.length === 0 ? (
-        <p style={{ color: "#666", fontStyle: "italic" }}>No students with open signals.</p>
+        <p style={{ color: "var(--color-text-muted)", fontStyle: "italic" }}>No students with open signals.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #ddd", textAlign: "left" }}>
+              <tr style={{ borderBottom: "2px solid var(--border-subtle)", textAlign: "left" }}>
                 <th style={{ padding: "0.5rem" }}>Student</th>
                 <th style={{ padding: "0.5rem" }}>Program</th>
                 <th style={{ padding: "0.5rem" }}>Status</th>
@@ -86,7 +87,7 @@ export default async function WatchlistPage({
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.studentPersonId} style={{ borderBottom: "1px solid #eee" }}>
+                <tr key={entry.studentPersonId} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                   <td style={{ padding: "0.5rem" }}>
                     <Link href={`/admin/students/${entry.studentPersonId}`}>
                       {entry.studentName}
@@ -103,7 +104,7 @@ export default async function WatchlistPage({
                         key={s}
                         style={{
                           display: "inline-block",
-                          background: "#f0f0f0",
+                          background: "var(--surface-card-muted)",
                           borderRadius: "4px",
                           padding: "1px 6px",
                           marginRight: "4px",
@@ -117,7 +118,7 @@ export default async function WatchlistPage({
                   <td style={{ padding: "0.5rem" }}>
                     <span
                       style={{
-                        color: URGENCY_COLORS[entry.highestUrgency] ?? "#333",
+                        color: URGENCY_COLORS[entry.highestUrgency] ?? "var(--color-text)",
                         fontWeight: "600",
                         textTransform: "capitalize",
                       }}
@@ -136,7 +137,7 @@ export default async function WatchlistPage({
               {page > 1 && (
                 <Link href={`?page=${page - 1}`}>← Previous</Link>
               )}
-              <span style={{ color: "#666" }}>
+              <span style={{ color: "var(--color-text-muted)" }}>
                 Page {page} of {totalPages} ({total} students)
               </span>
               {page < totalPages && (

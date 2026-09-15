@@ -28,6 +28,7 @@ function displayValue(value: ReportRowValue) {
 
 export default async function ReportingPage() {
   const actor = await requireActor();
+  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "finance"]);
   const user = await getCurrentUser();
 
   async function signOutAction() {

@@ -57,7 +57,6 @@ const mockFacultyActor: AcademyActor = {
   userId: "faculty-123",
   tenantId: "tenant-main",
   roles: ["faculty"],
-  email: "faculty@example.org",
 };
 
 
@@ -65,14 +64,12 @@ const mockOtherTenantActor: AcademyActor = {
   userId: "faculty-999",
   tenantId: "tenant-other",
   roles: ["faculty"],
-  email: "other@example.org",
 };
 
 const mockStudentActor: AcademyActor = {
   userId: "student-789",
   tenantId: "tenant-main",
   roles: ["student"],
-  email: "student@example.org",
 };
 
 // ---------------------------------------------------------------------------

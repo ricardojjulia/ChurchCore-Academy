@@ -12,7 +12,7 @@ let _stripe: Stripe | null = null;
 export function getStripeClient(secretKey: string): Stripe {
   if (!_stripe) {
     _stripe = new Stripe(secretKey, {
-      apiVersion: "2026-05-27.dahlia",
+      apiVersion: "2026-08-26.dahlia",
     });
   }
   return _stripe;

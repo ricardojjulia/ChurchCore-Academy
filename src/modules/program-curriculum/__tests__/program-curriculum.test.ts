@@ -135,7 +135,10 @@ test("repository replace deletes one program-year and inserts ordered requiremen
         return { rowCount: 2, rows: [{ id: "course-bib-101" }, { id: "course-bib-102" }] };
       }
       if (sql.includes("insert into academy_program_curriculum_requirements")) {
-        return { rowCount: 1, rows: [requirement({ id: `req-${calls.length}`, courseId: String(values?.[3]) })] };
+        return {
+          rowCount: 1,
+          rows: [requirement({ id: `req-${calls.length}`, courseId: String(values?.[3]) }) as unknown as Record<string, unknown>],
+        };
       }
       return { rowCount: 1, rows: [] };
     },

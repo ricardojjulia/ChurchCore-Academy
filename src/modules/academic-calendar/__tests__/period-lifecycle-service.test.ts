@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, beforeEach } from "node:test";
-import { AcademicPeriodLifecycleService, InvalidStateTransitionError, PermanentRecordError } from "../period-lifecycle-service";
+import { AcademicPeriodLifecycleService } from "../period-lifecycle-service";
+import { InvalidStateTransitionError, PermanentRecordError } from "../../academy-errors";
 import type { Actor } from "@/lib/require-actor";
 import type { AcademicPeriod } from "../types";
 import type { AcademyDatabase } from "@/lib/academy-database-context";
@@ -62,7 +63,10 @@ const mockAudit = {
 const mockDb = {} as unknown as AcademyDatabase;
 
 const adminActor: Actor = { tenantId: "t1", userId: "u1", roles: ["institution_admin"] };
-const platformAdminActor: Actor = { tenantId: "t1", userId: "u-platform", roles: ["platform_admin"] };
+// `reopenPeriod` is a privileged escape-hatch gated on the platform_admin
+// role (a PlatformRole, not an AcademyRole) — cast since a real actor here
+// would come through a different session shape than a tenant AcademyActor.
+const platformAdminActor: Actor = { tenantId: "t1", userId: "u-platform", roles: ["platform_admin"] } as unknown as Actor;
 const studentActor: Actor = { tenantId: "t1", userId: "u-student", roles: ["student"] };
 
 describe("AcademicPeriodLifecycleService", () => {
