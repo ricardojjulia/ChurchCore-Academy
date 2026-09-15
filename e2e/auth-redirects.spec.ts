@@ -33,7 +33,7 @@ test("guardian cannot reach /admin — redirected to their own portal, no loop",
 
 // This is the specific regression: every one of these roles was excluded from the admin
 // dashboard's own role list, so login threw an uncaught error on the very first page.
-for (const persona of ["teacher", "faculty", "advisor", "academicAdmin", "registrar", "finance", "admissions", "institutionAdmin"] as const) {
+for (const persona of ["teacher", "faculty", "advisor", "academicAdmin", "registrar", "finance", "admissions", "institutionAdmin", "formationReviewer"] as const) {
   test(`${persona} login lands on a working /admin dashboard, not an error page`, async ({ page }) => {
     await loginAs(page, PERSONAS[persona]);
     await expect(page).toHaveURL(/\/admin(\/|$)/);

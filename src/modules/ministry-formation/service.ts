@@ -69,6 +69,7 @@ const formationViewerRoles = new Set<AcademyRole>([
   "institution_admin",
   "registrar",
   "academic_admin",
+  "ministry_formation_reviewer",
 ]);
 
 const advisorAssignerRoles = new Set<AcademyRole>([

@@ -110,12 +110,29 @@ for (const path of institutionConfigPages) {
 }
 
 test("admin dashboard admits every staff role, not just leadership roles", async () => {
-  const source = await readPage("src/app/admin/page.tsx");
-  for (const role of ["faculty", "teacher", "professor", "advisor", "finance", "alumni_relations"]) {
+  // The dashboard no longer hand-types its own role list — a hand-typed copy previously
+  // drifted from the layout's STAFF_ROLES and silently excluded ministry_formation_reviewer
+  // (found via live-browser testing, see PR #107). It now imports STAFF_ROLES from
+  // admin/layout.tsx directly, so checking that import plus STAFF_ROLES' own contents proves
+  // the same invariant this test always cared about: every staff role reaches the dashboard.
+  const pageSource = await readPage("src/app/admin/page.tsx");
+  assert.match(
+    pageSource,
+    /requireActor\(actor, STAFF_ROLES\)/,
+    "admin dashboard no longer gates on the shared STAFF_ROLES list",
+  );
+  assert.match(
+    pageSource,
+    /import \{ STAFF_ROLES \} from ["']@\/app\/admin\/layout["']/,
+    "admin dashboard no longer imports STAFF_ROLES from the layout",
+  );
+
+  const layoutSource = await readPage("src/app/admin/layout.tsx");
+  for (const role of ["faculty", "teacher", "professor", "advisor", "finance", "alumni_relations", "ministry_formation_reviewer"]) {
     assert.match(
-      source,
+      layoutSource,
       new RegExp(`["']${role}["']`),
-      `admin dashboard is missing staff role "${role}" — a staff member landing here after login would be blocked`,
+      `STAFF_ROLES is missing staff role "${role}" — a staff member landing here after login would be blocked`,
     );
   }
 });

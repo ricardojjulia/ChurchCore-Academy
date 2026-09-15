@@ -99,13 +99,14 @@ test.describe("ministry formation reviewer role — grant/revoke", () => {
     await staffLink.click();
     await page.waitForTimeout(500);
 
+    // Require the control rather than silently no-op'ing if it's missing — Ava Advisor
+    // doesn't hold ministry_formation_reviewer yet, so the grant control must be present.
     const grantButton = page.getByRole("button", { name: /grant/i });
-    if (await grantButton.isVisible().catch(() => false)) {
-      await grantButton.click();
-      const confirmButton = page.getByRole("button", { name: /confirm|grant/i }).last();
-      await confirmButton.click();
-      await page.waitForTimeout(1000);
-      await expect(page.locator("body")).toContainText(/active|granted/i);
-    }
+    await expect(grantButton).toBeVisible();
+    await grantButton.click();
+    const confirmButton = page.getByRole("button", { name: /confirm|grant/i }).last();
+    await confirmButton.click();
+    await page.waitForTimeout(1000);
+    await expect(page.locator("body")).toContainText(/active|granted/i);
   });
 });
