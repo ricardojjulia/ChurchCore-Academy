@@ -48,6 +48,23 @@ test.describe("institution settings — via assertInstitutionConfigAccess", () =
   });
 });
 
+test.describe("dashboard — ShepherdAI links only shown to roles with access", () => {
+  test("institution_admin dashboard has no dead-end links to the ShepherdAI workflow queue", async ({ page }) => {
+    await loginAs(page, PERSONAS.institutionAdmin);
+    await page.goto("/admin");
+    await expect(page.locator('a[href="/admin/workflows"]')).toHaveCount(0);
+    await expect(
+      page.getByText("ShepherdAI recommendations are visible to academic admin roles.").first(),
+    ).toBeVisible();
+  });
+
+  test("academic_admin dashboard still links to the ShepherdAI workflow queue", async ({ page }) => {
+    await loginAs(page, PERSONAS.academicAdmin);
+    await page.goto("/admin");
+    await expect(page.locator('a[href="/admin/workflows"]').first()).toBeVisible();
+  });
+});
+
 test("demo-feedback platform workspace is reachable outside the Academy admin gate", async ({ page }) => {
   // Council Review 18's own fix chain: this route must not require an Academy staff role,
   // since it's platform-staff-only and lives outside src/app/admin/*.
