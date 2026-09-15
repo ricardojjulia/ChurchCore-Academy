@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   title: "ChurchCore Academy",
   description:
     "Faith-based education management and SIS for schools, Bible institutes, seminaries, colleges, and universities.",
+  icons: {
+    icon: [
+      { url: "/academy-mark.svg", type: "image/svg+xml" },
+      { url: "/academy-mark-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/academy-mark-192.png",
+  },
 };
 
 export default async function RootLayout({
