@@ -9,9 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchCapabilitySet } from "@/lib/capability-context";
 import { PersonEditTrigger } from "./PersonEditTrigger";
 import { EnrollmentStatusTrigger } from "./EnrollmentStatusTrigger";
 import { CovenantRecordTab } from "@/components/covenant-record-tab";
+import { DenominationRecordTab } from "@/components/denomination-record-tab";
 import type { CovenantRecord } from "@/modules/people/types";
 
 export const dynamic = "force-dynamic";
@@ -115,11 +117,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
          ae.action,
          ae.actor_person_id,
          p.display_name AS actor_name,
-         ae.created_at
+         ae.occurred_at AS created_at
        FROM academy_audit_events ae
        LEFT JOIN academy_people p ON p.id = ae.actor_person_id AND p.tenant_id = ae.tenant_id
        WHERE ae.entity_id = $1 AND ae.tenant_id = $2
-       ORDER BY ae.created_at DESC
+       ORDER BY ae.occurred_at DESC
        LIMIT 30`,
       [id, actor.tenantId]
     ).catch(() => ({ rows: [] }))) as { rows: Array<Record<string, unknown>> };
@@ -157,6 +159,50 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       }
     } catch {
       // covenant record feature not available
+    }
+
+    // Load denomination tracking capability and data
+    let denominationTrackingEnabled = false;
+    let denominationMembershipCount = 0;
+    let denominationOrdinationCount = 0;
+    let denominationNames: string[] = [];
+    let denominationHasActiveOrdination = false;
+    try {
+      // Uses fetchCapabilitySet (not a raw capabilities-column read) because the stored
+      // `capabilities` snapshot on an existing tenant predates any capability added to
+      // mode-packs.ts after that tenant was provisioned — a raw read would silently see
+      // denominationTracking as absent (falsy) even when the tenant's mode enables it. See
+      // the same bug, found via live browser testing, already fixed once in
+      // src/lib/capability-context.ts.
+      const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      denominationTrackingEnabled = caps.denominationTracking === true;
+      if (denominationTrackingEnabled) {
+        const [membershipResult, ordinationResult, denomNamesResult] = await Promise.all([
+          client.query(
+            `SELECT COUNT(*) as count FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2`,
+            [actor.tenantId, id]
+          ) as Promise<{ rows: Array<{ count: string }> }>,
+          client.query(
+            `SELECT COUNT(*) as count FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2`,
+            [actor.tenantId, id]
+          ) as Promise<{ rows: Array<{ count: string }> }>,
+          client.query(
+            `SELECT DISTINCT denomination_name FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2 ORDER BY denomination_name`,
+            [actor.tenantId, id]
+          ) as Promise<{ rows: Array<{ denomination_name: string }> }>,
+        ]);
+        denominationMembershipCount = parseInt(membershipResult.rows[0]?.count || "0", 10);
+        denominationOrdinationCount = parseInt(ordinationResult.rows[0]?.count || "0", 10);
+        denominationNames = denomNamesResult.rows.map(r => r.denomination_name);
+
+        const activeOrdResult = await client.query(
+          `SELECT 1 FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2 AND ordination_status = 'active' LIMIT 1`,
+          [actor.tenantId, id]
+        ) as { rows: Array<Record<string, unknown>> };
+        denominationHasActiveOrdination = activeOrdResult.rows.length > 0;
+      }
+    } catch {
+      // denomination tracking feature not available
     }
 
     return {
@@ -197,6 +243,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       })) as AuditEventRow[],
       covenantEnabled,
       covenantRecord,
+      denominationTrackingEnabled,
+      denominationMembershipCount,
+      denominationOrdinationCount,
+      denominationNames,
+      denominationHasActiveOrdination,
     };
   });
 
@@ -204,7 +255,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord } = data;
+  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination } = data;
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
 
   return (
@@ -233,6 +284,9 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           <TabsTrigger value="academic">Academic</TabsTrigger>
           {covenantEnabled && (
             <TabsTrigger value="covenant">Covenant Record</TabsTrigger>
+          )}
+          {denominationTrackingEnabled && (
+            <TabsTrigger value="denomination">Denomination</TabsTrigger>
           )}
           <TabsTrigger value="audit">Audit</TabsTrigger>
         </TabsList>
@@ -395,6 +449,17 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             record={covenantRecord}
             canEditNotes={canEditNotes}
             personId={person.id}
+          />
+        </TabsContent>
+
+        <TabsContent value="denomination">
+          <DenominationRecordTab
+            denominationTrackingEnabled={denominationTrackingEnabled}
+            personId={person.id}
+            membershipCount={denominationMembershipCount}
+            ordinationCount={denominationOrdinationCount}
+            hasActiveOrdination={denominationHasActiveOrdination}
+            denominationNames={denominationNames}
           />
         </TabsContent>
 

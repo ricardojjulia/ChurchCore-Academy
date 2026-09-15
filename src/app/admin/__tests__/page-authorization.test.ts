@@ -28,6 +28,8 @@ const requireActorPages: Array<{ path: string; roles: string[] }> = [
   { path: "src/app/admin/billing/page.tsx", roles: ["institution_admin", "finance", "registrar"] },
   { path: "src/app/admin/communications/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin", "admissions", "finance"] },
   { path: "src/app/admin/courses/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
+  { path: "src/app/admin/denomination/page.tsx", roles: ["institution_admin", "registrar"] },
+  { path: "src/app/admin/denomination/[personId]/page.tsx", roles: ["institution_admin", "registrar"] },
   { path: "src/app/admin/financial-aid/page.tsx", roles: ["institution_admin", "finance", "registrar"] },
   { path: "src/app/admin/gradebook/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/graduation/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
@@ -196,3 +198,69 @@ test("admin error boundary distinguishes an authorization denial from a real err
   assert.match(source, /Forbidden/);
   assert.match(source, /don&apos;t have access to this page/);
 });
+
+// Regression test for a real, previously-shipped bug found via live browser testing: four
+// admin person-detail pages queried a table named `academy_audit_log`, which does not exist
+// (the real table is `academy_audit_events`). The query's own try/catch swallowed the
+// resulting Postgres error, but the surrounding transaction (shared across every query in the
+// same withAcademyDatabaseContext callback) was left aborted — silently breaking every OTHER
+// query later in the same request, including capability-gated tabs like Covenant Records and
+// Denomination & Ordination, on pages where the broken audit query happened to run first.
+for (const path of [
+  "src/app/admin/people/staff/[id]/page.tsx",
+  "src/app/admin/people/applicants/[id]/page.tsx",
+  "src/app/admin/people/advisors/[id]/page.tsx",
+  "src/app/admin/people/guardians/[id]/page.tsx",
+]) {
+  test(`${path} queries the real academy_audit_events table, not the nonexistent academy_audit_log`, async () => {
+    const source = await readPage(path);
+    assert.doesNotMatch(
+      source,
+      /academy_audit_log\b/,
+      `${path} references academy_audit_log, which does not exist — this aborts the shared transaction and silently breaks every later query on the page`,
+    );
+  });
+}
+
+// Same root cause, different symptom: academy_audit_events has no `created_at` column (it's
+// `occurred_at`). Referencing `created_at` against this specific table throws and poisons the
+// transaction exactly like the wrong-table-name bug above.
+for (const path of [
+  "src/app/admin/people/students/[id]/page.tsx",
+]) {
+  test(`${path} orders academy_audit_events by its real occurred_at column`, async () => {
+    const source = await readPage(path);
+    assert.match(
+      source,
+      /academy_audit_events[\s\S]*?occurred_at/,
+      `${path} queries academy_audit_events but doesn't reference its real occurred_at column — check it isn't still ordering by a nonexistent created_at column on this table`,
+    );
+  });
+}
+
+// Regression test for a real, previously-shipped bug found via live browser testing: this
+// Next.js version resolves dynamic route `params` as a Promise, not a plain object. The staff
+// and advisor detail pages still used the old synchronous `{ params: { id: string } }` shape
+// and accessed `params.id` directly — this doesn't throw a build error, it silently resolves
+// to `undefined` at request time, so the person lookup always failed and every visit 404'd.
+// Every dynamic admin detail page must destructure params from an awaited Promise.
+for (const path of [
+  "src/app/admin/people/staff/[id]/page.tsx",
+  "src/app/admin/people/advisors/[id]/page.tsx",
+  "src/app/admin/people/students/[id]/page.tsx",
+  "src/app/admin/formation/[studentId]/page.tsx",
+]) {
+  test(`${path} resolves dynamic route params as a Promise, not a plain object`, async () => {
+    const source = await readPage(path);
+    assert.match(
+      source,
+      /params: Promise<\{/,
+      `${path} declares params as a plain object instead of a Promise — every request to this page will silently fail to resolve its id and 404`,
+    );
+    assert.doesNotMatch(
+      source,
+      /params\.\w+/,
+      `${path} accesses params synchronously (e.g. params.id) instead of awaiting it first`,
+    );
+  });
+}

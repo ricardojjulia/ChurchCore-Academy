@@ -9,7 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { fetchCapabilitySet } from "@/lib/capability-context";
 import { CovenantRecordTab } from "@/components/covenant-record-tab";
+import { DenominationRecordTab } from "@/components/denomination-record-tab";
 import { MinistryFormationReviewerControl } from "@/components/ministry-formation-reviewer-control";
 import type { CovenantRecord } from "@/modules/people/types";
 
@@ -50,10 +52,10 @@ interface AuditEvent {
   actor_person_id: string | null;
 }
 
-export default async function StaffDetailPage({ params }: { params: { id: string } }) {
+export default async function StaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireActor();
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
-  const personId = params.id;
+  const { id: personId } = await params;
 
   const data = await withAcademyDatabaseContext(actor, async (client) => {
     const personResult = await client.query(
@@ -81,11 +83,11 @@ export default async function StaffDetailPage({ params }: { params: { id: string
     let sections: SectionRow[] = [];
     try {
       const sectionsResult = await client.query(
-        `select s.id as section_id, s.section_code, c.name as course_name, t.name as term_name, s.status
+        `select s.id as section_id, s.section_code, c.title as course_name, t.name as term_name, s.status
          from academy_course_sections s
          left join academy_courses c on c.id = s.course_id and c.tenant_id = s.tenant_id
-         left join academy_calendar_periods t on t.id = s.term_id and t.tenant_id = s.tenant_id
-         where s.instructor_person_id = $1 and s.tenant_id = $2 and s.status != 'archived'
+         left join academy_academic_periods t on t.id = s.academic_period_id and t.tenant_id = s.tenant_id
+         where s.primary_instructor_id = $1 and s.tenant_id = $2 and s.status != 'archived'
          order by s.section_code`,
         [personId, actor.tenantId],
       ) as { rows: SectionRow[] };
@@ -97,10 +99,10 @@ export default async function StaffDetailPage({ params }: { params: { id: string
     let auditEvents: AuditEvent[] = [];
     try {
       const auditResult = await client.query(
-        `select id, action, created_at, actor_person_id
-         from academy_audit_log
+        `select id, action, occurred_at as created_at, actor_person_id
+         from academy_audit_events
          where entity_id = $1 and tenant_id = $2
-         order by created_at desc
+         order by occurred_at desc
          limit 30`,
         [personId, actor.tenantId],
       ) as { rows: AuditEvent[] };
@@ -158,14 +160,58 @@ export default async function StaffDetailPage({ params }: { params: { id: string
       // role check not available or table doesn't exist
     }
 
-    return { person, profile, sections, auditEvents, covenantEnabled, covenantRecord, hasReviewerRole };
+    // Load denomination tracking capability and data
+    let denominationTrackingEnabled = false;
+    let denominationMembershipCount = 0;
+    let denominationOrdinationCount = 0;
+    let denominationNames: string[] = [];
+    let denominationHasActiveOrdination = false;
+    try {
+      // Uses fetchCapabilitySet (not a raw capabilities-column read) because the stored
+      // `capabilities` snapshot on an existing tenant predates any capability added to
+      // mode-packs.ts after that tenant was provisioned — a raw read would silently see
+      // denominationTracking as absent (falsy) even when the tenant's mode enables it. See
+      // the same bug, found via live browser testing, already fixed once in
+      // src/lib/capability-context.ts.
+      const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      denominationTrackingEnabled = caps.denominationTracking === true;
+      if (denominationTrackingEnabled) {
+        const [membershipResult, ordinationResult, denomNamesResult] = await Promise.all([
+          client.query(
+            `SELECT COUNT(*) as count FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2`,
+            [actor.tenantId, personId]
+          ) as Promise<{ rows: Array<{ count: string }> }>,
+          client.query(
+            `SELECT COUNT(*) as count FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2`,
+            [actor.tenantId, personId]
+          ) as Promise<{ rows: Array<{ count: string }> }>,
+          client.query(
+            `SELECT DISTINCT denomination_name FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2 ORDER BY denomination_name`,
+            [actor.tenantId, personId]
+          ) as Promise<{ rows: Array<{ denomination_name: string }> }>,
+        ]);
+        denominationMembershipCount = parseInt(membershipResult.rows[0]?.count || "0", 10);
+        denominationOrdinationCount = parseInt(ordinationResult.rows[0]?.count || "0", 10);
+        denominationNames = denomNamesResult.rows.map(r => r.denomination_name);
+
+        const activeOrdResult = await client.query(
+          `SELECT 1 FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2 AND ordination_status = 'active' LIMIT 1`,
+          [actor.tenantId, personId]
+        ) as { rows: Array<Record<string, unknown>> };
+        denominationHasActiveOrdination = activeOrdResult.rows.length > 0;
+      }
+    } catch {
+      // denomination tracking feature not available
+    }
+
+    return { person, profile, sections, auditEvents, covenantEnabled, covenantRecord, hasReviewerRole, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination };
   });
 
   if (!data) {
     notFound();
   }
 
-  const { person, profile, sections, auditEvents, covenantEnabled, covenantRecord, hasReviewerRole } = data;
+  const { person, profile, sections, auditEvents, covenantEnabled, covenantRecord, hasReviewerRole, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination } = data;
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
   const isInstitutionAdmin = actor.roles.includes('institution_admin');
 
@@ -189,6 +235,9 @@ export default async function StaffDetailPage({ params }: { params: { id: string
           <TabsTrigger value="ministry">Ministry Formation</TabsTrigger>
           {covenantEnabled && (
             <TabsTrigger value="covenant">Covenant Record</TabsTrigger>
+          )}
+          {denominationTrackingEnabled && (
+            <TabsTrigger value="denomination">Denomination</TabsTrigger>
           )}
           <TabsTrigger value="audit">Audit</TabsTrigger>
         </TabsList>
@@ -405,6 +454,17 @@ export default async function StaffDetailPage({ params }: { params: { id: string
             record={covenantRecord}
             canEditNotes={canEditNotes}
             personId={personId}
+          />
+        </TabsContent>
+
+        <TabsContent value="denomination">
+          <DenominationRecordTab
+            denominationTrackingEnabled={denominationTrackingEnabled}
+            personId={personId}
+            membershipCount={denominationMembershipCount}
+            ordinationCount={denominationOrdinationCount}
+            hasActiveOrdination={denominationHasActiveOrdination}
+            denominationNames={denominationNames}
           />
         </TabsContent>
 

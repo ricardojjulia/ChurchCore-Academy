@@ -9,10 +9,6 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const denomination = url.searchParams.get("denomination");
 
-    if (!denomination) {
-      throw new Error("denomination query parameter is required.");
-    }
-
     return withAcademyDatabaseContext(actor, async (client) => {
       return getDenominationRoster(actor, denomination, client);
     });
