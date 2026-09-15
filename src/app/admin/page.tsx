@@ -37,38 +37,42 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const quickActionGroups = [
-  {
-    label: "Student records",
-    description: "Daily admissions, enrollment, and academic record work",
-    actions: [
-      { label: "Applications", detail: "Review and decide on new applicants", href: "/admin/admissions", Icon: ClipboardCheck },
-      { label: "Student Records", detail: "Profiles, history, and advisor notes", href: "/admin/students", Icon: UsersRound },
-      { label: "Programs", detail: "Cohort readiness and graduation tracking", href: "/admin/programs", Icon: GraduationCap },
-      { label: "Graduation", detail: "Credit completion and hold review", href: "/admin/graduation", Icon: GraduationCap },
-    ],
-  },
-  {
-    label: "Academics",
-    description: "Course delivery, grading, and faculty oversight",
-    actions: [
-      { label: "Course Catalog", detail: "Courses, sections, and scheduling", href: "/admin/courses", Icon: BookOpen },
-      { label: "Gradebook", detail: "Grade progress and posting queue", href: "/admin/gradebook", Icon: School },
-      { label: "Faculty", detail: "Staffing, load, and section setup", href: "/admin/faculty", Icon: BookOpenCheck },
-    ],
-  },
-  {
-    label: "Operations",
-    description: "Communications, finance, and student-facing tools",
-    actions: [
-      { label: "ShepherdAI Queue", detail: "Recommendations and workflow queue", href: "/admin/workflows", Icon: Sparkles },
-      { label: "Communications", detail: "Messages and institutional notices", href: "/admin/communications", Icon: MessageSquare },
-      { label: "Billing", detail: "Student ledger and payment activity", href: "/admin/billing", Icon: CircleDollarSign },
-      { label: "Financial Aid", detail: "Awards and disbursement review", href: "/admin/financial-aid", Icon: HandCoins },
-      { label: "Student Portal", detail: "Preview the student-facing experience", href: "/student", Icon: ArrowRight },
-    ],
-  },
-];
+function getQuickActionGroups(canReadShepherdAi: boolean) {
+  return [
+    {
+      label: "Student records",
+      description: "Daily admissions, enrollment, and academic record work",
+      actions: [
+        { label: "Applications", detail: "Review and decide on new applicants", href: "/admin/admissions", Icon: ClipboardCheck },
+        { label: "Student Records", detail: "Profiles, history, and advisor notes", href: "/admin/students", Icon: UsersRound },
+        { label: "Programs", detail: "Cohort readiness and graduation tracking", href: "/admin/programs", Icon: GraduationCap },
+        { label: "Graduation", detail: "Credit completion and hold review", href: "/admin/graduation", Icon: GraduationCap },
+      ],
+    },
+    {
+      label: "Academics",
+      description: "Course delivery, grading, and faculty oversight",
+      actions: [
+        { label: "Course Catalog", detail: "Courses, sections, and scheduling", href: "/admin/courses", Icon: BookOpen },
+        { label: "Gradebook", detail: "Grade progress and posting queue", href: "/admin/gradebook", Icon: School },
+        { label: "Faculty", detail: "Staffing, load, and section setup", href: "/admin/faculty", Icon: BookOpenCheck },
+      ],
+    },
+    {
+      label: "Operations",
+      description: "Communications, finance, and student-facing tools",
+      actions: [
+        ...(canReadShepherdAi
+          ? [{ label: "ShepherdAI Queue", detail: "Recommendations and workflow queue", href: "/admin/workflows", Icon: Sparkles }]
+          : []),
+        { label: "Communications", detail: "Messages and institutional notices", href: "/admin/communications", Icon: MessageSquare },
+        { label: "Billing", detail: "Student ledger and payment activity", href: "/admin/billing", Icon: CircleDollarSign },
+        { label: "Financial Aid", detail: "Awards and disbursement review", href: "/admin/financial-aid", Icon: HandCoins },
+        { label: "Student Portal", detail: "Preview the student-facing experience", href: "/student", Icon: ArrowRight },
+      ],
+    },
+  ];
+}
 
 type CountQueryResult = {
   rows: Array<{ count: string | number | bigint }>;
@@ -137,6 +141,8 @@ export default async function AdminDashboard() {
     faculty: suggestions.filter((s) => s.workflowCode === "faculty_or_course_assignment_imbalance_review").length,
   };
 
+  const quickActionGroups = getQuickActionGroups(canReadShepherdAi);
+
   const rawName = user?.email?.split("@")[0] ?? "there";
   const firstName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
   const hour = new Date().getHours();
@@ -162,7 +168,7 @@ export default async function AdminDashboard() {
           value={suggestions.length}
           icon={<Sparkles />}
           detail="Open academic workflow items"
-          href="/admin/workflows"
+          href={canReadShepherdAi ? "/admin/workflows" : undefined}
         />
         <DashboardMetric
           label="Urgent items"
@@ -170,14 +176,14 @@ export default async function AdminDashboard() {
           icon={<FileWarning />}
           detail="High and critical priority"
           accent="danger"
-          href="/admin/workflows"
+          href={canReadShepherdAi ? "/admin/workflows" : undefined}
         />
         <DashboardMetric
           label="Active workflows"
           value={activeWorkflowCount}
           icon={<ListChecks />}
           detail="Promoted for staff action"
-          href="/admin/workflows"
+          href={canReadShepherdAi ? "/admin/workflows" : undefined}
         />
         <DashboardMetric
           label="Students enrolled"
@@ -226,10 +232,14 @@ export default async function AdminDashboard() {
         <div className="admin-panel">
           <div className="admin-panel-heading">
             <h2>Recommendations</h2>
-            <Link href="/admin/workflows">Review all →</Link>
+            {canReadShepherdAi && <Link href="/admin/workflows">Review all →</Link>}
           </div>
 
-          {suggestions.length === 0 ? (
+          {!canReadShepherdAi ? (
+            <p className="admin-signal-empty">
+              ShepherdAI recommendations are visible to academic admin roles.
+            </p>
+          ) : suggestions.length === 0 ? (
             <p className="admin-signal-empty">No open recommendations at this time.</p>
           ) : (
             <>
