@@ -161,7 +161,15 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       // covenant record feature not available
     }
 
-    // Load denomination tracking capability and data
+    // Load denomination tracking capability and data — gated to the same reader roles the
+    // module itself enforces (institution_admin, registrar, advisor). dean, academic_admin,
+    // and admissions can view this page for other reasons but have no read access to
+    // denomination/ordination data per src/modules/people/denomination.ts's READ_ROLES; without
+    // this check they'd see religious-affiliation counts and a working link into a page the
+    // module would then reject them from. Found via code review.
+    const canReadDenominationData = actor.roles.some((role) =>
+      ["institution_admin", "registrar", "advisor"].includes(role),
+    );
     let denominationTrackingEnabled = false;
     let denominationMembershipCount = 0;
     let denominationOrdinationCount = 0;
@@ -175,7 +183,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       // the same bug, found via live browser testing, already fixed once in
       // src/lib/capability-context.ts.
       const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
-      denominationTrackingEnabled = caps.denominationTracking === true;
+      denominationTrackingEnabled = caps.denominationTracking === true && canReadDenominationData;
       if (denominationTrackingEnabled) {
         const [membershipResult, ordinationResult, denomNamesResult] = await Promise.all([
           client.query(

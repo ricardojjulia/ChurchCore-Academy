@@ -45,9 +45,14 @@ export function UpdateDenominationMembershipForm({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            // Send the controlled value as-is, including an empty string — the service
+            // already converts "" to null, but treats `undefined` as "leave unchanged". A
+            // cleared field must reach the server as "", not be swallowed into `undefined`,
+            // or an existing transfer date or note could never be cleared from this form.
+            // Found via code review.
             membershipStatus,
-            transferDate: transferDate || undefined,
-            notes: notes || undefined,
+            transferDate,
+            notes,
           }),
         }
       );

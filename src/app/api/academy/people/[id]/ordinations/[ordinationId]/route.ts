@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { updateOrdinationStatus } from "@/modules/people/denomination";
 
 type RouteContext = {
@@ -23,7 +24,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw new Error("Invalid ordinationStatus.");
     }
 
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "denominationTracking");
       return updateOrdinationStatus(
         actor,
         ordinationId,

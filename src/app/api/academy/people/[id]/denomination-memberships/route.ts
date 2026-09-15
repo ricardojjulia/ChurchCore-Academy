@@ -1,6 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import {
   addDenominationMembership,
   getDenominationMemberships,
@@ -33,7 +34,8 @@ export async function POST(request: Request, context: RouteContext) {
       membershipDate: body.membershipDate,
     };
 
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "denominationTracking");
       return addDenominationMembership(actor, input, client);
     });
   });
@@ -44,7 +46,8 @@ export async function GET(request: Request, context: RouteContext) {
     const { actor } = await resolveAcademyActorFromSession(request);
     const { id: personId } = await context.params;
 
-    return withAcademyDatabaseContext(actor, async (client) => {
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "denominationTracking");
       return getDenominationMemberships(actor, personId, client);
     });
   });

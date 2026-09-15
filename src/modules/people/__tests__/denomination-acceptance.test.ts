@@ -74,8 +74,9 @@ function mockDb(scenario: "empty" | "with-records" | "cross-tenant" | "multiple-
         return { rowCount: 0, rows: [] };
       }
 
-      // Denomination roster query
-      if (key.includes("select") && text.includes("academy_denomination_memberships dm")) {
+      // getDenominationRoster's aggregated person-level query (starts with the CTE, returns
+      // one row per person with denomination_names/has_active_ordination already aggregated).
+      if (key.includes("with people_with_records")) {
         const requestedTenantId = values?.[0];
         const denominationFilter = values?.[1];
 
@@ -88,17 +89,17 @@ function mockDb(scenario: "empty" | "with-records" | "cross-tenant" | "multiple-
             person_id: PERSON_ID,
             display_name: "John Ministry",
             email: "john@example.com",
-            membership_status: "active",
-            membership_date: "2020-01-15",
-            local_church_name: "First Church",
+            person_type: "Student",
+            denomination_names: ["Test Denomination"],
+            has_active_ordination: false,
           },
           {
             person_id: ADMIN_ID,
             display_name: "Jane Admin",
             email: null,
-            membership_status: "active",
-            membership_date: "2021-05-20",
-            local_church_name: null,
+            person_type: "Staff",
+            denomination_names: [],
+            has_active_ordination: false,
           },
         ];
 
@@ -444,29 +445,41 @@ test("AC3: detail page has expired-credential detection logic (source assertion)
 });
 
 test("AC3: isCredentialExpired logic handles edge cases correctly", async () => {
-  // This simulates the isCredentialExpired function from the detail page
-  function isCredentialExpired(renewalDate: string | null, status: string): boolean {
-    if (!renewalDate || status !== "active") return false;
-    return new Date(renewalDate) < new Date();
-  }
+  // Imports the real page helper rather than reimplementing it — a reimplementation can drift
+  // from the shipped code and pass even when the real behavior is wrong. This is exactly how a
+  // real off-by-one bug (comparing a date-only renewalDate against the current instant, so a
+  // credential renewed today read as already expired) went undetected: the old copy here didn't
+  // test the boundary where renewalDate equals today at all. Found via code review.
+  const { isCredentialExpired } = await import(
+    "@/app/admin/denomination/[personId]/page"
+  );
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayDateString = new Date().toISOString().slice(0, 10);
 
   // Expired but active: should flag
   assert.equal(
-    isCredentialExpired(yesterday.toISOString(), "active"),
+    isCredentialExpired(yesterday.toISOString().slice(0, 10), "active"),
     true,
     "Past renewal date with active status should be flagged as expired"
   );
 
   // Future renewal date: not expired
   assert.equal(
-    isCredentialExpired(tomorrow.toISOString(), "active"),
+    isCredentialExpired(tomorrow.toISOString().slice(0, 10), "active"),
     false,
     "Future renewal date should not be flagged as expired"
+  );
+
+  // Boundary: renewal date is TODAY — must not be flagged yet (this is the case the bug got
+  // wrong: comparing full Date instants marked this expired from midnight onward).
+  assert.equal(
+    isCredentialExpired(todayDateString, "active"),
+    false,
+    "A credential whose renewal date is today must not be flagged as expired yet"
   );
 
   // Null renewal date: not expired
@@ -478,7 +491,7 @@ test("AC3: isCredentialExpired logic handles edge cases correctly", async () => 
 
   // Past renewal but not active: not expired (status already reflects retirement/suspension)
   assert.equal(
-    isCredentialExpired(yesterday.toISOString(), "retired"),
+    isCredentialExpired(yesterday.toISOString().slice(0, 10), "retired"),
     false,
     "Past renewal date with non-active status should not be flagged (status already correct)"
   );
@@ -653,11 +666,15 @@ test("AC6: role-based visibility documented", async () => {
 test("AC7: getDenominationRoster enforces tenant isolation in WHERE clause (source assertion)", async () => {
   const source = await readPageSource("src/modules/people/denomination.ts");
 
-  // Verify the roster query includes unconditional tenant_id filter
-  assert.match(
-    source,
-    /dm\.tenant_id = \$1/,
-    "getDenominationRoster must include dm.tenant_id = $1 in WHERE clause"
+  // getDenominationRoster aggregates from both source tables via CTEs (people_with_records)
+  // rather than a single aliased `dm` join, so tenant isolation is expressed as `tenant_id = $1`
+  // inside each CTE/subquery rather than one aliased WHERE clause. Verify every query
+  // contributing to the roster is tenant-scoped.
+  const rosterFunctionSource = source.slice(source.indexOf("export async function getDenominationRoster"));
+  const tenantScopedOccurrences = rosterFunctionSource.match(/tenant_id = \$1/g) ?? [];
+  assert.ok(
+    tenantScopedOccurrences.length >= 4,
+    `getDenominationRoster must scope every contributing query (both CTEs, both join tables, and both aggregation subqueries) to tenant_id = $1 — found ${tenantScopedOccurrences.length} occurrences`
   );
 
   // Verify actor.tenantId is used

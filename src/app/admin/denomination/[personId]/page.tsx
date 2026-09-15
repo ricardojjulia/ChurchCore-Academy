@@ -56,9 +56,19 @@ function getOrdinationStatusVariant(
   }
 }
 
-function isCredentialExpired(renewalDate: string | null, status: string): boolean {
+// Comparing `new Date(renewalDate) < new Date()` marked a credential expired from midnight
+// on the renewal date itself, since renewalDate is a date-only value (parsed as UTC midnight)
+// while `new Date()` carries the current time of day — a credential renewed today would
+// already read as expired for the rest of that day. Compare date-only strings instead, so a
+// credential is expired starting the day AFTER its renewal date, not on it. Found via code
+// review.
+// Exported for direct unit testing (see denomination-acceptance.test.ts) — a source-assertion
+// test that reimplements this logic instead of importing it can pass while the shipped
+// behavior is wrong, which is exactly how the boundary bug above went undetected.
+export function isCredentialExpired(renewalDate: string | null, status: string): boolean {
   if (!renewalDate || status !== "active") return false;
-  return new Date(renewalDate) < new Date();
+  const todayDateString = new Date().toISOString().slice(0, 10);
+  return renewalDate < todayDateString;
 }
 
 export default async function DenominationDetailPage({

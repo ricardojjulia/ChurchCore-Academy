@@ -211,8 +211,10 @@ function mockDb(queryResults: Record<string, unknown>): AcademyQueryClient {
         };
       }
 
-      if (key.includes("select") && text.includes("academy_denomination_memberships dm")) {
-        // Check if filtering by denomination or returning all
+      // getDenominationRoster's aggregated person-level query — starts with the CTE, not a
+      // bare select, and returns one row per person with arrays/booleans already aggregated
+      // (person_type, denomination_names, has_active_ordination), not one row per membership.
+      if (key.includes("with people_with_records")) {
         const tenantId = values?.[0];
         const denominationName = values?.[1];
 
@@ -222,21 +224,21 @@ function mockDb(queryResults: Record<string, unknown>): AcademyQueryClient {
               person_id: PERSON_ID,
               display_name: "John Doe",
               email: "john@example.com",
-              membership_status: "active",
-              membership_date: "2020-01-01",
-              local_church_name: "Local Church",
+              person_type: "Student",
+              denomination_names: ["Test Denomination"],
+              has_active_ordination: false,
             },
             {
               person_id: ADMIN_ID,
               display_name: "Jane Admin",
               email: "jane@example.com",
-              membership_status: "active",
-              membership_date: "2021-05-15",
-              local_church_name: "Another Church",
+              person_type: "Staff",
+              denomination_names: ["Another Denomination"],
+              has_active_ordination: true,
             },
           ];
 
-          // If no denomination filter (values.length === 1), return all
+          // If no denomination filter, return all
           if (!denominationName) {
             return { rows: baseRows };
           }

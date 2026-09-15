@@ -367,11 +367,22 @@ export interface DenominationRosterEntry {
   personId: string;
   displayName: string;
   email: string | null;
-  membershipStatus: string;
-  membershipDate: string | null;
-  localChurchName: string | null;
+  personType: "Student" | "Staff" | "Person";
+  denominationNames: string[];
+  hasActiveOrdination: boolean;
 }
 
+// Builds one row per PERSON (not per membership row), aggregating across both
+// academy_denomination_memberships and academy_ordination_records, so:
+// - a person with multiple historical memberships appears once, not once per membership;
+// - a person with only an ordination record (no membership) is still included, matching
+//   this page's own stated purpose of "everyone with a denomination or ordination record";
+// - person type and ordination status are computed here, in one query, instead of the
+//   caller running three extra per-row queries per roster entry (a real N+1 pattern found in
+//   review — this used to be 1 + 3N queries for N roster rows).
+// The denomination-name filter still applies at the membership level (a person matches if
+// ANY of their memberships is in that denomination), expressed as an EXISTS check so it can't
+// multiply rows the way a JOIN on the filtered table would.
 export async function getDenominationRoster(
   actor: AcademyActor,
   denominationName: string | null,
@@ -379,25 +390,50 @@ export async function getDenominationRoster(
 ): Promise<DenominationRosterEntry[]> {
   assertAdminRole(actor);
 
-  const whereClauses = ["dm.tenant_id = $1"];
   const params: unknown[] = [actor.tenantId];
-
+  let denominationFilterClause = "";
   if (denominationName) {
     params.push(denominationName);
-    whereClauses.push(`dm.denomination_name = $${params.length}`);
+    denominationFilterClause = `and exists (
+      select 1 from academy_denomination_memberships dm2
+      where dm2.person_id = p.id and dm2.tenant_id = $1 and dm2.denomination_name = $${params.length}
+    )`;
   }
 
   const result = await db.query(
-    `select
+    `with people_with_records as (
+       select person_id from academy_denomination_memberships where tenant_id = $1
+       union
+       select person_id from academy_ordination_records where tenant_id = $1
+     )
+     select
        p.id as person_id,
        p.display_name,
        p.email,
-       dm.membership_status,
-       dm.membership_date,
-       dm.local_church_name
-     from academy_denomination_memberships dm
-     join academy_people p on p.id = dm.person_id and p.tenant_id = dm.tenant_id
-     where ${whereClauses.join(" and ")}
+       case
+         when sp.person_id is not null then 'Student'
+         when stf.person_id is not null then 'Staff'
+         else 'Person'
+       end as person_type,
+       coalesce(dm_agg.denomination_names, '{}') as denomination_names,
+       coalesce(ord_agg.has_active_ordination, false) as has_active_ordination
+     from people_with_records pwr
+     join academy_people p on p.id = pwr.person_id and p.tenant_id = $1
+     left join academy_student_profiles sp on sp.person_id = p.id and sp.tenant_id = $1
+     left join academy_staff_profiles stf on stf.person_id = p.id and stf.tenant_id = $1
+     left join (
+       select person_id, array_agg(distinct denomination_name order by denomination_name) as denomination_names
+       from academy_denomination_memberships
+       where tenant_id = $1
+       group by person_id
+     ) dm_agg on dm_agg.person_id = p.id
+     left join (
+       select person_id, bool_or(ordination_status = 'active') as has_active_ordination
+       from academy_ordination_records
+       where tenant_id = $1
+       group by person_id
+     ) ord_agg on ord_agg.person_id = p.id
+     where true ${denominationFilterClause}
      order by p.display_name`,
     params,
   ) as {
@@ -405,9 +441,9 @@ export async function getDenominationRoster(
       person_id: string;
       display_name: string;
       email: string | null;
-      membership_status: string;
-      membership_date: string | null;
-      local_church_name: string | null;
+      person_type: "Student" | "Staff" | "Person";
+      denomination_names: string[];
+      has_active_ordination: boolean;
     }[];
   };
 
@@ -415,8 +451,8 @@ export async function getDenominationRoster(
     personId: row.person_id,
     displayName: row.display_name,
     email: row.email,
-    membershipStatus: row.membership_status,
-    membershipDate: toDateString(row.membership_date),
-    localChurchName: row.local_church_name,
+    personType: row.person_type,
+    denominationNames: row.denomination_names,
+    hasActiveOrdination: row.has_active_ordination,
   }));
 }
