@@ -476,6 +476,8 @@ Required ADRs:
 
 Goal: track non-graded formation and spiritual development records as first-class Academy domain objects.
 
+Status: **mostly shipped, corrected 2026-09-15** (this phase had no Status line before — it read as pure future work, which was stale). Backend (`src/modules/ministry-formation/`), admin UI (`/admin/formation`, `/admin/formation/[studentId]`), student dashboard (`/admin/formation` counterpart at `/student/formation`), and role-gated formation-advisor assignment are all built and browser-verified working. Sprint 5 (formation release policy + graduation-readiness integration) and sprint 6 (ShepherdAI formation gap signal) were not verified this pass — treat as open until checked directly.
+
 Suggested 1-week sprints:
 
 1. Formation design package
