@@ -64,9 +64,7 @@ export class EnrollmentConversionService {
           "Application conversion metadata is incomplete.",
         );
       }
-      throw new AcademyConflictError(
-        "Application was already converted with another idempotency key.",
-      );
+      return existing;
     }
 
     const result = await this.repository.convert({
