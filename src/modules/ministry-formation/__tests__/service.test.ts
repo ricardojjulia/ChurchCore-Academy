@@ -426,8 +426,10 @@ test("ACCEPTANCE: pastoralNotes never appears in student-facing response with re
 
   const db = createMockDb();
 
-  // Create evaluation WITH pastoral notes explicitly set to non-empty string
-  await recordFormationEvaluation(
+  // Create evaluation WITH pastoral notes explicitly set to non-empty string, then endorse it —
+  // a draft evaluation must not reach the student view at all (see the dedicated draft-exclusion
+  // test), so this pastoralNotes-stripping check needs an endorsed record to be meaningful.
+  const evaluation = await recordFormationEvaluation(
     { userId: "advisor-1", tenantId: "tenant-a", roles: ["advisor"] },
     {
       studentPersonId: "student-1",
@@ -436,6 +438,11 @@ test("ACCEPTANCE: pastoralNotes never appears in student-facing response with re
       pastoralNotes: "Student shows deep spiritual sensitivity. Recommend continued mentoring in pastoral care contexts. Private concern: struggles with public speaking anxiety.",
       evaluationDate: "2026-09-01",
     },
+    db,
+  );
+  await endorseRecord(
+    { userId: "admin-1", tenantId: "tenant-a", roles: ["institution_admin"] },
+    { recordType: "evaluation", recordId: evaluation.id },
     db,
   );
 
@@ -599,7 +606,7 @@ test("ACCEPTANCE: formation status is informational only and does not affect gra
   assert.ok(Array.isArray(summaries), "Formation summaries are informational data only");
 });
 
-test("getStudentFormationRecord excludes draft practicum sessions and milestones from student view", async () => {
+test("getStudentFormationRecord excludes draft practicum sessions, milestones, and evaluations from student view", async () => {
   const studentActor: AcademyActor = {
     userId: "student-1",
     tenantId: "tenant-a",
@@ -678,6 +685,35 @@ test("getStudentFormationRecord excludes draft practicum sessions and milestones
     db,
   );
 
+  // Create a draft evaluation
+  const draftEvaluation = await recordFormationEvaluation(
+    staffActor,
+    {
+      studentPersonId: "student-1",
+      rubricLabel: "Pastoral Readiness",
+      scores: { maturity: 3 },
+      evaluationDate: "2026-06-10",
+    },
+    db,
+  );
+
+  // Create an endorsed evaluation
+  const endorsedEvaluation = await recordFormationEvaluation(
+    staffActor,
+    {
+      studentPersonId: "student-1",
+      rubricLabel: "Pastoral Readiness",
+      scores: { maturity: 4 },
+      evaluationDate: "2026-06-25",
+    },
+    db,
+  );
+  await endorseRecord(
+    adminActor,
+    { recordType: "evaluation", recordId: endorsedEvaluation.id },
+    db,
+  );
+
   // Fetch as student
   const studentRecord = await getStudentFormationRecord(studentActor, "student-1", db);
 
@@ -717,6 +753,23 @@ test("getStudentFormationRecord excludes draft practicum sessions and milestones
     "Returned milestone should be endorsed",
   );
 
+  // Student should see only endorsed evaluation
+  assert.strictEqual(
+    studentRecord.evaluations.length,
+    1,
+    "Student should see exactly 1 endorsed evaluation",
+  );
+  assert.strictEqual(
+    studentRecord.evaluations[0].id,
+    endorsedEvaluation.id,
+    "Student should see the endorsed evaluation",
+  );
+  assert.strictEqual(
+    studentRecord.evaluations[0].status,
+    "endorsed",
+    "Returned evaluation should be endorsed",
+  );
+
   // Verify draft records are not present
   const studentRecordJson = JSON.stringify(studentRecord);
   assert.ok(
@@ -726,6 +779,10 @@ test("getStudentFormationRecord excludes draft practicum sessions and milestones
   assert.ok(
     !studentRecordJson.includes(draftMilestone.id),
     "Draft milestone should not appear in student view",
+  );
+  assert.ok(
+    !studentRecordJson.includes(draftEvaluation.id),
+    "Draft evaluation should not appear in student view",
   );
 
   // Fetch as staff - should see all records
@@ -741,6 +798,11 @@ test("getStudentFormationRecord excludes draft practicum sessions and milestones
     staffRecord.milestones.length,
     2,
     "Staff should see both draft and endorsed milestones",
+  );
+  assert.strictEqual(
+    staffRecord.evaluations.length,
+    2,
+    "Staff should see both draft and endorsed evaluations",
   );
 });
 
