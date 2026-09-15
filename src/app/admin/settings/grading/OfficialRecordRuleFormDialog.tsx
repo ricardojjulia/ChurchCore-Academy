@@ -195,9 +195,15 @@ export function OfficialRecordRuleFormDialog({ open, onOpenChange, mode, rule }:
                     value={field.value}
                     onChange={field.onChange}
                     data={RECORD_TYPE_OPTIONS}
+                    disabled={mode === "edit"}
                   />
                 )}
               />
+              {mode === "edit" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Record type can&apos;t be changed after creation — delete and recreate the rule instead.
+                </p>
+              )}
             </div>
           </div>
 
@@ -214,9 +220,15 @@ export function OfficialRecordRuleFormDialog({ open, onOpenChange, mode, rule }:
                     value={field.value}
                     onChange={field.onChange}
                     data={INSTITUTION_MODE_OPTIONS}
+                    disabled={mode === "edit"}
                   />
                 )}
               />
+              {mode === "edit" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Institution mode can&apos;t be changed after creation — delete and recreate the rule instead.
+                </p>
+              )}
             </div>
           </div>
 

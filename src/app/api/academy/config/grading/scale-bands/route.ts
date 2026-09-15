@@ -1,4 +1,4 @@
-import { handleApi } from "@/app/api/academy/api-utils";
+import { handleApi, requireStringField, requireBooleanField } from "@/app/api/academy/api-utils";
 import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
@@ -19,14 +19,14 @@ export async function POST(request: Request) {
       assertCapability(capabilities, "competencyNarrativeGrading");
       const repository = new AcademyGradingRecordsRepository(asAcademyDatabase(client));
       return repository.createScaleBand(actor, {
-        scaleId: String(body.scaleId),
-        label: String(body.label),
+        scaleId: requireStringField(body.scaleId, "scaleId"),
+        label: requireStringField(body.label, "label"),
         minimumValue: body.minimumValue !== undefined && body.minimumValue !== null ? Number(body.minimumValue) : undefined,
         maximumValue: body.maximumValue !== undefined && body.maximumValue !== null ? Number(body.maximumValue) : undefined,
         gradePoints: body.gradePoints !== undefined && body.gradePoints !== null ? Number(body.gradePoints) : undefined,
-        isPassing: Boolean(body.isPassing),
-        isCompletion: Boolean(body.isCompletion),
-        officialRecordValue: String(body.officialRecordValue),
+        isPassing: requireBooleanField(body.isPassing, "isPassing"),
+        isCompletion: requireBooleanField(body.isCompletion, "isCompletion"),
+        officialRecordValue: requireStringField(body.officialRecordValue, "officialRecordValue"),
         sequence: Number(body.sequence),
       });
     });

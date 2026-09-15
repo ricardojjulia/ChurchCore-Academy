@@ -334,6 +334,18 @@ export class AcademyGradingRecordsRepository {
     if (!input.officialRecordValue?.trim()) throw new Error("officialRecordValue is required.");
     if (!Number.isInteger(input.sequence)) throw new Error("sequence must be an integer.");
 
+    // The composite (tenant_id, scale_id) foreign key added in
+    // 20260915210000_grading_records_tenant_scoped_fks.sql already blocks a cross-tenant
+    // scale id at the database layer, but a raw FK-violation error would surface as an opaque
+    // 500. This pre-check gives the caller a clear 400 instead. Found via code review.
+    const scaleCheck = await this.pool.query(
+      `select id from academy_evaluation_scales where tenant_id = $1 and id = $2`,
+      [actor.tenantId, input.scaleId.trim()],
+    );
+    if (scaleCheck.rows.length === 0) {
+      throw new Error("Invalid scaleId: no evaluation scale with that id exists for this tenant.");
+    }
+
     const result = await this.pool.query(
       `insert into academy_evaluation_scale_bands
          (tenant_id, scale_id, label, minimum_value, maximum_value, grade_points, is_passing, is_completion, official_record_value, sequence)
@@ -478,6 +490,34 @@ export class AcademyGradingRecordsRepository {
     }
     if (input.narrativePolicy !== "not_required" && !gradingProfile.supportsNarrativeEvaluation) {
       throw new Error("narrativePolicy can only be 'not_required' when the grading profile does not support narrative evaluation.");
+    }
+
+    // The composite (tenant_id, x) foreign keys added in
+    // 20260915210000_grading_records_tenant_scoped_fks.sql already block cross-tenant course/
+    // section/scale ids at the database layer, but a raw FK-violation error would surface as an
+    // opaque 500. These pre-checks give the caller a clear 400 instead. Found via code review.
+    const courseCheck = await this.pool.query(
+      `select id from academy_courses where tenant_id = $1 and id = $2`,
+      [actor.tenantId, input.courseId.trim()],
+    );
+    if (courseCheck.rows.length === 0) {
+      throw new Error("Invalid courseId: no course with that id exists for this tenant.");
+    }
+    if (input.sectionId?.trim()) {
+      const sectionCheck = await this.pool.query(
+        `select id from academy_course_sections where tenant_id = $1 and id = $2`,
+        [actor.tenantId, input.sectionId.trim()],
+      );
+      if (sectionCheck.rows.length === 0) {
+        throw new Error("Invalid sectionId: no course section with that id exists for this tenant.");
+      }
+    }
+    const scaleCheck = await this.pool.query(
+      `select id from academy_evaluation_scales where tenant_id = $1 and id = $2`,
+      [actor.tenantId, input.scaleId.trim()],
+    );
+    if (scaleCheck.rows.length === 0) {
+      throw new Error("Invalid scaleId: no evaluation scale with that id exists for this tenant.");
     }
 
     const now = new Date();

@@ -234,6 +234,9 @@ describe("AcademyGradingRecordsRepository write operations", () => {
       const actor = createMockActor();
       const mockPool: MockQueryable = {
         query: async (sql, params) => {
+          if (sql.includes("select id from academy_evaluation_scales")) {
+            return { rowCount: 1, rows: [{ id: "scale-1" }] };
+          }
           assert(sql.includes("insert into academy_evaluation_scale_bands"));
           assert.equal(params[0], actor.tenantId);
           return {
@@ -272,6 +275,30 @@ describe("AcademyGradingRecordsRepository write operations", () => {
           sequence: 1,
         }),
         /label is required/,
+      );
+    });
+
+    test("cross-tenant rejection - scaleId belongs to another tenant", async () => {
+      const actor = createMockActor("tenant-1");
+      const mockPool: MockQueryable = {
+        query: async (sql) => {
+          if (sql.includes("select id from academy_evaluation_scales")) {
+            return { rowCount: 0, rows: [] };
+          }
+          throw new Error(`Unexpected query in cross-tenant test: ${sql}`);
+        },
+      };
+      const repository = new AcademyGradingRecordsRepository(mockPool);
+      await assert.rejects(
+        async () => repository.createScaleBand(actor, {
+          scaleId: "tenant-2-scale",
+          label: "A",
+          isPassing: true,
+          isCompletion: false,
+          officialRecordValue: "A",
+          sequence: 1,
+        }),
+        /Invalid scaleId: no evaluation scale with that id exists for this tenant/,
       );
     });
   });
@@ -338,6 +365,12 @@ describe("AcademyGradingRecordsRepository write operations", () => {
       const actor = createMockActor();
       const mockPool: MockQueryable = {
         query: async (sql, params) => {
+          if (sql.includes("select id from academy_courses")) {
+            return { rowCount: 1, rows: [{ id: "course-1" }] };
+          }
+          if (sql.includes("select id from academy_evaluation_scales")) {
+            return { rowCount: 1, rows: [{ id: "scale-1" }] };
+          }
           assert(sql.includes("insert into academy_evaluation_rule_sets"));
           assert.equal(params[0], actor.tenantId);
           return {
@@ -427,40 +460,78 @@ describe("AcademyGradingRecordsRepository write operations", () => {
       );
     });
 
-    test("cross-tenant rejection", async () => {
+    test("cross-tenant rejection - courseId belongs to another tenant", async () => {
       const actor = createMockActor("tenant-1");
+      // The course lookup is always scoped to actor.tenantId in the query itself, so a
+      // course that only exists under a different tenant correctly comes back empty here —
+      // this simulates that by always returning no rows for the course check.
       const mockPool: MockQueryable = {
-        query: async (sql, params) => {
-          if (sql.includes("insert into academy_evaluation_rule_sets")) {
-            assert.equal(params[0], "tenant-1");
-            return {
-              rowCount: 1,
-              rows: [buildRuleSetRow("rule-1", String(params[0]), String(params[4]), String(params[1]))],
-            };
+        query: async (sql) => {
+          if (sql.includes("select id from academy_courses")) {
+            return { rowCount: 0, rows: [] };
           }
-          return { rowCount: 1, rows: [] };
+          throw new Error(`Unexpected query in cross-tenant test: ${sql}`);
         },
       };
       const repository = new AcademyGradingRecordsRepository(mockPool);
-      const result = await repository.createEvaluationRuleSet(
-        actor,
-        {
-          courseId: "course-1",
-          evaluationType: "letter_grade",
-          scaleId: "scale-1",
-          recordType: "transcript",
-          gpaPolicy: "included",
-          creditPolicy: "attempted_and_earned",
-          clockHourPolicy: "not_applicable",
-          competencyPolicy: "not_applicable",
-          narrativePolicy: "not_required",
-          postingPolicy: "registrar_posting",
-          lmsGradeReturnPolicy: "manual_entry_only",
-          status: "active",
-        },
-        createMockGradingProfile("tenant-1"),
+      await assert.rejects(
+        async () => repository.createEvaluationRuleSet(
+          actor,
+          {
+            courseId: "tenant-2-course",
+            evaluationType: "letter_grade",
+            scaleId: "scale-1",
+            recordType: "transcript",
+            gpaPolicy: "included",
+            creditPolicy: "attempted_and_earned",
+            clockHourPolicy: "not_applicable",
+            competencyPolicy: "not_applicable",
+            narrativePolicy: "not_required",
+            postingPolicy: "registrar_posting",
+            lmsGradeReturnPolicy: "manual_entry_only",
+            status: "active",
+          },
+          createMockGradingProfile("tenant-1"),
+        ),
+        /Invalid courseId: no course with that id exists for this tenant/,
       );
-      assert.equal(result.tenantId, "tenant-1");
+    });
+
+    test("cross-tenant rejection - scaleId belongs to another tenant", async () => {
+      const actor = createMockActor("tenant-1");
+      const mockPool: MockQueryable = {
+        query: async (sql) => {
+          if (sql.includes("select id from academy_courses")) {
+            return { rowCount: 1, rows: [{ id: "course-1" }] };
+          }
+          if (sql.includes("select id from academy_evaluation_scales")) {
+            return { rowCount: 0, rows: [] };
+          }
+          throw new Error(`Unexpected query in cross-tenant test: ${sql}`);
+        },
+      };
+      const repository = new AcademyGradingRecordsRepository(mockPool);
+      await assert.rejects(
+        async () => repository.createEvaluationRuleSet(
+          actor,
+          {
+            courseId: "course-1",
+            evaluationType: "letter_grade",
+            scaleId: "tenant-2-scale",
+            recordType: "transcript",
+            gpaPolicy: "included",
+            creditPolicy: "attempted_and_earned",
+            clockHourPolicy: "not_applicable",
+            competencyPolicy: "not_applicable",
+            narrativePolicy: "not_required",
+            postingPolicy: "registrar_posting",
+            lmsGradeReturnPolicy: "manual_entry_only",
+            status: "active",
+          },
+          createMockGradingProfile("tenant-1"),
+        ),
+        /Invalid scaleId: no evaluation scale with that id exists for this tenant/,
+      );
     });
   });
 

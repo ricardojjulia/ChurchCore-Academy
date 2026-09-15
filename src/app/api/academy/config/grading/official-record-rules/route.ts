@@ -1,4 +1,4 @@
-import { handleApi } from "@/app/api/academy/api-utils";
+import { handleApi, requireStringField, requireBooleanField } from "@/app/api/academy/api-utils";
 import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
@@ -20,16 +20,16 @@ export async function POST(request: Request) {
       assertCapability(capabilities, "competencyNarrativeGrading");
       const repository = new AcademyGradingRecordsRepository(asAcademyDatabase(client));
       return repository.createOfficialRecordRule(actor, {
-        recordType: body.recordType as OfficialRecordRule["recordType"],
-        appliesToInstitutionMode: body.appliesToInstitutionMode as OfficialRecordRule["appliesToInstitutionMode"],
-        postingAuthority: body.postingAuthority as OfficialRecordRule["postingAuthority"],
-        releasePolicy: body.releasePolicy as OfficialRecordRule["releasePolicy"],
-        includedInTranscript: Boolean(body.includedInTranscript),
-        includedInProgressReport: Boolean(body.includedInProgressReport),
-        includedInCompletionRecord: Boolean(body.includedInCompletionRecord),
-        includedInPromotion: Boolean(body.includedInPromotion),
-        includedInGraduationAudit: Boolean(body.includedInGraduationAudit),
-        status: body.status as OfficialRecordRule["status"],
+        recordType: requireStringField(body.recordType, "recordType") as OfficialRecordRule["recordType"],
+        appliesToInstitutionMode: requireStringField(body.appliesToInstitutionMode, "appliesToInstitutionMode") as OfficialRecordRule["appliesToInstitutionMode"],
+        postingAuthority: requireStringField(body.postingAuthority, "postingAuthority") as OfficialRecordRule["postingAuthority"],
+        releasePolicy: requireStringField(body.releasePolicy, "releasePolicy") as OfficialRecordRule["releasePolicy"],
+        includedInTranscript: requireBooleanField(body.includedInTranscript, "includedInTranscript"),
+        includedInProgressReport: requireBooleanField(body.includedInProgressReport, "includedInProgressReport"),
+        includedInCompletionRecord: requireBooleanField(body.includedInCompletionRecord, "includedInCompletionRecord"),
+        includedInPromotion: requireBooleanField(body.includedInPromotion, "includedInPromotion"),
+        includedInGraduationAudit: requireBooleanField(body.includedInGraduationAudit, "includedInGraduationAudit"),
+        status: requireStringField(body.status, "status") as OfficialRecordRule["status"],
       });
     });
   });

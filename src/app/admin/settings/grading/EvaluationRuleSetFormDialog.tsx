@@ -249,6 +249,13 @@ export function EvaluationRuleSetFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} id="ruleset-form" className="grid gap-4 py-4">
+          {mode === "edit" && (
+            <p className="text-xs text-muted-foreground -mb-2">
+              Course, section, evaluation type, scale, and record type can&apos;t be changed after
+              creation — delete and recreate the rule set instead.
+            </p>
+          )}
+
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="courseId" className="text-right">Course</Label>
             <div className="col-span-3">
@@ -262,6 +269,7 @@ export function EvaluationRuleSetFormDialog({
                     value={field.value}
                     onChange={field.onChange}
                     data={availableCourses.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` }))}
+                    disabled={mode === "edit"}
                   />
                 )}
               />
@@ -280,6 +288,7 @@ export function EvaluationRuleSetFormDialog({
               {...register("sectionId")}
               className="col-span-3"
               placeholder="Optional — internal section id, not the section code"
+              disabled={mode === "edit"}
             />
           </div>
 
@@ -296,6 +305,7 @@ export function EvaluationRuleSetFormDialog({
                     value={field.value}
                     onChange={field.onChange}
                     data={EVALUATION_TYPE_OPTIONS}
+                    disabled={mode === "edit"}
                   />
                 )}
               />
@@ -315,6 +325,7 @@ export function EvaluationRuleSetFormDialog({
                     value={field.value}
                     onChange={field.onChange}
                     data={availableScales.map((s) => ({ value: s.id, label: s.name }))}
+                    disabled={mode === "edit"}
                   />
                 )}
               />
@@ -334,6 +345,7 @@ export function EvaluationRuleSetFormDialog({
                     value={field.value}
                     onChange={field.onChange}
                     data={RECORD_TYPE_OPTIONS}
+                    disabled={mode === "edit"}
                   />
                 )}
               />

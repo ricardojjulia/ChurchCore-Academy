@@ -1,4 +1,4 @@
-import { handleApi } from "@/app/api/academy/api-utils";
+import { handleApi, requireStringField } from "@/app/api/academy/api-utils";
 import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
@@ -23,19 +23,19 @@ export async function POST(request: Request) {
       return repository.createEvaluationRuleSet(
         actor,
         {
-          courseId: String(body.courseId),
-          sectionId: body.sectionId !== undefined && body.sectionId !== null ? String(body.sectionId) : undefined,
-          evaluationType: body.evaluationType as EvaluationRuleSet["evaluationType"],
-          scaleId: String(body.scaleId),
-          recordType: body.recordType as EvaluationRuleSet["recordType"],
-          gpaPolicy: body.gpaPolicy as EvaluationRuleSet["gpaPolicy"],
-          creditPolicy: body.creditPolicy as EvaluationRuleSet["creditPolicy"],
-          clockHourPolicy: body.clockHourPolicy as EvaluationRuleSet["clockHourPolicy"],
-          competencyPolicy: body.competencyPolicy as EvaluationRuleSet["competencyPolicy"],
-          narrativePolicy: body.narrativePolicy as EvaluationRuleSet["narrativePolicy"],
-          postingPolicy: body.postingPolicy as EvaluationRuleSet["postingPolicy"],
-          lmsGradeReturnPolicy: body.lmsGradeReturnPolicy as EvaluationRuleSet["lmsGradeReturnPolicy"],
-          status: body.status as EvaluationRuleSet["status"],
+          courseId: requireStringField(body.courseId, "courseId"),
+          sectionId: body.sectionId !== undefined && body.sectionId !== null ? requireStringField(body.sectionId, "sectionId") : undefined,
+          evaluationType: requireStringField(body.evaluationType, "evaluationType") as EvaluationRuleSet["evaluationType"],
+          scaleId: requireStringField(body.scaleId, "scaleId"),
+          recordType: requireStringField(body.recordType, "recordType") as EvaluationRuleSet["recordType"],
+          gpaPolicy: requireStringField(body.gpaPolicy, "gpaPolicy") as EvaluationRuleSet["gpaPolicy"],
+          creditPolicy: requireStringField(body.creditPolicy, "creditPolicy") as EvaluationRuleSet["creditPolicy"],
+          clockHourPolicy: requireStringField(body.clockHourPolicy, "clockHourPolicy") as EvaluationRuleSet["clockHourPolicy"],
+          competencyPolicy: requireStringField(body.competencyPolicy, "competencyPolicy") as EvaluationRuleSet["competencyPolicy"],
+          narrativePolicy: requireStringField(body.narrativePolicy, "narrativePolicy") as EvaluationRuleSet["narrativePolicy"],
+          postingPolicy: requireStringField(body.postingPolicy, "postingPolicy") as EvaluationRuleSet["postingPolicy"],
+          lmsGradeReturnPolicy: requireStringField(body.lmsGradeReturnPolicy, "lmsGradeReturnPolicy") as EvaluationRuleSet["lmsGradeReturnPolicy"],
+          status: requireStringField(body.status, "status") as EvaluationRuleSet["status"],
         },
         config.gradingProfile,
       );

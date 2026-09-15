@@ -163,9 +163,15 @@ export function EvaluationScaleFormDialog({ open, onOpenChange, mode, scale }: E
                     value={field.value}
                     onChange={field.onChange}
                     data={SCALE_TYPE_OPTIONS}
+                    disabled={mode === "edit"}
                   />
                 )}
               />
+              {mode === "edit" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Scale type can&apos;t be changed after creation — delete and recreate the scale instead.
+                </p>
+              )}
             </div>
           </div>
 
@@ -182,9 +188,15 @@ export function EvaluationScaleFormDialog({ open, onOpenChange, mode, scale }: E
                     value={field.value}
                     onChange={field.onChange}
                     data={RECORD_TYPE_OPTIONS}
+                    disabled={mode === "edit"}
                   />
                 )}
               />
+              {mode === "edit" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Record type can&apos;t be changed after creation — delete and recreate the scale instead.
+                </p>
+              )}
             </div>
           </div>
 

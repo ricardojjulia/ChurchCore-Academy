@@ -1,4 +1,4 @@
-import { handleApi } from "@/app/api/academy/api-utils";
+import { handleApi, requireStringField, optionalBooleanField } from "@/app/api/academy/api-utils";
 import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
@@ -20,11 +20,11 @@ export async function POST(request: Request) {
       assertCapability(capabilities, "competencyNarrativeGrading");
       const repository = new AcademyGradingRecordsRepository(asAcademyDatabase(client));
       return repository.createEvaluationScale(actor, {
-        name: String(body.name),
-        scaleType: body.scaleType as EvaluationScale["scaleType"],
-        appliesToRecordType: body.appliesToRecordType as EvaluationScale["appliesToRecordType"],
-        narrativeRequired: body.narrativeRequired !== undefined ? Boolean(body.narrativeRequired) : undefined,
-        status: body.status as EvaluationScale["status"],
+        name: requireStringField(body.name, "name"),
+        scaleType: requireStringField(body.scaleType, "scaleType") as EvaluationScale["scaleType"],
+        appliesToRecordType: requireStringField(body.appliesToRecordType, "appliesToRecordType") as EvaluationScale["appliesToRecordType"],
+        narrativeRequired: optionalBooleanField(body.narrativeRequired, "narrativeRequired"),
+        status: requireStringField(body.status, "status") as EvaluationScale["status"],
       });
     });
   });

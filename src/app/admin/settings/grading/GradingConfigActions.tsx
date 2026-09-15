@@ -205,6 +205,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                         <Button
                           variant="outline"
                           size="sm"
+                          aria-label={`Edit scale ${scale.name}`}
                           onClick={() => setDialog({ type: "scale", mode: "edit", scaleId: scale.id })}
                         >
                           <Edit className="h-3 w-3" />
@@ -220,6 +221,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                         <Button
                           variant="destructive"
                           size="sm"
+                          aria-label={`Delete scale ${scale.name}`}
                           onClick={() => handleDeleteScale(scale.id)}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -235,6 +237,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                               <Button
                                 variant="outline"
                                 size="sm"
+                                aria-label={`Edit band ${band.label}`}
                                 onClick={() => setDialog({ type: "band", mode: "edit", scaleId: scale.id, bandId: band.id })}
                               >
                                 <Edit className="h-3 w-3" />
@@ -242,6 +245,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                               <Button
                                 variant="destructive"
                                 size="sm"
+                                aria-label={`Delete band ${band.label}`}
                                 onClick={() => handleDeleteBand(band.id)}
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -277,6 +281,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label={`Edit rule set for ${ruleSet.courseId}`}
                       onClick={() => setDialog({ type: "ruleset", mode: "edit", ruleSetId: ruleSet.id })}
                     >
                       <Edit className="h-3 w-3" />
@@ -284,6 +289,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                     <Button
                       variant="destructive"
                       size="sm"
+                      aria-label={`Delete rule set for ${ruleSet.courseId}`}
                       onClick={() => handleDeleteRuleSet(ruleSet.id)}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -314,6 +320,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label={`Edit official record rule for ${rule.recordType}`}
                       onClick={() => setDialog({ type: "record-rule", mode: "edit", ruleId: rule.id })}
                     >
                       <Edit className="h-3 w-3" />
@@ -321,6 +328,7 @@ export function GradingConfigActions({ config, canEdit, availableCourses }: Grad
                     <Button
                       variant="destructive"
                       size="sm"
+                      aria-label={`Delete official record rule for ${rule.recordType}`}
                       onClick={() => handleDeleteOfficialRecordRule(rule.id)}
                     >
                       <Trash2 className="h-3 w-3" />

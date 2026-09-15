@@ -23,6 +23,34 @@ export function getStringParam(value: string | string[] | undefined) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+// String(undefined) and String(null) return the literal strings "undefined"/"null" rather than
+// throwing, so a required-field write route that does `String(body.x)` unconditionally silently
+// persists those literal strings when the caller omits the field, instead of rejecting the
+// request. TypeScript's `as` casts on request bodies have the same blind spot for enum/boolean
+// fields — they affect only compile-time types, not the actual runtime value. These helpers
+// give write routes real runtime validation instead. Found via code review.
+export function requireStringField(value: unknown, fieldName: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`Invalid ${fieldName}: must be a non-empty string.`);
+  }
+  return value;
+}
+
+export function requireBooleanField(value: unknown, fieldName: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`Invalid ${fieldName}: must be a boolean.`);
+  }
+  return value;
+}
+
+export function optionalBooleanField(value: unknown, fieldName: string): boolean | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "boolean") {
+    throw new Error(`Invalid ${fieldName}: must be a boolean.`);
+  }
+  return value;
+}
+
 export interface ApiObservabilityOptions {
   operation?: string;
   tenantId?: string;
