@@ -169,7 +169,7 @@ test("rejects unauthorized, ineligible, and cross-application idempotency use", 
   );
 });
 
-test("rejects a second key for an already converted application", async () => {
+test("returns the existing result for an already converted application", async () => {
   const state = fixture(
     accepted({
       convertedAt: conversion.convertedAt,
@@ -186,14 +186,14 @@ test("rejects a second key for an already converted application", async () => {
     state.audit,
   );
 
-  await assert.rejects(
-    () =>
-      service.convert(
-        registrar,
-        "application-1",
-        "correlation-2",
-        "key-2",
-      ),
-    /already converted with another idempotency key/,
+  const result = await service.convert(
+    registrar,
+    "application-1",
+    "correlation-2",
+    "key-2",
   );
+
+  assert.equal(result.studentProfileId, "profile-1");
+  assert.equal(state.conversions.length, 0);
+  assert.equal(state.audits.length, 0);
 });

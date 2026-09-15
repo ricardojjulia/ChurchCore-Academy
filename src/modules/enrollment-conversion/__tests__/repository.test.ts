@@ -120,3 +120,246 @@ test("conversion returns an existing same-key event before allocating a number",
   assert.equal(calls.length, 1);
   assert.doesNotMatch(calls[0], /student_number_sequences/i);
 });
+
+test("conversion reuses existing student records for partially converted applications", async () => {
+  const calls: Array<{ sql: string; values?: unknown[] }> = [];
+  const database = {
+    query: async (sql: string, values?: unknown[]) => {
+      calls.push({ sql, values });
+      if (/from academy_enrollment_conversion_events/.test(sql)) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (/from academy_admission_applications/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: "application-1",
+              applicant_person_id: "person-applicant",
+              program_id: "program-1",
+              application_term_id: "term-1",
+              status: "accepted",
+              converted_at: null,
+            },
+          ],
+        };
+      }
+      if (/from academy_student_profiles/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "profile-existing", student_number: "COL-2022001" }],
+        };
+      }
+      if (/from academy_program_enrollments/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "program-enrollment-existing" }],
+        };
+      }
+      if (/update academy_program_enrollments/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "program-enrollment-existing" }],
+        };
+      }
+      if (/from academy_period_registrations/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "period-registration-existing", status: "registered", source_application_id: "application-1" }],
+        };
+      }
+      if (/update academy_period_registrations/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "period-registration-existing" }],
+        };
+      }
+      if (/insert into academy_program_enrollments/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "program-enrollment-existing" }] };
+      }
+      if (/insert into academy_period_registrations/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "period-registration-existing" }] };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+  };
+
+  const repository = new PostgresEnrollmentConversionRepository(database);
+  const result = await repository.convert({
+    tenantId: "tenant-1",
+    applicationId: "application-1",
+    actorPersonId: "person-registrar",
+    convertedAt: "2026-06-13T16:00:00.000Z",
+    correlationId: "correlation-1",
+    idempotencyKey: "key-1",
+  });
+
+  assert.deepEqual(result, {
+    applicationId: "application-1",
+    studentProfileId: "profile-existing",
+    studentNumber: "COL-2022001",
+    programEnrollmentId: "program-enrollment-existing",
+    periodRegistrationId: "period-registration-existing",
+    convertedAt: "2026-06-13T16:00:00.000Z",
+    idempotencyKey: "key-1",
+  });
+
+  const sql = calls.map((call) => call.sql).join("\n");
+  assert.match(sql, /from academy_student_profiles/i);
+  assert.doesNotMatch(sql, /academy_student_number_sequences/i);
+  assert.match(sql, /academic_program_id/i);
+  assert.doesNotMatch(sql, /student_person_id, program_id/i);
+  assert.match(sql, /update academy_program_enrollments/i);
+  assert.match(sql, /update academy_period_registrations/i);
+  for (const call of calls) {
+    if (
+      /academy_student_profiles|academy_program_enrollments|academy_period_registrations/.test(
+        call.sql,
+      )
+    ) {
+      assert.ok(call.values?.includes("tenant-1"), call.sql);
+    }
+  }
+});
+
+test("conversion refuses to resurrect a cancelled/completed period registration from a different application", async () => {
+  // Regression test for a real correctness bug flagged in code review: the period-registration
+  // reuse fallback matched ANY row for (student_profile_id, academic_period_id), regardless of
+  // status or which application created it, then unconditionally set it back to 'registered'.
+  // A student whose prior registration was cancelled or completed would have that terminal
+  // status silently overwritten and misattributed to an unrelated application's conversion.
+  const database = {
+    query: async (sql: string) => {
+      if (/from academy_enrollment_conversion_events/.test(sql)) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (/from academy_admission_applications/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: "application-2",
+              applicant_person_id: "person-applicant",
+              program_id: "program-1",
+              application_term_id: "term-1",
+              status: "accepted",
+              converted_at: null,
+            },
+          ],
+        };
+      }
+      if (/from academy_student_profiles/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "profile-existing", student_number: "COL-2022001" }],
+        };
+      }
+      if (/from academy_program_enrollments/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "program-enrollment-existing" }] };
+      }
+      if (/update academy_program_enrollments/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "program-enrollment-existing" }] };
+      }
+      if (/from academy_period_registrations/.test(sql)) {
+        // Belongs to a DIFFERENT application (application-1) and is terminal (cancelled).
+        return {
+          rowCount: 1,
+          rows: [{ id: "period-registration-cancelled", status: "cancelled", source_application_id: "application-1" }],
+        };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+  };
+
+  const repository = new PostgresEnrollmentConversionRepository(database);
+
+  await assert.rejects(
+    async () => {
+      await repository.convert({
+        tenantId: "tenant-1",
+        applicationId: "application-2",
+        actorPersonId: "person-registrar",
+        convertedAt: "2026-06-13T16:00:00.000Z",
+        correlationId: "correlation-2",
+        idempotencyKey: "key-2",
+      });
+    },
+    /already has a cancelled period registration/,
+  );
+});
+
+test("conversion does not reuse another tenant's student, enrollment, or registration records", async () => {
+  const calls: Array<{ sql: string; values?: unknown[] }> = [];
+  const database = {
+    query: async (sql: string, values?: unknown[]) => {
+      calls.push({ sql, values });
+      if (/from academy_enrollment_conversion_events/.test(sql)) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (/from academy_admission_applications/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: "application-1",
+              applicant_person_id: "person-applicant",
+              program_id: "program-1",
+              application_term_id: "term-1",
+              status: "accepted",
+              converted_at: null,
+            },
+          ],
+        };
+      }
+      if (/academy_student_number_sequences/.test(sql)) {
+        return { rowCount: 1, rows: [{ allocated_value: "1" }] };
+      }
+      if (/insert into academy_student_profiles/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ id: "profile-new", student_number: "S-000001" }],
+        };
+      }
+      if (/insert into academy_program_enrollments/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "program-enrollment-new" }] };
+      }
+      if (/insert into academy_period_registrations/.test(sql)) {
+        return { rowCount: 1, rows: [{ id: "period-registration-new" }] };
+      }
+      // Every select/update in this test is tenant-scoped, so a database
+      // that ignored the tenant predicate would otherwise return another
+      // tenant's row here instead of an empty result.
+      return { rowCount: 0, rows: [] };
+    },
+  };
+
+  const repository = new PostgresEnrollmentConversionRepository(database);
+  const result = await repository.convert({
+    tenantId: "tenant-1",
+    applicationId: "application-1",
+    actorPersonId: "person-registrar",
+    convertedAt: "2026-06-13T16:00:00.000Z",
+    correlationId: "correlation-1",
+    idempotencyKey: "key-1",
+  });
+
+  assert.deepEqual(result, {
+    applicationId: "application-1",
+    studentProfileId: "profile-new",
+    studentNumber: "S-000001",
+    programEnrollmentId: "program-enrollment-new",
+    periodRegistrationId: "period-registration-new",
+    convertedAt: "2026-06-13T16:00:00.000Z",
+    idempotencyKey: "key-1",
+  });
+
+  for (const call of calls) {
+    if (
+      /academy_student_profiles|academy_program_enrollments|academy_period_registrations/.test(
+        call.sql,
+      )
+    ) {
+      assert.ok(call.values?.includes("tenant-1"), call.sql);
+    }
+  }
+});
