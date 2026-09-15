@@ -1079,20 +1079,25 @@ export async function getStudentFormationRecord(
 
   // If student, strip pastoralNotes and filter to endorsed-only records
   if (isStudent) {
-    const evaluationsStudentView: FormationEvaluationStudentView[] = evaluationResult.rows.map((row) => ({
-      id: row.id,
-      tenantId: row.tenant_id,
-      studentPersonId: row.student_person_id,
-      evaluatorPersonId: row.evaluator_person_id,
-      evaluatorNameSnapshot: row.evaluator_name_snapshot,
-      rubricLabel: row.rubric_label,
-      scores: row.scores,
-      status: row.status as "draft" | "endorsed",
-      endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
-      endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
-      evaluationDate: toDateString(row.evaluation_date),
-      createdAt: toIsoString(row.created_at),
-    }));
+    // Students see only endorsed evaluations — a draft has not been reviewed and must not
+    // reach the Student PWA (CLAUDE.md: "no drafts, no held records"), matching the endorsed-only
+    // filter already applied to practicumSessions and milestones below.
+    const evaluationsStudentView: FormationEvaluationStudentView[] = evaluationResult.rows
+      .filter((row) => row.status === "endorsed")
+      .map((row) => ({
+        id: row.id,
+        tenantId: row.tenant_id,
+        studentPersonId: row.student_person_id,
+        evaluatorPersonId: row.evaluator_person_id,
+        evaluatorNameSnapshot: row.evaluator_name_snapshot,
+        rubricLabel: row.rubric_label,
+        scores: row.scores,
+        status: row.status as "draft" | "endorsed",
+        endorsedByPersonId: row.endorsed_by_person_id ?? undefined,
+        endorsedAt: row.endorsed_at ? toIsoString(row.endorsed_at) : undefined,
+        evaluationDate: toDateString(row.evaluation_date),
+        createdAt: toIsoString(row.created_at),
+      }));
 
     // Students see only endorsed practicum sessions and milestones
     const endorsedPracticumSessions = practicumSessions.filter(s => s.status === "endorsed");
