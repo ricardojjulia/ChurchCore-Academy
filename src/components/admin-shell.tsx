@@ -120,6 +120,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Institution", href: "/admin/settings/institution" },
       { label: "Calendar", href: "/admin/settings/calendar" },
       { label: "People & Roles", href: "/admin/settings/people" },
+      { label: "Grading", href: "/admin/settings/grading" },
       { label: "LMS Providers", href: "/admin/settings/lms" },
     ],
   },

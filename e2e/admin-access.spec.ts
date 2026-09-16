@@ -89,6 +89,19 @@ test.describe("registrar nav — denomination and alumni are reachable, not just
   });
 });
 
+test("Grading settings (incl. the competency framework builder) is reachable from the System nav", async ({ page }) => {
+  // /admin/settings/grading had zero nav entries anywhere — only a dead-code redirect stub at
+  // the legacy /settings/grading pointed at it, and that legacy route's own nav (academy-shell.tsx)
+  // is scoped to the platform-staff workspace, not tenant admin. Found alongside the
+  // denomination/alumni nav gap during the same checkup pass.
+  await loginAs(page, PERSONAS.institutionAdmin);
+  await page.goto("/admin/settings/institution");
+  await expect(page.locator('a[href="/admin/settings/grading"]').first()).toBeVisible();
+  await page.locator('a[href="/admin/settings/grading"]').first().click();
+  await expect(page).toHaveURL(/\/admin\/settings\/grading/);
+  await expect(page.getByText("You don't have access to this page")).not.toBeVisible();
+});
+
 test("demo-feedback platform workspace is reachable outside the Academy admin gate", async ({ page }) => {
   // Council Review 18's own fix chain: this route must not require an Academy staff role,
   // since it's platform-staff-only and lives outside src/app/admin/*.
