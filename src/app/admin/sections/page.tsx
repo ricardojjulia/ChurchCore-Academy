@@ -10,6 +10,7 @@ import { fetchSectionRegistrationReview } from "@/lib/academy-read-models";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import type { CourseSection } from "@/modules/course-catalog/types";
 import { SectionFormDialog } from "./SectionFormDialog";
+import { SectionStatusActions } from "./SectionStatusActions";
 
 export const dynamic = "force-dynamic";
 
@@ -185,14 +186,17 @@ export default async function SectionsRosterPage() {
                         <Badge variant={sectionStatusVariant(section.status)}>{titleize(section.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <SectionFormDialog
-                          mode="edit"
-                          section={section}
-                          courses={courseOptions}
-                          periods={periodOptions}
-                          instructors={instructorOptions}
-                          subdivisions={subdivisionOptions}
-                        />
+                        <div className="flex items-center justify-end gap-1">
+                          <SectionFormDialog
+                            mode="edit"
+                            section={section}
+                            courses={courseOptions}
+                            periods={periodOptions}
+                            instructors={instructorOptions}
+                            subdivisions={subdivisionOptions}
+                          />
+                          <SectionStatusActions section={section} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
