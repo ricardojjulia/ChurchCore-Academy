@@ -225,7 +225,7 @@ export default async function AdminGradebookPage() {
                       </TableCell>
                       <TableCell>
                         <Link
-                          href={`/faculty/attendance`}
+                          href={`/faculty/gradebook/${section.id}`}
                           className="academy-action-link"
                         >
                           Enter grades <ArrowRight />
