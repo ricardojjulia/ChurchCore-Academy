@@ -14,6 +14,9 @@ export interface AdmissionReviewItem {
   id: string;
   applicantName: string;
   programId: string;
+  // Falls back to programId when the source query didn't join the program name (or the
+  // program record is missing) — always a non-empty string, never blank in the UI.
+  programName: string;
   status: AdmissionApplicationStatus;
   statusLabel: string;
   submittedDate: string;
@@ -114,6 +117,7 @@ export function buildAdmissionReviewModel(
         id: application.id,
         applicantName: application.preferredName ?? application.legalName,
         programId: application.programId,
+        programName: application.programName ?? application.programId,
         status: application.status,
         statusLabel: formatStatus(application.status),
         submittedDate: formatDate(application.submittedAt),

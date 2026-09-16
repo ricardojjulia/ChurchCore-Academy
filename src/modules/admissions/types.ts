@@ -11,6 +11,9 @@ export interface AdmissionApplication {
   tenantId: string;
   applicantPersonId: string;
   programId: string;
+  // Populated only by queries that join academy_programs (currently just
+  // PostgresAdmissionsRepository.list()) — undefined elsewhere, callers must not assume presence.
+  programName?: string;
   applicationTermId?: string;
   legalName: string;
   preferredName?: string;
