@@ -31,3 +31,23 @@ alter table public.academy_standing_evaluations force row level security;
 
 create policy "tenant_isolation_standing_evaluations" on public.academy_standing_evaluations
   using (tenant_id = current_setting('app.academy_tenant_id', true));
+
+-- This table is an append-only audit history: a hold decision may have been made based on a
+-- past evaluation, so a row must never be able to change or disappear after the fact.
+-- RLS/tenant isolation alone doesn't prevent an in-tenant principal with write access from
+-- rewriting or deleting a row — matches the immutability trigger already used for the same
+-- reason on academy_transcript_entries (see academy_reject_transcript_entry_mutation in
+-- 20260708030000_transcript_entries.sql). Found via code review.
+create or replace function public.academy_reject_standing_evaluation_mutation()
+returns trigger
+language plpgsql
+set search_path to 'pg_catalog', 'public'
+as $$
+begin
+  raise exception 'Standing evaluations are immutable.';
+end;
+$$;
+
+create trigger academy_standing_evaluations_immutable
+  before update or delete on public.academy_standing_evaluations
+  for each row execute function public.academy_reject_standing_evaluation_mutation();

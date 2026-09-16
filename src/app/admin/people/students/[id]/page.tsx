@@ -260,9 +260,17 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       // alumni giving feature not available
     }
 
-    // Load academic standing automation capability — gated to registrar or academic_admin
-    // (viewing and evaluating), but hold management actions are further restricted to
-    // institution_admin/registrar only (the hold routes enforce this separately).
+    // Load academic standing automation capability — the tab itself (viewing, evaluating) is
+    // gated to registrar/academic_admin only, per the approved story; a pure institution_admin
+    // with neither of those roles cannot reach this tab at all, by design, not by oversight —
+    // widening that would be a scope change beyond what was approved for this feature.
+    // canManageHolds gates the create/clear-hold action buttons specifically, matching the
+    // EXISTING, separate role boundary already enforced inside addHold()/clearHold() in
+    // student-record-mutations.ts (institution_admin/registrar). It's evaluated here rather
+    // than reusing canViewAcademicStanding because the two role sets are deliberately
+    // different: an institution_admin who also holds registrar or academic_admin can reach the
+    // tab and manage holds; a registrar always can; a pure academic_admin (no registrar, no
+    // institution_admin) can view and evaluate but never sees an enabled hold action button.
     const canViewAcademicStanding = actor.roles.some((role) =>
       ["registrar", "academic_admin"].includes(role),
     );

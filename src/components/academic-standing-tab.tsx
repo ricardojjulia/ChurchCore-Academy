@@ -183,8 +183,10 @@ export function AcademicStandingTab({ personId, canManageHolds }: AcademicStandi
   };
 
   const handleLoadMore = async () => {
+    // Advance historyOffset only after a successful response — advancing it eagerly meant a
+    // failed request permanently skipped that page, since a retry would ask for the next
+    // offset rather than the one that never loaded. Found via code review.
     const newOffset = historyOffset + 10;
-    setHistoryOffset(newOffset);
 
     try {
       const response = await fetch(
@@ -196,7 +198,8 @@ export function AcademicStandingTab({ personId, canManageHolds }: AcademicStandi
       }
 
       const data = await response.json();
-      setEvaluationHistory([...evaluationHistory, ...data.evaluations]);
+      setEvaluationHistory((prev) => [...prev, ...data.evaluations]);
+      setHistoryOffset(newOffset);
     } catch (error) {
       notifyAcademy({
         tone: "error",
@@ -312,7 +315,12 @@ export function AcademicStandingTab({ personId, canManageHolds }: AcademicStandi
     );
 
   const shouldRecommendCreateHold = hasNegativeStanding && !activeAcademicHold;
-  const shouldRecommendClearHold = hasPositiveStanding && activeAcademicHold;
+  // A student can satisfy both a positive and a blocking standing type simultaneously (e.g.
+  // "promotion_ready" and "probation" at once) — without the !hasNegativeStanding guard, this
+  // would recommend clearing the hold for a student who is still actually blocked, which is
+  // exactly the wrong-recommendation risk this whole reviewed-workflow feature exists to avoid.
+  // Found via code review.
+  const shouldRecommendClearHold = hasPositiveStanding && !hasNegativeStanding && activeAcademicHold;
 
   const showRecommendation = shouldRecommendCreateHold || shouldRecommendClearHold;
 
@@ -635,8 +643,9 @@ export function AcademicStandingTab({ personId, canManageHolds }: AcademicStandi
               An academic hold will prevent the student from registering for courses until the hold is cleared.
             </p>
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Hold Note (required)</label>
+              <label htmlFor="hold-note" className="text-sm font-medium">Hold Note (required)</label>
               <Textarea
+                id="hold-note"
                 value={holdNote}
                 onChange={(e) => setHoldNote(e.target.value)}
                 placeholder="Describe the reason for this hold..."
@@ -673,8 +682,9 @@ export function AcademicStandingTab({ personId, canManageHolds }: AcademicStandi
               Clearing this hold will allow the student to register for courses again.
             </p>
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Resolution Note (required)</label>
+              <label htmlFor="resolution-note" className="text-sm font-medium">Resolution Note (required)</label>
               <Textarea
+                id="resolution-note"
                 value={resolutionNote}
                 onChange={(e) => setResolutionNote(e.target.value)}
                 placeholder="Describe how the issue was resolved..."

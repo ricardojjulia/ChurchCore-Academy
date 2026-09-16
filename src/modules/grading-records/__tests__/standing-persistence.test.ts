@@ -149,64 +149,71 @@ function mockDatabase(overrides: Partial<AcademyQueryClient> = {}): AcademyQuery
         };
       }
 
-      // List standing evaluations
+      // List standing evaluations — mimics real `limit $3 offset $4` semantics against a
+      // 2-row dataset so a test can actually prove pagination is applied, not just that the
+      // function runs. A mock that always returns both rows regardless of params[2]/params[3]
+      // would pass even if the real query dropped LIMIT/OFFSET entirely. Found via code review.
       if (sql.includes("count(*) over() as total_count")) {
+        const allRows = [
+          {
+            id: "eval-1",
+            tenant_id: tenantId,
+            student_person_id: studentPersonId,
+            academic_year_id: null,
+            period_id: null,
+            evaluated_at: new Date("2026-09-16T10:00:00Z"),
+            evaluated_by_person_id: evaluatorPersonId,
+            computed_standing_types: JSON.stringify([]),
+            blockers: JSON.stringify([]),
+            summary: JSON.stringify({
+              creditsAttempted: 0,
+              creditsEarned: 0,
+              clockHoursAttempted: 0,
+              clockHoursEarned: 0,
+              transcriptEntries: 0,
+              progressEntries: 0,
+              completionEntries: 0,
+              heldEntries: 0,
+              releasedEntries: 0,
+            }),
+            promotion_ready: false,
+            graduation_ready: false,
+            graduation_blocked: false,
+          },
+          {
+            id: "eval-2",
+            tenant_id: tenantId,
+            student_person_id: studentPersonId,
+            academic_year_id: null,
+            period_id: null,
+            evaluated_at: new Date("2026-09-15T10:00:00Z"),
+            evaluated_by_person_id: evaluatorPersonId,
+            computed_standing_types: JSON.stringify([]),
+            blockers: JSON.stringify([]),
+            summary: JSON.stringify({
+              creditsAttempted: 0,
+              creditsEarned: 0,
+              clockHoursAttempted: 0,
+              clockHoursEarned: 0,
+              transcriptEntries: 0,
+              progressEntries: 0,
+              completionEntries: 0,
+              heldEntries: 0,
+              releasedEntries: 0,
+            }),
+            promotion_ready: false,
+            graduation_ready: false,
+            graduation_blocked: false,
+          },
+        ];
+        const limit = params[2] as number;
+        const offset = params[3] as number;
+        const pageRows = allRows
+          .slice(offset, offset + limit)
+          .map((row) => ({ ...row, total_count: allRows.length }));
         return {
-          rowCount: 2,
-          rows: [
-            {
-              id: "eval-1",
-              tenant_id: tenantId,
-              student_person_id: studentPersonId,
-              academic_year_id: null,
-              period_id: null,
-              evaluated_at: new Date("2026-09-16T10:00:00Z"),
-              evaluated_by_person_id: evaluatorPersonId,
-              computed_standing_types: JSON.stringify([]),
-              blockers: JSON.stringify([]),
-              summary: JSON.stringify({
-                creditsAttempted: 0,
-                creditsEarned: 0,
-                clockHoursAttempted: 0,
-                clockHoursEarned: 0,
-                transcriptEntries: 0,
-                progressEntries: 0,
-                completionEntries: 0,
-                heldEntries: 0,
-                releasedEntries: 0,
-              }),
-              promotion_ready: false,
-              graduation_ready: false,
-              graduation_blocked: false,
-              total_count: 2,
-            },
-            {
-              id: "eval-2",
-              tenant_id: tenantId,
-              student_person_id: studentPersonId,
-              academic_year_id: null,
-              period_id: null,
-              evaluated_at: new Date("2026-09-15T10:00:00Z"),
-              evaluated_by_person_id: evaluatorPersonId,
-              computed_standing_types: JSON.stringify([]),
-              blockers: JSON.stringify([]),
-              summary: JSON.stringify({
-                creditsAttempted: 0,
-                creditsEarned: 0,
-                clockHoursAttempted: 0,
-                clockHoursEarned: 0,
-                transcriptEntries: 0,
-                progressEntries: 0,
-                completionEntries: 0,
-                heldEntries: 0,
-                releasedEntries: 0,
-              }),
-              promotion_ready: false,
-              graduation_ready: false,
-              graduation_blocked: false,
-              total_count: 2,
-            },
-          ],
+          rowCount: pageRows.length,
+          rows: pageRows,
         };
       }
 
@@ -410,10 +417,17 @@ test("listStandingEvaluations - respects limit and offset", async () => {
   const actor = mockActor(tenantId, evaluatorPersonId, ["registrar"]);
   const db = mockDatabase();
 
+  // limit=1 offset=1 against a 2-row dataset must return exactly the second row (eval-2) —
+  // this only passes if the mock (and the real query) actually apply LIMIT/OFFSET.
   const result = await listStandingEvaluations(actor, studentPersonId, db, 1, 1);
 
-  // Mock returns all rows but in real usage pagination would work
+  assert.strictEqual(result.evaluations.length, 1);
+  assert.strictEqual(result.evaluations[0].id, "eval-2");
   assert.strictEqual(result.total, 2);
+
+  const firstPage = await listStandingEvaluations(actor, studentPersonId, db, 1, 0);
+  assert.strictEqual(firstPage.evaluations.length, 1);
+  assert.strictEqual(firstPage.evaluations[0].id, "eval-1");
 });
 
 test("listStandingEvaluations - rejects non-registrar/academic_admin", async () => {
