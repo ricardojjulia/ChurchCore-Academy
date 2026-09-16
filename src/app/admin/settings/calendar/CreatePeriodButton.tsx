@@ -29,24 +29,54 @@ type FormData = {
   name: string;
   code: string;
   academicYearId: string;
+  periodType: string;
   startsOn: string;
   endsOn: string;
+  sequence: number;
 };
+
+// Matches the same list already established in years/[id]/CreatePeriodDialog.tsx (this
+// component's year-scoped sibling) — keep the two in sync if this list ever changes.
+const PERIOD_TYPE_OPTIONS = [
+  { value: "semester", label: "Semester / Term" },
+  { value: "quarter", label: "Quarter / Session" },
+  { value: "trimester", label: "Trimester" },
+  { value: "block", label: "Block" },
+  { value: "module", label: "Module" },
+  { value: "intensive", label: "Intensive" },
+  { value: "term", label: "Term" },
+];
 
 export function CreatePeriodButton({ academicYears, onSuccess, variant = "default" }: CreatePeriodButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { register, handleSubmit, reset, control, formState: { isSubmitting } } = useForm<FormData>();
+  const { register, handleSubmit, reset, control, formState: { isSubmitting } } = useForm<FormData>({
+    defaultValues: {
+      periodType: "semester",
+      sequence: 1,
+    },
+  });
 
   const onSubmit = async (data: FormData) => {
     try {
-      const res = await fetch("/api/academy/periods", {
+      // Periods are created under their academic year — the flat /api/academy/periods path
+      // this used to POST to doesn't exist (404 on every submission). Found via the daily
+      // checkup's end-to-end walkthrough.
+      const res = await fetch(`/api/academy/calendar/years/${data.academicYearId}/periods`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, periodType: "term" }), // Assuming 'term' for now
+        body: JSON.stringify({
+          name: data.name,
+          code: data.code,
+          periodType: data.periodType,
+          startsOn: data.startsOn,
+          endsOn: data.endsOn,
+          sequence: data.sequence,
+        }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to create period.");
+        const errorData = await res.json() as { error?: string };
+        throw new Error(errorData.error ?? "Failed to create period.");
       }
 
       notifyAcademy({
@@ -57,11 +87,11 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
       onSuccess();
       setIsOpen(false);
       reset();
-    } catch (_error) {
+    } catch (error) {
       notifyAcademy({
         tone: "error",
         title: "Creation failed",
-        message: "Failed to create period.",
+        message: error instanceof Error ? error.message : "Failed to create period.",
       });
     }
   };
@@ -111,12 +141,34 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="periodType" className="text-right">Period Type</Label>
+            <div className="col-span-3">
+              <Controller
+                name="periodType"
+                control={control}
+                rules={{ required: true }}
+                render={({ field }) => (
+                  <Select
+                    id="periodType"
+                    value={field.value}
+                    onChange={field.onChange}
+                    data={PERIOD_TYPE_OPTIONS}
+                  />
+                )}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="startsOn" className="text-right">Start Date</Label>
             <Input id="startsOn" type="date" {...register("startsOn", { required: true })} className="col-span-3" />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="endsOn" className="text-right">End Date</Label>
             <Input id="endsOn" type="date" {...register("endsOn", { required: true })} className="col-span-3" />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="sequence" className="text-right">Sequence</Label>
+            <Input id="sequence" type="number" {...register("sequence", { required: true, valueAsNumber: true })} className="col-span-3" min="1" />
           </div>
         </form>
         <DialogFooter>

@@ -38,14 +38,22 @@ export function PeriodActions({ period, onSuccess }: PeriodActionsProps) {
 
   async function handleTransition(action: "open_enrollment" | "activate" | "complete") {
     try {
-      const res = await fetch(`/api/academy/periods/${period.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+      // Status transitions live under the period's academic year — the flat
+      // /api/academy/periods/:id/status path this used to PATCH doesn't exist (404 on every
+      // click). Same root cause as the create-period 404 fixed alongside this. Found via the
+      // daily checkup's end-to-end walkthrough.
+      const res = await fetch(
+        `/api/academy/calendar/years/${period.academicYearId}/periods/${period.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        },
+      );
 
       if (!res.ok) {
-        throw new Error("Failed to update status.");
+        const data = await res.json() as Record<string, unknown>;
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to update status.");
       }
 
       notifyAcademy({
@@ -54,11 +62,11 @@ export function PeriodActions({ period, onSuccess }: PeriodActionsProps) {
         message: "Period status successfully updated.",
       });
       onSuccess();
-    } catch (_error) {
+    } catch (error) {
       notifyAcademy({
         tone: "error",
         title: "Update failed",
-        message: "Failed to update status.",
+        message: error instanceof Error ? error.message : "Failed to update status.",
       });
     }
   }
