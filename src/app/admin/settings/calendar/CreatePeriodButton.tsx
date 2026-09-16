@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { notifyAcademy } from "@/lib/ui/notifications";
-import { PlusCircle } from "lucide-react";
+import { AlertCircle, PlusCircle } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,8 +47,16 @@ const PERIOD_TYPE_OPTIONS = [
   { value: "term", label: "Term" },
 ];
 
+interface OverlapWarning {
+  type: string;
+  message: string;
+  conflictingPeriodId?: string;
+  conflictingPeriodName?: string;
+}
+
 export function CreatePeriodButton({ academicYears, onSuccess, variant = "default" }: CreatePeriodButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [warnings, setWarnings] = useState<OverlapWarning[]>([]);
   const { register, handleSubmit, reset, control, formState: { isSubmitting } } = useForm<FormData>({
     defaultValues: {
       periodType: "semester",
@@ -56,8 +64,22 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
     },
   });
 
+  function handleClose(open: boolean) {
+    if (!open) {
+      const hadWarnings = warnings.length > 0;
+      reset();
+      setWarnings([]);
+      // A warned save already persisted successfully — refresh the parent list.
+      if (hadWarnings) {
+        onSuccess();
+      }
+    }
+    setIsOpen(open);
+  }
+
   const onSubmit = async (data: FormData) => {
     try {
+      setWarnings([]);
       // Periods are created under their academic year — the flat /api/academy/periods path
       // this used to POST to doesn't exist (404 on every submission). Found via the daily
       // checkup's end-to-end walkthrough.
@@ -79,14 +101,31 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
         throw new Error(errorData.error ?? "Failed to create period.");
       }
 
-      notifyAcademy({
-        tone: "success",
-        title: "Period created",
-        message: "Academic period successfully created.",
-      });
-      onSuccess();
-      setIsOpen(false);
-      reset();
+      // createTerm() returns 200 with { period, warnings } on date overlaps rather than
+      // rejecting the request — this handler used to ignore the body entirely and always
+      // report plain success, so an admin creating an overlapping period was never told.
+      // Matches the warning-handling flow already established in the year-scoped sibling
+      // dialog (years/[id]/CreatePeriodDialog.tsx). Found via PR review.
+      const result = await res.json() as { period: unknown; warnings?: OverlapWarning[] };
+
+      if (result.warnings && result.warnings.length > 0) {
+        setWarnings(result.warnings);
+        notifyAcademy({
+          tone: "warning",
+          title: "Period created with warnings",
+          message: "The period was created but has date overlaps. Review the warnings below.",
+        });
+        // Don't close immediately — let the user acknowledge the warning.
+      } else {
+        notifyAcademy({
+          tone: "success",
+          title: "Period created",
+          message: "Academic period successfully created.",
+        });
+        onSuccess();
+        setIsOpen(false);
+        reset();
+      }
     } catch (error) {
       notifyAcademy({
         tone: "error",
@@ -97,7 +136,7 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogTrigger asChild>
         <Button variant={variant}>
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -109,6 +148,22 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
           <DialogTitle>Create New Academic Period</DialogTitle>
           <DialogDescription>Define a new term, semester, or module for your institution.</DialogDescription>
         </DialogHeader>
+
+        {warnings.length > 0 && (
+          <div className="period-overlap-warning">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold">Date Overlap Detected</p>
+              {warnings.map((warning, idx) => (
+                <p key={idx} className="text-sm mt-1">
+                  {warning.message}
+                </p>
+              ))}
+              <p className="text-sm mt-2">The period was saved successfully. Overlapping periods are allowed — verify this is intentional.</p>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} id="create-period-form" className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">Name</Label>
@@ -172,9 +227,14 @@ export function CreatePeriodButton({ academicYears, onSuccess, variant = "defaul
           </div>
         </form>
         <DialogFooter>
-          <Button type="submit" form="create-period-form" disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create Period"}
+          <Button variant="outline" onClick={() => handleClose(false)}>
+            {warnings.length > 0 ? "Close" : "Cancel"}
           </Button>
+          {warnings.length === 0 && (
+            <Button type="submit" form="create-period-form" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Create Period"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
