@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { requireActor } from "@/lib/require-actor";
+import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
@@ -15,13 +16,18 @@ import type { DenominationRosterEntry } from "@/modules/people/denomination";
 
 export const dynamic = "force-dynamic";
 
+// Exported so the sidebar nav (admin-shell.tsx, via admin/layout.tsx) can gate the link to this
+// page with the exact same role list instead of a hand-typed copy — a drifted copy would either
+// show a dead-end link to a role that can't open the page, or hide it from a role that can.
+export const DENOMINATION_ROSTER_ROLES: AcademyRole[] = ["institution_admin", "registrar"];
+
 export default async function DenominationRosterPage({
   searchParams,
 }: {
   searchParams: Promise<{ denomination?: string }>;
 }) {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "registrar"]);
+  requireActor(actor, DENOMINATION_ROSTER_ROLES);
 
   const params = await searchParams;
   const denominationFilter = params.denomination || null;

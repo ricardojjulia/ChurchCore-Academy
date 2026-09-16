@@ -7,6 +7,8 @@ import { AcademicContextDataProvider, type AcademicContextData } from "@/context
 import { AdminCapabilityProvider } from "@/components/admin-capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
+import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
+import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -81,14 +83,30 @@ async function getAcademicContextData(actor: Actor): Promise<AcademicContextData
   }
 }
 
-async function getCapabilityData(actor: Actor): Promise<{ ministryFormationEnabled: boolean }> {
+interface AdminCapabilityData {
+  ministryFormationEnabled: boolean;
+  denominationTrackingEnabled: boolean;
+  alumniGivingEnabled: boolean;
+}
+
+async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
+  // Nav visibility must match BOTH the institution capability flag AND the destination page's
+  // own role allowlist — a role-blind check here would show a link to a staff member whose role
+  // the destination page's requireActor() then rejects, landing them on an access-denied dead
+  // end (found via PR review: the first version of this fix only checked capability).
+  const hasRole = (roles: AcademyRole[]) => actor.roles.some((role) => roles.includes(role));
+
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
-      return { ministryFormationEnabled: capabilities.ministryFormation ?? false };
+      return {
+        ministryFormationEnabled: capabilities.ministryFormation ?? false,
+        denominationTrackingEnabled: (capabilities.denominationTracking ?? false) && hasRole(DENOMINATION_ROSTER_ROLES),
+        alumniGivingEnabled: (capabilities.alumniGiving ?? false) && hasRole(ALUMNI_ROSTER_ROLES),
+      };
     });
   } catch {
-    return { ministryFormationEnabled: false };
+    return { ministryFormationEnabled: false, denominationTrackingEnabled: false, alumniGivingEnabled: false };
   }
 }
 
@@ -113,7 +131,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <AcademicContextDataProvider value={academicContextData}>
-      <AdminCapabilityProvider ministryFormationEnabled={capabilityData.ministryFormationEnabled}>
+      <AdminCapabilityProvider
+        ministryFormationEnabled={capabilityData.ministryFormationEnabled}
+        denominationTrackingEnabled={capabilityData.denominationTrackingEnabled}
+        alumniGivingEnabled={capabilityData.alumniGivingEnabled}
+      >
         {children}
       </AdminCapabilityProvider>
     </AcademicContextDataProvider>

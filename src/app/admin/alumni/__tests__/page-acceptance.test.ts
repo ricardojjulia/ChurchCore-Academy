@@ -22,11 +22,19 @@ async function readPage(relativePath: string): Promise<string> {
 test("CRITERION 1 — /admin/alumni/page.tsx requires the correct read-level roles (including alumni_relations)", async () => {
   const source = await readPage("src/app/admin/alumni/page.tsx");
 
-  // Verify requireActor call with the 4 read-level roles
+  // The role list moved to an exported ALUMNI_ROSTER_ROLES const so admin/layout.tsx can gate
+  // the sidebar nav link with the exact same list instead of a hand-typed (and driftable) copy —
+  // see the daily-checkup fix that added nav entries for this page. requireActor now takes that
+  // const directly rather than an inline array literal.
   assert.match(
     source,
-    /requireActor\(actor, \[/,
-    "roster page must call requireActor with role array"
+    /requireActor\(actor, ALUMNI_ROSTER_ROLES\)/,
+    "roster page must call requireActor with the exported ALUMNI_ROSTER_ROLES const"
+  );
+  assert.match(
+    source,
+    /export const ALUMNI_ROSTER_ROLES: AcademyRole\[\] = \[/,
+    "roster page must export ALUMNI_ROSTER_ROLES as a typed AcademyRole[] const"
   );
 
   const readRoles = ["institution_admin", "academic_admin", "alumni_relations", "registrar"];

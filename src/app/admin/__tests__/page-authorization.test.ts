@@ -76,10 +76,15 @@ const institutionConfigPages: string[] = [
 for (const { path, roles } of requireActorPages) {
   test(`${path} requires an authorized role before rendering`, async () => {
     const source = await readPage(path);
+    // The two-arg call takes either an inline array literal (requireActor(actor, [...])) or a
+    // named exported role-list const (requireActor(actor, SOME_ROLES)) — the latter pattern
+    // exists so other call sites (e.g. the sidebar nav) can import the same list instead of a
+    // hand-typed copy that can drift. Either form is real role enforcement; only the bare
+    // zero-arg requireActor() (authentication only, no role check) must fail this assertion.
     assert.match(
       source,
-      /requireActor\(actor, \[/,
-      `${path} no longer calls the two-arg requireActor(actor, [roles]) form`,
+      /requireActor\(actor, (\[|[A-Z][A-Z0-9_]*\))/,
+      `${path} no longer calls the two-arg requireActor(actor, [roles] | ROLES_CONST) form`,
     );
     for (const role of roles) {
       assert.match(

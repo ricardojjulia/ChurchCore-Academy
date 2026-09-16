@@ -67,6 +67,8 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Transcripts", href: "/admin/transcripts" },
       { label: "Graduation", href: "/admin/graduation" },
       { label: "Ministry Formation", href: "/admin/formation" },
+      { label: "Denomination & Ordination", href: "/admin/denomination" },
+      { label: "Alumni & Giving", href: "/admin/alumni" },
     ],
   },
   {
@@ -118,6 +120,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Institution", href: "/admin/settings/institution" },
       { label: "Calendar", href: "/admin/settings/calendar" },
       { label: "People & Roles", href: "/admin/settings/people" },
+      { label: "Grading", href: "/admin/settings/grading" },
       { label: "LMS Providers", href: "/admin/settings/lms" },
     ],
   },
@@ -161,7 +164,8 @@ function AdminShellInner({
   const pathname = usePathname();
   const derivedSection = sectionForPath(pathname);
   const academicContextData = useAcademicContextData();
-  const { ministryFormationEnabled } = useAdminCapabilities();
+  const { ministryFormationEnabled, denominationTrackingEnabled, alumniGivingEnabled } =
+    useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
     activeSectionProp ?? derivedSection,
@@ -179,8 +183,14 @@ function AdminShellInner({
   const visibleNavSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => {
-      // Filter out Ministry Formation nav item if capability is disabled
+      // Filter out capability-gated nav items when their capability is disabled
       if (item.href === "/admin/formation" && !ministryFormationEnabled) {
+        return false;
+      }
+      if (item.href === "/admin/denomination" && !denominationTrackingEnabled) {
+        return false;
+      }
+      if (item.href === "/admin/alumni" && !alumniGivingEnabled) {
         return false;
       }
       return true;
