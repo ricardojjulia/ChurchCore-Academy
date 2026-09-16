@@ -2,10 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Save } from "lucide-react";
+import { Save, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { notifyAcademy } from "@/lib/ui/notifications";
+import { submitGradeAction } from "@/lib/actions/gradebook/submitGradeAction";
 import type {
   Assignment,
   AssignmentSubmission,
@@ -28,6 +29,8 @@ export function AssignmentGradeEntryForm({
 }: AssignmentGradeEntryFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [postedIds, setPostedIds] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<DraftValue>(() =>
     Object.fromEntries(
       grades.map((grade) => [
@@ -95,6 +98,66 @@ export function AssignmentGradeEntryForm({
     });
   }
 
+  // Grading here (bulkGradeAssignment, via Save Grades above) only writes an advisory
+  // academy_gradebook_submissions row — per ADR-0054 §3/§4, faculty still post the official,
+  // transcript-eligible grade "through the existing grade-posting flow" (submitGradeAction /
+  // academy_gradebook_records), which is what actually feeds the Registrar Posting Queue on
+  // /admin/gradebook and, from there, transcripts. That flow's only UI was the abandoned
+  // /dashboard/faculty/gradebook tree (last touched 2026-06-15, never linked from any nav) —
+  // wiring it in here instead completes ADR-0054's own design rather than resurrecting dead
+  // code. Found via the daily checkup's full 12-step walkthrough.
+  async function submitForPosting(grade: AssignmentSubmission) {
+    const isPassFail = assignment.gradingType === "pass_fail";
+    const pointsEarned = isPassFail
+      ? grade.passFailResult === "pass"
+        ? assignment.maxPoints
+        : 0
+      : grade.gradePoints;
+
+    if (pointsEarned === undefined) {
+      notifyAcademy({
+        tone: "error",
+        title: "Not graded yet",
+        message: "Save a grade for this student before submitting it for posting.",
+      });
+      return;
+    }
+
+    setSubmittingId(grade.id);
+    try {
+      const result = await submitGradeAction({
+        submissionId: grade.id,
+        assignmentId,
+        learnerPersonId: grade.learnerPersonId,
+        pointsEarned,
+        maxPoints: assignment.maxPoints,
+        letterGrade: null,
+        isPassing: isPassFail ? grade.passFailResult === "pass" : null,
+        instructorFeedback: null,
+        sensitivityTier: "standard",
+      });
+
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+
+      setPostedIds((current) => new Set(current).add(grade.id));
+      notifyAcademy({
+        tone: "success",
+        title: "Submitted for posting",
+        message: "The grade is now in the registrar's posting queue.",
+      });
+    } catch (error) {
+      notifyAcademy({
+        tone: "error",
+        title: "Submission failed",
+        message: error instanceof Error ? error.message : "Failed to submit grade for posting.",
+      });
+    } finally {
+      setSubmittingId(null);
+    }
+  }
+
   if (grades.length === 0) {
     return (
       <p className="py-8 text-center text-muted-foreground">
@@ -120,6 +183,7 @@ export function AssignmentGradeEntryForm({
               <th className="p-3 text-left font-medium">Student</th>
               <th className="p-3 text-left font-medium">Grade</th>
               <th className="p-3 text-left font-medium">Status</th>
+              <th className="p-3 text-left font-medium">Registrar Posting</th>
             </tr>
           </thead>
           <tbody>
@@ -162,6 +226,21 @@ export function AssignmentGradeEntryForm({
                     <Badge variant="secondary">Graded</Badge>
                   ) : (
                     <Badge variant="outline">Pending</Badge>
+                  )}
+                </td>
+                <td className="p-3">
+                  {postedIds.has(grade.id) ? (
+                    <Badge variant="secondary">Submitted</Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => submitForPosting(grade)}
+                      disabled={!grade.gradedAt || submittingId === grade.id}
+                      leftSection={<Send className="h-4 w-4" />}
+                    >
+                      {submittingId === grade.id ? "Submitting..." : "Submit for Posting"}
+                    </Button>
                   )}
                 </td>
               </tr>
