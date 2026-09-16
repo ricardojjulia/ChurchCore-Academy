@@ -81,14 +81,24 @@ async function getAcademicContextData(actor: Actor): Promise<AcademicContextData
   }
 }
 
-async function getCapabilityData(actor: Actor): Promise<{ ministryFormationEnabled: boolean }> {
+interface AdminCapabilityData {
+  ministryFormationEnabled: boolean;
+  denominationTrackingEnabled: boolean;
+  alumniGivingEnabled: boolean;
+}
+
+async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
-      return { ministryFormationEnabled: capabilities.ministryFormation ?? false };
+      return {
+        ministryFormationEnabled: capabilities.ministryFormation ?? false,
+        denominationTrackingEnabled: capabilities.denominationTracking ?? false,
+        alumniGivingEnabled: capabilities.alumniGiving ?? false,
+      };
     });
   } catch {
-    return { ministryFormationEnabled: false };
+    return { ministryFormationEnabled: false, denominationTrackingEnabled: false, alumniGivingEnabled: false };
   }
 }
 
@@ -113,7 +123,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <AcademicContextDataProvider value={academicContextData}>
-      <AdminCapabilityProvider ministryFormationEnabled={capabilityData.ministryFormationEnabled}>
+      <AdminCapabilityProvider
+        ministryFormationEnabled={capabilityData.ministryFormationEnabled}
+        denominationTrackingEnabled={capabilityData.denominationTrackingEnabled}
+        alumniGivingEnabled={capabilityData.alumniGivingEnabled}
+      >
         {children}
       </AdminCapabilityProvider>
     </AcademicContextDataProvider>

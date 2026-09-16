@@ -65,6 +65,30 @@ test.describe("dashboard — ShepherdAI links only shown to roles with access", 
   });
 });
 
+test.describe("registrar nav — denomination and alumni are reachable, not just known URLs", () => {
+  // PR #114 and #116 shipped /admin/denomination and /admin/alumni with no nav entry at all —
+  // reachable only by typing the exact URL, violating CLAUDE.md's Definition of Done
+  // ("accessible from a logical navigation path — not just a known URL"). These assert both are
+  // now discoverable from the Registrar section of the sidebar.
+  test("Denomination & Ordination is reachable from the Registrar nav", async ({ page }) => {
+    await loginAs(page, PERSONAS.institutionAdmin);
+    await page.goto("/admin/formation");
+    await expect(page.locator('a[href="/admin/denomination"]').first()).toBeVisible();
+    await page.locator('a[href="/admin/denomination"]').first().click();
+    await expect(page).toHaveURL(/\/admin\/denomination/);
+    await expect(page.getByText("You don't have access to this page")).not.toBeVisible();
+  });
+
+  test("Alumni & Giving is reachable from the Registrar nav", async ({ page }) => {
+    await loginAs(page, PERSONAS.institutionAdmin);
+    await page.goto("/admin/formation");
+    await expect(page.locator('a[href="/admin/alumni"]').first()).toBeVisible();
+    await page.locator('a[href="/admin/alumni"]').first().click();
+    await expect(page).toHaveURL(/\/admin\/alumni/);
+    await expect(page.getByText("You don't have access to this page")).not.toBeVisible();
+  });
+});
+
 test("demo-feedback platform workspace is reachable outside the Academy admin gate", async ({ page }) => {
   // Council Review 18's own fix chain: this route must not require an Academy staff role,
   // since it's platform-staff-only and lives outside src/app/admin/*.
