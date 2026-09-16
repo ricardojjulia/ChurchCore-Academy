@@ -82,7 +82,7 @@ export function AdmissionsApplicationList({
                         </div>
                       ) : null}
                     </TableCell>
-                    <TableCell>{application.programId}</TableCell>
+                    <TableCell>{application.programName}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(application.status)}>
                         {application.statusLabel}

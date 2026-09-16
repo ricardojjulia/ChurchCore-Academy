@@ -162,6 +162,24 @@ test("projects ready, blocked, converted, and non-applicable conversion states",
   assert.equal(model.applications[1].studentProfileId, undefined);
 });
 
+test("programName falls back to programId when the source query has no program name, and is used when present", () => {
+  const withName: AdmissionApplication = {
+    ...applications[3],
+    id: "application-with-program-name",
+    programId: "program-3",
+    programName: "Bachelor of Biblical Studies",
+  };
+
+  const model = buildAdmissionReviewModel(
+    [applications[3], withName],
+    { includeApplicantContact: true, canConvertApplications: true },
+  );
+
+  // applications[3] has no programName set — falls back to the raw id, never blank.
+  assert.equal(model.applications[0].programName, "program-3");
+  assert.equal(model.applications[1].programName, "Bachelor of Biblical Studies");
+});
+
 test("review-capable roles without conversion authority see a disabled state", () => {
   const model = buildAdmissionReviewModel([applications[3]], {
     includeApplicantContact: true,

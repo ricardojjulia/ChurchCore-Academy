@@ -37,6 +37,10 @@ export function mapAdmissionApplicationRow(
     tenantId: String(row.tenant_id),
     applicantPersonId: String(row.applicant_person_id),
     programId: String(row.program_id),
+    programName:
+      row.program_name === null || row.program_name === undefined
+        ? undefined
+        : String(row.program_name),
     applicationTermId:
       row.application_term_id === null ||
       row.application_term_id === undefined
@@ -160,11 +164,14 @@ export class PostgresAdmissionsRepository {
     }
 
     const result = await this.database.query(
-      `select application.*, profile.student_number
+      `select application.*, profile.student_number, program.title as program_name
        from academy_admission_applications application
        left join academy_student_profiles profile
          on profile.tenant_id = application.tenant_id
         and profile.id = application.student_profile_id
+       left join academy_programs program
+         on program.tenant_id = application.tenant_id
+        and program.id = application.program_id
        where ${conditions
          .map((condition) => `application.${condition}`)
          .join(" and ")}
