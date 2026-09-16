@@ -76,7 +76,9 @@ test.describe("registrar nav — denomination and alumni are reachable, not just
     await expect(page.locator('a[href="/admin/denomination"]').first()).toBeVisible();
     await page.locator('a[href="/admin/denomination"]').first().click();
     await expect(page).toHaveURL(/\/admin\/denomination/);
-    await expect(page.getByText("You don't have access to this page")).not.toBeVisible();
+    // A success-only assertion, not just "no access-denied text" — a 404 or the generic
+    // crash boundary would keep the URL and also lack that text, so both would false-pass.
+    await expect(page.getByRole("heading", { level: 1, name: "Denomination Roster" })).toBeVisible();
   });
 
   test("Alumni & Giving is reachable from the Registrar nav", async ({ page }) => {
@@ -85,7 +87,25 @@ test.describe("registrar nav — denomination and alumni are reachable, not just
     await expect(page.locator('a[href="/admin/alumni"]').first()).toBeVisible();
     await page.locator('a[href="/admin/alumni"]').first().click();
     await expect(page).toHaveURL(/\/admin\/alumni/);
-    await expect(page.getByText("You don't have access to this page")).not.toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Alumni Roster" })).toBeVisible();
+  });
+
+  test("faculty does not see denomination or alumni nav links and is blocked if it navigates there directly", async ({ page }) => {
+    // The nav's capability flags previously ignored the destination page's own role allowlist
+    // (/admin/denomination: institution_admin/registrar only; /admin/alumni: institution_admin/
+    // academic_admin/alumni_relations/registrar only) — a faculty member would see both links
+    // and land on an access-denied dead end. Faculty holds neither role, so this both proves
+    // the nav hides them AND that direct navigation is still correctly blocked server-side.
+    await loginAs(page, PERSONAS.faculty);
+    await page.goto("/admin/formation");
+    await expect(page.locator('a[href="/admin/denomination"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/admin/alumni"]')).toHaveCount(0);
+
+    await page.goto("/admin/denomination");
+    await expect(page.getByText("You don't have access to this page")).toBeVisible();
+
+    await page.goto("/admin/alumni");
+    await expect(page.getByText("You don't have access to this page")).toBeVisible();
   });
 });
 
@@ -99,7 +119,7 @@ test("Grading settings (incl. the competency framework builder) is reachable fro
   await expect(page.locator('a[href="/admin/settings/grading"]').first()).toBeVisible();
   await page.locator('a[href="/admin/settings/grading"]').first().click();
   await expect(page).toHaveURL(/\/admin\/settings\/grading/);
-  await expect(page.getByText("You don't have access to this page")).not.toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Grading setup review" })).toBeVisible();
 });
 
 test("demo-feedback platform workspace is reachable outside the Academy admin gate", async ({ page }) => {
