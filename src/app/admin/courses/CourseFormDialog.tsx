@@ -58,7 +58,7 @@ const COURSE_LEVEL_OPTIONS = [
 
 export function CourseFormDialog({ open, onOpenChange, mode, course }: CourseFormDialogProps) {
   const router = useRouter();
-  const { register, handleSubmit, reset, control, formState: { isSubmitting } } = useForm<FormData>();
+  const { register, handleSubmit, reset, control, formState: { isSubmitting, errors } } = useForm<FormData>();
 
   useEffect(() => {
     if (mode === "edit" && course) {
@@ -149,36 +149,43 @@ export function CourseFormDialog({ open, onOpenChange, mode, course }: CourseFor
         <form onSubmit={handleSubmit(onSubmit)} id="course-form" className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="code" className="text-right">Course Code</Label>
-            <Input
-              id="code"
-              {...register("code", { required: true })}
-              className="col-span-3 font-mono"
-              placeholder="BIB101"
-              onBlur={(e) => {
-                e.target.value = e.target.value.toUpperCase();
-              }}
-            />
+            <div className="col-span-3">
+              <Input
+                id="code"
+                {...register("code", { required: true })}
+                className="font-mono"
+                placeholder="BIB101"
+                onBlur={(e) => {
+                  e.target.value = e.target.value.toUpperCase();
+                }}
+              />
+              {errors.code && <p className="text-sm text-destructive mt-1">Course code is required.</p>}
+            </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="title" className="text-right">Title</Label>
-            <Input
-              id="title"
-              {...register("title", { required: true })}
-              className="col-span-3"
-              placeholder="Introduction to Biblical Studies"
-            />
+            <div className="col-span-3">
+              <Input
+                id="title"
+                {...register("title", { required: true })}
+                placeholder="Introduction to Biblical Studies"
+              />
+              {errors.title && <p className="text-sm text-destructive mt-1">Title is required.</p>}
+            </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">Description</Label>
-            <Textarea
-              id="description"
-              {...register("description", { required: mode === "create" })}
-              className="col-span-3"
-              placeholder="Course description..."
-              rows={3}
-            />
+            <div className="col-span-3">
+              <Textarea
+                id="description"
+                {...register("description", { required: mode === "create" })}
+                placeholder="Course description..."
+                rows={3}
+              />
+              {errors.description && <p className="text-sm text-destructive mt-1">Description is required.</p>}
+            </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
@@ -197,6 +204,7 @@ export function CourseFormDialog({ open, onOpenChange, mode, course }: CourseFor
                   />
                 )}
               />
+              {errors.courseType && <p className="text-sm text-destructive mt-1">Course type is required.</p>}
             </div>
           </div>
 
@@ -216,6 +224,7 @@ export function CourseFormDialog({ open, onOpenChange, mode, course }: CourseFor
                   />
                 )}
               />
+              {errors.courseLevel && <p className="text-sm text-destructive mt-1">Course level is required.</p>}
             </div>
           </div>
 

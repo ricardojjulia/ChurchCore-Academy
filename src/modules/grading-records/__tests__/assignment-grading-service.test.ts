@@ -84,6 +84,7 @@ void describe("createAssignment", () => {
       maxPoints: 100,
       weight: 30,
       gradingType: "points",
+      assignmentType: "quiz",
     };
 
     const db = createMockDb([
@@ -107,6 +108,7 @@ void describe("createAssignment", () => {
             max_points: 100,
             weight: 30,
             grading_type: "points",
+            assignment_type: "quiz",
             due_date: null,
             locked: false,
             created_at: "2026-06-25T12:00:00Z",
@@ -121,6 +123,11 @@ void describe("createAssignment", () => {
     assert.equal(result.title, "Midterm Exam");
     assert.equal(result.weight, 30);
     assert.equal(result.locked, false);
+    // assignment_type is a NOT NULL DB column with no default (see
+    // academy_gradebook_assignments_assignment_type_check) that the insert never populated
+    // until this was fixed — real inserts failed outright even though this mock-backed test
+    // passed either way. Assert both the input is threaded through and the returned row maps it.
+    assert.equal(result.assignmentType, "quiz");
   });
 
   void it("rejection: weight sum would exceed 100", async () => {
@@ -130,6 +137,7 @@ void describe("createAssignment", () => {
       maxPoints: 100,
       weight: 60,
       gradingType: "points",
+      assignmentType: "quiz",
     };
 
     const db = createMockDb([
@@ -158,6 +166,7 @@ void describe("createAssignment", () => {
       maxPoints: 100,
       weight: 20,
       gradingType: "points",
+      assignmentType: "quiz",
     };
 
     const db = createMockDb([
@@ -182,6 +191,7 @@ void describe("createAssignment", () => {
       maxPoints: 100,
       weight: 20,
       gradingType: "points",
+      assignmentType: "quiz",
     };
 
     const db = createMockDb([]);
@@ -203,6 +213,7 @@ void describe("createAssignment", () => {
       maxPoints: 100,
       weight: 20,
       gradingType: "points",
+      assignmentType: "quiz",
     };
 
     const db = createMockDb([
@@ -248,6 +259,7 @@ void describe("updateAssignment", () => {
             max_points: 100,
             weight: 30,
             grading_type: "points",
+            assignment_type: "quiz",
             due_date: null,
             locked: false,
             created_at: "2026-06-25T12:00:00Z",
@@ -511,6 +523,7 @@ void describe("getAssignments", () => {
             max_points: 100,
             weight: 30,
             grading_type: "points",
+            assignment_type: "quiz",
             due_date: "2026-07-01T00:00:00Z",
             locked: false,
             created_at: "2026-06-25T12:00:00Z",

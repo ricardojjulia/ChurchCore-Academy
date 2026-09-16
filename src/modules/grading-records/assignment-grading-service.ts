@@ -21,6 +21,17 @@ import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export type AssignmentGradingType = "points" | "pass_fail" | "rubric";
 
+// Matches the academy_gradebook_assignments_assignment_type_check constraint in the DB —
+// keep in sync if that check constraint's allowed list ever changes.
+export type AssignmentCategory =
+  | "essay"
+  | "quiz"
+  | "project"
+  | "participation"
+  | "attendance"
+  | "practical"
+  | "reflection";
+
 export interface Assignment {
   id: string;
   tenantId: string;
@@ -32,6 +43,7 @@ export interface Assignment {
   maxPoints: number;
   weight: number; // Integer 0-100
   gradingType: AssignmentGradingType;
+  assignmentType: AssignmentCategory;
   createdBy: string;
   createdAt: string;
   locked: boolean;
@@ -58,6 +70,7 @@ export interface CreateAssignmentInput {
   maxPoints: number;
   weight: number; // Integer 0-100
   gradingType: AssignmentGradingType;
+  assignmentType: AssignmentCategory;
 }
 
 export interface UpdateAssignmentInput {
@@ -199,11 +212,11 @@ export async function createAssignment(
   const result = await db.query(
     `insert into public.academy_gradebook_assignments
        (tenant_id, course_id, section_id, created_by_person_id,
-        title, description, max_points, weight, grading_type, due_date, locked)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)
+        title, description, max_points, weight, grading_type, assignment_type, due_date, locked)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false)
      returning
        id, tenant_id, course_id, section_id, created_by_person_id,
-       title, description, max_points, weight, grading_type, due_date,
+       title, description, max_points, weight, grading_type, assignment_type, due_date,
        locked, created_at, updated_at`,
     [
       actor.tenantId,
@@ -215,6 +228,7 @@ export async function createAssignment(
       input.maxPoints,
       input.weight,
       input.gradingType,
+      input.assignmentType,
       input.dueDate ?? null,
     ],
   );
@@ -314,7 +328,7 @@ export async function updateAssignment(
      where tenant_id = $1 and id = $2
      returning
        id, tenant_id, course_id, section_id, created_by_person_id,
-       title, description, max_points, weight, grading_type, due_date,
+       title, description, max_points, weight, grading_type, assignment_type, due_date,
        locked, created_at, updated_at`,
     params,
   );
@@ -520,7 +534,7 @@ export async function getAssignments(
   const result = await db.query(
     `select
        id, tenant_id, course_id, section_id, created_by_person_id,
-       title, description, max_points, weight, grading_type, due_date,
+       title, description, max_points, weight, grading_type, assignment_type, due_date,
        locked, created_at, updated_at
      from public.academy_gradebook_assignments
      where tenant_id = $1 and section_id = $2
@@ -618,6 +632,7 @@ function mapAssignmentRow(row: Record<string, unknown>): Assignment {
     maxPoints: Number(row.max_points),
     weight: Number(row.weight),
     gradingType: String(row.grading_type) as AssignmentGradingType,
+    assignmentType: String(row.assignment_type) as AssignmentCategory,
     createdBy: String(row.created_by_person_id),
     createdAt: String(row.created_at),
     locked: Boolean(row.locked),

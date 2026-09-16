@@ -37,6 +37,10 @@ export async function POST(
     if (typeof body.gradingType !== "string" || !["points", "pass_fail", "rubric"].includes(body.gradingType)) {
       throw new Error("Grading type must be 'points', 'pass_fail', or 'rubric'.");
     }
+    const assignmentTypes = ["essay", "quiz", "project", "participation", "attendance", "practical", "reflection"];
+    if (typeof body.assignmentType !== "string" || !assignmentTypes.includes(body.assignmentType)) {
+      throw new Error(`Assignment type must be one of: ${assignmentTypes.join(", ")}.`);
+    }
 
     const input: CreateAssignmentInput = {
       sectionId,
@@ -46,6 +50,7 @@ export async function POST(
       maxPoints: body.maxPoints,
       weight: body.weight,
       gradingType: body.gradingType as "points" | "pass_fail" | "rubric",
+      assignmentType: body.assignmentType as CreateAssignmentInput["assignmentType"],
     };
 
     return withAcademyDatabaseContext(actor, async (client) => {
