@@ -15,6 +15,7 @@ import { EnrollmentStatusTrigger } from "./EnrollmentStatusTrigger";
 import { CovenantRecordTab } from "@/components/covenant-record-tab";
 import { DenominationRecordTab } from "@/components/denomination-record-tab";
 import { AlumniRecordTab } from "@/components/alumni-record-tab";
+import { AcademicStandingTab } from "@/components/academic-standing-tab";
 import type { CovenantRecord } from "@/modules/people/types";
 
 export const dynamic = "force-dynamic";
@@ -259,6 +260,25 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       // alumni giving feature not available
     }
 
+    // Load academic standing automation capability — gated to registrar or academic_admin
+    // (viewing and evaluating), but hold management actions are further restricted to
+    // institution_admin/registrar only (the hold routes enforce this separately).
+    const canViewAcademicStanding = actor.roles.some((role) =>
+      ["registrar", "academic_admin"].includes(role),
+    );
+    const canManageHolds = actor.roles.some((role) =>
+      ["institution_admin", "registrar"].includes(role),
+    );
+    let academicStandingEnabled = false;
+    try {
+      // Uses fetchCapabilitySet (not a raw capabilities-column read) — same reasoning as
+      // the other capability checks above.
+      const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      academicStandingEnabled = caps.academicStandingAutomation === true && canViewAcademicStanding;
+    } catch {
+      // academic standing feature not available
+    }
+
     return {
       person: {
         id: String(person.id),
@@ -307,6 +327,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       alumniGiftCount,
       alumniTotalGivenCents,
       alumniLastGiftDate,
+      academicStandingEnabled,
+      canManageHolds,
     };
   });
 
@@ -314,7 +336,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination, alumniGivingEnabled, alumniHasRecord, alumniGiftCount, alumniTotalGivenCents, alumniLastGiftDate } = data;
+  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination, alumniGivingEnabled, alumniHasRecord, alumniGiftCount, alumniTotalGivenCents, alumniLastGiftDate, academicStandingEnabled, canManageHolds } = data;
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
 
   return (
@@ -349,6 +371,9 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           )}
           {alumniGivingEnabled && (
             <TabsTrigger value="alumni">Alumni</TabsTrigger>
+          )}
+          {academicStandingEnabled && (
+            <TabsTrigger value="standing">Academic Standing</TabsTrigger>
           )}
           <TabsTrigger value="audit">Audit</TabsTrigger>
         </TabsList>
@@ -533,6 +558,13 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             giftCount={alumniGiftCount}
             totalGivenCents={alumniTotalGivenCents}
             lastGiftDate={alumniLastGiftDate}
+          />
+        </TabsContent>
+
+        <TabsContent value="standing">
+          <AcademicStandingTab
+            personId={person.id}
+            canManageHolds={canManageHolds}
           />
         </TabsContent>
 
