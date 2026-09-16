@@ -22,6 +22,7 @@ describe("fetchCapabilitySet", () => {
       shepherdAiRecommendations: true,
       covenantRecords: false,
       competencyNarrativeGrading: false,
+      academicStandingAutomation: true,
     };
 
     const mockClient = {
@@ -107,6 +108,7 @@ describe("withCapabilityContext", () => {
       shepherdAiRecommendations: false,
       covenantRecords: false,
       competencyNarrativeGrading: false,
+      academicStandingAutomation: true,
     };
 
     const mockClient = {

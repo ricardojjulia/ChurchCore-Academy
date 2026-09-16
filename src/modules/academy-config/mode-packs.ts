@@ -38,6 +38,7 @@ const baseCapabilities: InstitutionCapabilitySet = {
   shepherdAiRecommendations: true,
   covenantRecords: false,
   competencyNarrativeGrading: false,
+  academicStandingAutomation: false,
 };
 
 const collegeOperatingRules: InstitutionOperatingRules = {
@@ -101,6 +102,7 @@ const modePacks: Record<ConcreteInstitutionMode, InstitutionModePack> = {
       denominationTracking: true,
       alumniGiving: true,
       competencyNarrativeGrading: true,
+      academicStandingAutomation: true,
     },
     recommendedSubdivisionTypes: ["school", "department"],
     workflowTemplates: ["degree_admissions", "registration", "transcript_posting", "graduation_audit"],
@@ -117,6 +119,7 @@ const modePacks: Record<ConcreteInstitutionMode, InstitutionModePack> = {
       ministryFormation: true,
       denominationTracking: true,
       alumniGiving: true,
+      academicStandingAutomation: true,
     },
     recommendedSubdivisionTypes: ["school", "department"],
     workflowTemplates: ["degree_admissions", "registration", "transcript_posting", "graduation_audit"],
@@ -136,6 +139,7 @@ const modePacks: Record<ConcreteInstitutionMode, InstitutionModePack> = {
       ministryFormation: true,
       denominationTracking: true,
       alumniGiving: true,
+      academicStandingAutomation: true,
     },
     recommendedSubdivisionTypes: ["school", "department", "division"],
     workflowTemplates: ["degree_admissions", "registration", "transcript_posting", "graduation_audit"],
@@ -362,6 +366,7 @@ export function aggregateModePackCapabilities(selectedModes: readonly Institutio
     shepherdAiRecommendations: false,
     covenantRecords: false,
     competencyNarrativeGrading: false,
+    academicStandingAutomation: false,
   };
 
   return packs.reduce<InstitutionCapabilitySet>(
@@ -382,6 +387,7 @@ export function aggregateModePackCapabilities(selectedModes: readonly Institutio
       shepherdAiRecommendations: capabilities.shepherdAiRecommendations || pack.capabilities.shepherdAiRecommendations,
       covenantRecords: capabilities.covenantRecords || pack.capabilities.covenantRecords,
       competencyNarrativeGrading: capabilities.competencyNarrativeGrading || pack.capabilities.competencyNarrativeGrading,
+      academicStandingAutomation: capabilities.academicStandingAutomation || pack.capabilities.academicStandingAutomation,
     }),
     initialCapabilities,
   );

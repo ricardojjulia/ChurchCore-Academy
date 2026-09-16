@@ -22,6 +22,7 @@ describe("assertCapability", () => {
       shepherdAiRecommendations: false,
       covenantRecords: false,
       competencyNarrativeGrading: false,
+      academicStandingAutomation: false,
     };
 
     assert.doesNotThrow(() => {
@@ -47,6 +48,7 @@ describe("assertCapability", () => {
       shepherdAiRecommendations: false,
       covenantRecords: false,
       competencyNarrativeGrading: false,
+      academicStandingAutomation: false,
     };
 
     assert.throws(
@@ -75,6 +77,7 @@ describe("assertCapability", () => {
       shepherdAiRecommendations: false,
       covenantRecords: false,
       competencyNarrativeGrading: false,
+      academicStandingAutomation: false,
     };
 
     try {
@@ -104,6 +107,7 @@ describe("assertCapability", () => {
       shepherdAiRecommendations: false,
       covenantRecords: false,
       competencyNarrativeGrading: false,
+      academicStandingAutomation: false,
     };
 
     try {

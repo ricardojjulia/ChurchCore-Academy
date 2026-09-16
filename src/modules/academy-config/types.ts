@@ -53,6 +53,7 @@ export interface InstitutionCapabilitySet {
   shepherdAiRecommendations: boolean;
   covenantRecords: boolean;
   competencyNarrativeGrading: boolean;
+  academicStandingAutomation: boolean;
 }
 
 export interface InstitutionModePack {

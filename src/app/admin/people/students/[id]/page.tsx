@@ -15,6 +15,7 @@ import { EnrollmentStatusTrigger } from "./EnrollmentStatusTrigger";
 import { CovenantRecordTab } from "@/components/covenant-record-tab";
 import { DenominationRecordTab } from "@/components/denomination-record-tab";
 import { AlumniRecordTab } from "@/components/alumni-record-tab";
+import { AcademicStandingTab } from "@/components/academic-standing-tab";
 import type { CovenantRecord } from "@/modules/people/types";
 
 export const dynamic = "force-dynamic";
@@ -259,6 +260,33 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       // alumni giving feature not available
     }
 
+    // Load academic standing automation capability — the tab itself (viewing, evaluating) is
+    // gated to registrar/academic_admin only, per the approved story; a pure institution_admin
+    // with neither of those roles cannot reach this tab at all, by design, not by oversight —
+    // widening that would be a scope change beyond what was approved for this feature.
+    // canManageHolds gates the create/clear-hold action buttons specifically, matching the
+    // EXISTING, separate role boundary already enforced inside addHold()/clearHold() in
+    // student-record-mutations.ts (institution_admin/registrar). It's evaluated here rather
+    // than reusing canViewAcademicStanding because the two role sets are deliberately
+    // different: an institution_admin who also holds registrar or academic_admin can reach the
+    // tab and manage holds; a registrar always can; a pure academic_admin (no registrar, no
+    // institution_admin) can view and evaluate but never sees an enabled hold action button.
+    const canViewAcademicStanding = actor.roles.some((role) =>
+      ["registrar", "academic_admin"].includes(role),
+    );
+    const canManageHolds = actor.roles.some((role) =>
+      ["institution_admin", "registrar"].includes(role),
+    );
+    let academicStandingEnabled = false;
+    try {
+      // Uses fetchCapabilitySet (not a raw capabilities-column read) — same reasoning as
+      // the other capability checks above.
+      const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
+      academicStandingEnabled = caps.academicStandingAutomation === true && canViewAcademicStanding;
+    } catch {
+      // academic standing feature not available
+    }
+
     return {
       person: {
         id: String(person.id),
@@ -307,6 +335,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       alumniGiftCount,
       alumniTotalGivenCents,
       alumniLastGiftDate,
+      academicStandingEnabled,
+      canManageHolds,
     };
   });
 
@@ -314,7 +344,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination, alumniGivingEnabled, alumniHasRecord, alumniGiftCount, alumniTotalGivenCents, alumniLastGiftDate } = data;
+  const { person, profile, relationships, auditEvents, covenantEnabled, covenantRecord, denominationTrackingEnabled, denominationMembershipCount, denominationOrdinationCount, denominationNames, denominationHasActiveOrdination, alumniGivingEnabled, alumniHasRecord, alumniGiftCount, alumniTotalGivenCents, alumniLastGiftDate, academicStandingEnabled, canManageHolds } = data;
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
 
   return (
@@ -349,6 +379,9 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           )}
           {alumniGivingEnabled && (
             <TabsTrigger value="alumni">Alumni</TabsTrigger>
+          )}
+          {academicStandingEnabled && (
+            <TabsTrigger value="standing">Academic Standing</TabsTrigger>
           )}
           <TabsTrigger value="audit">Audit</TabsTrigger>
         </TabsList>
@@ -533,6 +566,13 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             giftCount={alumniGiftCount}
             totalGivenCents={alumniTotalGivenCents}
             lastGiftDate={alumniLastGiftDate}
+          />
+        </TabsContent>
+
+        <TabsContent value="standing">
+          <AcademicStandingTab
+            personId={person.id}
+            canManageHolds={canManageHolds}
           />
         </TabsContent>
 
