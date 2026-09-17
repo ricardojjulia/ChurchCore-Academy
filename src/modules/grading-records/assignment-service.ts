@@ -367,6 +367,13 @@ export async function submitDraftFinalGrade(
     );
   }
 
+  // The submission form's Input caps this at 8 characters client-side, but that's bypassable by
+  // any direct API call — enforce the same limit server-side so an arbitrarily long string can't
+  // land in the summary and later an immutable transcript entry.
+  if (letterGrade.length === 0 || letterGrade.length > 8) {
+    throw new Error("letterGrade must be between 1 and 8 characters.");
+  }
+
   // Verify tenant isolation. academy_course_sections has no term_id column (only
   // academic_period_id) — this query previously referenced a column that has never existed,
   // meaning every call to this function has failed outright since it was written. Found while
@@ -407,14 +414,44 @@ export async function submitDraftFinalGrade(
   );
 
   const registrationRow = registrationResult.rows[0];
-  if (!registrationRow || !registrationRow.program_enrollment_id) {
+  if (!registrationRow) {
+    // "not found" maps handleApi to 404 rather than an opaque 500 — see api-utils.ts.
+    throw new Error("An active registration was not found for this student in this section.");
+  }
+  if (!registrationRow.program_enrollment_id) {
+    // Some registrations (e.g. K-12 grade-band enrollment, seeded in
+    // 20260624060000_seed_demo_multi_institution_showcase.sql: "no program enrollment needed for
+    // K-12 grade bands") legitimately have no program_enrollment_id at all.
+    // academy_gradebook_course_summaries.enrollment_id is a NOT NULL FK to
+    // academy_program_enrollments, so there is no valid value to write for these students today.
+    // Supporting them needs a real schema change to the summary/transcript-entry pipeline (an
+    // alternate, non-program-enrollment key), which is a grading/transcript architecture change
+    // per CLAUDE.md Rule 0 — flagged as a follow-up rather than improvised here. " must " keeps
+    // this a 400, not a 500 (see api-utils.ts).
     throw new Error(
-      "No active registration with a program enrollment was found for this student in this section.",
+      "This registration must have a program enrollment before a final grade can be submitted; " +
+        "final grades for non-program (e.g. K-12 grade-band) registrations are not yet supported.",
     );
   }
 
   const registrationId = String(registrationRow.id);
   const enrollmentId = String(registrationRow.program_enrollment_id);
+
+  // Once a transcript entry exists for this registration it is immutable (enforced by a DB
+  // trigger); a resubmission past that point would silently update the still-mutable draft
+  // summary while the posted transcript stays frozen, leaving the two permanently disagreeing
+  // with no signal to the faculty member or the UI. Found in PR review before merge.
+  const postedCheck = await db.query(
+    `select id from public.academy_transcript_entries
+      where tenant_id = $1 and course_section_registration_id = $2`,
+    [actor.tenantId, registrationId],
+  );
+  if (postedCheck.rows.length > 0) {
+    throw new Error(
+      "This course has already been posted to the student's transcript; it must be corrected " +
+        "through the registrar's grade override workflow, not resubmitted here.",
+    );
+  }
 
   const submittedAt = new Date().toISOString();
 
@@ -425,12 +462,18 @@ export async function submitDraftFinalGrade(
   // stay agnostic to). academy_transcript_entries.is_passing is NOT NULL, so a real boolean must
   // be captured here rather than left null, matching the pattern already used for is_passing on
   // individual academy_gradebook_records entries.
+  // on conflict targets (tenant_id, enrollment_id, course_id) — enrollment_id is the student's
+  // PROGRAM enrollment (program-scoped, not course-scoped), so a (tenant_id, enrollment_id)-only
+  // target would let a second course under the same program enrollment silently overwrite the
+  // first course's summary row. Confirmed against real local data: two program enrollments each
+  // span two course sections. See migration 20260917030000_final_grade_submission_fixes.sql,
+  // which widens the underlying unique constraint to match.
   await db.query(
     `insert into public.academy_gradebook_course_summaries
        (tenant_id, course_id, learner_person_id, enrollment_id,
         final_letter_grade, is_passing, sensitivity_tier)
      values ($1, $2, $3, $4, $5, $6, 'standard')
-     on conflict (tenant_id, enrollment_id)
+     on conflict (tenant_id, enrollment_id, course_id)
      do update set
        final_letter_grade = excluded.final_letter_grade,
        is_passing = excluded.is_passing,

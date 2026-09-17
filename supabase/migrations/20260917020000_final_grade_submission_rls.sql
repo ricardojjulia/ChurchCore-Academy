@@ -32,7 +32,15 @@ create policy "academy_gradebook_summaries_staff_write" on public.academy_gradeb
     ])
   )
   with check (
+    -- USING alone does not gate INSERT (only WITH CHECK is evaluated for a new row), so omitting
+    -- the role check here — as the first version of this migration did — let ANY authenticated
+    -- user in the tenant, including a student, insert a gradebook course summary. The sibling
+    -- academy_gradebook_records_staff_write policy already re-asserts its role check in its own
+    -- WITH CHECK, and this one must match that pattern. Caught in PR review before merge.
     tenant_id = any (academy_private.academy_current_tenant_ids())
+    and academy_private.academy_has_active_role(tenant_id, array[
+      'institution_admin', 'dean', 'registrar', 'academic_admin', 'faculty', 'teacher', 'professor'
+    ])
   );
 
 create policy "academy_section_registration_update" on public.academy_course_section_registrations

@@ -349,6 +349,7 @@ test("deleteAssignment() removes the assignment and its submissions", async () =
 test("submitDraftFinalGrade() enters the grade into gradebook course summaries and completes the registration", async () => {
   let insertedGrade: string | null = null;
   let insertedIsPassing: unknown = undefined;
+  let insertSql: string | null = null;
   let completedRegistrationId: string | null = null;
 
   const db: AssignmentDatabase = {
@@ -362,8 +363,12 @@ test("submitDraftFinalGrade() enters the grade into gradebook course summaries a
       if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
         return { rows: [{ id: "registration-1", program_enrollment_id: "enroll-1" }] };
       }
+      if (sql.includes("select id from public.academy_transcript_entries")) {
+        return { rows: [] }; // not yet posted to the transcript
+      }
       if (sql.includes("insert into public.academy_gradebook_course_summaries")) {
         // params[4] = final_letter_grade, params[5] = is_passing
+        insertSql = sql;
         insertedGrade = params ? String(params[4]) : null;
         insertedIsPassing = params ? params[5] : undefined;
         return { rows: [] };
@@ -393,6 +398,25 @@ test("submitDraftFinalGrade() enters the grade into gradebook course summaries a
   assert.equal(insertedGrade, "A");
   assert.equal(insertedIsPassing, true);
   assert.equal(completedRegistrationId, "registration-1");
+  // The summary's unique constraint is (tenant_id, enrollment_id, course_id) — enrollment_id
+  // alone is the student's PROGRAM enrollment and can span multiple courses, so a conflict
+  // target of (tenant_id, enrollment_id) only would let a second course's submission silently
+  // overwrite the first course's summary row. See migration
+  // 20260917030000_final_grade_submission_fixes.sql.
+  assert.match(insertSql ?? "", /on conflict \(tenant_id, enrollment_id, course_id\)/);
+});
+
+test("submitDraftFinalGrade() rejects a letter grade longer than 8 characters", async () => {
+  const db: AssignmentDatabase = {
+    async query() {
+      throw new Error("should not query the database before the letterGrade length check");
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A".repeat(9), true),
+    /must be between 1 and 8 characters/i,
+  );
 });
 
 test("submitDraftFinalGrade() rejects students from submitting final grades", async () => {
@@ -445,7 +469,60 @@ test("submitDraftFinalGrade() rejects a student with no active registration in t
 
   await assert.rejects(
     async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
-    /no active registration/i,
+    /was not found/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects a registration with no program enrollment (e.g. K-12 grade-band)", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        // Some registrations legitimately have no program enrollment at all (seeded in
+        // 20260624060000_seed_demo_multi_institution_showcase.sql: "no program enrollment
+        // needed for K-12 grade bands") — confirmed against real local data.
+        return { rows: [{ id: "registration-1", program_enrollment_id: null }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
+    /must have a program enrollment/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects resubmission once the course has already been posted to the transcript", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        return { rows: [{ id: "registration-1", program_enrollment_id: "enroll-1" }] };
+      }
+      if (sql.includes("select id from public.academy_transcript_entries")) {
+        // Already posted to the immutable transcript — a resubmission here would silently
+        // update the mutable draft summary while the posted record stays frozen and correct,
+        // leaving the two permanently disagreeing.
+        return { rows: [{ id: "entry-1" }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
+    /already been posted/i,
   );
 });
 

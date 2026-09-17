@@ -21,8 +21,11 @@ export function SubmitFinalGradeForm({ sectionId, computedGrades, finalGradeStat
   const [drafts, setDrafts] = useState<Record<string, string>>(
     () => Object.fromEntries(finalGradeStatus.map((s) => [s.learnerPersonId, s.finalLetterGrade ?? ""])),
   );
-  const [passing, setPassing] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(finalGradeStatus.map((s) => [s.learnerPersonId, s.isPassing ?? true])),
+  // No default: leaving this unset until the faculty member explicitly picks Passing or Not
+  // passing avoids silently recording a failing student as passing (or vice versa) when nobody
+  // touched the control. Found in PR review before merge.
+  const [passing, setPassing] = useState<Record<string, boolean | undefined>>(
+    () => Object.fromEntries(finalGradeStatus.map((s) => [s.learnerPersonId, s.isPassing])),
   );
   const [submittingId, setSubmittingId] = useState<string | null>(null);
 
@@ -38,7 +41,15 @@ export function SubmitFinalGradeForm({ sectionId, computedGrades, finalGradeStat
       });
       return;
     }
-    const isPassing = passing[learnerPersonId] ?? true;
+    const isPassing = passing[learnerPersonId];
+    if (isPassing === undefined) {
+      notifyAcademy({
+        tone: "error",
+        title: "Passing status required",
+        message: "Select whether this grade is passing before submitting.",
+      });
+      return;
+    }
 
     setSubmittingId(learnerPersonId);
     try {
@@ -120,16 +131,23 @@ export function SubmitFinalGradeForm({ sectionId, computedGrades, finalGradeStat
                   />
                 </td>
                 <td className="p-3">
-                  <input
-                    type="checkbox"
-                    checked={passing[row.learnerPersonId] ?? true}
+                  <select
+                    aria-label={`Passing status for ${row.learnerPersonId}`}
+                    className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                    value={passing[row.learnerPersonId] === undefined ? "" : String(passing[row.learnerPersonId])}
                     onChange={(event) => {
-                      const checked = event.currentTarget.checked;
-                      setPassing((current) => ({ ...current, [row.learnerPersonId]: checked }));
+                      const value = event.currentTarget.value;
+                      const nextValue = value === "" ? undefined : value === "true";
+                      setPassing((current) => ({ ...current, [row.learnerPersonId]: nextValue }));
                     }}
                     disabled={submittingId === row.learnerPersonId}
-                    className="h-4 w-4 rounded border-input"
-                  />
+                  >
+                    <option value="" disabled>
+                      Select…
+                    </option>
+                    <option value="true">Passing</option>
+                    <option value="false">Not passing</option>
+                  </select>
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
