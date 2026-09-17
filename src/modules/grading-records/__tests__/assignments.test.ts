@@ -6,6 +6,7 @@ import {
   deleteAssignment,
   upsertSubmissionScore,
   submitDraftFinalGrade,
+  getSectionFinalGradeStatus,
   GradeDeadlineError,
   type AssignmentDatabase,
 } from "@/modules/grading-records/assignment-service";
@@ -335,23 +336,49 @@ test("deleteAssignment() removes the assignment and its submissions", async () =
 // T2-07: submitDraftFinalGrade() success
 // ---------------------------------------------------------------------------
 
-test("submitDraftFinalGrade() enters grade into gradebook course summaries", async () => {
+// academy_course_sections has no term_id column (only academic_period_id), and
+// academy_program_enrollments has no course_id/person_id columns at all (it's a program-level
+// enrollment: academic_program_id, catalog_academic_year_id, student_person_id). Both of
+// submitDraftFinalGrade's original queries referenced columns that have never existed, so this
+// function has failed outright on every call since it was written — it had zero callers
+// anywhere in the codebase, so the mismatch was never caught. Fixed to resolve the section by
+// course_id only, and the student's enrollment via their section-scoped registration
+// (academy_course_section_registrations), the authoritative link to both the program enrollment
+// and this specific section. Found while wiring the first real caller for this function.
+
+test("submitDraftFinalGrade() enters the grade into gradebook course summaries and completes the registration", async () => {
   let insertedGrade: string | null = null;
+  let insertedIsPassing: unknown = undefined;
+  let insertSql: string | null = null;
+  let completedRegistrationId: string | null = null;
 
   const db: AssignmentDatabase = {
     async query(sql: string, params?: unknown[]) {
-      if (sql.includes("select course_id")) {
-        return { rows: [{ course_id: "course-1", term_id: "term-1" }] };
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
       }
       if (sql.includes("primary_instructor_id")) {
         return { rows: [{ "?column?": 1 }] };
       }
-      if (sql.includes("academy_program_enrollments")) {
-        return { rows: [{ id: "enroll-1" }] };
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        return { rows: [{ id: "registration-1", program_enrollment_id: "enroll-1" }] };
       }
-      if (sql.includes("academy_gradebook_course_summaries")) {
-        // params[4] = final_letter_grade
+      if (sql.includes("select id from public.academy_transcript_entries")) {
+        return { rows: [] }; // not yet posted to the transcript
+      }
+      if (sql.includes("from public.academy_gradebook_records record")) {
+        return { rows: [{ id: "grade-record-1" }] }; // a posted assignment grade exists
+      }
+      if (sql.includes("insert into public.academy_gradebook_course_summaries")) {
+        // params[4] = final_letter_grade, params[5] = is_passing
+        insertSql = sql;
         insertedGrade = params ? String(params[4]) : null;
+        insertedIsPassing = params ? params[5] : undefined;
+        return { rows: [] };
+      }
+      if (sql.includes("update public.academy_course_section_registrations")) {
+        // params[1] = registration id
+        completedRegistrationId = params ? String(params[1]) : null;
         return { rows: [] };
       }
       return { rows: [] };
@@ -364,10 +391,272 @@ test("submitDraftFinalGrade() enters grade into gradebook course summaries", asy
     "section-1",
     "student-1",
     "A",
+    true,
   );
 
   assert.equal(result.letterGrade, "A");
   assert.equal(result.sectionId, "section-1");
   assert.equal(result.learnerPersonId, "student-1");
+  assert.equal(result.isPassing, true);
   assert.equal(insertedGrade, "A");
+  assert.equal(insertedIsPassing, true);
+  assert.equal(completedRegistrationId, "registration-1");
+  // The summary's unique constraint is (tenant_id, enrollment_id, course_id) — enrollment_id
+  // alone is the student's PROGRAM enrollment and can span multiple courses, so a conflict
+  // target of (tenant_id, enrollment_id) only would let a second course's submission silently
+  // overwrite the first course's summary row. See migration
+  // 20260917030000_final_grade_submission_fixes.sql.
+  assert.match(insertSql ?? "", /on conflict \(tenant_id, enrollment_id, course_id\)/);
+});
+
+test("submitDraftFinalGrade() rejects a letter grade longer than 8 characters", async () => {
+  const db: AssignmentDatabase = {
+    async query() {
+      throw new Error("should not query the database before the letterGrade length check");
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A".repeat(9), true),
+    /must be between 1 and 8 characters/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects students from submitting final grades", async () => {
+  const db: AssignmentDatabase = {
+    async query() {
+      throw new Error("should not query the database before the role check");
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, student, "section-1", "student-1", "A", true),
+    /Only instructors/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects faculty who don't own the section", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [] }; // not this faculty member's section
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, facultyOtherSection, "section-1", "student-1", "A", true),
+    /not assigned as an instructor/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects a student with no active registration in this section", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        return { rows: [] }; // no registration found
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
+    /was not found/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects a registration with no program enrollment (e.g. K-12 grade-band)", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        // Some registrations legitimately have no program enrollment at all (seeded in
+        // 20260624060000_seed_demo_multi_institution_showcase.sql: "no program enrollment
+        // needed for K-12 grade bands") — confirmed against real local data.
+        return { rows: [{ id: "registration-1", program_enrollment_id: null }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
+    /must have a program enrollment/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects resubmission once the course has already been posted to the transcript", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        return { rows: [{ id: "registration-1", program_enrollment_id: "enroll-1" }] };
+      }
+      if (sql.includes("select id from public.academy_transcript_entries")) {
+        // Already posted to the immutable transcript — a resubmission here would silently
+        // update the mutable draft summary while the posted record stays frozen and correct,
+        // leaving the two permanently disagreeing.
+        return { rows: [{ id: "entry-1" }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
+    /already been posted/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects when no posted assignment grade exists for this student in this section", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        return { rows: [{ id: "registration-1", program_enrollment_id: "enroll-1" }] };
+      }
+      if (sql.includes("select id from public.academy_transcript_entries")) {
+        return { rows: [] };
+      }
+      if (sql.includes("from public.academy_gradebook_records record")) {
+        // academy_transcript_entries.source_grade_record_id is NOT NULL — without at least one
+        // posted assignment grade, the registrar's candidate query (its inner lateral join)
+        // would never find this student, no matter how "completed" the registration says it is.
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
+    /at least one assignment grade must be posted/i,
+  );
+});
+
+test("submitDraftFinalGrade() cross-tenant: rejects a section that does not belong to the actor's tenant", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [] }; // tenant_id filter excludes it
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, facultyOtherTenant, "section-1", "student-1", "A", true),
+    /not found or does not belong/i,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// getSectionFinalGradeStatus()
+// ---------------------------------------------------------------------------
+
+test("getSectionFinalGradeStatus() returns each registration's final-grade submission status", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select id from public.academy_course_sections")) {
+        return { rows: [{ id: "section-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("from public.academy_course_section_registrations reg")) {
+        return {
+          rows: [
+            {
+              registration_id: "registration-1",
+              learner_person_id: "student-1",
+              registration_status: "completed",
+              final_letter_grade: "A",
+              is_passing: true,
+            },
+            {
+              registration_id: "registration-2",
+              learner_person_id: "student-2",
+              registration_status: "registered",
+              final_letter_grade: null,
+              is_passing: null,
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const result = await getSectionFinalGradeStatus(db, faculty, "section-1");
+
+  assert.equal(result.length, 2);
+  assert.deepEqual(result[0], {
+    studentRegistrationId: "registration-1",
+    learnerPersonId: "student-1",
+    registrationStatus: "completed",
+    finalLetterGrade: "A",
+    isPassing: true,
+  });
+  assert.deepEqual(result[1], {
+    studentRegistrationId: "registration-2",
+    learnerPersonId: "student-2",
+    registrationStatus: "registered",
+    finalLetterGrade: undefined,
+    isPassing: undefined,
+  });
+});
+
+test("getSectionFinalGradeStatus() rejects students from viewing final-grade status", async () => {
+  const db: AssignmentDatabase = {
+    async query() {
+      throw new Error("should not query the database before the role check");
+    },
+  };
+
+  await assert.rejects(
+    async () => getSectionFinalGradeStatus(db, student, "section-1"),
+    /Only instructors and admins/i,
+  );
+});
+
+test("getSectionFinalGradeStatus() cross-tenant: rejects a section that does not belong to the actor's tenant", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select id from public.academy_course_sections")) {
+        return { rows: [] }; // tenant_id filter excludes it
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => getSectionFinalGradeStatus(db, facultyOtherTenant, "section-1"),
+    /not found or does not belong/i,
+  );
 });
