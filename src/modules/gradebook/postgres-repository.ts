@@ -1,4 +1,5 @@
 import { getDatabasePool } from "@/lib/database";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 import type {
   GradebookAuditRead,
   GradebookGradingTarget,
@@ -286,28 +287,51 @@ export class GradebookPostgresRepository {
     learnerPersonId: string;
     gradedByPersonId: string;
     pointsEarned: number | null;
-    maxPoints: number;
     letterGrade?: string | null;
     isPassing?: boolean | null;
     instructorFeedback?: string | null;
-    sensitivityTier?: string;
   }): Promise<GradebookRecordRead> {
-    const result = await this.database.query(
+    // Resolve the submission/assignment/learner target and its grading fields (max_points,
+    // sensitivity_tier) from the assignment itself, not from caller input — max_points and
+    // sensitivity_tier belong to the assignment's own defined scale, not something a caller
+    // should be able to override per-request. Mirrors the equivalent fix in submitGradeAction
+    // (src/lib/actions/gradebook/submitGradeAction.ts). Found via PR #126 review, applied here
+    // as a follow-up since this is a second, older writer of the same table.
+    const target = await this.database.query(
+      `select
+         submission.tenant_id,
+         submission.learner_person_id,
+         assignment.max_points,
+         assignment.sensitivity_tier
+       from public.academy_gradebook_submissions submission
+       join public.academy_gradebook_assignments assignment
+         on assignment.tenant_id = submission.tenant_id
+        and assignment.id = submission.assignment_id
+       where submission.tenant_id = $1
+         and submission.id = $2
+         and assignment.id = $3
+         and submission.learner_person_id = $4`,
+      [input.tenantId, input.submissionId, input.assignmentId, input.learnerPersonId],
+    );
+
+    const targetRow = target.rows[0];
+    if (!targetRow) {
+      throw new Error("Gradebook record target not found.");
+    }
+    const maxPoints = Number(targetRow.max_points);
+    const sensitivityTier = String(targetRow.sensitivity_tier);
+
+    // Attempt the first-ever insert atomically via ON CONFLICT DO NOTHING; if a record already
+    // exists, fall through to a locked check-then-update instead of trusting a value read
+    // before the conflict.
+    const inserted = await this.database.query(
       `insert into public.academy_gradebook_records (
          tenant_id, submission_id, assignment_id, learner_person_id,
          graded_by_person_id, points_earned, max_points, letter_grade,
-         is_passing, instructor_feedback, sensitivity_tier, graded_at
+         is_passing, instructor_feedback, sensitivity_tier, graded_at, updated_at
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
-       on conflict (tenant_id, submission_id) do update
-         set points_earned        = excluded.points_earned,
-             max_points           = excluded.max_points,
-             letter_grade         = excluded.letter_grade,
-             is_passing           = excluded.is_passing,
-             instructor_feedback  = excluded.instructor_feedback,
-             graded_by_person_id  = excluded.graded_by_person_id,
-             graded_at            = now(),
-             updated_at           = now()
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now())
+       on conflict (tenant_id, submission_id) do nothing
        returning
          id, submission_id, assignment_id, learner_person_id,
          points_earned, max_points, percentage, letter_grade,
@@ -317,18 +341,99 @@ export class GradebookPostgresRepository {
         input.tenantId,
         input.submissionId,
         input.assignmentId,
-        input.learnerPersonId,
+        targetRow.learner_person_id,
         input.gradedByPersonId,
         input.pointsEarned ?? null,
-        input.maxPoints,
+        maxPoints,
         input.letterGrade ?? null,
         input.isPassing ?? null,
         input.instructorFeedback ?? null,
-        input.sensitivityTier ?? "standard",
+        sensitivityTier,
       ],
     );
 
-    const row = result.rows[0];
+    let row = inserted.rows[0];
+    if (!row) {
+      // A record already exists — lock it before deciding what to do with it. This serializes
+      // against postGradeAction's/overrideGradeAction's own `for update` locks on the same row,
+      // closing a race where a stale resubmission could otherwise land between a registrar's
+      // concurrent post and its own read of the "old" posting_status, silently reverting work
+      // the registrar just completed.
+      //
+      // The lookup filters on assignment_id and learner_person_id too, not just submission_id —
+      // academy_gradebook_records carries its own assignment_id/learner_person_id columns with
+      // nothing in the schema enforcing they match the submission's real ones (this table's other
+      // writer, this same method before today's fix, used to trust caller-supplied values
+      // directly). Without this filter, a pre-existing row with a stale/wrong association would
+      // still match on submission_id alone and get updated by id, preserving the wrong
+      // assignment/learner association and silently corrupting downstream GPA/reporting that
+      // reads those columns off the record. Found via PR #131 review.
+      const existing = await this.database.query(
+        `select id, posting_status
+         from public.academy_gradebook_records
+         where tenant_id = $1
+           and submission_id = $2
+           and assignment_id = $3
+           and learner_person_id = $4
+         for update`,
+        [input.tenantId, input.submissionId, input.assignmentId, targetRow.learner_person_id],
+      );
+
+      const existingRow = existing.rows[0];
+      if (!existingRow) {
+        throw new AcademyConflictError(
+          "A gradebook record already exists for this submission, but its assignment/learner association does not match — this indicates a data-integrity issue, not a normal resubmission. Contact an administrator rather than retrying.",
+        );
+      }
+
+      // Once a record has left "draft" — posted, held, or revoked — this write path is no
+      // longer the right tool to change it. Silently overwriting it let a stale/direct
+      // resubmission clear a registrar-held or -revoked record, or undo a post that had just
+      // landed concurrently. Corrections to a non-draft record belong in the registrar override
+      // flow (overrideGradeAction), which carries a required reason and an audit trail.
+      //
+      // AcademyConflictError (not a plain Error) so handleApi maps this to HTTP 409, letting
+      // callers distinguish an expected state conflict from a real server failure — a plain
+      // Error here was mapped to a generic 500 "Unexpected API error." Found via PR #131 review.
+      if (existingRow.posting_status !== "draft") {
+        throw new AcademyConflictError(
+          `Cannot resubmit: this grade is already ${String(existingRow.posting_status)}. Use the grade override workflow to make corrections.`,
+        );
+      }
+
+      const updated = await this.database.query(
+        `update public.academy_gradebook_records
+         set
+           points_earned        = $3,
+           max_points            = $4,
+           letter_grade          = $5,
+           is_passing             = $6,
+           instructor_feedback   = $7,
+           sensitivity_tier      = $8,
+           graded_by_person_id   = $9,
+           graded_at             = now(),
+           updated_at            = now()
+         where tenant_id = $1 and id = $2
+         returning
+           id, submission_id, assignment_id, learner_person_id,
+           points_earned, max_points, percentage, letter_grade,
+           is_passing, instructor_feedback, sensitivity_tier,
+           graded_at, is_overridden`,
+        [
+          input.tenantId,
+          existingRow.id,
+          input.pointsEarned ?? null,
+          maxPoints,
+          input.letterGrade ?? null,
+          input.isPassing ?? null,
+          input.instructorFeedback ?? null,
+          sensitivityTier,
+          input.gradedByPersonId,
+        ],
+      );
+      row = updated.rows[0];
+    }
+
     return {
       id: String(row.id),
       submissionId: String(row.submission_id),
