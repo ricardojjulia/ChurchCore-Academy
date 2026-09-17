@@ -9,6 +9,7 @@ import type {
 import { assertCanSubmitGradeTarget } from "@/lib/actions/gradebook/authorization";
 import { assertGradebookWriteAccess } from "@/lib/gradebook/policy";
 import { submitGradeSchema, type SubmitGradeInput } from "@/lib/gradebook/schemas";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 
 export interface SubmitGradeResult {
   gradeRecordId: string;
@@ -113,19 +114,34 @@ export async function submitGradeAction(
         // row, closing a race where a stale resubmission could otherwise land between a
         // registrar's concurrent post and its own read of the "old" posting_status, silently
         // reverting work the registrar just completed. Found via PR #126 review.
+        //
+        // The lookup filters on assignment_id and learner_person_id too, not just submission_id
+        // — academy_gradebook_records carries its own copies of those columns with nothing in
+        // the schema enforcing they match the submission's real ones (this table's other writer,
+        // GradebookPostgresRepository.gradeSubmission, used to trust caller-supplied values
+        // directly before its own fix). Without this filter, a pre-existing row with a stale/
+        // wrong association would still match on submission_id alone and get updated by id,
+        // preserving the wrong assignment/learner association and silently corrupting
+        // downstream GPA/reporting that reads those columns off the record. Found via the PR
+        // #131 review of that sibling fix, applied here too since the gap is identical.
         const existing = await client.query<{ id: string; posting_status: string }>(
           `
             select id, posting_status
             from public.academy_gradebook_records
-            where tenant_id = $1 and submission_id = $2
+            where tenant_id = $1
+              and submission_id = $2
+              and assignment_id = $3
+              and learner_person_id = $4
             for update
           `,
-          [actor.tenantId, parsed.submissionId],
+          [actor.tenantId, parsed.submissionId, parsed.assignmentId, targetRow.learner_person_id],
         );
 
         const existingRow = existing.rows[0];
         if (!existingRow) {
-          throw new Error("Gradebook record target not found.");
+          throw new AcademyConflictError(
+            "A gradebook record already exists for this submission, but its assignment/learner association does not match — this indicates a data-integrity issue, not a normal resubmission. Contact an administrator rather than retrying.",
+          );
         }
 
         // Once a record has left "draft" — posted, held, or revoked — submitGradeAction is no
@@ -135,7 +151,7 @@ export async function submitGradeAction(
         // in overrideGradeAction, which faculty already have access to and which carries a
         // required reason and an audit trail. Found via PR #126 review.
         if (existingRow.posting_status !== "draft") {
-          throw new Error(
+          throw new AcademyConflictError(
             `Cannot resubmit: this grade is already ${existingRow.posting_status}. Use the grade override workflow to make corrections.`,
           );
         }
