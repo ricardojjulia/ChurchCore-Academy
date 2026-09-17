@@ -134,6 +134,51 @@ test("submitGradeAction updates an existing draft record on resubmission", async
   assert.match(queries[3].text, /for update/i);
   assert.match(queries[4].text, /update public\.academy_gradebook_records/i);
   assert.match(queries[4].text, /points_earned = \$4/i);
+
+  // The locked existing-row lookup must filter on assignment_id and learner_person_id too, not
+  // just submission_id — academy_gradebook_records carries its own copies of those columns with
+  // nothing in the schema enforcing they match the submission's real ones. Found via PR #131
+  // review (of the sibling gradeSubmission fix; applied here since the gap is identical).
+  assert.match(queries[3].text, /assignment_id = \$3/i);
+  assert.match(queries[3].text, /learner_person_id = \$4/i);
+  assert.deepEqual(queries[3].values, [
+    "tenant-1",
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "student-1",
+  ]);
+});
+
+test("submitGradeAction rejects updating an existing record whose stored assignment/learner association doesn't match", async () => {
+  const { dependencies, queries } = createDependencies(
+    {
+      userId: "faculty-1",
+      tenantId: "tenant-1",
+      roles: ["faculty"],
+    },
+    [
+      [{ can_write: true }],
+      [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: 100, sensitivity_tier: "standard" }],
+      [], // INSERT ... ON CONFLICT DO NOTHING finds an existing row, returns nothing
+      [], // locked existing-row check: no row matches (assignment_id/learner_person_id differ)
+    ],
+  );
+
+  const result = await submitGradeAction(
+    {
+      submissionId: "00000000-0000-4000-8000-000000000001",
+      assignmentId: "00000000-0000-4000-8000-000000000002",
+      learnerPersonId: "student-1",
+      pointsEarned: 60,
+      maxPoints: 100,
+    },
+    dependencies,
+  );
+
+  assert.equal(result.ok, false);
+  assert.match(String((result as { error: string }).error), /does not match/i);
+  assert.equal(queries.length, 4);
+  assert.ok(!queries.some((query) => /update public\.academy_gradebook_records/i.test(query.text)));
 });
 
 test("submitGradeAction rejects resubmission of an already-posted record instead of silently mutating it", async () => {
@@ -168,6 +213,10 @@ test("submitGradeAction rejects resubmission of an already-posted record instead
   // a non-draft record must go through overrideGradeAction (audited, requires a reason) instead.
   // Found via PR #126 review.
   assert.equal(result.ok, false);
+  // AcademyConflictError's message is surfaced directly by toGradebookActionError (PR #131
+  // review's fix, applied to this sibling action too) instead of collapsing to the generic
+  // "Gradebook write failed." — the caller can actually tell what happened and what to do next.
+  assert.match(String((result as { error: string }).error), /already posted/i);
   assert.equal(queries.length, 4);
   assert.ok(!queries.some((query) => /update public\.academy_gradebook_records/i.test(query.text)));
 });
