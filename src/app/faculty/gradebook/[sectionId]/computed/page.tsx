@@ -19,6 +19,11 @@ import {
   computeSectionGrades,
   type AssignmentGradingDatabase,
 } from "@/modules/grading-records/assignment-grading-service";
+import {
+  getSectionFinalGradeStatus,
+  type AssignmentDatabase,
+} from "@/modules/grading-records/assignment-service";
+import { SubmitFinalGradeForm } from "./SubmitFinalGradeForm";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +52,19 @@ export default async function FacultyComputedGradesPage({ params }: PageProps) {
       );
     } catch (error) {
       console.error("Failed to compute section grades:", error);
+      return [];
+    }
+  });
+
+  const finalGradeStatus = await withAcademyDatabaseContext(actor, async (client) => {
+    try {
+      return await getSectionFinalGradeStatus(
+        asAcademyDatabase<AssignmentDatabase>(client),
+        actor,
+        sectionId,
+      );
+    } catch (error) {
+      console.error("Failed to load final grade status:", error);
       return [];
     }
   });
@@ -93,6 +111,25 @@ export default async function FacultyComputedGradesPage({ params }: PageProps) {
                 </TableBody>
               </Table>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Submit Final Grades</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              This is the section&apos;s official final grade — per ADR-0054, faculty post it manually
+              using the weighted grade above as a reference, not an automatic conversion.
+              Submitting marks the student&apos;s registration complete and makes it eligible for the
+              registrar to post an official transcript entry from the student&apos;s record.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <SubmitFinalGradeForm
+              sectionId={sectionId}
+              computedGrades={computedGrades}
+              finalGradeStatus={finalGradeStatus}
+            />
           </CardContent>
         </Card>
 
