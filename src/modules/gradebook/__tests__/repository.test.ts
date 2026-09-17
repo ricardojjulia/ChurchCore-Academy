@@ -131,3 +131,122 @@ test("learner gradebook read model filters to the authenticated learner only", a
   assert.deepEqual(queries[0].values, ["tenant-1", "student-1"]);
   assert.doesNotMatch(queries[0].sql, /behavioral_signal/i);
 });
+
+// ---------------------------------------------------------------------------
+// gradeSubmission tests
+//
+// This is the second, older writer of academy_gradebook_records (the first,
+// submitGradeAction, was fixed and reviewed in PR #126). It had no test coverage at all before
+// this — consistent with it having no live UI caller either (GradeEntryForm.tsx, the only
+// component that resembles a caller, actually posts through submitGradeAction, not this REST
+// endpoint). Applying the same PR #126 fixes here as a follow-up: max_points/sensitivity_tier
+// are derived from the assignment, not trusted from the caller, and a resubmission is rejected
+// once the record is posted/held/revoked instead of silently overwriting it.
+// ---------------------------------------------------------------------------
+
+test("gradeSubmission creates a new record, deriving max_points and sensitivity_tier from the assignment", async () => {
+  const { database, queries } = createDatabase([
+    [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: "100", sensitivity_tier: "pastoral" }],
+    [{ id: "record-1", submission_id: "submission-1", assignment_id: "assignment-1", learner_person_id: "student-1", points_earned: "92.00", max_points: "100.00", percentage: "92.00", letter_grade: "A-", is_passing: true, instructor_feedback: null, sensitivity_tier: "pastoral", graded_at: new Date("2026-06-16T12:00:00Z"), is_overridden: false }],
+  ]);
+  const repository = new GradebookPostgresRepository(database);
+
+  const result = await repository.gradeSubmission({
+    tenantId: "tenant-1",
+    submissionId: "submission-1",
+    assignmentId: "assignment-1",
+    learnerPersonId: "student-1",
+    gradedByPersonId: "faculty-1",
+    pointsEarned: 92,
+    letterGrade: "A-",
+    isPassing: true,
+    instructorFeedback: null,
+  });
+
+  assert.equal(result.id, "record-1");
+  assert.equal(result.sensitivityTier, "pastoral");
+  assert.match(queries[0].sql, /from public\.academy_gradebook_submissions submission/i);
+  assert.match(queries[1].sql, /insert into public\.academy_gradebook_records/i);
+  assert.match(queries[1].sql, /on conflict \(tenant_id, submission_id\) do nothing/i);
+  assert.deepEqual(queries[1].values, [
+    "tenant-1",
+    "submission-1",
+    "assignment-1",
+    "student-1",
+    "faculty-1",
+    92,
+    100,
+    "A-",
+    true,
+    null,
+    "pastoral",
+  ]);
+});
+
+test("gradeSubmission updates an existing draft record on resubmission", async () => {
+  const { database, queries } = createDatabase([
+    [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: "100", sensitivity_tier: "standard" }],
+    [], // INSERT ... ON CONFLICT DO NOTHING finds an existing row, returns nothing
+    [{ id: "record-1", posting_status: "draft" }], // locked existing-row check
+    [{ id: "record-1", submission_id: "submission-1", assignment_id: "assignment-1", learner_person_id: "student-1", points_earned: "70.00", max_points: "100.00", percentage: "70.00", letter_grade: null, is_passing: null, instructor_feedback: null, sensitivity_tier: "standard", graded_at: new Date("2026-06-16T12:00:00Z"), is_overridden: false }],
+  ]);
+  const repository = new GradebookPostgresRepository(database);
+
+  const result = await repository.gradeSubmission({
+    tenantId: "tenant-1",
+    submissionId: "submission-1",
+    assignmentId: "assignment-1",
+    learnerPersonId: "student-1",
+    gradedByPersonId: "faculty-1",
+    pointsEarned: 70,
+  });
+
+  assert.equal(result.id, "record-1");
+  assert.equal(result.pointsEarned, 70);
+  assert.match(queries[2].sql, /select id, posting_status/i);
+  assert.match(queries[2].sql, /for update/i);
+  assert.match(queries[3].sql, /update public\.academy_gradebook_records/i);
+});
+
+test("gradeSubmission rejects resubmission of an already-posted record instead of silently overwriting it", async () => {
+  const { database, queries } = createDatabase([
+    [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: "100", sensitivity_tier: "standard" }],
+    [], // INSERT ... ON CONFLICT DO NOTHING finds an existing row, returns nothing
+    [{ id: "record-1", posting_status: "posted" }], // locked existing-row check
+  ]);
+  const repository = new GradebookPostgresRepository(database);
+
+  await assert.rejects(
+    async () =>
+      repository.gradeSubmission({
+        tenantId: "tenant-1",
+        submissionId: "submission-1",
+        assignmentId: "assignment-1",
+        learnerPersonId: "student-1",
+        gradedByPersonId: "faculty-1",
+        pointsEarned: 60,
+      }),
+    /already posted/i,
+  );
+
+  assert.equal(queries.length, 3);
+  assert.ok(!queries.some((query) => /update public\.academy_gradebook_records/i.test(query.sql)));
+});
+
+test("gradeSubmission rejects a target whose submission does not belong to the claimed assignment/learner", async () => {
+  const { database } = createDatabase([[]]);
+  const repository = new GradebookPostgresRepository(database);
+
+  await assert.rejects(
+    async () =>
+      repository.gradeSubmission({
+        tenantId: "tenant-1",
+        submissionId: "submission-1",
+        assignmentId: "assignment-wrong",
+        learnerPersonId: "student-1",
+        gradedByPersonId: "faculty-1",
+        pointsEarned: 60,
+      }),
+    /target not found/i,
+  );
+});

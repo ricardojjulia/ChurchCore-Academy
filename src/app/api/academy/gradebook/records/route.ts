@@ -57,11 +57,6 @@ export async function POST(request: Request) {
     }
 
     const pointsEarned = typeof body.pointsEarned === "number" ? body.pointsEarned : null;
-    const maxPoints = typeof body.maxPoints === "number" ? body.maxPoints : null;
-
-    if (maxPoints === null || maxPoints <= 0) {
-      throw new Error("maxPoints must be a positive number.");
-    }
 
     return withAcademyDatabaseContext(actor, async (client) => {
       const repo = new GradebookPostgresRepository(
@@ -88,6 +83,10 @@ export async function POST(request: Request) {
         }
       }
 
+      // max_points and sensitivity_tier are derived server-side from the assignment itself
+      // inside gradeSubmission — they're the assignment's own defined grading scale, not
+      // something a caller should be able to override per-request. Found via PR #126 review
+      // (applied to the earlier submitGradeAction fix first, then here as a follow-up).
       const gradeRecord = await repo.gradeSubmission({
         tenantId: actor.tenantId,
         submissionId,
@@ -95,11 +94,9 @@ export async function POST(request: Request) {
         learnerPersonId,
         gradedByPersonId: actor.userId,
         pointsEarned,
-        maxPoints,
         letterGrade: typeof body.letterGrade === "string" ? body.letterGrade : null,
         isPassing: typeof body.isPassing === "boolean" ? body.isPassing : null,
         instructorFeedback: typeof body.instructorFeedback === "string" ? body.instructorFeedback : null,
-        sensitivityTier: typeof body.sensitivityTier === "string" ? body.sensitivityTier : "standard",
       });
 
       // Compute and update student GPA within the same transaction
