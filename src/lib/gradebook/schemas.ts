@@ -9,7 +9,6 @@ export const submitGradeSchema = z.object({
   letterGrade: z.string().trim().max(8).nullable().optional(),
   isPassing: z.boolean().nullable().optional(),
   instructorFeedback: z.string().trim().max(4000).nullable().optional(),
-  sensitivityTier: z.enum(["standard", "elevated", "pastoral"]),
 });
 
 export type SubmitGradeInput = z.infer<typeof submitGradeSchema>;

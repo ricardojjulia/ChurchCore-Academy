@@ -32,7 +32,6 @@ export function GradeEntryForm({
       letterGrade: null,
       isPassing: null,
       instructorFeedback: null,
-      sensitivityTier: "standard",
     },
   });
 

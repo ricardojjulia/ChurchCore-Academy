@@ -573,5 +573,38 @@ void describe("getAssignmentGrades", () => {
     assert.equal(result.length, 1);
     assert.equal(result[0].gradePoints, 85);
     assert.equal(result[0].learnerPersonId, "student-1");
+    assert.equal(result[0].gradeRecordPostingStatus, undefined);
+  });
+
+  void it("success: exposes the official grade record's posting status when one exists", async () => {
+    const db = createMockDb([
+      // assignment check
+      { rows: [{ section_id: "section-1" }] },
+      // get grades, joined to an already-posted academy_gradebook_records row
+      {
+        rows: [
+          {
+            id: "sub-1",
+            tenant_id: "tenant-main",
+            assignment_id: "assignment-1",
+            learner_person_id: "student-1",
+            grade_points: 92,
+            pass_fail_result: null,
+            submitted_at: "2026-06-24T10:00:00Z",
+            graded_at: "2026-06-25T09:00:00Z",
+            graded_by: "faculty-123",
+            student_registration_id: "reg-1",
+            grade_record_posting_status: "posted",
+          },
+        ],
+      },
+    ]);
+
+    const result = await getAssignmentGrades(db, mockFacultyActor, "assignment-1");
+
+    assert.equal(result.length, 1);
+    // Drives the faculty UI's decision to hide the "Submit for Posting" button once a record is
+    // already posted, instead of relying on client-only memory that resets on every page refresh.
+    assert.equal(result[0].gradeRecordPostingStatus, "posted");
   });
 });

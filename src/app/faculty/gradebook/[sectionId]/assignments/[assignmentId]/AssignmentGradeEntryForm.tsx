@@ -2,10 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Save } from "lucide-react";
+import { Save, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { notifyAcademy } from "@/lib/ui/notifications";
+import { submitGradeAction } from "@/lib/actions/gradebook/submitGradeAction";
 import type {
   Assignment,
   AssignmentSubmission,
@@ -28,6 +29,8 @@ export function AssignmentGradeEntryForm({
 }: AssignmentGradeEntryFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [postedIds, setPostedIds] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<DraftValue>(() =>
     Object.fromEntries(
       grades.map((grade) => [
@@ -95,6 +98,72 @@ export function AssignmentGradeEntryForm({
     });
   }
 
+  // Grading here (bulkGradeAssignment, via Save Grades above) only writes an advisory
+  // academy_gradebook_submissions row — per ADR-0054 §3/§4, faculty still post the official,
+  // transcript-eligible grade "through the existing grade-posting flow" (submitGradeAction /
+  // academy_gradebook_records), which is what actually feeds the Registrar Posting Queue on
+  // /admin/gradebook and, from there, transcripts. submitGradeAction's only UI was the abandoned
+  // /dashboard/faculty/gradebook tree (last touched 2026-06-15, never linked from any nav) —
+  // wiring it in here instead completes ADR-0054's own design rather than resurrecting dead code.
+  // (POST /api/academy/gradebook/records is a separate, older write path to the same table via
+  // GradebookPostgresRepository.gradeSubmission — not touched by this change, but worth knowing
+  // about for any future audit of this table's writers.) Found via the daily checkup's full
+  // 11-step walkthrough.
+  async function submitForPosting(grade: AssignmentSubmission) {
+    const isPassFail = assignment.gradingType === "pass_fail";
+    const pointsEarned = isPassFail
+      ? grade.passFailResult === "pass"
+        ? assignment.maxPoints
+        : 0
+      : grade.gradePoints;
+
+    if (pointsEarned === undefined) {
+      notifyAcademy({
+        tone: "error",
+        title: "Not graded yet",
+        message: "Save a grade for this student before submitting it for posting.",
+      });
+      return;
+    }
+
+    setSubmittingId(grade.id);
+    try {
+      const result = await submitGradeAction({
+        submissionId: grade.id,
+        assignmentId,
+        learnerPersonId: grade.learnerPersonId,
+        pointsEarned,
+        maxPoints: assignment.maxPoints,
+        letterGrade: null,
+        isPassing: isPassFail ? grade.passFailResult === "pass" : null,
+        instructorFeedback: null,
+      });
+
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+
+      setPostedIds((current) => new Set(current).add(grade.id));
+      notifyAcademy({
+        tone: "success",
+        title: "Submitted for posting",
+        message: "The grade is now in the registrar's posting queue.",
+      });
+      // postedIds gives instant feedback before this refresh lands; the refresh pulls in the
+      // real gradeRecordPostingStatus so the badge/button state stays correct on reload instead
+      // of resetting to "not submitted" (found via PR #126 review).
+      router.refresh();
+    } catch (error) {
+      notifyAcademy({
+        tone: "error",
+        title: "Submission failed",
+        message: error instanceof Error ? error.message : "Failed to submit grade for posting.",
+      });
+    } finally {
+      setSubmittingId(null);
+    }
+  }
+
   if (grades.length === 0) {
     return (
       <p className="py-8 text-center text-muted-foreground">
@@ -120,6 +189,7 @@ export function AssignmentGradeEntryForm({
               <th className="p-3 text-left font-medium">Student</th>
               <th className="p-3 text-left font-medium">Grade</th>
               <th className="p-3 text-left font-medium">Status</th>
+              <th className="p-3 text-left font-medium">Registrar Posting</th>
             </tr>
           </thead>
           <tbody>
@@ -163,6 +233,50 @@ export function AssignmentGradeEntryForm({
                   ) : (
                     <Badge variant="outline">Pending</Badge>
                   )}
+                </td>
+                <td className="p-3">
+                  {(() => {
+                    // Once a record has left "draft" — posted, held, or revoked — don't offer a
+                    // casual resubmit button: corrections to a record in that state belong in the
+                    // registrar override flow, which carries a required reason and an audit
+                    // trail (submitGradeAction itself now rejects a resubmit against a non-draft
+                    // record server-side too — this is the matching UI-level guard, not the only
+                    // one). A still-"draft" record hasn't been registrar-reviewed yet, so faculty
+                    // may keep correcting it before posting — the button stays available with a
+                    // "Submitted" indicator alongside it. Found via PR #126 review.
+                    const status = grade.gradeRecordPostingStatus
+                      ?? (postedIds.has(grade.id) ? "draft" : undefined);
+
+                    if (status === "posted") {
+                      return <Badge variant="secondary">Posted</Badge>;
+                    }
+                    if (status === "held") {
+                      return <Badge variant="outline">Held</Badge>;
+                    }
+                    if (status === "revoked") {
+                      return <Badge variant="destructive">Revoked</Badge>;
+                    }
+
+                    return (
+                      <div className="flex items-center gap-2">
+                        {status === "draft" && <Badge variant="secondary">Submitted</Badge>}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => submitForPosting(grade)}
+                          disabled={!grade.gradedAt || submittingId === grade.id || isPending}
+                          title={isPending ? "Waiting for the grade save to finish before allowing posting, to avoid submitting stale data." : undefined}
+                          leftSection={<Send className="h-4 w-4" />}
+                        >
+                          {submittingId === grade.id
+                            ? "Submitting..."
+                            : status === "draft"
+                              ? "Update Submission"
+                              : "Submit for Posting"}
+                        </Button>
+                      </div>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}
