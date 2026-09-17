@@ -10,6 +10,7 @@ import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
 import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
+import { DRIP_SEQUENCES_ROLES } from "@/app/admin/admissions/drip-sequences/page";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -89,6 +90,7 @@ interface AdminCapabilityData {
   denominationTrackingEnabled: boolean;
   alumniGivingEnabled: boolean;
   canReadShepherdAi: boolean;
+  canManageDripSequences: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -106,6 +108,13 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // in PR #108 — that fix never touched this sidebar link. Found via the 2026-09-17 daily checkup.
   const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
 
+  // Drip Sequences: like ShepherdAI Queue above, this destination page's gate is role-only
+  // (listDripSequences()/createDripSequence() both require institution_admin specifically,
+  // stricter than the rest of the Admissions section) — no institution capability flag governs
+  // it. Computing this here up front rather than repeating the same mistake PR #128 fixed once
+  // already: a role-blind nav item for a role-gated page.
+  const canManageDripSequences = hasRole(DRIP_SEQUENCES_ROLES);
+
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
@@ -114,6 +123,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         denominationTrackingEnabled: (capabilities.denominationTracking ?? false) && hasRole(DENOMINATION_ROSTER_ROLES),
         alumniGivingEnabled: (capabilities.alumniGiving ?? false) && hasRole(ALUMNI_ROSTER_ROLES),
         canReadShepherdAi,
+        canManageDripSequences,
       };
     });
   } catch {
@@ -122,6 +132,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       denominationTrackingEnabled: false,
       alumniGivingEnabled: false,
       canReadShepherdAi,
+      canManageDripSequences,
     };
   }
 }
@@ -152,6 +163,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         denominationTrackingEnabled={capabilityData.denominationTrackingEnabled}
         alumniGivingEnabled={capabilityData.alumniGivingEnabled}
         canReadShepherdAi={capabilityData.canReadShepherdAi}
+        canManageDripSequences={capabilityData.canManageDripSequences}
       >
         {children}
       </AdminCapabilityProvider>

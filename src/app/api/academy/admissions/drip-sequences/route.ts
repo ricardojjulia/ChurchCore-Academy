@@ -6,13 +6,21 @@ import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { assertCapability } from "@/modules/academy-auth/policy";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
-import { createDripSequence } from "@/modules/admissions/applicant-crm";
+import { createDripSequence, listDripSequences } from "@/modules/admissions/applicant-crm";
 import type { CommunicationTemplateKey, CommunicationChannel } from "@/modules/communications/types";
 
+// Restricted to the two templates whose content actually makes sense for a pre-application
+// inquiry ("your admissions decision is available" / "your application has been received").
+// The other 7 CommunicationTemplateKey values (registration_confirmation, transcript_update,
+// billing_account_update, grade_release, attendance_concern, workflow_assignment,
+// award_letter_ready) are written for enrolled-student contexts (sectionName, academicYear,
+// workflowTitle, etc.) that have no sensible value for someone who is only an inquiry — allowing
+// them here would let an admin build a drip step that either always fails
+// (renderCommunicationTemplate's required-variable check) or would require faking placeholder
+// values to "succeed," producing a nonsensical message. Found live: every template key silently
+// failed until this restriction + the variables fix in triggerDripSequence() below.
 const VALID_TEMPLATE_KEYS: CommunicationTemplateKey[] = [
-  "admissions_decision", "registration_confirmation", "transcript_update",
-  "billing_account_update", "grade_release", "attendance_concern",
-  "workflow_assignment", "application_received", "award_letter_ready",
+  "admissions_decision", "application_received",
 ];
 const VALID_CHANNELS: CommunicationChannel[] = ["in_app", "email"];
 
@@ -30,6 +38,19 @@ function channel(value: unknown, index: number): CommunicationChannel {
     throw new Error(`steps[${index}].channel must be "email" or "in_app".`);
   }
   return ch as CommunicationChannel;
+}
+
+export async function GET(request: Request) {
+  return handleApi(async () => {
+    const { actor } = await resolveAcademyActorFromSession(request);
+
+    const sequences = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return listDripSequences(actor, asAcademyDatabase<ApplicantCrmDatabase>(client));
+    });
+
+    return { sequences, count: sequences.length };
+  });
 }
 
 export async function POST(request: Request) {

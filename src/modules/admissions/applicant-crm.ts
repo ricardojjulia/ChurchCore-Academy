@@ -263,6 +263,22 @@ export async function listInquiries(
   return result.rows.map(mapInquiry);
 }
 
+export async function getInquiry(
+  actor: AcademyActor,
+  inquiryId: string,
+  database: ApplicantCrmDatabase,
+): Promise<Inquiry | null> {
+  assertAdmissionsStaff(actor, actor.tenantId);
+
+  const result = await database.query(
+    `select * from academy_inquiries where tenant_id = $1 and id = $2`,
+    [actor.tenantId, inquiryId],
+  );
+
+  const row = result.rows[0];
+  return row ? mapInquiry(row) : null;
+}
+
 export async function updateInquiryStatus(
   actor: AcademyActor,
   inquiryId: string,
@@ -323,6 +339,40 @@ export async function convertInquiryToApplication(
   );
 
   return inquiry;
+}
+
+export async function listDripSequences(
+  actor: AcademyActor,
+  database: ApplicantCrmDatabase,
+): Promise<Array<{ sequence: DripSequence; steps: DripStep[] }>> {
+  assertInstitutionAdmin(actor, actor.tenantId);
+
+  // Fetch all sequences for this tenant, ordered newest-first
+  const sequencesResult = await database.query(
+    `select * from academy_drip_sequences
+     where tenant_id = $1
+     order by created_at desc`,
+    [actor.tenantId],
+  );
+
+  const results: Array<{ sequence: DripSequence; steps: DripStep[] }> = [];
+
+  for (const sequenceRow of sequencesResult.rows) {
+    const sequence = mapDripSequence(sequenceRow);
+
+    // Fetch steps for this sequence, ordered by step number
+    const stepsResult = await database.query(
+      `select * from academy_drip_steps
+       where tenant_id = $1 and sequence_id = $2
+       order by step_number asc`,
+      [actor.tenantId, sequence.id],
+    );
+
+    const steps = stepsResult.rows.map(mapDripStep);
+    results.push({ sequence, steps });
+  }
+
+  return results;
 }
 
 export async function createDripSequence(
@@ -436,12 +486,29 @@ export async function triggerDripSequence(
         sendAt.setDate(sendAt.getDate() + step.delayDays);
 
         const idempotencyKey = `drip:${inquiryId}:${sequence.id}:${step.stepNumber}`;
+        const fullName = `${inquiry.firstName} ${inquiry.lastName}`;
+        const inquiryLink = `/admin/admissions/inquiries/${inquiry.id}`;
 
         await communicationsService.createCommunication(systemActor, {
           templateKey: step.templateKey,
           audience: { type: "staff_role", roles: ["admissions"] },
           channels: [step.channel],
+          // The two admissions-facing templates allowed for drip steps (see VALID_TEMPLATE_KEYS
+          // in drip-sequences/route.ts) need studentName/applicantName + programName + an action
+          // link. The original variables here only ever supplied firstName/lastName/email/
+          // programOfInterest/inquiryId, which matches NONE of communications/service.ts's
+          // template `required` lists — every single template key ever silently failed
+          // renderCommunicationTemplate's required-variable check, meaning this function has
+          // never successfully scheduled a message since it was written. Found live: creating
+          // and firing a real sequence through the new admin UI returned "Scheduled 0 messages"
+          // with a swallowed "Template variable studentName is required" error in the server log.
           variables: {
+            studentName: fullName,
+            applicantName: fullName,
+            recipientName: fullName,
+            programName: inquiry.programOfInterest ?? "an unspecified program",
+            actionUrl: inquiryLink,
+            statusUrl: inquiryLink,
             firstName: inquiry.firstName,
             lastName: inquiry.lastName,
             email: inquiry.email,

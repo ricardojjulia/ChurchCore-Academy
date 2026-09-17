@@ -22,6 +22,7 @@ import {
 } from "@/modules/admissions/policy";
 import {
   AdmissionApplication,
+  AdmissionApplicationStatus,
   CreateAdmissionApplicationInput,
 } from "@/modules/admissions/types";
 import { normalizeCreateAdmissionApplicationInput } from "@/modules/admissions/validation";
@@ -74,8 +75,11 @@ export async function GET(request: Request) {
         actor.userId,
         "review",
       );
+      const url = new URL(request.url);
+      const status = url.searchParams.get("status") ?? undefined;
       const applications = await repository.list(actor.tenantId, {
         applicantPersonId: staffView ? undefined : actor.userId,
+        status: status as AdmissionApplicationStatus | undefined,
       });
       return { applications, count: applications.length };
     });
