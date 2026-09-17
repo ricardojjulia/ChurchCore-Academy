@@ -366,6 +366,9 @@ test("submitDraftFinalGrade() enters the grade into gradebook course summaries a
       if (sql.includes("select id from public.academy_transcript_entries")) {
         return { rows: [] }; // not yet posted to the transcript
       }
+      if (sql.includes("from public.academy_gradebook_records record")) {
+        return { rows: [{ id: "grade-record-1" }] }; // a posted assignment grade exists
+      }
       if (sql.includes("insert into public.academy_gradebook_course_summaries")) {
         // params[4] = final_letter_grade, params[5] = is_passing
         insertSql = sql;
@@ -523,6 +526,37 @@ test("submitDraftFinalGrade() rejects resubmission once the course has already b
   await assert.rejects(
     async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
     /already been posted/i,
+  );
+});
+
+test("submitDraftFinalGrade() rejects when no posted assignment grade exists for this student in this section", async () => {
+  const db: AssignmentDatabase = {
+    async query(sql: string) {
+      if (sql.includes("select course_id") && sql.includes("academy_course_sections")) {
+        return { rows: [{ course_id: "course-1" }] };
+      }
+      if (sql.includes("primary_instructor_id")) {
+        return { rows: [{ "?column?": 1 }] };
+      }
+      if (sql.includes("academy_course_section_registrations") && sql.includes("select id, program_enrollment_id")) {
+        return { rows: [{ id: "registration-1", program_enrollment_id: "enroll-1" }] };
+      }
+      if (sql.includes("select id from public.academy_transcript_entries")) {
+        return { rows: [] };
+      }
+      if (sql.includes("from public.academy_gradebook_records record")) {
+        // academy_transcript_entries.source_grade_record_id is NOT NULL — without at least one
+        // posted assignment grade, the registrar's candidate query (its inner lateral join)
+        // would never find this student, no matter how "completed" the registration says it is.
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  await assert.rejects(
+    async () => submitDraftFinalGrade(db, faculty, "section-1", "student-1", "A", true),
+    /at least one assignment grade must be posted/i,
   );
 });
 

@@ -453,6 +453,34 @@ export async function submitDraftFinalGrade(
     );
   }
 
+  // academy_transcript_entries.source_grade_record_id is NOT NULL — the registrar's posting
+  // flow (TranscriptEntryService.createFromRegistration, via listCandidates' inner lateral join
+  // in transcript-entries/postgres-repository.ts) requires at least one posted
+  // academy_gradebook_records row for this student in this section, by design: every transcript
+  // entry traces back to a specific posted grade event. Marking the registration "completed"
+  // without that in place would make this student silently disappear from the registrar's
+  // candidate queue — the summary and registration would say "done," but there would be no way
+  // to ever post the transcript entry. Confirmed live: a student with only draft (unposted)
+  // assignment grades never appeared as a candidate after this same flow, with no error anywhere.
+  const postedAssignmentGradeCheck = await db.query(
+    `select record.id
+       from public.academy_gradebook_records record
+       join public.academy_gradebook_assignments assignment
+         on assignment.tenant_id = record.tenant_id and assignment.id = record.assignment_id
+      where record.tenant_id = $1
+        and record.learner_person_id = $2
+        and assignment.section_id = $3
+        and record.posting_status = 'posted'
+      limit 1`,
+    [actor.tenantId, learnerPersonId, sectionId],
+  );
+  if (postedAssignmentGradeCheck.rows.length === 0) {
+    throw new Error(
+      "At least one assignment grade must be posted for this student in this section before a " +
+        "final grade can be submitted, so the transcript entry has a source grade record to trace back to.",
+    );
+  }
+
   const submittedAt = new Date().toISOString();
 
   // is_passing is caller-supplied rather than derived from the letter grade string: per
