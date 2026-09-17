@@ -117,7 +117,7 @@ The full Core Academic Loop (steps 1–10 above) is implemented, with real Postg
 | Student detail — academic record, ShepherdAI, sections, relationships | Working |
 | People & Roles — institution settings tiles | Working |
 
-**Open verification gap:** every step above is independently verified, but nobody has walked the complete 12-step chain in one browser session in a single sitting. That remains the highest-value next verification task per this document's own Definition of Done.
+**Verification gap closed 2026-09-16:** the complete 12-step chain was walked in one browser session for the first time — see `docs/reports/walkthrough-2026-09-16.md`. It found and fixed five real defects along the way (academic period 404s, silent course-form validation failure, a wrong gradebook nav link, a missing assignment-creation page, and a missing `assignment_type` column wiring), plus a deeper issue: the grading pipeline's official-grade-posting path (`submitGradeAction`) had a broken database trigger blocking every write since 2026-06-26, invisible from the UI alone. That trigger was fixed and the posting UI wired in on 2026-09-16/17 (PRs [#126](https://github.com/ricardojjulia/ChurchCore-Academy/pull/126), [#127](https://github.com/ricardojjulia/ChurchCore-Academy/pull/127)) — verified end-to-end: a faculty member can now take a grade from entry to an official, registrar-posted record through the live app. A 2026-09-17 checkup also fixed a role-gating nav bug (ShepherdAI Queue link shown to staff roles that couldn't access the page, PR #128). The Core Academic Loop is confirmed working end-to-end, not just independently verified step-by-step.
 
 ---
 
