@@ -6,6 +6,7 @@ import { resolveAcademicContext } from "@/modules/academic-calendar/user-context
 import { AcademicContextDataProvider, type AcademicContextData } from "@/contexts/academic-context";
 import { AdminCapabilityProvider } from "@/components/admin-capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
 import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
@@ -87,6 +88,7 @@ interface AdminCapabilityData {
   ministryFormationEnabled: boolean;
   denominationTrackingEnabled: boolean;
   alumniGivingEnabled: boolean;
+  canReadShepherdAi: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -96,6 +98,14 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // end (found via PR review: the first version of this fix only checked capability).
   const hasRole = (roles: AcademyRole[]) => actor.roles.some((role) => roles.includes(role));
 
+  // ShepherdAI Queue: unlike the capability-gated items above, /admin/workflows has no
+  // institution mode-pack capability — its only gate is the actor's role (assertShepherdAiAccess
+  // requires "academic_admin"). The sidebar nav item was unconditionally shown regardless of
+  // role, so any staff role without academic_admin (e.g. institution_admin, registrar) hit the
+  // same "you don't have access to this page" dead end already fixed once for the dashboard tile
+  // in PR #108 — that fix never touched this sidebar link. Found via the 2026-09-17 daily checkup.
+  const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
+
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
@@ -103,10 +113,16 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         ministryFormationEnabled: capabilities.ministryFormation ?? false,
         denominationTrackingEnabled: (capabilities.denominationTracking ?? false) && hasRole(DENOMINATION_ROSTER_ROLES),
         alumniGivingEnabled: (capabilities.alumniGiving ?? false) && hasRole(ALUMNI_ROSTER_ROLES),
+        canReadShepherdAi,
       };
     });
   } catch {
-    return { ministryFormationEnabled: false, denominationTrackingEnabled: false, alumniGivingEnabled: false };
+    return {
+      ministryFormationEnabled: false,
+      denominationTrackingEnabled: false,
+      alumniGivingEnabled: false,
+      canReadShepherdAi,
+    };
   }
 }
 
@@ -135,6 +151,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         ministryFormationEnabled={capabilityData.ministryFormationEnabled}
         denominationTrackingEnabled={capabilityData.denominationTrackingEnabled}
         alumniGivingEnabled={capabilityData.alumniGivingEnabled}
+        canReadShepherdAi={capabilityData.canReadShepherdAi}
       >
         {children}
       </AdminCapabilityProvider>
