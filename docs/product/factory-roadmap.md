@@ -495,6 +495,8 @@ Required ADRs:
 
 Goal: support competency frameworks, narrative evaluations, and children's school progress records as grading types.
 
+Status: framework builder and narrative evaluation entry shipped and browser-verified working ([PR #117](https://github.com/ricardojjulia/ChurchCore-Academy/pull/117), 2026-09-16). Competency-to-course mapping and a dedicated competency transcript format are unverified — check directly before assuming either is done.
+
 Suggested 1-week sprints:
 
 1. Competency design package
@@ -525,13 +527,19 @@ Suggested 1-week sprints:
 
 Goal: grade entry, attendance, advising notes, and credential qualification tracking.
 
+Status: grade entry, gradebook, attendance, scheduling, roster, and ShepherdAI surfaces are built and live under `/faculty/*`, and the full assignment-grade-to-transcript pipeline was verified end-to-end 2026-09-17 (see the Core Academic Loop update in `docs/product/product-context.md`). Faculty credential/qualification tracking (degrees, certifications held) is not built.
+
 ### Phase 18: Alumni and Ministry Placement
 
 Goal: post-graduation relationship tracking, ministry placement, and alumni directory.
 
+Status: alumni/giving tracking admin UI shipped and browser-verified working ([PR #116](https://github.com/ricardojjulia/ChurchCore-Academy/pull/116), 2026-09-16). Ministry placement tracking specifically is unverified — check directly before assuming it's covered by the same shipment.
+
 ### Phase 19: Denomination and Church Partner Access
 
 Goal: sponsoring church visibility into their students' progress, scoped and consent-gated.
+
+Status: denomination/ordination tracking admin UI shipped and browser-verified working ([PR #114](https://github.com/ricardojjulia/ChurchCore-Academy/pull/114), 2026-09-16). Church-partner scoped access (an external, church-facing view rather than internal admin UI) is a separate, larger, not-yet-built item — tracked as its own work package (3.3) in `docs/superpowers/plans/2026-09-13-competitive-feature-closure-plan.md`.
 
 ### Phase 20: Certificate and CEU Programs
 
