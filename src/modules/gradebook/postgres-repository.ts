@@ -1,4 +1,5 @@
 import { getDatabasePool } from "@/lib/database";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 import type {
   GradebookAuditRead,
   GradebookGradingTarget,
@@ -358,17 +359,31 @@ export class GradebookPostgresRepository {
       // closing a race where a stale resubmission could otherwise land between a registrar's
       // concurrent post and its own read of the "old" posting_status, silently reverting work
       // the registrar just completed.
+      //
+      // The lookup filters on assignment_id and learner_person_id too, not just submission_id —
+      // academy_gradebook_records carries its own assignment_id/learner_person_id columns with
+      // nothing in the schema enforcing they match the submission's real ones (this table's other
+      // writer, this same method before today's fix, used to trust caller-supplied values
+      // directly). Without this filter, a pre-existing row with a stale/wrong association would
+      // still match on submission_id alone and get updated by id, preserving the wrong
+      // assignment/learner association and silently corrupting downstream GPA/reporting that
+      // reads those columns off the record. Found via PR #131 review.
       const existing = await this.database.query(
         `select id, posting_status
          from public.academy_gradebook_records
-         where tenant_id = $1 and submission_id = $2
+         where tenant_id = $1
+           and submission_id = $2
+           and assignment_id = $3
+           and learner_person_id = $4
          for update`,
-        [input.tenantId, input.submissionId],
+        [input.tenantId, input.submissionId, input.assignmentId, targetRow.learner_person_id],
       );
 
       const existingRow = existing.rows[0];
       if (!existingRow) {
-        throw new Error("Gradebook record target not found.");
+        throw new AcademyConflictError(
+          "A gradebook record already exists for this submission, but its assignment/learner association does not match — this indicates a data-integrity issue, not a normal resubmission. Contact an administrator rather than retrying.",
+        );
       }
 
       // Once a record has left "draft" — posted, held, or revoked — this write path is no
@@ -376,8 +391,12 @@ export class GradebookPostgresRepository {
       // resubmission clear a registrar-held or -revoked record, or undo a post that had just
       // landed concurrently. Corrections to a non-draft record belong in the registrar override
       // flow (overrideGradeAction), which carries a required reason and an audit trail.
+      //
+      // AcademyConflictError (not a plain Error) so handleApi maps this to HTTP 409, letting
+      // callers distinguish an expected state conflict from a real server failure — a plain
+      // Error here was mapped to a generic 500 "Unexpected API error." Found via PR #131 review.
       if (existingRow.posting_status !== "draft") {
-        throw new Error(
+        throw new AcademyConflictError(
           `Cannot resubmit: this grade is already ${String(existingRow.posting_status)}. Use the grade override workflow to make corrections.`,
         );
       }

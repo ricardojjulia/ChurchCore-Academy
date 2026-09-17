@@ -206,6 +206,16 @@ test("gradeSubmission updates an existing draft record on resubmission", async (
   assert.match(queries[2].sql, /select id, posting_status/i);
   assert.match(queries[2].sql, /for update/i);
   assert.match(queries[3].sql, /update public\.academy_gradebook_records/i);
+
+  // The locked existing-row lookup must filter on assignment_id and learner_person_id too, not
+  // just submission_id — academy_gradebook_records carries its own copies of those columns with
+  // nothing in the schema enforcing they match the submission's real ones. Without this filter,
+  // a pre-existing row with a stale/wrong association would still match on submission_id alone
+  // and get updated by id, preserving the wrong assignment/learner association and corrupting
+  // downstream GPA/reporting. Found via PR #131 review.
+  assert.match(queries[2].sql, /assignment_id = \$3/i);
+  assert.match(queries[2].sql, /learner_person_id = \$4/i);
+  assert.deepEqual(queries[2].values, ["tenant-1", "submission-1", "assignment-1", "student-1"]);
 });
 
 test("gradeSubmission rejects resubmission of an already-posted record instead of silently overwriting it", async () => {
@@ -226,7 +236,16 @@ test("gradeSubmission rejects resubmission of an already-posted record instead o
         gradedByPersonId: "faculty-1",
         pointsEarned: 60,
       }),
-    /already posted/i,
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      // AcademyConflictError, not a plain Error — handleApi only maps AcademyConflictError to
+      // HTTP 409; a plain Error here was returned to callers as a generic 500
+      // "Unexpected API error.", making it impossible to distinguish an expected state conflict
+      // from a real server failure. Found via PR #131 review.
+      assert.equal(error.name, "AcademyConflictError");
+      assert.match(error.message, /already posted/i);
+      return true;
+    },
   );
 
   assert.equal(queries.length, 3);
@@ -249,4 +268,70 @@ test("gradeSubmission rejects a target whose submission does not belong to the c
       }),
     /target not found/i,
   );
+});
+
+test("gradeSubmission rejects updating an existing record whose stored assignment/learner association doesn't match, instead of silently overwriting it", async () => {
+  // Simulates a pre-existing academy_gradebook_records row that disagrees with its own
+  // submission's real assignment/learner (possible from before this fix, when this same method
+  // trusted caller-supplied values directly). The target-resolution query still validates and
+  // passes (the submission itself is legitimate), the INSERT conflicts (a row already exists for
+  // this submission_id), but the locked existing-row lookup — now filtered on assignment_id and
+  // learner_person_id, not just submission_id — finds no matching row, since the stored row's
+  // association doesn't match. This must be rejected as a data-integrity conflict, not silently
+  // treated as "doesn't exist yet" (which would misleadingly suggest a fresh insert is safe) or
+  // used as-is (which would preserve the wrong association). Found via PR #131 review.
+  const { database, queries } = createDatabase([
+    [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: "100", sensitivity_tier: "standard" }],
+    [], // INSERT ... ON CONFLICT DO NOTHING finds an existing row, returns nothing
+    [], // locked existing-row check: no row matches (assignment_id/learner_person_id differ)
+  ]);
+  const repository = new GradebookPostgresRepository(database);
+
+  await assert.rejects(
+    async () =>
+      repository.gradeSubmission({
+        tenantId: "tenant-1",
+        submissionId: "submission-1",
+        assignmentId: "assignment-1",
+        learnerPersonId: "student-1",
+        gradedByPersonId: "faculty-1",
+        pointsEarned: 60,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.name, "AcademyConflictError");
+      assert.match(error.message, /does not match/i);
+      return true;
+    },
+  );
+
+  assert.equal(queries.length, 3);
+  assert.ok(!queries.some((query) => /update public\.academy_gradebook_records/i.test(query.sql)));
+});
+
+test("gradeSubmission cross-tenant: a submission from another tenant cannot reach the write path", async () => {
+  // The target-resolution query filters on tenant_id ($1); a submission from a different tenant
+  // simply never matches, so it returns no row here (matching the mock's empty-first-query
+  // fixture) — same outcome as a genuinely nonexistent submission, and the write path is never
+  // reached. Required per CLAUDE.md's testing convention: every module function needs a
+  // cross-tenant rejection case. Found via PR #131 review.
+  const { database, queries } = createDatabase([[]]);
+  const repository = new GradebookPostgresRepository(database);
+
+  await assert.rejects(
+    async () =>
+      repository.gradeSubmission({
+        tenantId: "tenant-2",
+        submissionId: "submission-1",
+        assignmentId: "assignment-1",
+        learnerPersonId: "student-1",
+        gradedByPersonId: "faculty-2",
+        pointsEarned: 60,
+      }),
+    /target not found/i,
+  );
+
+  assert.equal(queries.length, 1);
+  assert.match(queries[0].sql, /submission\.tenant_id = \$1/i);
+  assert.equal(queries[0].values?.[0], "tenant-2");
 });
