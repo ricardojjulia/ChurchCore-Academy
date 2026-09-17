@@ -164,7 +164,7 @@ function AdminShellInner({
   const pathname = usePathname();
   const derivedSection = sectionForPath(pathname);
   const academicContextData = useAcademicContextData();
-  const { ministryFormationEnabled, denominationTrackingEnabled, alumniGivingEnabled } =
+  const { ministryFormationEnabled, denominationTrackingEnabled, alumniGivingEnabled, canReadShepherdAi } =
     useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
@@ -191,6 +191,9 @@ function AdminShellInner({
         return false;
       }
       if (item.href === "/admin/alumni" && !alumniGivingEnabled) {
+        return false;
+      }
+      if (item.href === "/admin/workflows" && !canReadShepherdAi) {
         return false;
       }
       return true;

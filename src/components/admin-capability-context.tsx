@@ -6,6 +6,7 @@ interface AdminCapabilityContextValue {
   ministryFormationEnabled: boolean;
   denominationTrackingEnabled: boolean;
   alumniGivingEnabled: boolean;
+  canReadShepherdAi: boolean;
 }
 
 // Default matters: AdminShell is also used by pages outside src/app/admin/* (e.g.
@@ -18,6 +19,7 @@ const defaultAdminCapabilities: AdminCapabilityContextValue = {
   ministryFormationEnabled: false,
   denominationTrackingEnabled: false,
   alumniGivingEnabled: false,
+  canReadShepherdAi: false,
 };
 
 const AdminCapabilityContext = createContext<AdminCapabilityContextValue>(defaultAdminCapabilities);
@@ -27,15 +29,17 @@ export function AdminCapabilityProvider({
   ministryFormationEnabled,
   denominationTrackingEnabled,
   alumniGivingEnabled,
+  canReadShepherdAi,
 }: {
   children: React.ReactNode;
   ministryFormationEnabled: boolean;
   denominationTrackingEnabled: boolean;
   alumniGivingEnabled: boolean;
+  canReadShepherdAi: boolean;
 }) {
   return (
     <AdminCapabilityContext.Provider
-      value={{ ministryFormationEnabled, denominationTrackingEnabled, alumniGivingEnabled }}
+      value={{ ministryFormationEnabled, denominationTrackingEnabled, alumniGivingEnabled, canReadShepherdAi }}
     >
       {children}
     </AdminCapabilityContext.Provider>
