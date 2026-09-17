@@ -58,7 +58,7 @@ export async function submitGradeAction(
             $7,
             $8,
             $9,
-            $10,
+            assignment.sensitivity_tier,
             now(),
             now()
           from public.academy_gradebook_submissions submission
@@ -79,7 +79,17 @@ export async function submitGradeAction(
             instructor_feedback = excluded.instructor_feedback,
             sensitivity_tier = excluded.sensitivity_tier,
             graded_at = now(),
-            updated_at = now()
+            updated_at = now(),
+            -- A resubmission of grade content on an already-posted record must not silently
+            -- mutate a student-visible official grade behind the registrar's back. Reopen it to
+            -- draft so it goes through fresh registrar review before it's posted again. Found via
+            -- PR #126 review: the previous version left posting_status untouched here, so a
+            -- faculty resubmission could change points/letter grade on a posted record while it
+            -- kept showing as posted.
+            posting_status = 'draft',
+            posted_at = null,
+            posted_by_person_id = null,
+            released_to_student_at = null
           returning id
         `,
         [
@@ -92,7 +102,6 @@ export async function submitGradeAction(
           parsed.letterGrade ?? null,
           parsed.isPassing ?? null,
           parsed.instructorFeedback ?? null,
-          parsed.sensitivityTier,
         ],
       );
 

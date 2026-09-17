@@ -33,6 +33,39 @@ test("assignment grade entry form submits official grades for registrar posting 
   assert.match(form, /async function submitForPosting\(/);
   assert.match(form, /await submitGradeAction\(/);
   assert.match(form, /if \(!result\.ok\) \{/);
-  assert.match(form, /disabled=\{!grade\.gradedAt \|\| submittingId === grade\.id\}/);
+  assert.match(form, /disabled=\{!grade\.gradedAt \|\| submittingId === grade\.id \|\| isPending\}/);
   assert.match(form, /postedIds\.has\(grade\.id\)/);
+
+  // sensitivity_tier is derived server-side now (PR #126 review) — the client must not pass it.
+  assert.doesNotMatch(form, /sensitivityTier:\s*"standard"/);
+});
+
+test("assignment grade entry form disables further posting once an official record exists, instead of always re-offering the button", async () => {
+  const form = await readFile(
+    path.join(process.cwd(), "src/app/faculty/gradebook/[sectionId]/assignments/[assignmentId]/AssignmentGradeEntryForm.tsx"),
+    "utf8",
+  );
+
+  // Regression coverage for a real bug: postedIds is client-only memory, so before this fix the
+  // button reappeared after a page refresh even for a submission that had already been posted,
+  // letting a faculty member resubmit and silently mutate an already-posted, student-visible
+  // grade. Fixed by driving the badge/button off real server data (gradeRecordPostingStatus)
+  // instead of only local state. Found via PR #126 review.
+  assert.match(form, /gradeRecordPostingStatus/);
+  assert.match(form, /status === "posted"/);
+  assert.match(form, /status === "held"/);
+  assert.match(form, /status === "revoked"/);
+  assert.match(form, /router\.refresh\(\)/g);
+});
+
+test("assignment grade entry form disables posting while a grade save is still pending, to avoid submitting stale data", async () => {
+  const form = await readFile(
+    path.join(process.cwd(), "src/app/faculty/gradebook/[sectionId]/assignments/[assignmentId]/AssignmentGradeEntryForm.tsx"),
+    "utf8",
+  );
+
+  // Regression coverage: submitForPosting closes over the `grade` prop, which is stale until
+  // router.refresh() lands after a save. Clicking Submit for Posting during that window could
+  // post the pre-edit points/pass-fail value. Found via PR #126 review.
+  assert.match(form, /submittingId === grade\.id \|\| isPending/);
 });

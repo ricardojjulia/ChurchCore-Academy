@@ -7,10 +7,11 @@
 -- branch's join). academy_gradebook_records has never had a course_section_id column — it
 -- resolves to a section only indirectly, via assignment_id -> academy_gradebook_assignments.section_id.
 -- Every INSERT/UPDATE on academy_gradebook_records has failed outright since the first of those
--- two migrations, with "record "new" has no field "course_section_id"" — meaning
--- submitGradeAction() (the only application code path that ever writes to this table) has never
--- successfully run. Found via the daily checkup's full 12-step walkthrough while wiring a UI to
--- that action for the first time.
+-- two migrations, with "record "new" has no field "course_section_id"" — meaning every writer of
+-- this table (submitGradeAction(), and the older POST /api/academy/gradebook/records ->
+-- GradebookPostgresRepository.gradeSubmission path) has never successfully run. Found via the
+-- daily checkup's full 11-step walkthrough while wiring a UI to submitGradeAction for the first
+-- time.
 --
 -- Migrations are append-only (CLAUDE.md) — this replaces the function via CREATE OR REPLACE
 -- rather than editing either original migration file. Every other branch (registrations,

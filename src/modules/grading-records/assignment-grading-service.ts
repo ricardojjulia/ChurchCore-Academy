@@ -49,6 +49,8 @@ export interface Assignment {
   locked: boolean;
 }
 
+export type GradeRecordPostingStatus = "draft" | "posted" | "held" | "revoked";
+
 export interface AssignmentSubmission {
   id: string;
   tenantId: string;
@@ -60,6 +62,12 @@ export interface AssignmentSubmission {
   submittedAt?: string;
   gradedAt?: string;
   gradedBy?: string;
+  // Posting status of the official academy_gradebook_records row for this submission, if one has
+  // been created via submitGradeAction. Undefined means no official record exists yet — the
+  // submission is still advisory-only. Drives the UI's "Submit for Posting" state from real
+  // server data instead of client-only memory, which used to reset to "not submitted" on every
+  // page refresh even for a submission that had already been posted. Found via PR #126 review.
+  gradeRecordPostingStatus?: GradeRecordPostingStatus;
 }
 
 export interface CreateAssignmentInput {
@@ -585,12 +593,16 @@ export async function getAssignmentGrades(
        s.submitted_at,
        s.graded_at,
        s.graded_by,
-       r.id as student_registration_id
+       r.id as student_registration_id,
+       gr.posting_status as grade_record_posting_status
      from public.academy_course_section_registrations r
      left join public.academy_gradebook_submissions s
        on s.tenant_id = r.tenant_id
        and s.assignment_id = $2
        and s.learner_person_id = r.student_person_id
+     left join public.academy_gradebook_records gr
+       on gr.tenant_id = s.tenant_id
+       and gr.submission_id = s.id
      where r.tenant_id = $1
        and r.course_section_id = $3
        and r.status in ('registered', 'completed')
@@ -613,6 +625,9 @@ export async function getAssignmentGrades(
     submittedAt: row.submitted_at ? String(row.submitted_at) : undefined,
     gradedAt: row.graded_at ? String(row.graded_at) : undefined,
     gradedBy: row.graded_by ? String(row.graded_by) : undefined,
+    gradeRecordPostingStatus: row.grade_record_posting_status
+      ? (String(row.grade_record_posting_status) as GradeRecordPostingStatus)
+      : undefined,
   }));
 }
 
