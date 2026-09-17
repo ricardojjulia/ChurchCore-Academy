@@ -49,8 +49,28 @@ test("term-lock trigger fix resolves the gradebook branch through the assignment
   assert.ok(gradebookBranch, "expected an academy_gradebook_records branch in the trigger function");
 
   assert.doesNotMatch(gradebookBranch![1], /new\.course_section_id/i);
-  assert.match(gradebookBranch![1], /from academy_gradebook_assignments/i);
-  assert.match(gradebookBranch![1], /where ga\.id = new\.assignment_id/i);
+  assert.match(gradebookBranch![1], /from academy_gradebook_submissions/i);
+  assert.match(gradebookBranch![1], /join academy_gradebook_assignments/i);
+});
+
+test("term-lock trigger fix resolves the gradebook branch through the submission's own assignment, not a caller-supplied assignment_id", async () => {
+  const sql = await readMigration();
+
+  const gradebookBranch = sql.match(
+    /elsif tg_table_name = 'academy_gradebook_records' then([\s\S]*?)elsif/i,
+  );
+  assert.ok(gradebookBranch, "expected an academy_gradebook_records branch in the trigger function");
+
+  // academy_gradebook_records carries its own assignment_id, but nothing in the schema enforces
+  // it matches the referenced submission's real assignment — and the legacy
+  // POST /api/academy/gradebook/records writer accepts caller-supplied IDs without checking that
+  // correspondence. Resolving period_id via NEW.assignment_id directly would let a completed-
+  // period submission bypass the term lock by claiming an unrelated, still-open assignment_id.
+  // The branch must resolve via NEW.submission_id -> academy_gradebook_submissions.assignment_id
+  // instead, and must not reference NEW.assignment_id at all. Found via PR #126 review.
+  assert.doesNotMatch(gradebookBranch![1], /new\.assignment_id/i);
+  assert.match(gradebookBranch![1], /where gs\.id = new\.submission_id/i);
+  assert.match(gradebookBranch![1], /ga\.id = gs\.assignment_id/i);
 });
 
 test("term-lock trigger fix keeps period_id typed as TEXT, matching academy_academic_periods.id", async () => {

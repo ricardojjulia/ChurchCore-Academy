@@ -236,13 +236,14 @@ export function AssignmentGradeEntryForm({
                 </td>
                 <td className="p-3">
                   {(() => {
-                    // Once an official record exists in any state, don't offer a casual
-                    // resubmit button — corrections to an already-submitted grade belong in the
-                    // registrar override flow, which carries its own audit trail. This also
-                    // closes the gap the button used to have: it used to reappear after a page
-                    // refresh (postedIds is client-only memory), letting a faculty member
-                    // resubmit and silently mutate an already-posted, student-visible grade.
-                    // Found via PR #126 review.
+                    // Once a record has left "draft" — posted, held, or revoked — don't offer a
+                    // casual resubmit button: corrections to a record in that state belong in the
+                    // registrar override flow, which carries a required reason and an audit
+                    // trail (submitGradeAction itself now rejects a resubmit against a non-draft
+                    // record server-side too — this is the matching UI-level guard, not the only
+                    // one). A still-"draft" record hasn't been registrar-reviewed yet, so faculty
+                    // may keep correcting it before posting — the button stays available with a
+                    // "Submitted" indicator alongside it. Found via PR #126 review.
                     const status = grade.gradeRecordPostingStatus
                       ?? (postedIds.has(grade.id) ? "draft" : undefined);
 
@@ -255,21 +256,25 @@ export function AssignmentGradeEntryForm({
                     if (status === "revoked") {
                       return <Badge variant="destructive">Revoked</Badge>;
                     }
-                    if (status === "draft") {
-                      return <Badge variant="secondary">Submitted</Badge>;
-                    }
 
                     return (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => submitForPosting(grade)}
-                        disabled={!grade.gradedAt || submittingId === grade.id || isPending}
-                        title={isPending ? "Waiting for the grade save to finish before allowing posting, to avoid submitting stale data." : undefined}
-                        leftSection={<Send className="h-4 w-4" />}
-                      >
-                        {submittingId === grade.id ? "Submitting..." : "Submit for Posting"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {status === "draft" && <Badge variant="secondary">Submitted</Badge>}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => submitForPosting(grade)}
+                          disabled={!grade.gradedAt || submittingId === grade.id || isPending}
+                          title={isPending ? "Waiting for the grade save to finish before allowing posting, to avoid submitting stale data." : undefined}
+                          leftSection={<Send className="h-4 w-4" />}
+                        >
+                          {submittingId === grade.id
+                            ? "Submitting..."
+                            : status === "draft"
+                              ? "Update Submission"
+                              : "Submit for Posting"}
+                        </Button>
+                      </div>
                     );
                   })()}
                 </td>

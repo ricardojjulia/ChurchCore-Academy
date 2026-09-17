@@ -38,14 +38,18 @@ function createDependencies(actor: AcademyActor, rowsByQuery: unknown[][] = []) 
   return { dependencies, queries, revalidated };
 }
 
-test("submitGradeAction writes grade records through the authenticated tenant context", async () => {
+test("submitGradeAction writes a new grade record through the authenticated tenant context", async () => {
   const { dependencies, queries, revalidated } = createDependencies(
     {
       userId: "faculty-1",
       tenantId: "tenant-1",
       roles: ["faculty"],
     },
-    [[{ can_write: true }], [{ id: "grade-record-1" }]],
+    [
+      [{ can_write: true }],
+      [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: 100, sensitivity_tier: "elevated" }],
+      [{ id: "grade-record-1" }],
+    ],
   );
 
   const result = await submitGradeAction(
@@ -64,35 +68,57 @@ test("submitGradeAction writes grade records through the authenticated tenant co
 
   assert.deepEqual(result, { ok: true, data: { gradeRecordId: "grade-record-1" } });
   assert.match(queries[0].text, /academy_course_sections/i);
-  assert.match(queries[1].text, /insert into public\.academy_gradebook_records/i);
-  assert.deepEqual(queries[1].values?.slice(0, 5), [
+
+  // The submission/assignment/learner target is resolved (and its grading fields read) before
+  // touching academy_gradebook_records at all.
+  assert.match(queries[1].text, /from public\.academy_gradebook_submissions submission/i);
+  assert.match(queries[1].text, /join public\.academy_gradebook_assignments assignment/i);
+  assert.deepEqual(queries[1].values, [
+    "tenant-1",
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "student-1",
+  ]);
+
+  assert.match(queries[2].text, /insert into public\.academy_gradebook_records/i);
+  assert.match(queries[2].text, /on conflict \(tenant_id, submission_id\) do nothing/i);
+  assert.deepEqual(queries[2].values, [
     "tenant-1",
     "00000000-0000-4000-8000-000000000001",
     "00000000-0000-4000-8000-000000000002",
     "student-1",
     "faculty-1",
+    92,
+    100,
+    "A-",
+    true,
+    "Strong work.",
+    // sensitivity_tier is no longer a client-trusted input (PR #126 review: a hardcoded/
+    // client-chosen value could downgrade a pastoral/elevated assignment's grade to "standard"
+    // sensitivity) — it's the value read from the assignment row, "elevated" here, not
+    // whatever the client happened to pass (nothing, now — the field was removed).
+    "elevated",
   ]);
   assert.ok(revalidated.includes("/dashboard/student/grades"));
-
-  // sensitivity_tier is no longer a client-trusted input (PR #126 review: a hardcoded/
-  // client-chosen value could downgrade a pastoral/elevated assignment's grade to "standard"
-  // sensitivity). It must be derived server-side from the assignment row via the join, not bound
-  // as a query parameter.
-  assert.doesNotMatch(queries[1].text, /\$10/);
-  assert.match(queries[1].text, /assignment\.sensitivity_tier/i);
 });
 
-test("submitGradeAction reopens an already-posted record to draft on resubmission instead of silently mutating it", async () => {
+test("submitGradeAction updates an existing draft record on resubmission", async () => {
   const { dependencies, queries } = createDependencies(
     {
       userId: "faculty-1",
       tenantId: "tenant-1",
       roles: ["faculty"],
     },
-    [[{ can_write: true }], [{ id: "grade-record-1" }]],
+    [
+      [{ can_write: true }],
+      [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: 100, sensitivity_tier: "standard" }],
+      [], // INSERT ... ON CONFLICT DO NOTHING finds an existing row, returns nothing
+      [{ id: "grade-record-1", posting_status: "draft" }], // locked existing-row check
+      [{ id: "grade-record-1" }], // UPDATE
+    ],
   );
 
-  await submitGradeAction(
+  const result = await submitGradeAction(
     {
       submissionId: "00000000-0000-4000-8000-000000000001",
       assignmentId: "00000000-0000-4000-8000-000000000002",
@@ -103,15 +129,47 @@ test("submitGradeAction reopens an already-posted record to draft on resubmissio
     dependencies,
   );
 
-  // A resubmission (the on-conflict branch) must reopen the record to "draft" and clear its
-  // posting metadata — otherwise a faculty member resubmitting a grade could silently change
-  // points/letter grade on a record that is already posted and student-visible, without a fresh
-  // registrar review. Found via PR #126 review.
-  assert.match(queries[1].text, /on conflict \(tenant_id, submission_id\)/i);
-  assert.match(queries[1].text, /posting_status = 'draft'/i);
-  assert.match(queries[1].text, /posted_at = null/i);
-  assert.match(queries[1].text, /posted_by_person_id = null/i);
-  assert.match(queries[1].text, /released_to_student_at = null/i);
+  assert.deepEqual(result, { ok: true, data: { gradeRecordId: "grade-record-1" } });
+  assert.match(queries[3].text, /select id, posting_status/i);
+  assert.match(queries[3].text, /for update/i);
+  assert.match(queries[4].text, /update public\.academy_gradebook_records/i);
+  assert.match(queries[4].text, /points_earned = \$4/i);
+});
+
+test("submitGradeAction rejects resubmission of an already-posted record instead of silently mutating it", async () => {
+  const { dependencies, queries } = createDependencies(
+    {
+      userId: "faculty-1",
+      tenantId: "tenant-1",
+      roles: ["faculty"],
+    },
+    [
+      [{ can_write: true }],
+      [{ tenant_id: "tenant-1", learner_person_id: "student-1", max_points: 100, sensitivity_tier: "standard" }],
+      [], // INSERT ... ON CONFLICT DO NOTHING finds an existing row, returns nothing
+      [{ id: "grade-record-1", posting_status: "posted" }], // locked existing-row check
+    ],
+  );
+
+  const result = await submitGradeAction(
+    {
+      submissionId: "00000000-0000-4000-8000-000000000001",
+      assignmentId: "00000000-0000-4000-8000-000000000002",
+      learnerPersonId: "student-1",
+      pointsEarned: 60,
+      maxPoints: 100,
+    },
+    dependencies,
+  );
+
+  // The previous version silently reopened any existing record to "draft" on resubmission —
+  // that let a stale/direct call clear a registrar-held or -revoked record, or race a
+  // concurrent post and undo it using outdated data. Now it's rejected outright: corrections to
+  // a non-draft record must go through overrideGradeAction (audited, requires a reason) instead.
+  // Found via PR #126 review.
+  assert.equal(result.ok, false);
+  assert.equal(queries.length, 4);
+  assert.ok(!queries.some((query) => /update public\.academy_gradebook_records/i.test(query.text)));
 });
 
 test("submitGradeAction rejects grades outside instructor-owned sections", async () => {

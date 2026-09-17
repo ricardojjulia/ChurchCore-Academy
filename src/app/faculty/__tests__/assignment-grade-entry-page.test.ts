@@ -40,7 +40,7 @@ test("assignment grade entry form submits official grades for registrar posting 
   assert.doesNotMatch(form, /sensitivityTier:\s*"standard"/);
 });
 
-test("assignment grade entry form disables further posting once an official record exists, instead of always re-offering the button", async () => {
+test("assignment grade entry form hides the posting button once posted/held/revoked, but keeps it available for an unposted draft", async () => {
   const form = await readFile(
     path.join(process.cwd(), "src/app/faculty/gradebook/[sectionId]/assignments/[assignmentId]/AssignmentGradeEntryForm.tsx"),
     "utf8",
@@ -56,6 +56,14 @@ test("assignment grade entry form disables further posting once an official reco
   assert.match(form, /status === "held"/);
   assert.match(form, /status === "revoked"/);
   assert.match(form, /router\.refresh\(\)/g);
+
+  // A "draft" record — submitted but not yet registrar-reviewed — is not yet locked. The button
+  // must remain available so faculty can correct it before posting (submitGradeAction's server
+  // side now supports exactly this; only posted/held/revoked are rejected there). The two must
+  // agree — a UI that always hides the button once any record exists would contradict a server
+  // that explicitly allows updating a still-draft one. Found via PR #126 review (round 2).
+  assert.match(form, /status === "draft" && <Badge/);
+  assert.doesNotMatch(form, /if \(status === "draft"\) \{\s*return <Badge/);
 });
 
 test("assignment grade entry form disables posting while a grade save is still pending, to avoid submitting stale data", async () => {

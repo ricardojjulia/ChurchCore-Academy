@@ -22,6 +22,17 @@
 -- NULL, period_id resolves to NULL, and the function's existing "IF period_id IS NOT NULL"
 -- guard already skips the completed-period check in that case — same fail-open behavior as
 -- every other unresolvable case this function already has.
+--
+-- The gradebook branch resolves period_id via NEW.submission_id -> academy_gradebook_submissions
+-- .assignment_id, NOT via NEW.assignment_id directly. academy_gradebook_records carries its own
+-- assignment_id column, but nothing in the schema enforces that it actually matches the
+-- referenced submission's real assignment_id — and the older POST /api/academy/gradebook/records
+-- writer (GradebookPostgresRepository.gradeSubmission) accepts caller-supplied IDs without
+-- checking that correspondence. Resolving via NEW.assignment_id would let a write claim an
+-- unrelated, still-open assignment while actually grading a submission that belongs to a
+-- completed-period assignment, bypassing the term lock entirely. Resolving via the submission's
+-- own (NOT NULL, FK-enforced) assignment_id instead closes that bypass regardless of what
+-- NEW.assignment_id claims. Found via PR #126 review.
 CREATE OR REPLACE FUNCTION check_academic_period_is_not_completed()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -34,10 +45,12 @@ BEGIN
     WHERE cs.id = NEW.course_section_id;
   ELSIF TG_TABLE_NAME = 'academy_gradebook_records' THEN
     SELECT cs.academic_period_id INTO period_id
-    FROM academy_gradebook_assignments ga
+    FROM academy_gradebook_submissions gs
+    JOIN academy_gradebook_assignments ga
+      ON ga.id = gs.assignment_id AND ga.tenant_id = gs.tenant_id
     JOIN academy_course_sections cs
       ON cs.id = ga.section_id AND cs.tenant_id = ga.tenant_id
-    WHERE ga.id = NEW.assignment_id AND ga.tenant_id = NEW.tenant_id;
+    WHERE gs.id = NEW.submission_id AND gs.tenant_id = NEW.tenant_id;
   ELSIF TG_TABLE_NAME = 'academy_billing_ledger_entries' THEN
     period_id := NEW.academic_period_id;
   ELSIF TG_TABLE_NAME = 'academy_payment_intents' THEN
