@@ -1,6 +1,8 @@
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { timingSafeEqual } from "node:crypto";
 import { getDatabasePool } from "@/lib/database";
-import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { PostgresAcademyIdentityRepository } from "@/modules/academy-auth/postgres-identity-repository";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
@@ -29,12 +31,15 @@ export async function GET(request: Request) {
     const result = await deliverOneRosterPackage({
       actor, configuration, privateKeyPem: process.env.ONEROSTER_SIGNING_PRIVATE_KEY ?? "",
       buildPackage: async () => {
-        const csv = await withAcademyDatabaseContext(actor, async client => buildAcademyOneRosterExportPackage({
+        const csv = await withCapabilityContext(actor, async (client, capabilities) => {
+          assertCapability(capabilities, "lmsRosterSync");
+          return buildAcademyOneRosterExportPackage({
           actor, sectionId: configuration.sectionId,
           peopleRepository: new AcademyPeopleRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyPeopleRepository>[0]>(client)),
           courseCatalogRepository: new AcademyCourseCatalogRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyCourseCatalogRepository>[0]>(client)),
           registrationRepository: new PostgresOneRosterRegistrationRepository(asAcademyDatabase<ConstructorParameters<typeof PostgresOneRosterRegistrationRepository>[0]>(client)),
-        }));
+          });
+        });
         return buildOneRosterZipPackage(csv);
       },
     });

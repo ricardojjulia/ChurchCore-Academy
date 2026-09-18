@@ -19,7 +19,7 @@ export function parseDeliveryConfiguration(raw: string | undefined, allowLoopbac
   try {
     const config: OneRosterDeliveryConfiguration = JSON.parse(raw);
     if (config.enabled === false) return null;
-    if (config.enabled !== true || typeof config.tenantId !== "string" || !config.tenantId.trim() || typeof config.externalSubject !== "string" || !config.externalSubject.trim() || !uuid.test(config.sectionId) || !uuid.test(config.connectionId) || typeof config.keyId !== "string" || !/^[A-Za-z0-9._:-]{1,120}$/.test(config.keyId)) throw new Error();
+    if (config.enabled !== true || typeof config.tenantId !== "string" || !config.tenantId.trim() || typeof config.externalSubject !== "string" || !config.externalSubject.trim() || (typeof config.sectionId !== "string" || !config.sectionId.trim()) || !uuid.test(config.connectionId) || typeof config.keyId !== "string" || !/^[A-Za-z0-9._:-]{1,120}$/.test(config.keyId)) throw new Error();
     const url = new URL(config.lmsOrigin);
     const loopback = allowLoopback && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
     if ((url.protocol !== "https:" && !(loopback && url.protocol === "http:")) || url.username || url.password || url.search || url.hash || url.pathname !== "/") throw new Error();

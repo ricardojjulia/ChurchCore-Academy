@@ -105,9 +105,11 @@ export function mapAcademyOneRosterDataset(
     (registration) => registration.courseSectionId,
   );
 
+  // Archiving catalog parents does not delete retained historical sections.
+  // Keep referenced parents active in the exchange to preserve referential integrity.
   const courseIds = new Set(sections.map((section) => section.courseId));
   const courses = catalog.courses
-    .filter((course) => courseIds.has(course.id) && course.status !== "archived")
+    .filter((course) => courseIds.has(course.id))
     .sort(compareBy((course) => course.code));
   const periodsById = new Map(catalog.academicPeriods.map((period) => [period.id, period]));
   const yearsById = new Map(catalog.academicYears.map((year) => [year.id, year]));
@@ -137,12 +139,12 @@ export function mapAcademyOneRosterDataset(
     roles: mapRoles(people, exportedPersonIds, generatedOrgSourcedId),
     academicSessions: [
       ...catalog.academicYears
-        .filter((year) => yearIds.has(year.id) && year.status !== "archived")
+        .filter((year) => yearIds.has(year.id))
         .sort(compareBy((year) => year.startsOn))
         .map(
           (year): OneRosterAcademicSessionExport => ({
             sourcedId: sourcedId("academicYear", year.id),
-            status: year.status === "archived" ? "tobedeleted" : "active",
+            status: "active",
             dateLastModified: year.updatedAt,
             title: year.name,
             type: "schoolYear",
@@ -152,12 +154,12 @@ export function mapAcademyOneRosterDataset(
           }),
         ),
       ...catalog.academicPeriods
-        .filter((period) => periodIds.has(period.id) && period.status !== "archived")
+        .filter((period) => periodIds.has(period.id))
         .sort(compareBy((period) => `${period.startsOn}:${period.sequence}`))
         .map(
           (period): OneRosterAcademicSessionExport => ({
             sourcedId: sourcedId("academicPeriod", period.id),
-            status: period.status === "archived" ? "tobedeleted" : "active",
+            status: "active",
             dateLastModified: period.updatedAt,
             title: period.name,
             type: mapAcademicSessionType(period.periodType),
@@ -173,7 +175,7 @@ export function mapAcademyOneRosterDataset(
       const period = firstSection ? periodsById.get(firstSection.academicPeriodId) : undefined;
       return {
         sourcedId: sourcedId("course", course.id),
-        status: course.status === "archived" ? "tobedeleted" : "active",
+        status: "active",
         dateLastModified: course.updatedAt,
         schoolYearSourcedId: period ? sourcedId("academicYear", period.academicYearId) : undefined,
         title: course.title,

@@ -58,3 +58,8 @@ test("receiver failures are redacted and duplicate receipts remain awaiting oper
   const result = await deliverOneRosterPackage({ ...input, fetcher: async () => Response.json({ valid: true, status: "duplicate" }) });
   assert.deepEqual(result, { status: "duplicate" });
 });
+
+ test("configuration accepts Academy text section IDs and rejects empty IDs", () => {
+  assert.equal(parseDeliveryConfiguration(JSON.stringify({ ...configuration, sectionId: "section-acts-ministry" }))?.sectionId, "section-acts-ministry");
+  for (const sectionId of ["", "  ", null, 123]) assert.throws(() => parseDeliveryConfiguration(JSON.stringify({ ...configuration, sectionId })));
+});

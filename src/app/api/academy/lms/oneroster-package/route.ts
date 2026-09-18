@@ -1,7 +1,7 @@
 import { handleApi } from "@/app/api/academy/api-utils";
 import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { withCapabilityContext } from "@/lib/capability-context";
-import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
+import { assertInstitutionConfigAccess, assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
@@ -15,15 +15,18 @@ export async function GET(request: Request) {
     assertInstitutionConfigAccess(actor, actor.tenantId, "admin");
     const params = new URL(request.url).searchParams;
     const sectionId = params.get("sectionId");
-    if (!sectionId || !/^[0-9a-f-]{36}$/i.test(sectionId)) throw new Error("Invalid sectionId.");
+    if (!sectionId?.trim()) throw new Error("Invalid sectionId.");
     if (params.has("mode") && params.get("mode") !== "delta") throw new Error("Invalid export mode.");
-    const csvPackage = await withCapabilityContext(actor, async (client) => buildAcademyOneRosterExportPackage({
+    const csvPackage = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "lmsRosterSync");
+      return buildAcademyOneRosterExportPackage({
       actor,
       sectionId,
       peopleRepository: new AcademyPeopleRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyPeopleRepository>[0]>(client)),
       courseCatalogRepository: new AcademyCourseCatalogRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyCourseCatalogRepository>[0]>(client)),
       registrationRepository: new PostgresOneRosterRegistrationRepository(asAcademyDatabase<ConstructorParameters<typeof PostgresOneRosterRegistrationRepository>[0]>(client)),
-    }));
+      });
+    });
     const zip = await buildOneRosterZipPackage(csvPackage);
     return new Response(new Uint8Array(zip), {
       headers: {

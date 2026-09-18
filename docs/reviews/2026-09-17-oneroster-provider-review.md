@@ -11,3 +11,5 @@ Owner authorization: separate Academy implementation and PR explicitly approved 
 - Remaining scope: this is the selected-section CSV/signed-delivery slice. Full provider conformance, archived structure deletion reconciliation, multiple tenant schedules, REST and grade return remain on the broader plan. Production key registration and activation remain externally gated.
 
 Delivery decision: publish the independently verified Academy PR for owner review; do not merge or activate production automatically.
+
+September 18 merge review: corrected text section IDs in both entry points, enforced lmsRosterSync for manual and scheduled export, and retained archived course/year/term parents as active historical references while their sections remain exported. Added regressions for text IDs and archived parents.

@@ -480,3 +480,16 @@ test("export binds section selection to the tenant and rejects unknown sections"
   const result = await buildAcademyOneRosterExportDataset({ ...input, sectionId: "section-bibl-101-a" });
   assert.equal(result.classes.length, 1);
 });
+
+test("completed sections retain archived catalog parents in valid CSV packages", async () => {
+  const catalog = courseCatalogConfiguration();
+  catalog.sections.forEach(section => { section.status = "completed"; });
+  catalog.courses.forEach(course => { course.status = "archived"; });
+  catalog.academicYears.forEach(year => { year.status = "archived"; });
+  catalog.academicPeriods.forEach(period => { period.status = "archived"; });
+  const dataset = mapAcademyOneRosterDataset(tenantId, peopleConfiguration(), catalog, registrations());
+  assert.equal(dataset.courses.length, 1);
+  assert.equal(dataset.academicSessions.length, 2);
+  assert.equal(dataset.courses[0].status, "active");
+  await buildAcademyOneRosterExportPackage({ actor, peopleRepository: fakePeopleRepository(), courseCatalogRepository: { fetchCourseCatalogConfiguration: async () => catalog }, registrationRepository: fakeRegistrationRepository() });
+});
