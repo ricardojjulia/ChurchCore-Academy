@@ -14,10 +14,12 @@ import {
   updateInquiryStatus,
   convertInquiryToApplication,
   createDripSequence,
+  listDripSequences,
   triggerDripSequence,
   getConversionFunnel,
 } from "@/modules/admissions/applicant-crm";
-import type { CreateCommunicationInput } from "@/modules/communications/types";
+import { CommunicationsService } from "@/modules/communications/service";
+import type { CommunicationDirectory, CommunicationMessage } from "@/modules/communications/types";
 
 const admissionsActor: AcademyActor = {
   userId: "person-admissions",
@@ -206,6 +208,17 @@ function mockDatabase(inquiries: Inquiry[] = [], conversionData?: Record<string,
       if (sql.includes("select * from academy_drip_sequences")) {
         const tenantId = values?.[0];
         const triggerEvent = values?.[1];
+        // List endpoint: no triggerEvent filter, return all for tenant
+        if (triggerEvent === undefined && sql.includes("order by created_at desc")) {
+          return {
+            rows: sequences.filter(s => s.tenant_id === tenantId).sort((a, b) => {
+              const aTime = (a.created_at as Date).getTime();
+              const bTime = (b.created_at as Date).getTime();
+              return bTime - aTime; // desc order
+            }),
+          };
+        }
+        // Trigger endpoint: filter by tenant and triggerEvent
         return {
           rows: sequences.filter(
             s => s.tenant_id === tenantId && s.trigger_event === triggerEvent && s.active,
@@ -215,10 +228,16 @@ function mockDatabase(inquiries: Inquiry[] = [], conversionData?: Record<string,
 
       if (sql.includes("select * from academy_drip_steps")) {
         const tenantId = values?.[0];
-        const sequenceId = values?.[1];
+        const sequenceIdOrIds = values?.[1];
+        // listDripSequences() consolidates the old per-sequence query into one
+        // `sequence_id = any($2)` call (see PR review re: N+1) — the trigger-drip path still
+        // queries a single sequence's steps at a time.
+        const matchesSequence = Array.isArray(sequenceIdOrIds)
+          ? (id: unknown) => sequenceIdOrIds.includes(id)
+          : (id: unknown) => id === sequenceIdOrIds;
         return {
           rows: steps.filter(
-            s => s.tenant_id === tenantId && s.sequence_id === sequenceId,
+            s => s.tenant_id === tenantId && matchesSequence(s.sequence_id),
           ),
         };
       }
@@ -238,32 +257,50 @@ function mockDatabase(inquiries: Inquiry[] = [], conversionData?: Record<string,
   };
 }
 
+// Backed by a REAL CommunicationsService (only the repository — the DB-facing edge — is
+// mocked), not a hand-rolled fake createCommunication. A fully-fake stub here previously let
+// triggerDripSequence()'s test pass while the real code path failed every template's
+// required-variable check in renderCommunicationTemplate() 100% of the time in production —
+// found live, via the browser, not by this test suite. See the fix in applicant-crm.ts's
+// triggerDripSequence and the VALID_TEMPLATE_KEYS restriction in drip-sequences/route.ts.
 function mockCommunicationsService() {
-  const communications: CreateCommunicationInput[] = [];
+  const enqueued: CommunicationMessage[] = [];
+
+  const directory: CommunicationDirectory = {
+    people: [
+      { id: "person-admissions-staff", displayName: "Admissions Staff", roles: ["admissions"] },
+    ],
+    relationships: [],
+    emailOptOutPersonIds: [],
+  };
+
+  const repository = {
+    async loadDirectory() {
+      return directory;
+    },
+    async findByIdempotencyKey() {
+      return [];
+    },
+    async enqueueMessages(messages: CommunicationMessage[]) {
+      enqueued.push(...messages);
+      return messages;
+    },
+    async listMessages() {
+      return enqueued;
+    },
+    async markRead(): Promise<CommunicationMessage> {
+      throw new Error("not used in this test");
+    },
+    async markProviderFailure(): Promise<CommunicationMessage> {
+      throw new Error("not used in this test");
+    },
+  };
+
+  const service = new CommunicationsService(repository);
 
   return {
-    createCommunication: async (_actor: AcademyActor, input: CreateCommunicationInput) => {
-      communications.push(input);
-      return [
-        {
-          id: `comm-${communications.length}`,
-          tenantId: _actor.tenantId,
-          recipientPersonId: "person-1",
-          recipientDisplayName: "Test User",
-          channel: input.channels[0],
-          templateKey: input.templateKey,
-          subject: "Test",
-          body: "Test body",
-          status: "queued" as const,
-          sourceType: input.sourceType,
-          sourceId: input.sourceId,
-          idempotencyKey: input.idempotencyKey,
-          retryCount: 0,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-    },
-    communications,
+    createCommunication: service.createCommunication.bind(service),
+    communications: enqueued,
   };
 }
 
@@ -424,13 +461,18 @@ test("triggerDripSequence: schedules messages from active sequences", async () =
   const db = mockDatabase([mockInquiry({ id: "inquiry-1" })]);
   const comms = mockCommunicationsService();
 
-  // Create a sequence with steps
+  // Create a sequence with steps. admissions_inquiry_activity is the only template key drip
+  // steps allow (see VALID_TEMPLATE_KEYS in drip-sequences/route.ts) — it's the only one worded
+  // for the actual recipient (admissions staff), not the inquiry itself. This test exercises the
+  // real CommunicationsService (see mockCommunicationsService above), so it genuinely proves the
+  // template renders — a fake createCommunication stub previously let this pass while the real
+  // code path failed for every template ever supplied.
   await createDripSequence(adminActor, {
     name: "Welcome",
     triggerEvent: "inquiry_received",
     steps: [
-      { stepNumber: 1, delayDays: 0, templateKey: "application_received", channel: "email" },
-      { stepNumber: 2, delayDays: 3, templateKey: "admissions_decision", channel: "email" },
+      { stepNumber: 1, delayDays: 0, templateKey: "admissions_inquiry_activity", channel: "email" },
+      { stepNumber: 2, delayDays: 3, templateKey: "admissions_inquiry_activity", channel: "in_app" },
     ],
   }, db);
 
@@ -443,9 +485,44 @@ test("triggerDripSequence: schedules messages from active sequences", async () =
   );
 
   assert.equal(result.messagesScheduled, 2);
+  assert.deepEqual(result.failures, []);
   assert.equal(comms.communications.length, 2);
-  assert.equal(comms.communications[0].templateKey, "application_received");
-  assert.equal(comms.communications[1].templateKey, "admissions_decision");
+  assert.equal(comms.communications[0].templateKey, "admissions_inquiry_activity");
+  assert.equal(comms.communications[1].templateKey, "admissions_inquiry_activity");
+  // The message must be worded for the actual recipient (admissions staff), not as if staff
+  // were the inquiry being addressed in the second person.
+  assert.doesNotMatch(comms.communications[0].body, /^Jane Doe, your/);
+  assert.match(comms.communications[0].body, /Update for inquiry Jane Doe/);
+});
+
+test("triggerDripSequence: reports a failure instead of silently dropping an incompatible step", async () => {
+  const db = mockDatabase([mockInquiry({ id: "inquiry-1" })]);
+  const comms = mockCommunicationsService();
+
+  // A step referencing a template that isn't admissions_inquiry_activity can still exist at the
+  // module layer (createDripSequence itself doesn't validate templateKey — only the POST route
+  // does), e.g. left over from before VALID_TEMPLATE_KEYS was narrowed. It must fail loudly, not
+  // report success while sending nothing.
+  await createDripSequence(adminActor, {
+    name: "Stale sequence",
+    triggerEvent: "inquiry_received",
+    steps: [
+      { stepNumber: 1, delayDays: 0, templateKey: "grade_release", channel: "email" },
+    ],
+  }, db);
+
+  const result = await triggerDripSequence(
+    admissionsActor,
+    "inquiry-1",
+    "inquiry_received",
+    db,
+    comms,
+  );
+
+  assert.equal(result.messagesScheduled, 0);
+  assert.equal(result.failures.length, 1);
+  assert.equal(result.failures[0].templateKey, "grade_release");
+  assert.match(result.failures[0].reason, /required/i);
 });
 
 test("getConversionFunnel: returns correct counts and rates", async () => {
@@ -475,4 +552,83 @@ test("getConversionFunnel: rejects student role", async () => {
     () => getConversionFunnel(studentActor, db),
     /admissions staff role required/,
   );
+});
+
+test("listDripSequences: returns sequences with steps for institution_admin", async () => {
+  const db = mockDatabase();
+
+  // Create two sequences
+  await createDripSequence(adminActor, {
+    name: "First Sequence",
+    triggerEvent: "inquiry_received",
+    steps: [
+      { stepNumber: 1, delayDays: 0, templateKey: "application_received", channel: "email" },
+      { stepNumber: 2, delayDays: 3, templateKey: "admissions_decision", channel: "email" },
+    ],
+  }, db);
+
+  await createDripSequence(adminActor, {
+    name: "Second Sequence",
+    triggerEvent: "application_submitted",
+    steps: [
+      { stepNumber: 1, delayDays: 1, templateKey: "registration_confirmation", channel: "in_app" },
+    ],
+  }, db);
+
+  const result = await listDripSequences(adminActor, db);
+
+  assert.equal(result.length, 2);
+
+  // Find each sequence by name (order may vary due to timestamp precision)
+  const firstSeq = result.find(r => r.sequence.name === "First Sequence");
+  const secondSeq = result.find(r => r.sequence.name === "Second Sequence");
+
+  assert.ok(firstSeq, "First Sequence should be in results");
+  assert.ok(secondSeq, "Second Sequence should be in results");
+
+  assert.equal(firstSeq.steps.length, 2);
+  assert.equal(firstSeq.steps[0].stepNumber, 1);
+  assert.equal(firstSeq.steps[1].stepNumber, 2);
+
+  assert.equal(secondSeq.steps.length, 1);
+  assert.equal(secondSeq.steps[0].stepNumber, 1);
+});
+
+test("listDripSequences: cross-tenant actor sees empty list", async () => {
+  const db = mockDatabase();
+
+  // Create sequence in tenant-1
+  await createDripSequence(adminActor, {
+    name: "Tenant 1 Sequence",
+    triggerEvent: "inquiry_received",
+    steps: [
+      { stepNumber: 1, delayDays: 0, templateKey: "application_received", channel: "email" },
+    ],
+  }, db);
+
+  // Tenant-2 admin should see no sequences
+  const crossTenantAdmin: AcademyActor = {
+    userId: "person-admin-2",
+    tenantId: "tenant-2",
+    roles: ["institution_admin"],
+  };
+
+  const result = await listDripSequences(crossTenantAdmin, db);
+  assert.equal(result.length, 0);
+});
+
+test("listDripSequences: rejects non-institution_admin", async () => {
+  const db = mockDatabase();
+
+  await assert.rejects(
+    () => listDripSequences(admissionsActor, db),
+    /institution_admin role required/,
+  );
+});
+
+test("listDripSequences: returns empty array when no sequences exist", async () => {
+  const db = mockDatabase();
+
+  const result = await listDripSequences(adminActor, db);
+  assert.equal(result.length, 0);
 });

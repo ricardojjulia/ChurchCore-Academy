@@ -6,13 +6,21 @@ import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { assertCapability } from "@/modules/academy-auth/policy";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
-import { createDripSequence } from "@/modules/admissions/applicant-crm";
+import { createDripSequence, listDripSequences } from "@/modules/admissions/applicant-crm";
 import type { CommunicationTemplateKey, CommunicationChannel } from "@/modules/communications/types";
 
+// Restricted to the one template written for this feature's actual, only reachable recipient:
+// admissions staff being notified about an inquiry, not the inquiry itself. An Inquiry has no
+// Person record (see CreateInquiryInput), so there is no student/guardian audience the
+// communications module can address — every other CommunicationTemplateKey (including
+// admissions_decision and application_received) is worded in the second person as if sent
+// directly to the applicant ("{{studentName}}, your application..."), which would read as staff
+// being addressed as the applicant if used for a staff-audience drip step. Found live: the
+// original two-template allow-list "worked" mechanically (rendered without error) but produced a
+// message addressed to the wrong party. See admissions_inquiry_activity in
+// communications/service.ts and the variables fix in triggerDripSequence() below.
 const VALID_TEMPLATE_KEYS: CommunicationTemplateKey[] = [
-  "admissions_decision", "registration_confirmation", "transcript_update",
-  "billing_account_update", "grade_release", "attendance_concern",
-  "workflow_assignment", "application_received", "award_letter_ready",
+  "admissions_inquiry_activity",
 ];
 const VALID_CHANNELS: CommunicationChannel[] = ["in_app", "email"];
 
@@ -30,6 +38,19 @@ function channel(value: unknown, index: number): CommunicationChannel {
     throw new Error(`steps[${index}].channel must be "email" or "in_app".`);
   }
   return ch as CommunicationChannel;
+}
+
+export async function GET(request: Request) {
+  return handleApi(async () => {
+    const { actor } = await resolveAcademyActorFromSession(request);
+
+    const sequences = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return listDripSequences(actor, asAcademyDatabase<ApplicantCrmDatabase>(client));
+    });
+
+    return { sequences, count: sequences.length };
+  });
 }
 
 export async function POST(request: Request) {
