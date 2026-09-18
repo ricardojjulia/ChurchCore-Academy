@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/oneroster-delivery",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/cron/email-worker",
       "schedule": "* * * * *"
     }

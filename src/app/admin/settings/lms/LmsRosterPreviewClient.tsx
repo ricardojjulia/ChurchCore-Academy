@@ -38,8 +38,30 @@ export function LmsRosterPreviewClient({ sections }: { sections: LmsRosterEligib
   const [result, setResult] = useState<RosterPlanResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const selectedSection = sections.find((section) => section.id === selectedSectionId);
+
+  async function downloadRoster() {
+    setDownloading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/academy/lms/oneroster-package?sectionId=${encodeURIComponent(selectedSectionId)}`);
+      if (!response.ok || !response.headers.get("content-type")?.startsWith("application/zip")) throw new Error("Unable to download roster. Please check your access and try again.");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "academy-roster.zip";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setError("Unable to download roster. Please check your access and try again.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function previewRosterPlan() {
     if (!selectedSectionId) return;
@@ -103,7 +125,14 @@ export function LmsRosterPreviewClient({ sections }: { sections: LmsRosterEligib
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <div className="space-y-2">
+        <Button type="button" variant="outline" onClick={downloadRoster} disabled={downloading || !selectedSectionId}>
+          {downloading ? "Preparing roster…" : "Download OneRoster ZIP"}
+        </Button>
+        <p className="text-sm text-muted-foreground">Export the selected section for review in ChurchCore LMS. Downloading does not change enrollments.</p>
+      </div>
+
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
 
       {result ? (
         <div className="space-y-2 rounded-md border border-border p-3 text-sm">

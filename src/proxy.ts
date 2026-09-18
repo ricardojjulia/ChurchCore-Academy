@@ -5,6 +5,8 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPublic =
+    // Machine delivery authenticates its own cron secret, without browser cookies.
+    pathname === "/api/cron/oneroster-delivery" ||
     pathname === "/login" ||
     pathname.startsWith("/_next") ||
     pathname === "/manifest.webmanifest" ||
