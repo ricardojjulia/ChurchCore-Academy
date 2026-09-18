@@ -213,6 +213,7 @@ docs/superpowers/        Approved design specs and implementation plans
 - [Factory Roadmap](docs/product/factory-roadmap.md)
 - [Software Factory](docs/software-factory.md)
 - [LMS Provider Strategy](docs/lms-dual-provider-strategy.md)
+- [OneRoster Academy export and signed delivery](docs/integrations/oneroster-academy-operations.md)
 - [OneRoster Decision History](docs/integrations/oneroster-decision-history.md)
 - [ShepherdAI Academy](docs/shepherd-ai-academy.md)
 - [Authentication and Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)

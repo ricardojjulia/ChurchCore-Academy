@@ -66,7 +66,7 @@ export default async function LmsSettingsPage() {
     <AdminShell
       activeSection="system"
       eyebrow="LMS Provider Readiness"
-      title="Moodle and Canvas readiness"
+      title="LMS connections"
       subtitle="Activation status, validation evidence, circuit posture, sync history, and guarded operator actions for live LMS integrations."
     >
       <section className="ops-stats-grid">
@@ -239,15 +239,15 @@ function ReadinessRow({ label, value }: { label: string; value: string | number 
 
 function RosterPreviewCard({ sections }: { sections: LmsRosterEligibleSection[] }) {
   return (
-    <Card className="ops-panel">
+    <Card className="ops-panel col-span-full">
       <CardHeader>
         <div className="ops-heading">
           <div className="ops-icon">
             <ShieldCheck />
           </div>
           <div>
-            <CardTitle>Section Roster Preview</CardTitle>
-            <CardDescription>Build a provider-safe roster plan from Academy enrollments.</CardDescription>
+            <CardTitle>ChurchCore LMS roster exchange</CardTitle>
+            <CardDescription>Download a section roster for reviewed import, or preview an external provider plan.</CardDescription>
           </div>
         </div>
       </CardHeader>
