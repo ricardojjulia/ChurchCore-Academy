@@ -9,7 +9,8 @@ export type CommunicationTemplateKey =
   | "attendance_concern"
   | "workflow_assignment"
   | "application_received"
-  | "award_letter_ready";
+  | "award_letter_ready"
+  | "admissions_inquiry_activity";
 
 export type CommunicationChannel = "in_app" | "email";
 export type CommunicationStatus = "queued" | "sent" | "failed" | "read" | "cancelled";

@@ -59,9 +59,12 @@ export function InquiryStatusActions({ inquiryId, currentStatus }: InquiryStatus
 
   return (
     <div>
-      <label className="text-sm font-semibold text-muted-foreground block mb-2">Change Status</label>
+      <label htmlFor="inquiry-status-select" className="text-sm font-semibold text-muted-foreground block mb-2">
+        Change Status
+      </label>
       <div className="flex gap-2">
         <select
+          id="inquiry-status-select"
           value={selectedStatus}
           onChange={(e) => setSelectedStatus(e.target.value)}
           disabled={isSubmitting}

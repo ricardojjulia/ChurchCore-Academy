@@ -172,6 +172,7 @@ function AdminShellInner({
     alumniGivingEnabled,
     canReadShepherdAi,
     canManageDripSequences,
+    canReadInquiryPipeline,
   } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
@@ -204,6 +205,9 @@ function AdminShellInner({
         return false;
       }
       if (item.href === "/admin/admissions/drip-sequences" && !canManageDripSequences) {
+        return false;
+      }
+      if (item.href === "/admin/admissions/inquiries" && !canReadInquiryPipeline) {
         return false;
       }
       return true;

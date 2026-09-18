@@ -228,10 +228,16 @@ function mockDatabase(inquiries: Inquiry[] = [], conversionData?: Record<string,
 
       if (sql.includes("select * from academy_drip_steps")) {
         const tenantId = values?.[0];
-        const sequenceId = values?.[1];
+        const sequenceIdOrIds = values?.[1];
+        // listDripSequences() consolidates the old per-sequence query into one
+        // `sequence_id = any($2)` call (see PR review re: N+1) — the trigger-drip path still
+        // queries a single sequence's steps at a time.
+        const matchesSequence = Array.isArray(sequenceIdOrIds)
+          ? (id: unknown) => sequenceIdOrIds.includes(id)
+          : (id: unknown) => id === sequenceIdOrIds;
         return {
           rows: steps.filter(
-            s => s.tenant_id === tenantId && s.sequence_id === sequenceId,
+            s => s.tenant_id === tenantId && matchesSequence(s.sequence_id),
           ),
         };
       }
@@ -455,13 +461,18 @@ test("triggerDripSequence: schedules messages from active sequences", async () =
   const db = mockDatabase([mockInquiry({ id: "inquiry-1" })]);
   const comms = mockCommunicationsService();
 
-  // Create a sequence with steps
+  // Create a sequence with steps. admissions_inquiry_activity is the only template key drip
+  // steps allow (see VALID_TEMPLATE_KEYS in drip-sequences/route.ts) — it's the only one worded
+  // for the actual recipient (admissions staff), not the inquiry itself. This test exercises the
+  // real CommunicationsService (see mockCommunicationsService above), so it genuinely proves the
+  // template renders — a fake createCommunication stub previously let this pass while the real
+  // code path failed for every template ever supplied.
   await createDripSequence(adminActor, {
     name: "Welcome",
     triggerEvent: "inquiry_received",
     steps: [
-      { stepNumber: 1, delayDays: 0, templateKey: "application_received", channel: "email" },
-      { stepNumber: 2, delayDays: 3, templateKey: "admissions_decision", channel: "email" },
+      { stepNumber: 1, delayDays: 0, templateKey: "admissions_inquiry_activity", channel: "email" },
+      { stepNumber: 2, delayDays: 3, templateKey: "admissions_inquiry_activity", channel: "in_app" },
     ],
   }, db);
 
@@ -474,9 +485,44 @@ test("triggerDripSequence: schedules messages from active sequences", async () =
   );
 
   assert.equal(result.messagesScheduled, 2);
+  assert.deepEqual(result.failures, []);
   assert.equal(comms.communications.length, 2);
-  assert.equal(comms.communications[0].templateKey, "application_received");
-  assert.equal(comms.communications[1].templateKey, "admissions_decision");
+  assert.equal(comms.communications[0].templateKey, "admissions_inquiry_activity");
+  assert.equal(comms.communications[1].templateKey, "admissions_inquiry_activity");
+  // The message must be worded for the actual recipient (admissions staff), not as if staff
+  // were the inquiry being addressed in the second person.
+  assert.doesNotMatch(comms.communications[0].body, /^Jane Doe, your/);
+  assert.match(comms.communications[0].body, /Update for inquiry Jane Doe/);
+});
+
+test("triggerDripSequence: reports a failure instead of silently dropping an incompatible step", async () => {
+  const db = mockDatabase([mockInquiry({ id: "inquiry-1" })]);
+  const comms = mockCommunicationsService();
+
+  // A step referencing a template that isn't admissions_inquiry_activity can still exist at the
+  // module layer (createDripSequence itself doesn't validate templateKey — only the POST route
+  // does), e.g. left over from before VALID_TEMPLATE_KEYS was narrowed. It must fail loudly, not
+  // report success while sending nothing.
+  await createDripSequence(adminActor, {
+    name: "Stale sequence",
+    triggerEvent: "inquiry_received",
+    steps: [
+      { stepNumber: 1, delayDays: 0, templateKey: "grade_release", channel: "email" },
+    ],
+  }, db);
+
+  const result = await triggerDripSequence(
+    admissionsActor,
+    "inquiry-1",
+    "inquiry_received",
+    db,
+    comms,
+  );
+
+  assert.equal(result.messagesScheduled, 0);
+  assert.equal(result.failures.length, 1);
+  assert.equal(result.failures[0].templateKey, "grade_release");
+  assert.match(result.failures[0].reason, /required/i);
 });
 
 test("getConversionFunnel: returns correct counts and rates", async () => {

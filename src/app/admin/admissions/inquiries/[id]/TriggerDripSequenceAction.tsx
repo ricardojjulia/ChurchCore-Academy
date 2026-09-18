@@ -30,12 +30,27 @@ export function TriggerDripSequenceAction({ inquiryId }: TriggerDripSequenceActi
         throw new Error(body.error ?? "Failed to trigger drip sequence.");
       }
 
-      const result = await response.json() as { messagesScheduled: number };
-      notifyAcademy({
-        tone: "success",
-        title: "Drip sequence triggered",
-        message: `Scheduled ${result.messagesScheduled} message${result.messagesScheduled !== 1 ? "s" : ""}.`,
-      });
+      const result = await response.json() as {
+        messagesScheduled: number;
+        failures: { sequenceName: string; stepNumber: number; reason: string }[];
+      };
+      const scheduledMessage = `Scheduled ${result.messagesScheduled} message${result.messagesScheduled !== 1 ? "s" : ""}.`;
+      if (result.failures.length > 0) {
+        // Surface skipped/incompatible steps explicitly rather than only reporting the count
+        // that succeeded — a flat "Scheduled N" (including N=0) previously gave no way to tell
+        // "nothing was due to send" apart from "something failed silently." Found in PR review.
+        notifyAcademy({
+          tone: "warning",
+          title: "Drip sequence triggered with errors",
+          message: `${scheduledMessage} ${result.failures.length} step${result.failures.length !== 1 ? "s" : ""} could not be sent: ${result.failures.map((f) => `"${f.sequenceName}" step ${f.stepNumber} (${f.reason})`).join("; ")}`,
+        });
+      } else {
+        notifyAcademy({
+          tone: "success",
+          title: "Drip sequence triggered",
+          message: scheduledMessage,
+        });
+      }
       router.refresh();
     } catch (error) {
       notifyAcademy({
@@ -50,9 +65,12 @@ export function TriggerDripSequenceAction({ inquiryId }: TriggerDripSequenceActi
 
   return (
     <div>
-      <label className="text-sm font-semibold text-muted-foreground block mb-2">Send Drip Sequence</label>
+      <label htmlFor="drip-trigger-event-select" className="text-sm font-semibold text-muted-foreground block mb-2">
+        Send Drip Sequence
+      </label>
       <div className="flex gap-2">
         <select
+          id="drip-trigger-event-select"
           value={selectedTriggerEvent}
           onChange={(e) => setSelectedTriggerEvent(e.target.value)}
           disabled={isSubmitting}

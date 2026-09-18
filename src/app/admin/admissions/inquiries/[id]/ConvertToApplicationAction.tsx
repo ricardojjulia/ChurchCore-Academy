@@ -118,7 +118,9 @@ export function ConvertToApplicationAction({
 
   return (
     <div>
-      <label className="text-sm font-semibold text-muted-foreground block mb-2">Convert to Application</label>
+      <label htmlFor="convert-application-select" className="text-sm font-semibold text-muted-foreground block mb-2">
+        Convert to Application
+      </label>
       {draftApplications.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No draft applications available. Create a draft application first, then link it here.
@@ -126,6 +128,7 @@ export function ConvertToApplicationAction({
       ) : (
         <div className="flex gap-2">
           <select
+            id="convert-application-select"
             value={selectedApplicationId}
             onChange={(e) => setSelectedApplicationId(e.target.value)}
             disabled={isSubmitting}

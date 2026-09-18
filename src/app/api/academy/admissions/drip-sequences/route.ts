@@ -9,18 +9,18 @@ import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
 import { createDripSequence, listDripSequences } from "@/modules/admissions/applicant-crm";
 import type { CommunicationTemplateKey, CommunicationChannel } from "@/modules/communications/types";
 
-// Restricted to the two templates whose content actually makes sense for a pre-application
-// inquiry ("your admissions decision is available" / "your application has been received").
-// The other 7 CommunicationTemplateKey values (registration_confirmation, transcript_update,
-// billing_account_update, grade_release, attendance_concern, workflow_assignment,
-// award_letter_ready) are written for enrolled-student contexts (sectionName, academicYear,
-// workflowTitle, etc.) that have no sensible value for someone who is only an inquiry — allowing
-// them here would let an admin build a drip step that either always fails
-// (renderCommunicationTemplate's required-variable check) or would require faking placeholder
-// values to "succeed," producing a nonsensical message. Found live: every template key silently
-// failed until this restriction + the variables fix in triggerDripSequence() below.
+// Restricted to the one template written for this feature's actual, only reachable recipient:
+// admissions staff being notified about an inquiry, not the inquiry itself. An Inquiry has no
+// Person record (see CreateInquiryInput), so there is no student/guardian audience the
+// communications module can address — every other CommunicationTemplateKey (including
+// admissions_decision and application_received) is worded in the second person as if sent
+// directly to the applicant ("{{studentName}}, your application..."), which would read as staff
+// being addressed as the applicant if used for a staff-audience drip step. Found live: the
+// original two-template allow-list "worked" mechanically (rendered without error) but produced a
+// message addressed to the wrong party. See admissions_inquiry_activity in
+// communications/service.ts and the variables fix in triggerDripSequence() below.
 const VALID_TEMPLATE_KEYS: CommunicationTemplateKey[] = [
-  "admissions_decision", "application_received",
+  "admissions_inquiry_activity",
 ];
 const VALID_CHANNELS: CommunicationChannel[] = ["in_app", "email"];
 

@@ -8,6 +8,7 @@ interface AdminCapabilityContextValue {
   alumniGivingEnabled: boolean;
   canReadShepherdAi: boolean;
   canManageDripSequences: boolean;
+  canReadInquiryPipeline: boolean;
 }
 
 // Default matters: AdminShell is also used by pages outside src/app/admin/* (e.g.
@@ -22,6 +23,7 @@ const defaultAdminCapabilities: AdminCapabilityContextValue = {
   alumniGivingEnabled: false,
   canReadShepherdAi: false,
   canManageDripSequences: false,
+  canReadInquiryPipeline: false,
 };
 
 const AdminCapabilityContext = createContext<AdminCapabilityContextValue>(defaultAdminCapabilities);
@@ -33,6 +35,7 @@ export function AdminCapabilityProvider({
   alumniGivingEnabled,
   canReadShepherdAi,
   canManageDripSequences,
+  canReadInquiryPipeline,
 }: {
   children: React.ReactNode;
   ministryFormationEnabled: boolean;
@@ -40,6 +43,7 @@ export function AdminCapabilityProvider({
   alumniGivingEnabled: boolean;
   canReadShepherdAi: boolean;
   canManageDripSequences: boolean;
+  canReadInquiryPipeline: boolean;
 }) {
   return (
     <AdminCapabilityContext.Provider
@@ -49,6 +53,7 @@ export function AdminCapabilityProvider({
         alumniGivingEnabled,
         canReadShepherdAi,
         canManageDripSequences,
+        canReadInquiryPipeline,
       }}
     >
       {children}

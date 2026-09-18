@@ -12,12 +12,12 @@ interface CreateDripSequenceFormProps {
   existingSequences: DripSequence[];
 }
 
-// Match the backend's VALID_TEMPLATE_KEYS exactly — restricted to the two templates that are
-// semantically valid for a pre-application inquiry (the other 7 CommunicationTemplateKey values
-// are written for enrolled-student contexts and have no sensible variables to fill in here).
+// Match the backend's VALID_TEMPLATE_KEYS exactly — the only template worded for this feature's
+// actual recipient (admissions staff being notified about an inquiry). Every other
+// CommunicationTemplateKey is written in the second person as if addressed directly to the
+// applicant/student, which would be sent to staff instead and read as if they were the inquiry.
 const VALID_TEMPLATE_KEYS = [
-  "admissions_decision",
-  "application_received",
+  "admissions_inquiry_activity",
 ];
 
 // Match the backend's VALID_CHANNELS exactly
@@ -150,8 +150,11 @@ export function CreateDripSequenceForm({ existingSequences }: CreateDripSequence
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
       <div>
-        <label className="text-sm font-semibold text-muted-foreground block mb-2">Sequence Name</label>
+        <label htmlFor="drip-sequence-name" className="text-sm font-semibold text-muted-foreground block mb-2">
+          Sequence Name
+        </label>
         <Input
+          id="drip-sequence-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -162,8 +165,11 @@ export function CreateDripSequenceForm({ existingSequences }: CreateDripSequence
       </div>
 
       <div>
-        <label className="text-sm font-semibold text-muted-foreground block mb-2">Trigger Event</label>
+        <label htmlFor="drip-sequence-trigger-event" className="text-sm font-semibold text-muted-foreground block mb-2">
+          Trigger Event
+        </label>
         <select
+          id="drip-sequence-trigger-event"
           value={triggerEvent}
           onChange={(e) => setTriggerEvent(e.target.value)}
           disabled={isSubmitting}
@@ -205,10 +211,11 @@ export function CreateDripSequenceForm({ existingSequences }: CreateDripSequence
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  <label htmlFor={`drip-step-${index}-number`} className="text-xs font-semibold text-muted-foreground block mb-1">
                     Step #{step.stepNumber}
                   </label>
                   <Input
+                    id={`drip-step-${index}-number`}
                     type="number"
                     value={step.stepNumber}
                     onChange={(e) => updateStep(index, "stepNumber", parseInt(e.target.value, 10))}
@@ -218,10 +225,11 @@ export function CreateDripSequenceForm({ existingSequences }: CreateDripSequence
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  <label htmlFor={`drip-step-${index}-delay`} className="text-xs font-semibold text-muted-foreground block mb-1">
                     Delay (days)
                   </label>
                   <Input
+                    id={`drip-step-${index}-delay`}
                     type="number"
                     value={step.delayDays}
                     onChange={(e) => updateStep(index, "delayDays", parseInt(e.target.value, 10))}
@@ -234,10 +242,11 @@ export function CreateDripSequenceForm({ existingSequences }: CreateDripSequence
 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  <label htmlFor={`drip-step-${index}-template`} className="text-xs font-semibold text-muted-foreground block mb-1">
                     Template
                   </label>
                   <select
+                    id={`drip-step-${index}-template`}
                     value={step.templateKey}
                     onChange={(e) => updateStep(index, "templateKey", e.target.value)}
                     disabled={isSubmitting}
@@ -251,10 +260,11 @@ export function CreateDripSequenceForm({ existingSequences }: CreateDripSequence
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  <label htmlFor={`drip-step-${index}-channel`} className="text-xs font-semibold text-muted-foreground block mb-1">
                     Channel
                   </label>
                   <select
+                    id={`drip-step-${index}-channel`}
                     value={step.channel}
                     onChange={(e) => updateStep(index, "channel", e.target.value)}
                     disabled={isSubmitting}

@@ -80,6 +80,14 @@ export interface DripStep {
   createdAt: string;
 }
 
+export interface DripStepFailure {
+  sequenceId: string;
+  sequenceName: string;
+  stepNumber: number;
+  templateKey: CommunicationTemplateKey;
+  reason: string;
+}
+
 export interface CreateDripSequenceInput {
   name: string;
   triggerEvent: DripTriggerEvent;
@@ -355,24 +363,34 @@ export async function listDripSequences(
     [actor.tenantId],
   );
 
-  const results: Array<{ sequence: DripSequence; steps: DripStep[] }> = [];
+  const sequences = sequencesResult.rows.map(mapDripSequence);
+  if (sequences.length === 0) return [];
 
-  for (const sequenceRow of sequencesResult.rows) {
-    const sequence = mapDripSequence(sequenceRow);
+  // One query for every sequence's steps, not one query per sequence — found in PR review: the
+  // original version queried academy_drip_steps once per sequence in a loop, an N+1 pattern that
+  // scales linearly with the number of sequences an admin has created.
+  const stepsResult = await database.query(
+    `select * from academy_drip_steps
+     where tenant_id = $1 and sequence_id = any($2)
+     order by sequence_id, step_number asc`,
+    [actor.tenantId, sequences.map((sequence) => sequence.id)],
+  );
 
-    // Fetch steps for this sequence, ordered by step number
-    const stepsResult = await database.query(
-      `select * from academy_drip_steps
-       where tenant_id = $1 and sequence_id = $2
-       order by step_number asc`,
-      [actor.tenantId, sequence.id],
-    );
-
-    const steps = stepsResult.rows.map(mapDripStep);
-    results.push({ sequence, steps });
+  const stepsBySequenceId = new Map<string, DripStep[]>();
+  for (const stepRow of stepsResult.rows) {
+    const step = mapDripStep(stepRow);
+    const existing = stepsBySequenceId.get(step.sequenceId);
+    if (existing) {
+      existing.push(step);
+    } else {
+      stepsBySequenceId.set(step.sequenceId, [step]);
+    }
   }
 
-  return results;
+  return sequences.map((sequence) => ({
+    sequence,
+    steps: stepsBySequenceId.get(sequence.id) ?? [],
+  }));
 }
 
 export async function createDripSequence(
@@ -437,7 +455,7 @@ export async function triggerDripSequence(
   triggerEvent: DripTriggerEvent,
   database: ApplicantCrmDatabase,
   communicationsService: Pick<CommunicationsService, "createCommunication">,
-): Promise<{ messagesScheduled: number }> {
+): Promise<{ messagesScheduled: number; failures: DripStepFailure[] }> {
   assertAdmissionsStaff(actor, actor.tenantId);
 
   // Verify inquiry exists in tenant
@@ -460,6 +478,7 @@ export async function triggerDripSequence(
   );
 
   let messagesScheduled = 0;
+  const failures: DripStepFailure[] = [];
 
   for (const sequenceRow of sequencesResult.rows) {
     const sequence = mapDripSequence(sequenceRow);
@@ -491,29 +510,23 @@ export async function triggerDripSequence(
 
         await communicationsService.createCommunication(systemActor, {
           templateKey: step.templateKey,
+          // The recipient of a drip step is admissions staff, never the inquiry itself — an
+          // Inquiry has no Person record yet (see CreateInquiryInput: raw firstName/lastName/
+          // email, not a personId), so there is no student/guardian audience the communications
+          // module can address. The only template allowed for drip steps
+          // (VALID_TEMPLATE_KEYS in drip-sequences/route.ts) is admissions_inquiry_activity,
+          // written in the third person for exactly this staff-facing audience — do not reuse
+          // the applicant-facing templates (admissions_decision, application_received) here, as
+          // their second-person wording ("{{studentName}}, your application...") would be sent
+          // to staff, not to the inquiry, and read as if staff were being addressed as the
+          // applicant. Found via live verification.
           audience: { type: "staff_role", roles: ["admissions"] },
           channels: [step.channel],
-          // The two admissions-facing templates allowed for drip steps (see VALID_TEMPLATE_KEYS
-          // in drip-sequences/route.ts) need studentName/applicantName + programName + an action
-          // link. The original variables here only ever supplied firstName/lastName/email/
-          // programOfInterest/inquiryId, which matches NONE of communications/service.ts's
-          // template `required` lists — every single template key ever silently failed
-          // renderCommunicationTemplate's required-variable check, meaning this function has
-          // never successfully scheduled a message since it was written. Found live: creating
-          // and firing a real sequence through the new admin UI returned "Scheduled 0 messages"
-          // with a swallowed "Template variable studentName is required" error in the server log.
           variables: {
-            studentName: fullName,
             applicantName: fullName,
-            recipientName: fullName,
             programName: inquiry.programOfInterest ?? "an unspecified program",
+            summary: `This message was scheduled because the "${triggerEvent.replaceAll("_", " ")}" event occurred.`,
             actionUrl: inquiryLink,
-            statusUrl: inquiryLink,
-            firstName: inquiry.firstName,
-            lastName: inquiry.lastName,
-            email: inquiry.email,
-            programOfInterest: inquiry.programOfInterest ?? "",
-            inquiryId: inquiry.id,
           },
           sourceType: "admissions",
           sourceId: inquiryId,
@@ -524,16 +537,27 @@ export async function triggerDripSequence(
 
         messagesScheduled += 1;
       } catch (error) {
+        // Don't let one bad step block the rest of the sequence, but don't silently swallow the
+        // failure either — a caller (and the admin UI) needs to be able to tell "nothing to send"
+        // apart from "something failed." Found in PR review: the original version only logged to
+        // console, so an incompatible or misconfigured step step would always report as if
+        // nothing had gone wrong.
         console.error(
           `Failed to schedule drip step ${step.stepNumber} for sequence ${sequence.id}:`,
           error,
         );
-        // Continue with other steps even if one fails
+        failures.push({
+          sequenceId: sequence.id,
+          sequenceName: sequence.name,
+          stepNumber: step.stepNumber,
+          templateKey: step.templateKey,
+          reason: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
   }
 
-  return { messagesScheduled };
+  return { messagesScheduled, failures };
 }
 
 export async function getConversionFunnel(

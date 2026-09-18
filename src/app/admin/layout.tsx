@@ -11,6 +11,7 @@ import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
 import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
 import { DRIP_SEQUENCES_ROLES } from "@/app/admin/admissions/drip-sequences/page";
+import { INQUIRY_PIPELINE_ROLES } from "@/app/admin/admissions/inquiries/page";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -91,6 +92,7 @@ interface AdminCapabilityData {
   alumniGivingEnabled: boolean;
   canReadShepherdAi: boolean;
   canManageDripSequences: boolean;
+  canReadInquiryPipeline: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -115,6 +117,13 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // already: a role-blind nav item for a role-gated page.
   const canManageDripSequences = hasRole(DRIP_SEQUENCES_ROLES);
 
+  // Inquiries: this page's own gate (INQUIRY_PIPELINE_ROLES = institution_admin/admissions) is
+  // narrower than the rest of the Admissions section (Applications/Decisions/Enrollment all also
+  // allow dean/registrar), and the nav had no per-item role check at all — a dean or registrar
+  // would see "Inquiries" in the sidebar and hit an access-denied dead end on click. Found in PR
+  // review, same class of bug as canManageDripSequences above.
+  const canReadInquiryPipeline = hasRole(INQUIRY_PIPELINE_ROLES);
+
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
@@ -124,6 +133,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         alumniGivingEnabled: (capabilities.alumniGiving ?? false) && hasRole(ALUMNI_ROSTER_ROLES),
         canReadShepherdAi,
         canManageDripSequences,
+        canReadInquiryPipeline,
       };
     });
   } catch {
@@ -133,6 +143,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       alumniGivingEnabled: false,
       canReadShepherdAi,
       canManageDripSequences,
+      canReadInquiryPipeline,
     };
   }
 }
@@ -164,6 +175,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         alumniGivingEnabled={capabilityData.alumniGivingEnabled}
         canReadShepherdAi={capabilityData.canReadShepherdAi}
         canManageDripSequences={capabilityData.canManageDripSequences}
+        canReadInquiryPipeline={capabilityData.canReadInquiryPipeline}
       >
         {children}
       </AdminCapabilityProvider>
