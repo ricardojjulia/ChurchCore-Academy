@@ -74,6 +74,19 @@ const templates: Record<CommunicationTemplateKey, TemplateDefinition> = {
     body: "{{studentName}}, your financial aid award letter for {{academicYear}} is now available. Please log in to review and respond by {{deadline}}.",
     required: ["studentName", "academicYear", "deadline"],
   },
+  // Staff-facing, third person — every other admissions template ("{{studentName}}, your
+  // application...") is written as if addressed directly TO the applicant, which is correct when
+  // the recipient IS the applicant (see public-application-service.ts's own direct insert) but
+  // wrong when the recipient is admissions staff being notified ABOUT an inquiry, which is the
+  // only audience the admissions drip-sequence feature can actually reach today (an Inquiry has
+  // no Person record yet, so there's no student/guardian audience to address it to). Found via
+  // live verification: triggerDripSequence() was sending "Morgan Lee, your admissions decision
+  //..." to admissions staff, not to Morgan Lee.
+  admissions_inquiry_activity: {
+    subject: "Inquiry activity: {{applicantName}}",
+    body: "Update for inquiry {{applicantName}} ({{programName}}): {{summary}} Review at {{actionUrl}}.",
+    required: ["applicantName", "actionUrl"],
+  },
 };
 
 function assertAdmin(actor: AcademyActor) {

@@ -56,6 +56,8 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Applications", href: "/admin/admissions" },
       { label: "Decisions", href: "/admin/admissions/decisions" },
       { label: "Enrollment", href: "/admin/admissions/matriculation" },
+      { label: "Inquiries", href: "/admin/admissions/inquiries" },
+      { label: "Drip Sequences", href: "/admin/admissions/drip-sequences" },
     ],
   },
   {
@@ -164,8 +166,14 @@ function AdminShellInner({
   const pathname = usePathname();
   const derivedSection = sectionForPath(pathname);
   const academicContextData = useAcademicContextData();
-  const { ministryFormationEnabled, denominationTrackingEnabled, alumniGivingEnabled, canReadShepherdAi } =
-    useAdminCapabilities();
+  const {
+    ministryFormationEnabled,
+    denominationTrackingEnabled,
+    alumniGivingEnabled,
+    canReadShepherdAi,
+    canManageDripSequences,
+    canReadInquiryPipeline,
+  } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
     activeSectionProp ?? derivedSection,
@@ -194,6 +202,12 @@ function AdminShellInner({
         return false;
       }
       if (item.href === "/admin/workflows" && !canReadShepherdAi) {
+        return false;
+      }
+      if (item.href === "/admin/admissions/drip-sequences" && !canManageDripSequences) {
+        return false;
+      }
+      if (item.href === "/admin/admissions/inquiries" && !canReadInquiryPipeline) {
         return false;
       }
       return true;

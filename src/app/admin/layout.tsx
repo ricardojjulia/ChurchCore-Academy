@@ -10,6 +10,8 @@ import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
 import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
+import { DRIP_SEQUENCES_ROLES } from "@/app/admin/admissions/drip-sequences/page";
+import { INQUIRY_PIPELINE_ROLES } from "@/app/admin/admissions/inquiries/page";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -89,6 +91,8 @@ interface AdminCapabilityData {
   denominationTrackingEnabled: boolean;
   alumniGivingEnabled: boolean;
   canReadShepherdAi: boolean;
+  canManageDripSequences: boolean;
+  canReadInquiryPipeline: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -106,6 +110,20 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // in PR #108 — that fix never touched this sidebar link. Found via the 2026-09-17 daily checkup.
   const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
 
+  // Drip Sequences: like ShepherdAI Queue above, this destination page's gate is role-only
+  // (listDripSequences()/createDripSequence() both require institution_admin specifically,
+  // stricter than the rest of the Admissions section) — no institution capability flag governs
+  // it. Computing this here up front rather than repeating the same mistake PR #128 fixed once
+  // already: a role-blind nav item for a role-gated page.
+  const canManageDripSequences = hasRole(DRIP_SEQUENCES_ROLES);
+
+  // Inquiries: this page's own gate (INQUIRY_PIPELINE_ROLES = institution_admin/admissions) is
+  // narrower than the rest of the Admissions section (Applications/Decisions/Enrollment all also
+  // allow dean/registrar), and the nav had no per-item role check at all — a dean or registrar
+  // would see "Inquiries" in the sidebar and hit an access-denied dead end on click. Found in PR
+  // review, same class of bug as canManageDripSequences above.
+  const canReadInquiryPipeline = hasRole(INQUIRY_PIPELINE_ROLES);
+
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
@@ -114,6 +132,8 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         denominationTrackingEnabled: (capabilities.denominationTracking ?? false) && hasRole(DENOMINATION_ROSTER_ROLES),
         alumniGivingEnabled: (capabilities.alumniGiving ?? false) && hasRole(ALUMNI_ROSTER_ROLES),
         canReadShepherdAi,
+        canManageDripSequences,
+        canReadInquiryPipeline,
       };
     });
   } catch {
@@ -122,6 +142,8 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       denominationTrackingEnabled: false,
       alumniGivingEnabled: false,
       canReadShepherdAi,
+      canManageDripSequences,
+      canReadInquiryPipeline,
     };
   }
 }
@@ -152,6 +174,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         denominationTrackingEnabled={capabilityData.denominationTrackingEnabled}
         alumniGivingEnabled={capabilityData.alumniGivingEnabled}
         canReadShepherdAi={capabilityData.canReadShepherdAi}
+        canManageDripSequences={capabilityData.canManageDripSequences}
+        canReadInquiryPipeline={capabilityData.canReadInquiryPipeline}
       >
         {children}
       </AdminCapabilityProvider>

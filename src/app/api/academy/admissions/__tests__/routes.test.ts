@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   createAdmissionApplicationRequest,
+  GET as getApplications,
 } from "@/app/api/academy/admissions/applications/route";
 import {
   decideAdmissionApplicationRequest,
@@ -12,6 +14,7 @@ import {
 import {
   confirmEnrollmentRequest,
 } from "@/app/api/academy/admissions/applications/[id]/enrollment-confirmation/route";
+import { GET as getDripSequences } from "@/app/api/academy/admissions/drip-sequences/route";
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
   requireIdempotencyKey,
@@ -539,4 +542,32 @@ test("enrollment confirmation route returns safe projection and maps conflicts",
     },
   );
   assert.equal(conflict.status, 409);
+});
+
+test("GET drip-sequences route wires session auth, capability check, and the tenant-scoped list function", () => {
+  // The full session/capability stack isn't mockable at this layer (matching the established
+  // pattern in roster-plan-route.test.ts for the same class of route) — assert the source wires
+  // the right calls in the right order instead of a vacuous "is it a function" check, which
+  // would pass even if the handler were gutted to a no-op.
+  const source = readFileSync(
+    "src/app/api/academy/admissions/drip-sequences/route.ts",
+    "utf8",
+  );
+
+  assert.match(source, /resolveAcademyActorFromSession/);
+  assert.match(source, /withCapabilityContext/);
+  assert.match(source, /assertCapability\(capabilities,\s*"admissionsWorkflows"\)/);
+  assert.match(source, /listDripSequences\(/);
+  assert.equal(typeof getDripSequences, "function");
+});
+
+test("GET applications route extracts the status query param and passes it to the repository filter", () => {
+  const source = readFileSync(
+    "src/app/api/academy/admissions/applications/route.ts",
+    "utf8",
+  );
+
+  assert.match(source, /searchParams\.get\("status"\)/);
+  assert.match(source, /status:\s*status\s*as\s*AdmissionApplicationStatus/);
+  assert.equal(typeof getApplications, "function");
 });

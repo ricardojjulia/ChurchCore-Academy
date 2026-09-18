@@ -80,6 +80,14 @@ export interface DripStep {
   createdAt: string;
 }
 
+export interface DripStepFailure {
+  sequenceId: string;
+  sequenceName: string;
+  stepNumber: number;
+  templateKey: CommunicationTemplateKey;
+  reason: string;
+}
+
 export interface CreateDripSequenceInput {
   name: string;
   triggerEvent: DripTriggerEvent;
@@ -263,6 +271,22 @@ export async function listInquiries(
   return result.rows.map(mapInquiry);
 }
 
+export async function getInquiry(
+  actor: AcademyActor,
+  inquiryId: string,
+  database: ApplicantCrmDatabase,
+): Promise<Inquiry | null> {
+  assertAdmissionsStaff(actor, actor.tenantId);
+
+  const result = await database.query(
+    `select * from academy_inquiries where tenant_id = $1 and id = $2`,
+    [actor.tenantId, inquiryId],
+  );
+
+  const row = result.rows[0];
+  return row ? mapInquiry(row) : null;
+}
+
 export async function updateInquiryStatus(
   actor: AcademyActor,
   inquiryId: string,
@@ -323,6 +347,50 @@ export async function convertInquiryToApplication(
   );
 
   return inquiry;
+}
+
+export async function listDripSequences(
+  actor: AcademyActor,
+  database: ApplicantCrmDatabase,
+): Promise<Array<{ sequence: DripSequence; steps: DripStep[] }>> {
+  assertInstitutionAdmin(actor, actor.tenantId);
+
+  // Fetch all sequences for this tenant, ordered newest-first
+  const sequencesResult = await database.query(
+    `select * from academy_drip_sequences
+     where tenant_id = $1
+     order by created_at desc`,
+    [actor.tenantId],
+  );
+
+  const sequences = sequencesResult.rows.map(mapDripSequence);
+  if (sequences.length === 0) return [];
+
+  // One query for every sequence's steps, not one query per sequence — found in PR review: the
+  // original version queried academy_drip_steps once per sequence in a loop, an N+1 pattern that
+  // scales linearly with the number of sequences an admin has created.
+  const stepsResult = await database.query(
+    `select * from academy_drip_steps
+     where tenant_id = $1 and sequence_id = any($2)
+     order by sequence_id, step_number asc`,
+    [actor.tenantId, sequences.map((sequence) => sequence.id)],
+  );
+
+  const stepsBySequenceId = new Map<string, DripStep[]>();
+  for (const stepRow of stepsResult.rows) {
+    const step = mapDripStep(stepRow);
+    const existing = stepsBySequenceId.get(step.sequenceId);
+    if (existing) {
+      existing.push(step);
+    } else {
+      stepsBySequenceId.set(step.sequenceId, [step]);
+    }
+  }
+
+  return sequences.map((sequence) => ({
+    sequence,
+    steps: stepsBySequenceId.get(sequence.id) ?? [],
+  }));
 }
 
 export async function createDripSequence(
@@ -387,7 +455,7 @@ export async function triggerDripSequence(
   triggerEvent: DripTriggerEvent,
   database: ApplicantCrmDatabase,
   communicationsService: Pick<CommunicationsService, "createCommunication">,
-): Promise<{ messagesScheduled: number }> {
+): Promise<{ messagesScheduled: number; failures: DripStepFailure[] }> {
   assertAdmissionsStaff(actor, actor.tenantId);
 
   // Verify inquiry exists in tenant
@@ -410,6 +478,7 @@ export async function triggerDripSequence(
   );
 
   let messagesScheduled = 0;
+  const failures: DripStepFailure[] = [];
 
   for (const sequenceRow of sequencesResult.rows) {
     const sequence = mapDripSequence(sequenceRow);
@@ -436,17 +505,28 @@ export async function triggerDripSequence(
         sendAt.setDate(sendAt.getDate() + step.delayDays);
 
         const idempotencyKey = `drip:${inquiryId}:${sequence.id}:${step.stepNumber}`;
+        const fullName = `${inquiry.firstName} ${inquiry.lastName}`;
+        const inquiryLink = `/admin/admissions/inquiries/${inquiry.id}`;
 
         await communicationsService.createCommunication(systemActor, {
           templateKey: step.templateKey,
+          // The recipient of a drip step is admissions staff, never the inquiry itself — an
+          // Inquiry has no Person record yet (see CreateInquiryInput: raw firstName/lastName/
+          // email, not a personId), so there is no student/guardian audience the communications
+          // module can address. The only template allowed for drip steps
+          // (VALID_TEMPLATE_KEYS in drip-sequences/route.ts) is admissions_inquiry_activity,
+          // written in the third person for exactly this staff-facing audience — do not reuse
+          // the applicant-facing templates (admissions_decision, application_received) here, as
+          // their second-person wording ("{{studentName}}, your application...") would be sent
+          // to staff, not to the inquiry, and read as if staff were being addressed as the
+          // applicant. Found via live verification.
           audience: { type: "staff_role", roles: ["admissions"] },
           channels: [step.channel],
           variables: {
-            firstName: inquiry.firstName,
-            lastName: inquiry.lastName,
-            email: inquiry.email,
-            programOfInterest: inquiry.programOfInterest ?? "",
-            inquiryId: inquiry.id,
+            applicantName: fullName,
+            programName: inquiry.programOfInterest ?? "an unspecified program",
+            summary: `This message was scheduled because the "${triggerEvent.replaceAll("_", " ")}" event occurred.`,
+            actionUrl: inquiryLink,
           },
           sourceType: "admissions",
           sourceId: inquiryId,
@@ -457,16 +537,27 @@ export async function triggerDripSequence(
 
         messagesScheduled += 1;
       } catch (error) {
+        // Don't let one bad step block the rest of the sequence, but don't silently swallow the
+        // failure either — a caller (and the admin UI) needs to be able to tell "nothing to send"
+        // apart from "something failed." Found in PR review: the original version only logged to
+        // console, so an incompatible or misconfigured step step would always report as if
+        // nothing had gone wrong.
         console.error(
           `Failed to schedule drip step ${step.stepNumber} for sequence ${sequence.id}:`,
           error,
         );
-        // Continue with other steps even if one fails
+        failures.push({
+          sequenceId: sequence.id,
+          sequenceName: sequence.name,
+          stepNumber: step.stepNumber,
+          templateKey: step.templateKey,
+          reason: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
   }
 
-  return { messagesScheduled };
+  return { messagesScheduled, failures };
 }
 
 export async function getConversionFunnel(
