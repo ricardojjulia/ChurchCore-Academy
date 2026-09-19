@@ -2,6 +2,10 @@
 
 Date: 2026-09-12
 
+## September 17 clarification
+
+The owner has now explicitly authorized a separate Academy implementation and PR under the later approved certification-ready compliance plan. Its **Academy Rostering Provider** section explicitly calls for reintroducing the exporter through a clean Academy PR. That plan and this new authorization supersede the placement recommendation below; the historical account is retained to explain the prior unauthorized publication and revert. See `oneroster-academy-operations.md` and the September 17 implementation plan for the bounded restored slice.
+
 ## Summary
 
 **OneRoster is the ratified Academy ↔ LMS interoperability standard**, but the implementation belongs in the **ChurchCore LMS** repository, not here. This document records what happened in this repository so the history isn't lost when the code was correctly removed from it.
