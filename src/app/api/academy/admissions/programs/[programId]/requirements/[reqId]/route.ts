@@ -16,7 +16,7 @@ type RouteContext = { params: Promise<{ programId: string; reqId: string }> };
 export async function DELETE(_request: Request, context: RouteContext) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(_request);
-    const { reqId } = await context.params;
+    const { programId, reqId } = await context.params;
 
     return withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "admissionsWorkflows");
@@ -24,7 +24,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
         asAcademyDatabase<DocumentChecklistDatabase>(client),
       );
       const service = new DocumentChecklistService(repository);
-      await service.deleteProgramRequirement(actor, reqId);
+      await service.deleteProgramRequirement(actor, programId, reqId);
       return { deleted: true };
     });
   });

@@ -232,8 +232,26 @@ export class DocumentChecklistService {
     return this.repository.listProgramRequirements(actor.tenantId, programId);
   }
 
-  async deleteProgramRequirement(actor: AcademyActor, requirementId: string) {
+  async deleteProgramRequirement(
+    actor: AcademyActor,
+    programId: string,
+    requirementId: string,
+  ) {
     assertProgramRequirementAccess(actor, actor.tenantId);
+    const requirement = await this.repository.findProgramRequirementById(
+      actor.tenantId,
+      requirementId,
+    );
+    if (!requirement) {
+      throw new AcademyAuthorizationError(
+        "Forbidden cross-tenant program requirement access.",
+      );
+    }
+    if (requirement.programId !== programId) {
+      throw new AcademyAuthorizationError(
+        "Program requirement does not belong to the specified program.",
+      );
+    }
     const count = await this.repository.countApplicationsUsingRequirement(
       actor.tenantId,
       requirementId,

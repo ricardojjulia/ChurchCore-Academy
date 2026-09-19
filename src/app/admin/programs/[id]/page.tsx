@@ -121,6 +121,14 @@ export default async function ProgramPage({
     ["admissions", "registrar", "academic_admin", "institution_admin"].includes(role)
   );
 
+  // "admissions" was added to this page's view gate above so those staff can reach the
+  // Document Requirements section, but the program edit/archive/curriculum APIs still only
+  // allow the original narrower set. Keep those controls hidden for admissions-only actors
+  // so the page never shows a button whose request would just 403.
+  const canManageProgram = actor.roles.some((role) =>
+    ["institution_admin", "dean", "registrar", "academic_admin"].includes(role)
+  );
+
   return (
     <AdminShell
       activeSection="academics"
@@ -136,6 +144,7 @@ export default async function ProgramPage({
         initialRequirements={data.initialRequirements}
         documentRequirements={data.documentRequirements}
         canManageRequirements={canManageRequirements}
+        canManageProgram={canManageProgram}
       />
     </AdminShell>
   );

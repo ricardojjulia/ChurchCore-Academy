@@ -10,10 +10,7 @@ import { withCapabilityContext } from "@/lib/capability-context";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import type { DocumentType } from "@/modules/admissions/types";
-import { AdmissionDocumentService } from "@/modules/admissions/document-service";
-import { PostgresAdmissionsRepository } from "@/modules/admissions/postgres-repository";
-import { PostgresAcademyAuditRepository } from "@/modules/audit/postgres-repository";
-import { createStorageProvider } from "@/lib/supabase/storage";
+import { createAdmissionDocumentService } from "@/app/api/academy/admissions/service-factory";
 import { CreateDocumentTypeForm } from "./CreateDocumentTypeForm";
 
 export const dynamic = "force-dynamic";
@@ -44,11 +41,9 @@ export default async function DocumentTypesPage() {
       )) as { rows: Array<{ institution_name?: string }> };
       const fetchedInstitutionName = profileResult.rows[0]?.institution_name;
 
-      // Fetch document types via the module service (not raw SQL)
-      const repository = new PostgresAdmissionsRepository();
-      const audit = new PostgresAcademyAuditRepository();
-      const storage = createStorageProvider();
-      const service = new AdmissionDocumentService(repository, audit, storage);
+      // Fetch document types via the module service, using the capability
+      // context's tenant-scoped client (not the default global pool).
+      const service = createAdmissionDocumentService(client);
       const types = await service.listActiveDocumentTypes(actor, actor.tenantId);
 
       return {

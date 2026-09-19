@@ -90,8 +90,8 @@ function createChecklistFixture() {
   const repository = {
     programBelongsToTenant: async (tenantId: string, programId: string) =>
       programs.some((p) => p.id === programId && p.tenantId === tenantId),
-    findProgramRequirementById: async (_tenantId: string, requirementId: string) =>
-      requirements.find((r) => r.id === requirementId),
+    findProgramRequirementById: async (tenantId: string, requirementId: string) =>
+      requirements.find((r) => r.id === requirementId && r.tenantId === tenantId),
     listProgramRequirements: async (tenantId: string, programId: string) =>
       requirements.filter((r) => r.tenantId === tenantId && r.programId === programId),
     createProgramRequirement: async (
@@ -106,8 +106,11 @@ function createChecklistFixture() {
       requirements.push(req);
       return req;
     },
-    deleteProgramRequirement: async (_tenantId: string, requirementId: string) => {
-      const index = requirements.findIndex((r) => r.id === requirementId);
+    // Matches the real query: `delete ... where tenant_id = $1 and id = $2`.
+    deleteProgramRequirement: async (tenantId: string, requirementId: string) => {
+      const index = requirements.findIndex(
+        (r) => r.id === requirementId && r.tenantId === tenantId,
+      );
       if (index >= 0) {
         requirements.splice(index, 1);
       }
@@ -263,10 +266,11 @@ describe("Document Types Admin UI - Acceptance Tests", () => {
     assert.equal(result.slug, "statement_of_faith");
   });
 
-  // AC3: Duplicate slug - confirm actual current behavior (no server-side uniqueness constraint)
-  it("AC3: allows duplicate slug creation (no server-side uniqueness constraint)", async () => {
-    // This test confirms the current behavior: the service layer does not enforce
-    // slug uniqueness. The database schema has no unique constraint on slug.
+  // AC3: Duplicate slug - the database has a real unique constraint on (tenant_id, slug)
+  // (supabase/migrations/20260625030000_academy_document_types.sql). The second insert
+  // fails at the repository/DB layer; the service must map that into a friendly
+  // AcademyConflictError rather than letting a raw constraint-violation error escape.
+  it("AC3: rejects duplicate slug with a friendly conflict error, not a raw DB error", async () => {
     const input1: CreateDocumentTypeInput = {
       tenantId: tenant1,
       name: "Transcript",
@@ -281,28 +285,41 @@ describe("Document Types Admin UI - Acceptance Tests", () => {
       required: true,
     };
 
+    let created = false;
     const repository = createDocumentRepositoryMock({
-      createDocumentType: mock.fn(async (input: CreateDocumentTypeInput) => ({
-        id: crypto.randomUUID(),
-        ...input,
-        active: true,
-        createdAt: "2026-09-19T10:00:00Z",
-        updatedAt: "2026-09-19T10:00:00Z",
-      })),
+      createDocumentType: mock.fn(async (input: CreateDocumentTypeInput) => {
+        if (created) {
+          // Simulates the real Postgres unique-violation message for
+          // academy_document_types_tenant_slug_unique.
+          throw new Error(
+            'duplicate key value violates unique constraint "academy_document_types_tenant_slug_unique"',
+          );
+        }
+        created = true;
+        return {
+          id: crypto.randomUUID(),
+          ...input,
+          active: true,
+          createdAt: "2026-09-19T10:00:00Z",
+          updatedAt: "2026-09-19T10:00:00Z",
+        };
+      }),
     });
     const audit = createAuditMock();
     const storage = createStorageMock();
 
     const service = new AdmissionDocumentService(repository, audit, storage);
 
-    // Both creations succeed - no uniqueness check at service layer
     const result1 = await service.createDocumentType(institutionAdminActor, input1);
-    const result2 = await service.createDocumentType(institutionAdminActor, input2);
-
     assert.equal(result1.slug, "transcript");
-    assert.equal(result2.slug, "transcript");
-    // Both succeed - demonstrates no server-side uniqueness constraint exists
-    assert.equal(repository.createDocumentType.mock.calls.length, 2);
+
+    await assert.rejects(
+      () => service.createDocumentType(institutionAdminActor, input2),
+      {
+        name: "AcademyConflictError",
+        message: 'A document type with slug "transcript" already exists.',
+      },
+    );
   });
 
   // AC4: Invalid slug chars - client-side validation only (noted, not testable at module layer)
@@ -749,7 +766,7 @@ describe("Program Requirements Admin UI - Acceptance Tests", () => {
     assert.equal(list.length, 1);
 
     // Delete succeeds (usage count is 0)
-    await service.deleteProgramRequirement(admissionsStaffActor, req.id);
+    await service.deleteProgramRequirement(admissionsStaffActor, "program-1", req.id);
 
     // Verify it's gone
     list = await state.repository.listProgramRequirements(tenant1, "program-1");
@@ -773,7 +790,7 @@ describe("Program Requirements Admin UI - Acceptance Tests", () => {
 
     // Attempt to delete - should fail with exact message including count
     await assert.rejects(
-      () => service.deleteProgramRequirement(admissionsStaffActor, req.id),
+      () => service.deleteProgramRequirement(admissionsStaffActor, "program-1", req.id),
       {
         message: "Cannot delete requirement: currently in use by 3 applications.",
       },
@@ -801,11 +818,32 @@ describe("Program Requirements Admin UI - Acceptance Tests", () => {
     state.usageCounts.set(req.id, 1);
 
     await assert.rejects(
-      () => service.deleteProgramRequirement(admissionsStaffActor, req.id),
+      () => service.deleteProgramRequirement(admissionsStaffActor, "program-1", req.id),
       {
         message: "Cannot delete requirement: currently in use by 1 application.",
       },
     );
+  });
+
+  it("AC1x: rejects deletion when the requirement belongs to a different program (same tenant)", async () => {
+    const state = createChecklistFixture();
+    const service = new DocumentChecklistService(state.repository);
+
+    const req = await service.createProgramRequirement(admissionsStaffActor, {
+      programId: "program-1",
+      label: "Program 1 Requirement",
+      isRequired: true,
+    });
+
+    // Attempt to delete it through a different program's URL (same tenant)
+    await assert.rejects(
+      () => service.deleteProgramRequirement(admissionsStaffActor, "program-other", req.id),
+      /Program requirement does not belong to the specified program/,
+    );
+
+    // Verify it was not deleted
+    const list = await state.repository.listProgramRequirements(tenant1, "program-1");
+    assert.equal(list.length, 1);
   });
 
   // AC9: Wrong-role access rejected for program requirements
@@ -838,7 +876,7 @@ describe("Program Requirements Admin UI - Acceptance Tests", () => {
 
     // Attempt to delete as unauthorized user
     await assert.rejects(
-      () => service.deleteProgramRequirement(unauthorizedActor, req.id),
+      () => service.deleteProgramRequirement(unauthorizedActor, "program-1", req.id),
       /Forbidden program requirement access/,
     );
   });
@@ -931,7 +969,7 @@ describe("Program Requirements Admin UI - Acceptance Tests", () => {
     );
   });
 
-  it("AC11: cross-tenant program requirement deletion is safe (silently no-ops)", async () => {
+  it("AC11: rejects cross-tenant program requirement deletion explicitly (not a silent no-op)", async () => {
     const state = createChecklistFixture();
     const service = new DocumentChecklistService(state.repository);
 
@@ -942,35 +980,22 @@ describe("Program Requirements Admin UI - Acceptance Tests", () => {
       isRequired: true,
     });
 
-    // Update the mock to match actual database behavior:
-    // The real SQL is: DELETE WHERE tenant_id = $1 AND id = $2
-    // This means cross-tenant deletes succeed but affect 0 rows (safe silent failure)
-    const originalDelete = state.repository.deleteProgramRequirement;
-    state.repository.deleteProgramRequirement = async (tenantId: string, requirementId: string) => {
-      const req = state.requirements.find((r) => r.id === requirementId);
-      // Only delete if both tenantId AND id match (matches real database behavior)
-      if (req && req.tenantId === tenantId) {
-        await originalDelete(tenantId, requirementId);
-      }
-      // Otherwise silently succeed without deleting (0 rows affected)
-    };
-
     // Verify requirement exists in tenant-1
     let list = await state.repository.listProgramRequirements(tenant1, "program-1");
     assert.equal(list.length, 1);
 
-    // Attempt to delete from tenant-2 - silently succeeds but doesn't delete
-    // (This matches actual database behavior: WHERE tenant_id AND id filters to 0 rows)
-    await service.deleteProgramRequirement(crossTenantActor, req.id);
+    // deleteProgramRequirement now looks the requirement up by (actor.tenantId, id) first;
+    // a tenant-2 actor can't find a tenant-1 requirement, so this is an explicit rejection,
+    // not a false-success `{ deleted: true }` response with 0 rows actually affected.
+    await assert.rejects(
+      () => service.deleteProgramRequirement(crossTenantActor, "program-1", req.id),
+      /Forbidden cross-tenant program requirement access/,
+    );
 
     // Verify requirement still exists in tenant-1 (was not deleted)
     list = await state.repository.listProgramRequirements(tenant1, "program-1");
     assert.equal(list.length, 1);
     assert.equal(list[0].id, req.id);
-
-    // Note: The current implementation doesn't throw an error for cross-tenant delete attempts.
-    // The database WHERE clause (tenant_id = $1 AND id = $2) provides implicit protection
-    // by matching 0 rows, but the service layer doesn't explicitly reject the attempt.
   });
 
   // AC12: Listing scoped to tenant

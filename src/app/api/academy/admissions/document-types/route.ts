@@ -1,25 +1,25 @@
 import { handleApi, requireStringField, requireBooleanField } from "@/app/api/academy/api-utils";
+import { createAdmissionDocumentService } from "@/app/api/academy/admissions/service-factory";
+import { withCapabilityContext } from "@/lib/capability-context";
+import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
-import { AdmissionDocumentService } from "@/modules/admissions/document-service";
-import { PostgresAdmissionsRepository } from "@/modules/admissions/postgres-repository";
-import { PostgresAcademyAuditRepository } from "@/modules/audit/postgres-repository";
-import { createStorageProvider } from "@/lib/supabase/storage";
 import { CreateDocumentTypeInput } from "@/modules/admissions/types";
 
 export async function GET(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    const repository = new PostgresAdmissionsRepository();
-    const audit = new PostgresAcademyAuditRepository();
-    const storage = createStorageProvider();
-    const service = new AdmissionDocumentService(repository, audit, storage);
 
-    const documentTypes = await service.listActiveDocumentTypes(
-      actor,
-      actor.tenantId,
-    );
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      const service = createAdmissionDocumentService(client);
 
-    return { documentTypes };
+      const documentTypes = await service.listActiveDocumentTypes(
+        actor,
+        actor.tenantId,
+      );
+
+      return { documentTypes };
+    });
   });
 }
 
@@ -40,13 +40,13 @@ export async function POST(request: Request) {
         : undefined,
     };
 
-    const repository = new PostgresAdmissionsRepository();
-    const audit = new PostgresAcademyAuditRepository();
-    const storage = createStorageProvider();
-    const service = new AdmissionDocumentService(repository, audit, storage);
+    return withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      const service = createAdmissionDocumentService(client);
 
-    const documentType = await service.createDocumentType(actor, input);
+      const documentType = await service.createDocumentType(actor, input);
 
-    return { documentType };
+      return { documentType };
+    });
   });
 }
