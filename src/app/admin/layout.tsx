@@ -12,6 +12,7 @@ import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
 import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
 import { DRIP_SEQUENCES_ROLES } from "@/app/admin/admissions/drip-sequences/page";
 import { INQUIRY_PIPELINE_ROLES } from "@/app/admin/admissions/inquiries/page";
+import { DOCUMENT_TYPES_VIEW_ROLES } from "@/app/admin/admissions/document-types/page";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -93,6 +94,7 @@ interface AdminCapabilityData {
   canReadShepherdAi: boolean;
   canManageDripSequences: boolean;
   canReadInquiryPipeline: boolean;
+  canViewDocumentTypes: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -124,6 +126,13 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // review, same class of bug as canManageDripSequences above.
   const canReadInquiryPipeline = hasRole(INQUIRY_PIPELINE_ROLES);
 
+  // Document Types: this page's gate (DOCUMENT_TYPES_VIEW_ROLES = institution_admin/dean/
+  // registrar/admissions) is wider than some other Admissions pages but narrower than the general
+  // staff gate. Same pattern as canReadInquiryPipeline above: compute visibility from the
+  // destination page's own role allowlist to avoid showing a link that hits an access-denied
+  // dead end.
+  const canViewDocumentTypes = hasRole(DOCUMENT_TYPES_VIEW_ROLES);
+
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
@@ -134,6 +143,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         canReadShepherdAi,
         canManageDripSequences,
         canReadInquiryPipeline,
+        canViewDocumentTypes,
       };
     });
   } catch {
@@ -144,6 +154,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       canReadShepherdAi,
       canManageDripSequences,
       canReadInquiryPipeline,
+      canViewDocumentTypes,
     };
   }
 }
@@ -176,6 +187,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         canReadShepherdAi={capabilityData.canReadShepherdAi}
         canManageDripSequences={capabilityData.canManageDripSequences}
         canReadInquiryPipeline={capabilityData.canReadInquiryPipeline}
+        canViewDocumentTypes={capabilityData.canViewDocumentTypes}
       >
         {children}
       </AdminCapabilityProvider>

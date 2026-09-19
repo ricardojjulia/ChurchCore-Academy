@@ -1,5 +1,5 @@
 import { AcademyActor } from "@/modules/academy-auth/policy";
-import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import { AcademyAuthorizationError, AcademyConflictError } from "@/modules/academy-auth/errors";
 import { assertAdmissionsAccess } from "@/modules/admissions/policy";
 import {
   ApplicationDocument,
@@ -104,7 +104,22 @@ export class AdmissionDocumentService {
       );
     }
 
-    const documentType = await this.repository.createDocumentType(input);
+    let documentType: DocumentType;
+    try {
+      documentType = await this.repository.createDocumentType(input);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (
+        message.includes("duplicate key") ||
+        message.includes("violates unique constraint") ||
+        message.includes("already exists")
+      ) {
+        throw new AcademyConflictError(
+          `A document type with slug "${input.slug}" already exists.`,
+        );
+      }
+      throw error;
+    }
 
     await this.audit.append({
       tenantId: actor.tenantId,

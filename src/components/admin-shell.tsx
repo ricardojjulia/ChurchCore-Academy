@@ -58,6 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Enrollment", href: "/admin/admissions/matriculation" },
       { label: "Inquiries", href: "/admin/admissions/inquiries" },
       { label: "Drip Sequences", href: "/admin/admissions/drip-sequences" },
+      { label: "Document Types", href: "/admin/admissions/document-types" },
     ],
   },
   {
@@ -173,6 +174,7 @@ function AdminShellInner({
     canReadShepherdAi,
     canManageDripSequences,
     canReadInquiryPipeline,
+    canViewDocumentTypes,
   } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
@@ -208,6 +210,9 @@ function AdminShellInner({
         return false;
       }
       if (item.href === "/admin/admissions/inquiries" && !canReadInquiryPipeline) {
+        return false;
+      }
+      if (item.href === "/admin/admissions/document-types" && !canViewDocumentTypes) {
         return false;
       }
       return true;

@@ -462,7 +462,23 @@ test("deleteProgramRequirement: cannot delete if in use", async () => {
   state.usageCounts.set("req-1", 2);
 
   await assert.rejects(
-    () => service.deleteProgramRequirement(admissionsStaffActor, "req-1"),
-    /Cannot delete program requirement: it is used by existing applications/,
+    () => service.deleteProgramRequirement(admissionsStaffActor, "program-1", "req-1"),
+    /Cannot delete requirement: currently in use by 2 applications\./,
   );
+});
+
+test("deleteProgramRequirement: rejects when requirement belongs to a different program", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.requirements.push(mockRequirement({ id: "req-1", programId: "program-1" }));
+
+  await assert.rejects(
+    () => service.deleteProgramRequirement(admissionsStaffActor, "program-2", "req-1"),
+    /Program requirement does not belong to the specified program/,
+  );
+
+  // Not deleted
+  const list = await state.repository.listProgramRequirements("tenant-1", "program-1");
+  assert.equal(list.length, 1);
 });

@@ -24,7 +24,10 @@ import type {
   ProgramCurriculumRequirement,
   ProgramCurriculumRequirementInput,
 } from "@/modules/program-curriculum/types";
+import type { ProgramDocumentRequirement } from "@/modules/admissions/document-checklist";
 import { ProgramFormDialog } from "../ProgramFormDialog";
+import { ProgramRequirementsSection } from "./ProgramRequirementsSection";
+import { AddRequirementForm } from "./AddRequirementForm";
 
 export interface CurriculumYearOption {
   id: string;
@@ -46,6 +49,9 @@ interface ProgramDetailClientProps {
   courses: CurriculumCourseOption[];
   initialAcademicYearId: string;
   initialRequirements: ProgramCurriculumRequirement[];
+  documentRequirements: ProgramDocumentRequirement[];
+  canManageRequirements: boolean;
+  canManageProgram: boolean;
 }
 
 function titleize(s: string | undefined | null) {
@@ -59,6 +65,9 @@ export function ProgramDetailClient({
   courses,
   initialAcademicYearId,
   initialRequirements,
+  documentRequirements,
+  canManageRequirements,
+  canManageProgram,
 }: ProgramDetailClientProps) {
   const router = useRouter();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -254,17 +263,19 @@ export function ProgramDetailClient({
               <CardTitle>Program Details</CardTitle>
               <CardDescription>Academic program configuration and requirements.</CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Program
-              </Button>
-              {program.status !== "archived" && (
-                <Button variant="outline" onClick={() => setArchiveDialogOpen(true)}>
-                  Archive Program
+            {canManageProgram && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Program
                 </Button>
-              )}
-            </div>
+                {program.status !== "archived" && (
+                  <Button variant="outline" onClick={() => setArchiveDialogOpen(true)}>
+                    Archive Program
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -324,13 +335,15 @@ export function ProgramDetailClient({
               <CardTitle>Program Curriculum</CardTitle>
               <CardDescription>Required courses by catalog academic year.</CardDescription>
             </div>
-            <Button
-              onClick={handleSaveCurriculum}
-              disabled={!selectedAcademicYearId || savingCurriculum}
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {savingCurriculum ? "Saving..." : "Save Curriculum"}
-            </Button>
+            {canManageProgram && (
+              <Button
+                onClick={handleSaveCurriculum}
+                disabled={!selectedAcademicYearId || savingCurriculum}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {savingCurriculum ? "Saving..." : "Save Curriculum"}
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -342,24 +355,28 @@ export function ProgramDetailClient({
               value={selectedAcademicYearId}
               onChange={setSelectedAcademicYearId}
             />
-            <Select
-              label="Add Required Course"
-              placeholder="Select course"
-              data={courseOptions}
-              value={selectedCourseId}
-              onChange={setSelectedCourseId}
-              disabled={!selectedAcademicYearId || courseOptions.length === 0}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="self-end"
-              onClick={handleAddCourse}
-              disabled={!selectedAcademicYearId || !selectedCourseId}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add
-            </Button>
+            {canManageProgram && (
+              <>
+                <Select
+                  label="Add Required Course"
+                  placeholder="Select course"
+                  data={courseOptions}
+                  value={selectedCourseId}
+                  onChange={setSelectedCourseId}
+                  disabled={!selectedAcademicYearId || courseOptions.length === 0}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="self-end"
+                  onClick={handleAddCourse}
+                  disabled={!selectedAcademicYearId || !selectedCourseId}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add
+                </Button>
+              </>
+            )}
           </div>
 
           {loadingCurriculum ? (
@@ -376,7 +393,7 @@ export function ProgramDetailClient({
                   <TableHead>Course</TableHead>
                   <TableHead className="w-32">Group</TableHead>
                   <TableHead className="w-28 text-right">Credits</TableHead>
-                  <TableHead className="w-20 text-right">Remove</TableHead>
+                  {canManageProgram && <TableHead className="w-20 text-right">Remove</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -391,21 +408,52 @@ export function ProgramDetailClient({
                     </TableCell>
                     <TableCell>{titleize(requirement.requirementGroup)}</TableCell>
                     <TableCell className="text-right">{requirement.credits}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Remove ${requirement.courseCode ?? requirement.courseId}`}
-                        onClick={() => handleRemoveCourse(requirement.courseId)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                    {canManageProgram && (
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remove ${requirement.courseCode ?? requirement.courseId}`}
+                          onClick={() => handleRemoveCourse(requirement.courseId)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="sis-route-card">
+        <CardHeader>
+          <div className="sis-route-heading">
+            <div>
+              <CardTitle>Document Requirements</CardTitle>
+              <CardDescription>
+                Documents required for admission to this program.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <ProgramRequirementsSection
+            programId={program.id}
+            requirements={documentRequirements}
+            canManage={canManageRequirements}
+          />
+
+          {canManageRequirements && (
+            <div className="border-t border-border pt-4 mt-4">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-3">
+                Add Document Requirement
+              </h4>
+              <AddRequirementForm programId={program.id} />
+            </div>
           )}
         </CardContent>
       </Card>
