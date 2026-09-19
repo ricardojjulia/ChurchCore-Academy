@@ -1,5 +1,5 @@
 import { AcademyActor } from "@/modules/academy-auth/policy";
-import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import { AcademyAuthorizationError, AcademyConflictError } from "@/modules/academy-auth/errors";
 import { AdmissionApplication } from "@/modules/admissions/types";
 
 export type DocumentItemStatus =
@@ -239,8 +239,8 @@ export class DocumentChecklistService {
       requirementId,
     );
     if (count > 0) {
-      throw new Error(
-        "Cannot delete program requirement: it is used by existing applications.",
+      throw new AcademyConflictError(
+        `Cannot delete requirement: currently in use by ${count} application${count === 1 ? "" : "s"}.`,
       );
     }
     await this.repository.deleteProgramRequirement(

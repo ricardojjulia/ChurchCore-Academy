@@ -1,4 +1,4 @@
-import { handleApi } from "@/app/api/academy/api-utils";
+import { handleApi, requireStringField, requireBooleanField } from "@/app/api/academy/api-utils";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AdmissionDocumentService } from "@/modules/admissions/document-service";
 import { PostgresAdmissionsRepository } from "@/modules/admissions/postgres-repository";
@@ -26,14 +26,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return handleApi(async () => {
     const { actor } = await resolveAcademyActorFromSession(request);
-    const body = await request.json();
+    const body = await request.json().catch(() => {
+      throw new Error("Malformed JSON body.");
+    });
 
     const input: CreateDocumentTypeInput = {
       tenantId: actor.tenantId,
-      name: body.name,
-      slug: body.slug,
-      required: body.required ?? false,
-      description: body.description,
+      name: requireStringField(body.name, "name"),
+      slug: requireStringField(body.slug, "slug"),
+      required: body.required !== undefined ? requireBooleanField(body.required, "required") : false,
+      description: typeof body.description === "string" && body.description.trim().length > 0
+        ? body.description.trim()
+        : undefined,
     };
 
     const repository = new PostgresAdmissionsRepository();

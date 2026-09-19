@@ -24,7 +24,10 @@ import type {
   ProgramCurriculumRequirement,
   ProgramCurriculumRequirementInput,
 } from "@/modules/program-curriculum/types";
+import type { ProgramDocumentRequirement } from "@/modules/admissions/document-checklist";
 import { ProgramFormDialog } from "../ProgramFormDialog";
+import { ProgramRequirementsSection } from "./ProgramRequirementsSection";
+import { AddRequirementForm } from "./AddRequirementForm";
 
 export interface CurriculumYearOption {
   id: string;
@@ -46,6 +49,8 @@ interface ProgramDetailClientProps {
   courses: CurriculumCourseOption[];
   initialAcademicYearId: string;
   initialRequirements: ProgramCurriculumRequirement[];
+  documentRequirements: ProgramDocumentRequirement[];
+  canManageRequirements: boolean;
 }
 
 function titleize(s: string | undefined | null) {
@@ -59,6 +64,8 @@ export function ProgramDetailClient({
   courses,
   initialAcademicYearId,
   initialRequirements,
+  documentRequirements,
+  canManageRequirements,
 }: ProgramDetailClientProps) {
   const router = useRouter();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -406,6 +413,35 @@ export function ProgramDetailClient({
                 ))}
               </TableBody>
             </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="sis-route-card">
+        <CardHeader>
+          <div className="sis-route-heading">
+            <div>
+              <CardTitle>Document Requirements</CardTitle>
+              <CardDescription>
+                Documents required for admission to this program.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <ProgramRequirementsSection
+            programId={program.id}
+            requirements={documentRequirements}
+            canManage={canManageRequirements}
+          />
+
+          {canManageRequirements && (
+            <div className="border-t border-border pt-4 mt-4">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-3">
+                Add Document Requirement
+              </h4>
+              <AddRequirementForm programId={program.id} />
+            </div>
           )}
         </CardContent>
       </Card>

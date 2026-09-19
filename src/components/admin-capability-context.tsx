@@ -9,6 +9,7 @@ interface AdminCapabilityContextValue {
   canReadShepherdAi: boolean;
   canManageDripSequences: boolean;
   canReadInquiryPipeline: boolean;
+  canViewDocumentTypes: boolean;
 }
 
 // Default matters: AdminShell is also used by pages outside src/app/admin/* (e.g.
@@ -24,6 +25,7 @@ const defaultAdminCapabilities: AdminCapabilityContextValue = {
   canReadShepherdAi: false,
   canManageDripSequences: false,
   canReadInquiryPipeline: false,
+  canViewDocumentTypes: false,
 };
 
 const AdminCapabilityContext = createContext<AdminCapabilityContextValue>(defaultAdminCapabilities);
@@ -36,6 +38,7 @@ export function AdminCapabilityProvider({
   canReadShepherdAi,
   canManageDripSequences,
   canReadInquiryPipeline,
+  canViewDocumentTypes,
 }: {
   children: React.ReactNode;
   ministryFormationEnabled: boolean;
@@ -44,6 +47,7 @@ export function AdminCapabilityProvider({
   canReadShepherdAi: boolean;
   canManageDripSequences: boolean;
   canReadInquiryPipeline: boolean;
+  canViewDocumentTypes: boolean;
 }) {
   return (
     <AdminCapabilityContext.Provider
@@ -54,6 +58,7 @@ export function AdminCapabilityProvider({
         canReadShepherdAi,
         canManageDripSequences,
         canReadInquiryPipeline,
+        canViewDocumentTypes,
       }}
     >
       {children}

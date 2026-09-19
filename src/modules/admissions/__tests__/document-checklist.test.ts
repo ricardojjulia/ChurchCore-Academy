@@ -463,6 +463,6 @@ test("deleteProgramRequirement: cannot delete if in use", async () => {
 
   await assert.rejects(
     () => service.deleteProgramRequirement(admissionsStaffActor, "req-1"),
-    /Cannot delete program requirement: it is used by existing applications/,
+    /Cannot delete requirement: currently in use by 2 applications\./,
   );
 });
