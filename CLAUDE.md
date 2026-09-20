@@ -96,6 +96,7 @@ Before guessing, consult:
 - **Every PR must pass** `npm test`, `npm run lint`, `npm run build` before merge.
 - **PR description must include:** what changed, why, tests added, ADR reference if applicable.
 - **Squash merge to `main`.** No force-pushes to `main`.
+- **`main` requires signed commits.** Without a configured signing key, every PR's merge will be blocked by branch protection ("the base branch policy prohibits the merge") even after status checks and review pass. Merging then requires `gh pr merge --admin` (squash), which bypasses the signature requirement — get the user's explicit sign-off before running it each time, never silently. This is a standing condition of this repo until a GPG/SSH signing key is configured for the commit author; don't treat it as a one-off surprise.
 
 
 ## Repo identity
