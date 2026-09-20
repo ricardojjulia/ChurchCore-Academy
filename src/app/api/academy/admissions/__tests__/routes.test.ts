@@ -571,3 +571,16 @@ test("GET applications route extracts the status query param and passes it to th
   assert.match(source, /status:\s*status\s*as\s*AdmissionApplicationStatus/);
   assert.equal(typeof getApplications, "function");
 });
+
+test("POST application document upload-url route allows applicant self-service while keeping staff capability checks inside request db context", () => {
+  const source = readFileSync(
+    "src/app/api/academy/admissions/applications/[id]/documents/upload-url/route.ts",
+    "utf8",
+  );
+
+  assert.match(source, /withAcademyDatabaseContext/);
+  assert.match(source, /actor\.roles\.includes\("applicant"\)/);
+  assert.match(source, /actor\.userId === application\.applicantPersonId/);
+  assert.match(source, /fetchCapabilitySet\(client,\s*actor\.tenantId\)/);
+  assert.match(source, /assertCapability\(capabilities,\s*"admissionsWorkflows"\)/);
+});

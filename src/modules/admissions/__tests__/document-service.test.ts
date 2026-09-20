@@ -271,6 +271,84 @@ describe("AdmissionDocumentService", () => {
       );
     });
 
+    it("rejects unknown or inactive document types", async () => {
+      const request: UploadUrlRequest = {
+        fileName: "transcript.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1024,
+      };
+
+      const repository = createRepositoryMock({
+        findDocumentTypeBySlug: mock.fn(async () => undefined),
+      });
+
+      const audit = createAuditMock();
+      const storage = createStorageMock();
+
+      const service = new AdmissionDocumentService(repository, audit, storage);
+
+      await assert.rejects(
+        async () =>
+          service.generateUploadUrl(
+            applicantActor,
+            tenantId,
+            "app-123",
+            "applicant-123",
+            "transcript",
+            request,
+          ),
+        {
+          message: /Document type "transcript" not found/,
+        },
+      );
+    });
+
+    it("maps duplicate application document creation to a conflict error", async () => {
+      const request: UploadUrlRequest = {
+        fileName: "transcript.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1024,
+      };
+
+      const repository = createRepositoryMock({
+        findDocumentTypeBySlug: mock.fn(async () => ({
+          id: "type-123",
+          tenantId,
+          name: "Official Transcript",
+          slug: "transcript",
+          required: true,
+          active: true,
+          createdAt: "2026-06-25T10:00:00Z",
+          updatedAt: "2026-06-25T10:00:00Z",
+        })),
+        createApplicationDocument: mock.fn(async () => {
+          throw new Error(
+            'duplicate key value violates unique constraint "academy_application_documents_unique"',
+          );
+        }),
+      });
+
+      const audit = createAuditMock();
+      const storage = createStorageMock();
+
+      const service = new AdmissionDocumentService(repository, audit, storage);
+
+      await assert.rejects(
+        async () =>
+          service.generateUploadUrl(
+            applicantActor,
+            tenantId,
+            "app-123",
+            "applicant-123",
+            "transcript",
+            request,
+          ),
+        {
+          message: /A document for "transcript" already exists for this application/,
+        },
+      );
+    });
+
     it("rejects cross-tenant upload", async () => {
       const request: UploadUrlRequest = {
         fileName: "test.pdf",
