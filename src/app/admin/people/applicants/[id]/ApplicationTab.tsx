@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +9,35 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowRight, Download } from "lucide-react";
 
 interface StudentProfileRecord {
   id: string;
   studentNumber: string;
   studentType: string;
   enrollmentStatus: string;
+}
+
+interface ApplicationDocumentItem {
+  id: string;
+  tenantId: string;
+  applicationId: string;
+  requirementId: string;
+  label: string;
+  isRequired: boolean;
+  status: "pending" | "uploaded" | "reviewed" | "resubmission_required";
+  storagePath?: string;
+  storageFilename?: string;
+  officerNote?: string;
+  reviewedByPersonId?: string;
+  reviewedAt?: string;
+  uploadedAt?: string;
+}
+
+interface DocumentChecklist {
+  items: ApplicationDocumentItem[];
+  completionPct: number;
 }
 
 const APPLICANT_STATUSES = ["application_started", "pending", "admitted", "withdrawn"];
@@ -48,9 +70,11 @@ function statusDescription(status: string): string {
 export function ApplicationTab({
   personId,
   studentProfile,
+  applicationId,
 }: {
   personId: string;
   studentProfile: StudentProfileRecord;
+  applicationId: string | null;
 }) {
   const router = useRouter();
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -60,6 +84,122 @@ export function ApplicationTab({
     status: studentProfile.enrollmentStatus,
     reason: "",
   });
+
+  const [checklist, setChecklist] = useState<DocumentChecklist | null>(null);
+  const [checklistLoading, setChecklistLoading] = useState(false);
+  const [checklistError, setChecklistError] = useState<string | null>(null);
+
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewingItemId, setReviewingItemId] = useState<string | null>(null);
+  const [reviewDecision, setReviewDecision] = useState<"reviewed" | "resubmission_required">("reviewed");
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const [downloadingItemId, setDownloadingItemId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!applicationId) return;
+
+    async function fetchChecklist() {
+      setChecklistLoading(true);
+      setChecklistError(null);
+      try {
+        const res = await fetch(`/api/academy/admissions/applications/${applicationId}/documents`);
+        if (res.status === 403) {
+          setChecklistError("You do not have permission to view application documents.");
+          return;
+        }
+        if (res.status === 404) {
+          setChecklistError("Application not found.");
+          return;
+        }
+        if (!res.ok) {
+          setChecklistError("Failed to load document checklist.");
+          return;
+        }
+        const data = await res.json();
+        setChecklist(data.checklist);
+      } catch (err) {
+        console.error("Checklist fetch error:", err);
+        setChecklistError("Failed to load document checklist.");
+      } finally {
+        setChecklistLoading(false);
+      }
+    }
+
+    fetchChecklist();
+  }, [applicationId]);
+
+  function openReviewModal(itemId: string) {
+    setReviewingItemId(itemId);
+    setReviewDecision("reviewed");
+    setReviewNote("");
+    setReviewError(null);
+    setReviewModalOpen(true);
+  }
+
+  async function handleReviewSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (reviewDecision === "resubmission_required" && !reviewNote.trim()) {
+      setReviewError("Officer note is required when requesting resubmission.");
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError(null);
+
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/documents/${reviewingItemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "review",
+          decision: reviewDecision,
+          officerNote: reviewNote.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to review document");
+      }
+
+      setReviewModalOpen(false);
+      router.refresh();
+    } catch (err) {
+      console.error("Review submission error:", err);
+      setReviewError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  }
+
+  async function handleDownload(itemId: string) {
+    setDownloadingItemId(itemId);
+    setDownloadError(null);
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/documents/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "download_url" }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to get download URL");
+      }
+
+      const data = await res.json();
+      window.open(data.url, "_blank");
+    } catch (err) {
+      console.error("Download error:", err);
+      setDownloadError(err instanceof Error ? err.message : "Failed to download document");
+    } finally {
+      setDownloadingItemId(null);
+    }
+  }
 
   async function handleStatusChange(e: React.FormEvent) {
     e.preventDefault();
@@ -138,9 +278,102 @@ export function ApplicationTab({
           <CardTitle>Application Documents</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Application document checklist not available.
-          </p>
+          {!applicationId ? (
+            <p className="text-sm text-muted-foreground">
+              No application on file for this person.
+            </p>
+          ) : checklistLoading ? (
+            <p className="text-sm text-muted-foreground">Loading document checklist...</p>
+          ) : checklistError ? (
+            <p className="text-sm text-destructive">{checklistError}</p>
+          ) : !checklist ? (
+            <p className="text-sm text-muted-foreground">Failed to load document checklist.</p>
+          ) : checklist.items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No document requirements configured for this application.
+            </p>
+          ) : (
+            <>
+              <div className="ops-readiness-row mb-4">
+                <span>Completion status</span>
+                <strong>{checklist.completionPct}% of required documents approved</strong>
+              </div>
+
+              {downloadError && (
+                <p className="text-sm text-destructive mb-2">{downloadError}</p>
+              )}
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {checklist.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{item.label}</span>
+                            <Badge variant={item.isRequired ? "default" : "outline"}>
+                              {item.isRequired ? "Required" : "Optional"}
+                            </Badge>
+                          </div>
+                          {item.status === "resubmission_required" && item.officerNote && (
+                            <p className="text-xs text-muted-foreground">
+                              Officer note: {item.officerNote}
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            item.status === "reviewed"
+                              ? "success"
+                              : item.status === "uploaded"
+                                ? "warning"
+                                : item.status === "resubmission_required"
+                                  ? "destructive"
+                                  : "outline"
+                          }
+                        >
+                          {titleize(item.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {item.status === "uploaded" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openReviewModal(item.id)}
+                            >
+                              Review
+                            </Button>
+                          )}
+                          {(item.status === "uploaded" || item.status === "reviewed") && item.storagePath && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDownload(item.id)}
+                              disabled={downloadingItemId === item.id}
+                            >
+                              <Download size={14} />
+                              {downloadingItemId === item.id ? "..." : "Download"}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -209,6 +442,73 @@ export function ApplicationTab({
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Saving..." : "Update Status"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review Document</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleReviewSubmit}>
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="reviewDecision">Decision</Label>
+                <select
+                  id="reviewDecision"
+                  aria-label="Select review decision"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={reviewDecision}
+                  onChange={(e) => setReviewDecision(e.target.value as "reviewed" | "resubmission_required")}
+                  required
+                >
+                  <option value="reviewed">Approve</option>
+                  <option value="resubmission_required">Request Resubmission</option>
+                </select>
+              </div>
+
+              {reviewDecision === "resubmission_required" && (
+                <div>
+                  <Label htmlFor="reviewNote">Officer Note (required)</Label>
+                  <Textarea
+                    id="reviewNote"
+                    value={reviewNote}
+                    onChange={(e) => setReviewNote(e.target.value)}
+                    required
+                    placeholder="Explain what needs to be corrected..."
+                  />
+                </div>
+              )}
+
+              {reviewDecision === "reviewed" && (
+                <div>
+                  <Label htmlFor="reviewNote">Officer Note (optional)</Label>
+                  <Textarea
+                    id="reviewNote"
+                    value={reviewNote}
+                    onChange={(e) => setReviewNote(e.target.value)}
+                    placeholder="Add any notes about this document..."
+                  />
+                </div>
+              )}
+
+              {reviewError && (
+                <div className="text-sm text-destructive border border-destructive/50 bg-destructive/10 rounded p-2">
+                  {reviewError}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setReviewModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={reviewSubmitting}>
+                {reviewSubmitting ? "Submitting..." : "Submit Review"}
               </Button>
             </DialogFooter>
           </form>

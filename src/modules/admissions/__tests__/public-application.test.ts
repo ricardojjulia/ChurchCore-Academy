@@ -339,3 +339,58 @@ test("unknown status token: throws NotFoundError", async () => {
     },
   );
 });
+
+test("resolveApplicationByToken: valid token returns applicationId", async () => {
+  const db = {
+    query: async (sql: string, values?: unknown[]) => {
+      const sqlNorm = sql.replace(/\s+/g, " ").trim().toLowerCase();
+      if (
+        sqlNorm.includes("select a.id from academy_admission_applications a") &&
+        values?.[0] === TENANT_ID &&
+        values?.[1] === "tok-valid"
+      ) {
+        return { rowCount: 1, rows: [{ id: "app-123" }] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+  };
+  const service = new PublicApplicationService(db);
+
+  const result = await service.resolveApplicationByToken(TENANT_ID, "tok-valid");
+
+  assert.ok(result, "must return a result");
+  assert.equal(result?.applicationId, "app-123");
+});
+
+test("resolveApplicationByToken: unknown token returns undefined", async () => {
+  const db = {
+    query: async () => {
+      return { rowCount: 0, rows: [] };
+    },
+  };
+  const service = new PublicApplicationService(db);
+
+  const result = await service.resolveApplicationByToken(TENANT_ID, "tok-unknown");
+
+  assert.equal(result, undefined, "must return undefined for unknown token");
+});
+
+test("resolveApplicationByToken: wrong tenant returns undefined", async () => {
+  const db = {
+    query: async (sql: string, values?: unknown[]) => {
+      const sqlNorm = sql.replace(/\s+/g, " ").trim().toLowerCase();
+      if (
+        sqlNorm.includes("select a.id from academy_admission_applications a") &&
+        values?.[0] === "tenant-wrong"
+      ) {
+        return { rowCount: 0, rows: [] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+  };
+  const service = new PublicApplicationService(db);
+
+  const result = await service.resolveApplicationByToken("tenant-wrong", "tok-valid");
+
+  assert.equal(result, undefined, "must return undefined for wrong tenant");
+});
