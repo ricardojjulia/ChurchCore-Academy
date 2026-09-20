@@ -51,6 +51,26 @@ const application: AdmissionApplication = {
   updatedAt: "2026-06-13T14:30:00.000Z",
 };
 
+const disabledAdmissionsCapabilities: InstitutionCapabilitySet = {
+  studentPwa: false,
+  guardianPortal: false,
+  facultyPortal: false,
+  registrarWorkflows: false,
+  admissionsWorkflows: false,
+  transcriptWorkflows: false,
+  graduationWorkflows: false,
+  ministryFormation: false,
+  denominationTracking: false,
+  alumniGiving: false,
+  lmsLaunch: false,
+  lmsRosterSync: false,
+  lmsGradeReturn: false,
+  shepherdAiRecommendations: false,
+  covenantRecords: false,
+  competencyNarrativeGrading: false,
+  academicStandingAutomation: false,
+};
+
 test("admissions mutations require an idempotency key", () => {
   assert.throws(
     () => requireIdempotencyKey(new Headers()),
@@ -608,25 +628,7 @@ test("POST application document upload-url route lets the owning applicant reque
       findApplication: async () => application,
       getCapabilities: async () => {
         capabilityChecks += 1;
-        return {
-          studentPwa: false,
-          guardianPortal: false,
-          facultyPortal: false,
-          registrarWorkflows: false,
-          admissionsWorkflows: false,
-          transcriptWorkflows: false,
-          graduationWorkflows: false,
-          ministryFormation: false,
-          denominationTracking: false,
-          alumniGiving: false,
-          lmsLaunch: false,
-          lmsRosterSync: false,
-          lmsGradeReturn: false,
-          shepherdAiRecommendations: false,
-          covenantRecords: false,
-          competencyNarrativeGrading: false,
-          academicStandingAutomation: false,
-        } satisfies InstitutionCapabilitySet;
+        return disabledAdmissionsCapabilities;
       },
       generateUploadUrl: async () => ({
         uploadUrl: "https://upload.example/signed",
@@ -679,25 +681,7 @@ test("POST application document upload-url route enforces admissionsWorkflows fo
       findApplication: async () => application,
       getCapabilities: async () => {
         capabilityChecks += 1;
-        return {
-          studentPwa: false,
-          guardianPortal: false,
-          facultyPortal: false,
-          registrarWorkflows: false,
-          admissionsWorkflows: false,
-          transcriptWorkflows: false,
-          graduationWorkflows: false,
-          ministryFormation: false,
-          denominationTracking: false,
-          alumniGiving: false,
-          lmsLaunch: false,
-          lmsRosterSync: false,
-          lmsGradeReturn: false,
-          shepherdAiRecommendations: false,
-          covenantRecords: false,
-          competencyNarrativeGrading: false,
-          academicStandingAutomation: false,
-        } satisfies InstitutionCapabilitySet;
+        return disabledAdmissionsCapabilities;
       },
       generateUploadUrl: async () => {
         generated = true;
@@ -713,6 +697,66 @@ test("POST application document upload-url route enforces admissionsWorkflows fo
   assert.equal(response.status, 451);
   assert.equal(capabilityChecks, 1);
   assert.equal(generated, false);
+});
+
+test("POST application document upload-url route succeeds for staff when admissionsWorkflows is enabled", async () => {
+  let capabilityChecks = 0;
+  let generated = false;
+
+  const staffActor: AcademyActor = {
+    userId: "person-staff",
+    tenantId: "tenant-1",
+    roles: ["admissions"],
+  };
+
+  const response = await issueAdmissionDocumentUploadUrlRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/documents/upload-url",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          documentTypeSlug: "transcript",
+          fileName: "transcript.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1024,
+        }),
+      },
+    ),
+    {
+      params: Promise.resolve({ id: "application-1" }),
+    },
+    {
+      resolveActor: async () => staffActor,
+      withRequestContext: async (_actor, operation) =>
+        operation({
+          query: async () => ({}),
+          release() {},
+        }),
+      findApplication: async () => application,
+      getCapabilities: async () => {
+        capabilityChecks += 1;
+        return {
+          ...disabledAdmissionsCapabilities,
+          admissionsWorkflows: true,
+        };
+      },
+      generateUploadUrl: async () => {
+        generated = true;
+        return {
+          uploadUrl: "https://upload.example/signed",
+          storagePath: "tenant-1/application-1/transcript/file.pdf",
+          documentId: "doc-123",
+        };
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(capabilityChecks, 1);
+  assert.equal(generated, true);
 });
 
 test("POST application document upload-url route rejects cross-tenant applicant access before generating a URL", async () => {

@@ -238,7 +238,9 @@ export class AdmissionDocumentService {
       throw new Error(`Document type "${documentTypeSlug}" not found.`);
     }
     if (!documentType.active) {
-      throw new Error(`Document type "${documentTypeSlug}" is inactive.`);
+      throw new Error(
+        `Invalid documentTypeSlug: document type "${documentTypeSlug}" is inactive.`,
+      );
     }
 
     // Generate storage path

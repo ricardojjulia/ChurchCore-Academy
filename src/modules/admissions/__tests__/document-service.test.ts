@@ -339,7 +339,7 @@ describe("AdmissionDocumentService", () => {
             request,
           ),
         {
-          message: /Document type "transcript" is inactive/,
+          message: /Invalid documentTypeSlug: document type "transcript" is inactive/,
         },
       );
     });
