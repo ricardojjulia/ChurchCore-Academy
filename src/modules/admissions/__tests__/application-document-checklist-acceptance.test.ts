@@ -882,6 +882,7 @@ test("AC10: Staff download - admissions can download", async () => {
     generateSignedUploadUrl: async () => "signed-upload-url",
     delete: async () => {},
     generateSignedDownloadUrl: async () => "signed-download-url",
+    getObjectMetadata: async () => undefined,
   };
 
   const service = new DocumentChecklistService(repository);
@@ -911,6 +912,7 @@ test("AC10: Staff download - wrong role (student) cannot download", async () => 
     generateSignedUploadUrl: async () => "signed-upload-url",
     delete: async () => {},
     generateSignedDownloadUrl: async () => "signed-download-url",
+    getObjectMetadata: async () => undefined,
   };
 
   const service = new DocumentChecklistService(repository);
@@ -937,6 +939,7 @@ test("AC10: Staff download - cross-tenant staff rejected", async () => {
     generateSignedUploadUrl: async () => "signed-upload-url",
     delete: async () => {},
     generateSignedDownloadUrl: async () => "signed-download-url",
+    getObjectMetadata: async () => undefined,
   };
 
   const service = new DocumentChecklistService(repository);

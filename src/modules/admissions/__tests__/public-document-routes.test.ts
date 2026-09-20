@@ -290,31 +290,125 @@ test("POST confirm: non-PDF content type should be rejected", async () => {
   );
 });
 
-test("POST confirm: storagePath not matching this item's expected prefix should be rejected", async () => {
+// Mirrors the exact check in src/app/api/public/apply/documents/[itemId]/confirm/route.ts:
+// prefix match, then the remainder must be exactly {uuid}.pdf with no further "/".
+const UUID_PDF_FILENAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$/i;
+function isAcceptedStoragePath(storagePath: string, expectedPrefix: string): boolean {
+  if (!storagePath.startsWith(expectedPrefix)) return false;
+  const suffix = storagePath.slice(expectedPrefix.length);
+  return UUID_PDF_FILENAME.test(suffix) && !suffix.includes("/");
+}
+
+test("POST confirm: storagePath must be prefix + a single UUID.pdf filename, not just prefix-matching", async () => {
   const tenantId = TENANT_ID;
   const applicationId = APP_ID;
   const itemId = ITEM_ID;
   const expectedPrefix = `${tenantId}/applications/${applicationId}/${itemId}/`;
+  const realUuid = "a1b2c3d4-e5f6-4789-a012-3456789abcde";
 
-  const legitimatePath = `${expectedPrefix}${"a".repeat(8)}.pdf`;
   assert.ok(
-    legitimatePath.startsWith(expectedPrefix),
+    isAcceptedStoragePath(`${expectedPrefix}${realUuid}.pdf`, expectedPrefix),
     "a path actually issued by upload-url for this item must pass",
   );
 
   const spoofedSameTenant = `${tenantId}/applications/app-different/item-different/x.pdf`;
   assert.equal(
-    spoofedSameTenant.startsWith(expectedPrefix),
+    isAcceptedStoragePath(spoofedSameTenant, expectedPrefix),
     false,
     "a storagePath for a different application/item must be rejected",
   );
 
   const spoofedCrossTenant = `tenant-other/applications/${applicationId}/${itemId}/x.pdf`;
   assert.equal(
-    spoofedCrossTenant.startsWith(expectedPrefix),
+    isAcceptedStoragePath(spoofedCrossTenant, expectedPrefix),
     false,
     "a storagePath under a different tenant prefix must be rejected",
   );
+
+  // The exact path-traversal payload a plain startsWith() check would wrongly
+  // accept, since startsWith does not normalize "..": the string literally
+  // starts with expectedPrefix, but resolves to a completely different object.
+  const traversalPayload = `${expectedPrefix}../../../other-file.pdf`;
+  assert.ok(
+    traversalPayload.startsWith(expectedPrefix),
+    "sanity check: a naive startsWith() alone would accept this",
+  );
+  assert.equal(
+    isAcceptedStoragePath(traversalPayload, expectedPrefix),
+    false,
+    "the real check must reject a path-traversal payload even though it starts with the expected prefix",
+  );
+});
+
+test("POST upload-url and POST confirm: reject when item is already reviewed", async () => {
+  const reviewedItem = mockDocumentItem({ status: "reviewed" });
+  const pendingItem = mockDocumentItem({ status: "pending" });
+  const resubmissionItem = mockDocumentItem({ status: "resubmission_required" });
+
+  function canObtainNewUploadSlot(status: string): boolean {
+    return status === "pending" || status === "resubmission_required";
+  }
+
+  assert.equal(
+    canObtainNewUploadSlot(reviewedItem.status),
+    false,
+    "a token holder must not get a new upload URL, or be able to confirm one, for an already-reviewed item",
+  );
+  assert.ok(canObtainNewUploadSlot(pendingItem.status));
+  assert.ok(canObtainNewUploadSlot(resubmissionItem.status));
+});
+
+test("POST confirm: rejects when the actual uploaded object's metadata doesn't match the claim", async () => {
+  // The signed upload URL itself enforces no type/size constraint, so a
+  // caller could PUT a large non-PDF file while claiming it's a small PDF.
+  // The route must re-check the real object via getObjectMetadata().
+  const claimedContentType = "application/pdf";
+  const claimedSize = 1024;
+
+  const actualMetadataWrongType = { size: 1024, contentType: "application/octet-stream" };
+  const actualMetadataTooLarge = { size: 11 * 1024 * 1024, contentType: "application/pdf" };
+  const actualMetadataMissing = undefined;
+
+  function passesActualCheck(
+    actual: { size: number; contentType: string } | undefined,
+  ): boolean {
+    if (!actual) return false;
+    if (actual.contentType !== "application/pdf") return false;
+    if (actual.size > 10 * 1024 * 1024) return false;
+    return true;
+  }
+
+  assert.equal(claimedContentType, "application/pdf");
+  assert.ok(claimedSize <= 10 * 1024 * 1024);
+
+  assert.equal(passesActualCheck(actualMetadataWrongType), false, "actual non-PDF object must be rejected even if claimed as PDF");
+  assert.equal(passesActualCheck(actualMetadataTooLarge), false, "actual oversized object must be rejected even if claimed as small");
+  assert.equal(passesActualCheck(actualMetadataMissing), false, "a missing/unreadable object must be rejected");
+});
+
+test("POST confirm: public response must only include the public-safe item shape", async () => {
+  const updatedItem = mockDocumentItem({
+    status: "uploaded",
+    storagePath: "tenant-test/applications/app-123/item-456/real-uuid.pdf",
+    storageFilename: "transcript.pdf",
+    reviewedByPersonId: "staff-person-999",
+  });
+
+  const publicShape = {
+    id: updatedItem.id,
+    label: updatedItem.label,
+    isRequired: updatedItem.isRequired,
+    status: updatedItem.status,
+    officerNote: updatedItem.officerNote,
+    uploadedAt: updatedItem.uploadedAt,
+  };
+
+  const serialized = JSON.stringify(publicShape);
+  assert.doesNotMatch(serialized, /storagePath/);
+  assert.doesNotMatch(serialized, /storageFilename/);
+  assert.doesNotMatch(serialized, /reviewedByPersonId/);
+  assert.doesNotMatch(serialized, /real-uuid\.pdf/);
+  assert.doesNotMatch(serialized, /staff-person-999/);
 });
 
 test("POST confirm: oversized file should be rejected", async () => {

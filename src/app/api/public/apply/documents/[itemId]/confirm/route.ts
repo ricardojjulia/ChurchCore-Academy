@@ -16,6 +16,12 @@ function resolveTenantId(request: Request): string {
   throw new Error("Unable to resolve institution. Tenant context is required.");
 }
 
+// Matches exactly what upload-url generates: {uuid}.pdf, nothing else. A plain
+// prefix check (storagePath.startsWith(expectedPrefix)) would still accept
+// "{prefix}../../../other-file.pdf", since startsWith does not normalize the
+// path — this regex only accepts a single canonical filename component.
+const UUID_PDF_FILENAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$/i;
+
 type RouteContext = { params: Promise<{ itemId: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
@@ -76,7 +82,9 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    // Server-side validation
+    // Server-side validation of the CLAIMED metadata (belt); the ACTUAL
+    // uploaded object is re-checked below (suspenders) since the signed
+    // upload URL itself enforces no type/size constraint.
     if (contentType !== "application/pdf") {
       return NextResponse.json(
         { error: "Only PDF documents are accepted." },
@@ -112,13 +120,54 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    // The client only ever learns a storagePath from this same flow's
-    // upload-url response, which always has this exact prefix. Reject any
-    // other value rather than trusting a client-supplied storage path.
+    // A token holder must not be able to modify an item staff already
+    // reviewed — that decision is not theirs to undo. Only pending/
+    // resubmission_required items may be confirmed.
+    if (item.status !== "pending" && item.status !== "resubmission_required") {
+      return NextResponse.json(
+        { error: "This document has already been reviewed and cannot be replaced." },
+        { status: 409 },
+      );
+    }
+
+    // storagePath must be exactly this item's prefix plus a single
+    // UUID.pdf filename component — rejects traversal and cross-item paths.
     const expectedPrefix = `${tenantId}/applications/${resolved.applicationId}/${itemId}/`;
     if (!storagePath.startsWith(expectedPrefix)) {
       return NextResponse.json(
         { error: "storagePath does not match this document item." },
+        { status: 400 },
+      );
+    }
+    const suffix = storagePath.slice(expectedPrefix.length);
+    if (!UUID_PDF_FILENAME.test(suffix) || suffix.includes("/")) {
+      return NextResponse.json(
+        { error: "storagePath does not match this document item." },
+        { status: 400 },
+      );
+    }
+
+    // Re-verify against the ACTUAL uploaded object, not just what the
+    // client claims — the signed upload URL itself enforces neither type
+    // nor size, so a caller could PUT arbitrary bytes with a forged
+    // Content-Type and then claim a smaller/PDF size here.
+    const storageClient = createStorageClient();
+    const actualMetadata = await storageClient.getObjectMetadata(storagePath);
+    if (!actualMetadata) {
+      return NextResponse.json(
+        { error: "Uploaded file not found. Please try uploading again." },
+        { status: 400 },
+      );
+    }
+    if (actualMetadata.contentType !== "application/pdf") {
+      return NextResponse.json(
+        { error: "Only PDF documents are accepted." },
+        { status: 400 },
+      );
+    }
+    if (actualMetadata.size > maxSizeBytes) {
+      return NextResponse.json(
+        { error: "Document file size exceeds the 10MB limit." },
         { status: 400 },
       );
     }
@@ -136,7 +185,6 @@ export async function POST(request: Request, context: RouteContext) {
     // Best-effort cleanup of old file
     if (oldStoragePath) {
       try {
-        const storageClient = createStorageClient();
         await storageClient.delete(oldStoragePath);
       } catch (cleanupError) {
         console.error(
@@ -147,7 +195,18 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
-    return NextResponse.json({ item: updatedItem });
+    // Public, unauthenticated endpoint — never expose internal storage
+    // paths or staff identifiers, same as GET /api/public/apply/documents.
+    return NextResponse.json({
+      item: {
+        id: updatedItem.id,
+        label: updatedItem.label,
+        isRequired: updatedItem.isRequired,
+        status: updatedItem.status,
+        officerNote: updatedItem.officerNote,
+        uploadedAt: updatedItem.uploadedAt,
+      },
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected error.";

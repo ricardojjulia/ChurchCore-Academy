@@ -66,6 +66,11 @@ export interface ReviewDocumentItemInput {
   officerNote?: string;
 }
 
+export interface StoredObjectMetadata {
+  size: number;
+  contentType: string;
+}
+
 export interface DocumentStorageClient {
   generateSignedUploadUrl(
     path: string,
@@ -76,6 +81,9 @@ export interface DocumentStorageClient {
     path: string,
     expiresInSeconds: number,
   ): Promise<string>;
+  getObjectMetadata(
+    path: string,
+  ): Promise<StoredObjectMetadata | undefined>;
 }
 
 interface DocumentChecklistRepository {

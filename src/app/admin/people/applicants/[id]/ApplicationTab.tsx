@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,38 +99,44 @@ export function ApplicationTab({
   const [downloadingItemId, setDownloadingItemId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchChecklist = useCallback(async () => {
     if (!applicationId) return;
-
-    async function fetchChecklist() {
-      setChecklistLoading(true);
-      setChecklistError(null);
-      try {
-        const res = await fetch(`/api/academy/admissions/applications/${applicationId}/documents`);
-        if (res.status === 403) {
-          setChecklistError("You do not have permission to view application documents.");
-          return;
-        }
-        if (res.status === 404) {
-          setChecklistError("Application not found.");
-          return;
-        }
-        if (!res.ok) {
-          setChecklistError("Failed to load document checklist.");
-          return;
-        }
-        const data = await res.json();
-        setChecklist(data.checklist);
-      } catch (err) {
-        console.error("Checklist fetch error:", err);
-        setChecklistError("Failed to load document checklist.");
-      } finally {
-        setChecklistLoading(false);
+    setChecklistLoading(true);
+    setChecklistError(null);
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/documents`);
+      if (res.status === 403) {
+        setChecklistError("You do not have permission to view application documents.");
+        return;
       }
+      if (res.status === 404) {
+        setChecklistError("Application not found.");
+        return;
+      }
+      if (!res.ok) {
+        setChecklistError("Failed to load document checklist.");
+        return;
+      }
+      const data = await res.json();
+      setChecklist(data.checklist);
+    } catch (err) {
+      console.error("Checklist fetch error:", err);
+      setChecklistError("Failed to load document checklist.");
+    } finally {
+      setChecklistLoading(false);
     }
-
-    fetchChecklist();
   }, [applicationId]);
+
+  useEffect(() => {
+    // Standard data-fetching-on-mount/prop-change effect — synchronizing UI
+    // state with the checklist API for this applicationId, exactly the case
+    // this rule's own description sanctions. fetchChecklist is also called
+    // directly (not from an effect) after a successful review below.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchChecklist().catch((err) => {
+      console.error("Checklist fetch error:", err);
+    });
+  }, [fetchChecklist]);
 
   function openReviewModal(itemId: string) {
     setReviewingItemId(itemId);
@@ -167,6 +173,11 @@ export function ApplicationTab({
       }
 
       setReviewModalOpen(false);
+      // router.refresh() alone doesn't update this table — the checklist is
+      // fetched client-side in an effect keyed on applicationId, which never
+      // changes after a review. Refetch it directly so the new status shows
+      // without a manual page reload.
+      await fetchChecklist();
       router.refresh();
     } catch (err) {
       console.error("Review submission error:", err);

@@ -76,6 +76,15 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    // A token holder must not be able to obtain a new upload slot for an
+    // item staff already reviewed — that decision is not theirs to undo.
+    if (item.status !== "pending" && item.status !== "resubmission_required") {
+      return NextResponse.json(
+        { error: "This document has already been reviewed and cannot be replaced." },
+        { status: 409 },
+      );
+    }
+
     // Sanitize filename: extract extension, validate it's .pdf
     const extensionMatch = filename.toLowerCase().match(/\.(pdf)$/);
     if (!extensionMatch) {
