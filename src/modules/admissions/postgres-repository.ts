@@ -295,6 +295,15 @@ export class PostgresAdmissionsRepository {
     return result.rows[0] ? mapDocumentTypeRow(result.rows[0]) : undefined;
   }
 
+  async findDocumentTypeBySlug(tenantId: string, slug: string): Promise<DocumentType | undefined> {
+    const result = await this.database.query(
+      `select * from academy_document_types
+       where tenant_id = $1 and slug = $2`,
+      [tenantId, slug],
+    );
+    return result.rows[0] ? mapDocumentTypeRow(result.rows[0]) : undefined;
+  }
+
   async listActiveDocumentTypes(tenantId: string): Promise<DocumentType[]> {
     const result = await this.database.query(
       `select * from academy_document_types

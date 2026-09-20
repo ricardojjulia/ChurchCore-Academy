@@ -21,6 +21,7 @@ function createRepositoryMock<T extends Partial<DocumentRepository>>(overrides: 
       throw new Error("createDocumentType not stubbed");
     }),
     findDocumentTypeById: mock.fn(async () => undefined),
+    findDocumentTypeBySlug: mock.fn(async () => undefined),
     listActiveDocumentTypes: mock.fn(async () => []),
     createApplicationDocument: mock.fn(async () => {
       throw new Error("createApplicationDocument not stubbed");

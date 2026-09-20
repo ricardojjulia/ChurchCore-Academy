@@ -19,6 +19,10 @@ export interface DocumentRepository {
     tenantId: string,
     documentTypeId: string,
   ): Promise<DocumentType | undefined>;
+  findDocumentTypeBySlug(
+    tenantId: string,
+    slug: string,
+  ): Promise<DocumentType | undefined>;
   listActiveDocumentTypes(tenantId: string): Promise<DocumentType[]>;
   createApplicationDocument(
     tenantId: string,
@@ -212,6 +216,22 @@ export class AdmissionDocumentService {
       );
     }
 
+    // Resolve document type by slug
+    const documentType = await this.repository.findDocumentTypeBySlug(
+      tenantId,
+      documentTypeSlug,
+    );
+    if (!documentType) {
+      throw new Error(`Document type "${documentTypeSlug}" not found.`);
+    }
+
+    // Create the application document record (status: pending) before issuing the upload URL
+    const applicationDocument = await this.repository.createApplicationDocument(
+      tenantId,
+      applicationId,
+      documentType.id,
+    );
+
     // Generate storage path
     const uuid = crypto.randomUUID();
     const extension = getExtensionFromMimeType(request.mimeType);
@@ -229,7 +249,7 @@ export class AdmissionDocumentService {
       actorPersonId: actor.userId,
       action: "admission.document.upload_url_issued",
       entityType: "application_document",
-      entityId: applicationId,
+      entityId: applicationDocument.id,
       resultStatus: "success",
       redactedMetadata: {
         applicationId,
@@ -242,6 +262,7 @@ export class AdmissionDocumentService {
     return {
       uploadUrl,
       storagePath,
+      documentId: applicationDocument.id,
     };
   }
 

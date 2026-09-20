@@ -130,6 +130,7 @@ export interface UploadUrlRequest {
 export interface UploadUrlResponse {
   uploadUrl: string;
   storagePath: string;
+  documentId: string;
 }
 
 export interface WaiveDocumentInput {
