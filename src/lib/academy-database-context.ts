@@ -2,12 +2,29 @@ import { getDatabasePool } from "@/lib/database";
 import { AcademyActor } from "@/modules/academy-auth/policy";
 
 export interface AcademyDatabase {
-  query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[]; rowCount: number | null }>;
+  query(text: string, values?: unknown[]): Promise<AcademyQueryResult>;
+}
+
+export interface AcademyRowsResult {
+  rows: Record<string, unknown>[];
+}
+
+export interface AcademyQueryResult extends AcademyRowsResult {
+  rowCount: number | null;
 }
 
 export interface AcademyQueryClient {
   query(text: string, values?: unknown[]): Promise<unknown>;
   release(): void;
+}
+
+export function isAcademyRowsResult(value: unknown): value is AcademyRowsResult {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "rows" in value &&
+    Array.isArray(value.rows)
+  );
 }
 
 interface AcademyConnectionPool {
