@@ -66,6 +66,11 @@ export interface ReviewDocumentItemInput {
   officerNote?: string;
 }
 
+export interface StoredObjectMetadata {
+  size: number;
+  contentType: string;
+}
+
 export interface DocumentStorageClient {
   generateSignedUploadUrl(
     path: string,
@@ -76,6 +81,9 @@ export interface DocumentStorageClient {
     path: string,
     expiresInSeconds: number,
   ): Promise<string>;
+  getObjectMetadata(
+    path: string,
+  ): Promise<StoredObjectMetadata | undefined>;
 }
 
 interface DocumentChecklistRepository {
@@ -224,11 +232,6 @@ export class DocumentChecklistService {
   }
 
   async listProgramRequirements(actor: AcademyActor, programId: string) {
-    if (actor.tenantId !== actor.tenantId) {
-      throw new AcademyAuthorizationError(
-        "Forbidden cross-tenant program requirements access.",
-      );
-    }
     return this.repository.listProgramRequirements(actor.tenantId, programId);
   }
 
@@ -272,11 +275,6 @@ export class DocumentChecklistService {
     applicationId: string,
     programId: string,
   ) {
-    if (actor.tenantId !== actor.tenantId) {
-      throw new AcademyAuthorizationError(
-        "Forbidden cross-tenant checklist snapshot.",
-      );
-    }
     const existingItems = await this.repository.listApplicationDocumentItems(
       actor.tenantId,
       applicationId,
@@ -388,6 +386,12 @@ export class DocumentChecklistService {
       throw new Error("Document item not found.");
     }
     assertDocumentReviewAccess(actor, item.tenantId);
+
+    if (input.decision === "resubmission_required" && !input.officerNote?.trim()) {
+      throw new Error(
+        "Officer note is required when requesting resubmission.",
+      );
+    }
 
     return this.repository.updateDocumentItemReview(
       actor.tenantId,

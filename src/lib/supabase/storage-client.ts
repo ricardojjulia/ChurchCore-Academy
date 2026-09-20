@@ -55,5 +55,29 @@ export function createStorageClient(): DocumentStorageClient {
 
       return data.signedUrl;
     },
+
+    async getObjectMetadata(path: string) {
+      const lastSlash = path.lastIndexOf("/");
+      const folder = lastSlash === -1 ? "" : path.slice(0, lastSlash);
+      const filename = lastSlash === -1 ? path : path.slice(lastSlash + 1);
+
+      const { data, error } = await supabase.storage
+        .from("academy-documents")
+        .list(folder, { search: filename });
+
+      if (error || !data) {
+        return undefined;
+      }
+
+      const entry = data.find((file) => file.name === filename);
+      if (!entry?.metadata) {
+        return undefined;
+      }
+
+      return {
+        size: Number(entry.metadata.size ?? 0),
+        contentType: String(entry.metadata.mimetype ?? ""),
+      };
+    },
   };
 }

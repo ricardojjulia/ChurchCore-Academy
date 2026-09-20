@@ -305,4 +305,18 @@ export class PublicApplicationService {
       programName: row.program_name != null ? String(row.program_name) : "",
     };
   }
+
+  async resolveApplicationByToken(
+    tenantId: string,
+    statusToken: string,
+  ): Promise<{ applicationId: string } | undefined> {
+    const result = await this.db.query(
+      `select a.id from academy_admission_applications a
+       where a.tenant_id = $1 and a.status_token = $2`,
+      [tenantId, statusToken],
+    );
+    return result.rows[0]
+      ? { applicationId: String(result.rows[0].id) }
+      : undefined;
+  }
 }

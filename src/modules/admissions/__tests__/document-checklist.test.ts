@@ -446,6 +446,7 @@ test("getSignedDownloadUrl: cross-applicant - throws AcademyAuthorizationError",
     generateSignedUploadUrl: async () => "signed-upload-url",
     delete: async () => {},
     generateSignedDownloadUrl: async () => "signed-download-url",
+    getObjectMetadata: async () => undefined,
   };
 
   await assert.rejects(

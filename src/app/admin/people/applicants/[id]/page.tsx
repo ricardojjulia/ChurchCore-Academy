@@ -30,6 +30,10 @@ interface StudentProfileRecord {
   enrollmentStatus: string;
 }
 
+interface ApplicationRecord {
+  id: string;
+}
+
 interface AuditEventRecord {
   id: string;
   action: string;
@@ -46,7 +50,7 @@ export default async function ApplicantDetailPage(props: PageProps) {
   const actor = await requireActor();
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
 
-  const { person, studentProfile, auditEvents, covenantEnabled, covenantRecord } = await withAcademyDatabaseContext(
+  const { person, studentProfile, application, auditEvents, covenantEnabled, covenantRecord } = await withAcademyDatabaseContext(
     actor,
     async (client) => {
       const personResult = await client.query(
@@ -57,7 +61,7 @@ export default async function ApplicantDetailPage(props: PageProps) {
       );
 
       if ((personResult as { rowCount: number | null }).rowCount === 0) {
-        return { person: null, studentProfile: null, auditEvents: [] };
+        return { person: null, studentProfile: null, application: null, auditEvents: [] };
       }
 
       const person = (personResult as { rows: PersonRecord[] }).rows[0];
@@ -76,6 +80,24 @@ export default async function ApplicantDetailPage(props: PageProps) {
         }
       } catch (error) {
         console.warn("Student profile query failed:", error);
+      }
+
+      let application: ApplicationRecord | null = null;
+      try {
+        const appResult = await client.query(
+          `SELECT id
+           FROM academy_admission_applications
+           WHERE applicant_person_id = $2 AND tenant_id = $1
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [actor.tenantId, params.id],
+        );
+
+        if ((appResult as { rowCount: number | null }).rowCount! > 0) {
+          application = (appResult as { rows: ApplicationRecord[] }).rows[0];
+        }
+      } catch (error) {
+        console.warn("Application query failed:", error);
       }
 
       let auditEvents: AuditEventRecord[] = [];
@@ -128,7 +150,7 @@ export default async function ApplicantDetailPage(props: PageProps) {
         // covenant record feature not available
       }
 
-      return { person, studentProfile, auditEvents, covenantEnabled, covenantRecord };
+      return { person, studentProfile, application, auditEvents, covenantEnabled, covenantRecord };
     },
   );
 
@@ -164,7 +186,7 @@ export default async function ApplicantDetailPage(props: PageProps) {
         </TabsContent>
 
         <TabsContent value="application">
-          <ApplicationTab personId={params.id} studentProfile={studentProfile} />
+          <ApplicationTab personId={params.id} studentProfile={studentProfile} applicationId={application?.id ?? null} />
         </TabsContent>
 
         <TabsContent value="covenant">
