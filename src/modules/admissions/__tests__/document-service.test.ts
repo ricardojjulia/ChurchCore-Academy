@@ -167,7 +167,27 @@ describe("AdmissionDocumentService", () => {
         sizeBytes: 5 * 1024 * 1024, // 5 MB
       };
 
-      const repository = createRepositoryMock();
+      const repository = createRepositoryMock({
+        findDocumentTypeBySlug: mock.fn(async () => ({
+          id: "type-123",
+          tenantId,
+          name: "Official Transcript",
+          slug: "transcript",
+          required: true,
+          active: true,
+          createdAt: "2026-06-25T10:00:00Z",
+          updatedAt: "2026-06-25T10:00:00Z",
+        })),
+        createApplicationDocument: mock.fn(async () => ({
+          id: "doc-123",
+          tenantId,
+          applicationId: "app-123",
+          documentTypeId: "type-123",
+          status: "pending",
+          createdAt: "2026-06-25T10:00:00Z",
+          updatedAt: "2026-06-25T10:00:00Z",
+        })),
+      });
 
       const audit = createAuditMock();
       const storage = createStorageMock({
