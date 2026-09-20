@@ -234,11 +234,26 @@ export class AdmissionDocumentService {
       tenantId,
       documentTypeSlug,
     );
-    if (!documentType || !documentType.active) {
+    if (!documentType) {
       throw new Error(`Document type "${documentTypeSlug}" not found.`);
     }
+    if (!documentType.active) {
+      throw new Error(`Document type "${documentTypeSlug}" is inactive.`);
+    }
 
-    // Create the application document record (status: pending) before issuing the upload URL
+    // Generate storage path
+    const uuid = crypto.randomUUID();
+    const extension = getExtensionFromMimeType(request.mimeType);
+    const storagePath = `${tenantId}/${applicationId}/${documentTypeSlug}/${uuid}.${extension}`;
+
+    // Generate presigned upload URL (1 hour expiry)
+    const uploadUrl = await this.storage.generateUploadUrl(
+      storagePath,
+      request.mimeType,
+      3600,
+    );
+
+    // Persist the pending application document record only after a signed upload URL is available.
     let applicationDocument: ApplicationDocument;
     try {
       applicationDocument = await this.repository.createApplicationDocument(
@@ -254,17 +269,6 @@ export class AdmissionDocumentService {
       }
       throw error;
     }
-    // Generate storage path
-    const uuid = crypto.randomUUID();
-    const extension = getExtensionFromMimeType(request.mimeType);
-    const storagePath = `${tenantId}/${applicationId}/${documentTypeSlug}/${uuid}.${extension}`;
-
-    // Generate presigned upload URL (1 hour expiry)
-    const uploadUrl = await this.storage.generateUploadUrl(
-      storagePath,
-      request.mimeType,
-      3600,
-    );
 
     await this.audit.append({
       tenantId,

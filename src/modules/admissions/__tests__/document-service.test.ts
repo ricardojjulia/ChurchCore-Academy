@@ -271,7 +271,7 @@ describe("AdmissionDocumentService", () => {
       );
     });
 
-    it("rejects unknown or inactive document types", async () => {
+    it("rejects unknown document types", async () => {
       const request: UploadUrlRequest = {
         fileName: "transcript.pdf",
         mimeType: "application/pdf",
@@ -299,6 +299,47 @@ describe("AdmissionDocumentService", () => {
           ),
         {
           message: /Document type "transcript" not found/,
+        },
+      );
+    });
+
+    it("rejects inactive document types", async () => {
+      const request: UploadUrlRequest = {
+        fileName: "transcript.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1024,
+      };
+
+      const repository = createRepositoryMock({
+        findDocumentTypeBySlug: mock.fn(async () => ({
+          id: "type-123",
+          tenantId,
+          name: "Official Transcript",
+          slug: "transcript",
+          required: true,
+          active: false,
+          createdAt: "2026-06-25T10:00:00Z",
+          updatedAt: "2026-06-25T10:00:00Z",
+        })),
+      });
+
+      const audit = createAuditMock();
+      const storage = createStorageMock();
+
+      const service = new AdmissionDocumentService(repository, audit, storage);
+
+      await assert.rejects(
+        async () =>
+          service.generateUploadUrl(
+            applicantActor,
+            tenantId,
+            "app-123",
+            "applicant-123",
+            "transcript",
+            request,
+          ),
+        {
+          message: /Document type "transcript" is inactive/,
         },
       );
     });
@@ -331,7 +372,9 @@ describe("AdmissionDocumentService", () => {
       });
 
       const audit = createAuditMock();
-      const storage = createStorageMock();
+      const storage = createStorageMock({
+        generateUploadUrl: mock.fn(async () => "https://upload.url/signed"),
+      });
 
       const service = new AdmissionDocumentService(repository, audit, storage);
 
@@ -349,6 +392,53 @@ describe("AdmissionDocumentService", () => {
           message: /A document for "transcript" already exists for this application/,
         },
       );
+    });
+
+    it("does not persist a pending document when signed URL generation fails", async () => {
+      const request: UploadUrlRequest = {
+        fileName: "transcript.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1024,
+      };
+
+      const repository = createRepositoryMock({
+        findDocumentTypeBySlug: mock.fn(async () => ({
+          id: "type-123",
+          tenantId,
+          name: "Official Transcript",
+          slug: "transcript",
+          required: true,
+          active: true,
+          createdAt: "2026-06-25T10:00:00Z",
+          updatedAt: "2026-06-25T10:00:00Z",
+        })),
+      });
+
+      const audit = createAuditMock();
+      const storage = createStorageMock({
+        generateUploadUrl: mock.fn(async () => {
+          throw new Error("storage offline");
+        }),
+      });
+
+      const service = new AdmissionDocumentService(repository, audit, storage);
+
+      await assert.rejects(
+        async () =>
+          service.generateUploadUrl(
+            applicantActor,
+            tenantId,
+            "app-123",
+            "applicant-123",
+            "transcript",
+            request,
+          ),
+        {
+          message: /storage offline/,
+        },
+      );
+
+      assert.equal(repository.createApplicationDocument.mock.calls.length, 0);
     });
 
     it("rejects cross-tenant upload", async () => {

@@ -714,3 +714,55 @@ test("POST application document upload-url route enforces admissionsWorkflows fo
   assert.equal(capabilityChecks, 1);
   assert.equal(generated, false);
 });
+
+test("POST application document upload-url route rejects cross-tenant applicant access before generating a URL", async () => {
+  let generated = false;
+
+  const response = await issueAdmissionDocumentUploadUrlRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/documents/upload-url",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          documentTypeSlug: "transcript",
+          fileName: "transcript.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1024,
+        }),
+      },
+    ),
+    {
+      params: Promise.resolve({ id: "application-1" }),
+    },
+    {
+      resolveActor: async () => ({
+        userId: "person-applicant",
+        tenantId: "tenant-2",
+        roles: ["applicant"],
+      }),
+      withRequestContext: async (_actor, operation) =>
+        operation({
+          query: async () => ({}),
+          release() {},
+        }),
+      findApplication: async () => undefined,
+      getCapabilities: async () => {
+        throw new Error("getCapabilities should not be called");
+      },
+      generateUploadUrl: async () => {
+        generated = true;
+        return {
+          uploadUrl: "https://upload.example/signed",
+          storagePath: "tenant-1/application-1/transcript/file.pdf",
+          documentId: "doc-123",
+        };
+      },
+    },
+  );
+
+  assert.equal(response.status, 404);
+  assert.equal(generated, false);
+});
