@@ -3,6 +3,8 @@ import {
   AcademyAuthenticationError,
   AcademyAuthorizationError,
   AcademyConflictError,
+  AcademyNotFoundError,
+  AcademyValidationError,
 } from "@/modules/academy-auth/errors";
 import { CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import {
@@ -87,6 +89,14 @@ export async function handleApi<T>(handler: () => Promise<T>, observability: Api
 
     if (error instanceof AcademyConflictError) {
       return jsonError(message, 409);
+    }
+
+    if (error instanceof AcademyNotFoundError) {
+      return jsonError(message, 404);
+    }
+
+    if (error instanceof AcademyValidationError) {
+      return jsonError(message, 400);
     }
 
     if (message.includes("not found") || message.includes("was not found")) {

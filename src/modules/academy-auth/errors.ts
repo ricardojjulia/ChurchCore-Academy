@@ -18,3 +18,17 @@ export class AcademyConflictError extends Error {
     this.name = "AcademyConflictError";
   }
 }
+
+export class AcademyNotFoundError extends Error {
+  constructor(message = "Academy record not found.") {
+    super(message);
+    this.name = "AcademyNotFoundError";
+  }
+}
+
+export class AcademyValidationError extends Error {
+  constructor(message = "Invalid Academy request.") {
+    super(message);
+    this.name = "AcademyValidationError";
+  }
+}

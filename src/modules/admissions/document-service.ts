@@ -1,5 +1,10 @@
 import { AcademyActor } from "@/modules/academy-auth/policy";
-import { AcademyAuthorizationError, AcademyConflictError } from "@/modules/academy-auth/errors";
+import {
+  AcademyAuthorizationError,
+  AcademyConflictError,
+  AcademyNotFoundError,
+  AcademyValidationError,
+} from "@/modules/academy-auth/errors";
 import { assertAdmissionsAccess } from "@/modules/admissions/policy";
 import {
   ApplicationDocument,
@@ -235,11 +240,13 @@ export class AdmissionDocumentService {
       documentTypeSlug,
     );
     if (!documentType) {
-      throw new Error(`Document type "${documentTypeSlug}" not found.`);
+      throw new AcademyNotFoundError(
+        `Document type "${documentTypeSlug}" not found.`,
+      );
     }
     if (!documentType.active) {
-      throw new Error(
-        `Invalid documentTypeSlug: document type "${documentTypeSlug}" is inactive.`,
+      throw new AcademyValidationError(
+        `Document type "${documentTypeSlug}" is inactive.`,
       );
     }
 
