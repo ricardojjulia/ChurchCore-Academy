@@ -221,17 +221,31 @@ export class AdmissionDocumentService {
       tenantId,
       documentTypeSlug,
     );
-    if (!documentType) {
+    if (!documentType || !documentType.active) {
       throw new Error(`Document type "${documentTypeSlug}" not found.`);
     }
 
     // Create the application document record (status: pending) before issuing the upload URL
-    const applicationDocument = await this.repository.createApplicationDocument(
-      tenantId,
-      applicationId,
-      documentType.id,
-    );
-
+    let applicationDocument: ApplicationDocument;
+    try {
+      applicationDocument = await this.repository.createApplicationDocument(
+        tenantId,
+        applicationId,
+        documentType.id,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (
+        message.includes("duplicate key") ||
+        message.includes("violates unique constraint") ||
+        message.includes("already exists")
+      ) {
+        throw new AcademyConflictError(
+          `A document for "${documentTypeSlug}" already exists for this application.`,
+        );
+      }
+      throw error;
+    }
     // Generate storage path
     const uuid = crypto.randomUUID();
     const extension = getExtensionFromMimeType(request.mimeType);
