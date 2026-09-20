@@ -14,6 +14,9 @@ import {
 import {
   confirmEnrollmentRequest,
 } from "@/app/api/academy/admissions/applications/[id]/enrollment-confirmation/route";
+import {
+  issueAdmissionDocumentUploadUrlRequest,
+} from "@/app/api/academy/admissions/applications/[id]/documents/upload-url/route";
 import { GET as getDripSequences } from "@/app/api/academy/admissions/drip-sequences/route";
 import { handleApi } from "@/app/api/academy/api-utils";
 import {
@@ -28,6 +31,7 @@ import { AcademyActor } from "@/modules/academy-auth/policy";
 import { AdmissionApplication } from "@/modules/admissions/types";
 import { EnrollmentConversionResult } from "@/modules/enrollment-conversion/types";
 import { CourseRegistrationResult } from "@/modules/course-registration/types";
+import { InstitutionCapabilitySet } from "@/modules/academy-config/types";
 
 const applicant: AcademyActor = {
   userId: "person-applicant",
@@ -572,15 +576,141 @@ test("GET applications route extracts the status query param and passes it to th
   assert.equal(typeof getApplications, "function");
 });
 
-test("POST application document upload-url route allows applicant self-service while keeping staff capability checks inside request db context", () => {
-  const source = readFileSync(
-    "src/app/api/academy/admissions/applications/[id]/documents/upload-url/route.ts",
-    "utf8",
+test("POST application document upload-url route lets the owning applicant request an upload URL without a staff capability check", async () => {
+  let capabilityChecks = 0;
+
+  const response = await issueAdmissionDocumentUploadUrlRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/documents/upload-url",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          documentTypeSlug: "transcript",
+          fileName: "transcript.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1024,
+        }),
+      },
+    ),
+    {
+      params: Promise.resolve({ id: "application-1" }),
+    },
+    {
+      resolveActor: async () => applicant,
+      withRequestContext: async (_actor, operation) =>
+        operation({
+          query: async () => ({}),
+          release() {},
+        }),
+      findApplication: async () => application,
+      getCapabilities: async () => {
+        capabilityChecks += 1;
+        return {
+          studentPwa: false,
+          guardianPortal: false,
+          facultyPortal: false,
+          registrarWorkflows: false,
+          admissionsWorkflows: false,
+          transcriptWorkflows: false,
+          graduationWorkflows: false,
+          ministryFormation: false,
+          denominationTracking: false,
+          alumniGiving: false,
+          lmsLaunch: false,
+          lmsRosterSync: false,
+          lmsGradeReturn: false,
+          shepherdAiRecommendations: false,
+          covenantRecords: false,
+          competencyNarrativeGrading: false,
+          academicStandingAutomation: false,
+        } satisfies InstitutionCapabilitySet;
+      },
+      generateUploadUrl: async () => ({
+        uploadUrl: "https://upload.example/signed",
+        storagePath: "tenant-1/application-1/transcript/file.pdf",
+        documentId: "doc-123",
+      }),
+    },
   );
 
-  assert.match(source, /withAcademyDatabaseContext/);
-  assert.match(source, /actor\.roles\.includes\("applicant"\)/);
-  assert.match(source, /actor\.userId === application\.applicantPersonId/);
-  assert.match(source, /fetchCapabilitySet\(client,\s*actor\.tenantId\)/);
-  assert.match(source, /assertCapability\(capabilities,\s*"admissionsWorkflows"\)/);
+  assert.equal(response.status, 200);
+  assert.equal(capabilityChecks, 0);
+});
+
+test("POST application document upload-url route enforces admissionsWorkflows for staff requests", async () => {
+  let capabilityChecks = 0;
+  let generated = false;
+
+  const staffActor: AcademyActor = {
+    userId: "person-staff",
+    tenantId: "tenant-1",
+    roles: ["admissions"],
+  };
+
+  const response = await issueAdmissionDocumentUploadUrlRequest(
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/documents/upload-url",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          documentTypeSlug: "transcript",
+          fileName: "transcript.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1024,
+        }),
+      },
+    ),
+    {
+      params: Promise.resolve({ id: "application-1" }),
+    },
+    {
+      resolveActor: async () => staffActor,
+      withRequestContext: async (_actor, operation) =>
+        operation({
+          query: async () => ({}),
+          release() {},
+        }),
+      findApplication: async () => application,
+      getCapabilities: async () => {
+        capabilityChecks += 1;
+        return {
+          studentPwa: false,
+          guardianPortal: false,
+          facultyPortal: false,
+          registrarWorkflows: false,
+          admissionsWorkflows: false,
+          transcriptWorkflows: false,
+          graduationWorkflows: false,
+          ministryFormation: false,
+          denominationTracking: false,
+          alumniGiving: false,
+          lmsLaunch: false,
+          lmsRosterSync: false,
+          lmsGradeReturn: false,
+          shepherdAiRecommendations: false,
+          covenantRecords: false,
+          competencyNarrativeGrading: false,
+          academicStandingAutomation: false,
+        } satisfies InstitutionCapabilitySet;
+      },
+      generateUploadUrl: async () => {
+        generated = true;
+        return {
+          uploadUrl: "https://upload.example/signed",
+          storagePath: "tenant-1/application-1/transcript/file.pdf",
+          documentId: "doc-123",
+        };
+      },
+    },
+  );
+
+  assert.equal(response.status, 451);
+  assert.equal(capabilityChecks, 1);
+  assert.equal(generated, false);
 });

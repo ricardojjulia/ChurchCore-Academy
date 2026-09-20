@@ -322,9 +322,11 @@ describe("AdmissionDocumentService", () => {
           updatedAt: "2026-06-25T10:00:00Z",
         })),
         createApplicationDocument: mock.fn(async () => {
-          throw new Error(
+          const error = new Error(
             'duplicate key value violates unique constraint "academy_application_documents_unique"',
-          );
+          ) as Error & { code: string };
+          error.code = "23505";
+          throw error;
         }),
       });
 

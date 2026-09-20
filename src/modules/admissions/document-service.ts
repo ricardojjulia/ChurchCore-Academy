@@ -85,6 +85,24 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
+function isUniqueViolationError(error: unknown) {
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+      ? error.code
+      : undefined;
+  const message = error instanceof Error ? error.message : "";
+
+  return (
+    code === "23505" ||
+    message.includes("duplicate key") ||
+    message.includes("violates unique constraint") ||
+    message.includes("already exists")
+  );
+}
+
 export class AdmissionDocumentService {
   constructor(
     private readonly repository: DocumentRepository,
@@ -112,12 +130,7 @@ export class AdmissionDocumentService {
     try {
       documentType = await this.repository.createDocumentType(input);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (
-        message.includes("duplicate key") ||
-        message.includes("violates unique constraint") ||
-        message.includes("already exists")
-      ) {
+      if (isUniqueViolationError(error)) {
         throw new AcademyConflictError(
           `A document type with slug "${input.slug}" already exists.`,
         );
@@ -234,12 +247,7 @@ export class AdmissionDocumentService {
         documentType.id,
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (
-        message.includes("duplicate key") ||
-        message.includes("violates unique constraint") ||
-        message.includes("already exists")
-      ) {
+      if (isUniqueViolationError(error)) {
         throw new AcademyConflictError(
           `A document for "${documentTypeSlug}" already exists for this application.`,
         );

@@ -10,16 +10,92 @@ import {
   PostgresAdmissionsRepository,
 } from "@/modules/admissions/postgres-repository";
 import {
+  AcademyQueryClient,
   asAcademyDatabase,
   withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
-import { UploadUrlRequest } from "@/modules/admissions/types";
+import {
+  AdmissionApplication,
+  UploadUrlRequest,
+  UploadUrlResponse,
+} from "@/modules/admissions/types";
+import { InstitutionCapabilitySet } from "@/modules/academy-config/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+interface UploadUrlRouteDependencies {
+  resolveActor(request: Request): Promise<
+    Awaited<ReturnType<typeof resolveAcademyActorFromSession>>["actor"]
+  >;
+  withRequestContext<T>(
+    actor: Awaited<
+      ReturnType<typeof resolveAcademyActorFromSession>
+    >["actor"],
+    operation: (client: AcademyQueryClient) => Promise<T>,
+  ): Promise<T>;
+  findApplication(
+    client: AcademyQueryClient,
+    tenantId: string,
+    applicationId: string,
+  ): Promise<AdmissionApplication | undefined>;
+  getCapabilities(
+    client: AcademyQueryClient,
+    tenantId: string,
+  ): Promise<InstitutionCapabilitySet>;
+  generateUploadUrl(
+    client: AcademyQueryClient,
+    actor: Awaited<
+      ReturnType<typeof resolveAcademyActorFromSession>
+    >["actor"],
+    tenantId: string,
+    applicationId: string,
+    applicantPersonId: string,
+    documentTypeSlug: string,
+    uploadRequest: UploadUrlRequest,
+  ): Promise<UploadUrlResponse>;
+}
+
+const uploadUrlDependencies: UploadUrlRouteDependencies = {
+  resolveActor: async (request) =>
+    (await resolveAcademyActorFromSession(request)).actor,
+  withRequestContext: async (actor, operation) =>
+    withAcademyDatabaseContext(actor, operation),
+  findApplication: async (client, tenantId, applicationId) =>
+    new PostgresAdmissionsRepository(
+      asAcademyDatabase<AdmissionsDatabase>(client),
+    ).findById(tenantId, applicationId),
+  getCapabilities: async (client, tenantId) =>
+    fetchCapabilitySet(client, tenantId),
+  generateUploadUrl: async (
+    client,
+    actor,
+    tenantId,
+    applicationId,
+    applicantPersonId,
+    documentTypeSlug,
+    uploadRequest,
+  ) =>
+    createAdmissionDocumentService(client).generateUploadUrl(
+      actor,
+      tenantId,
+      applicationId,
+      applicantPersonId,
+      documentTypeSlug,
+      uploadRequest,
+    ),
+};
+
 export async function POST(request: Request, context: RouteContext) {
+  return issueAdmissionDocumentUploadUrlRequest(request, context);
+}
+
+export async function issueAdmissionDocumentUploadUrlRequest(
+  request: Request,
+  context: RouteContext,
+  dependencies: UploadUrlRouteDependencies = uploadUrlDependencies,
+) {
   return handleApi(async () => {
-    const { actor } = await resolveAcademyActorFromSession(request);
+    const actor = await dependencies.resolveActor(request);
     const { id: applicationId } = await context.params;
     const body = await request.json().catch(() => {
       throw new Error("Malformed JSON body.");
@@ -37,11 +113,12 @@ export async function POST(request: Request, context: RouteContext) {
       })(),
     };
 
-    return withAcademyDatabaseContext(actor, async (client) => {
-      // Fetch application to obtain applicantPersonId and verify tenant ownership
-      const application = await new PostgresAdmissionsRepository(
-        asAcademyDatabase<AdmissionsDatabase>(client),
-      ).findById(actor.tenantId, applicationId);
+    return dependencies.withRequestContext(actor, async (client) => {
+      const application = await dependencies.findApplication(
+        client,
+        actor.tenantId,
+        applicationId,
+      );
 
       if (!application) {
         throw new Error(`Admission application ${applicationId} was not found.`);
@@ -52,13 +129,15 @@ export async function POST(request: Request, context: RouteContext) {
         actor.userId === application.applicantPersonId;
 
       if (!isApplicantSelfService) {
-        const capabilities = await fetchCapabilitySet(client, actor.tenantId);
+        const capabilities = await dependencies.getCapabilities(
+          client,
+          actor.tenantId,
+        );
         assertCapability(capabilities, "admissionsWorkflows");
       }
 
-      const service = createAdmissionDocumentService(client);
-
-      const result = await service.generateUploadUrl(
+      return dependencies.generateUploadUrl(
+        client,
         actor,
         actor.tenantId,
         applicationId,
@@ -66,8 +145,6 @@ export async function POST(request: Request, context: RouteContext) {
         documentTypeSlug,
         uploadRequest,
       );
-
-      return result;
     });
   });
 }
