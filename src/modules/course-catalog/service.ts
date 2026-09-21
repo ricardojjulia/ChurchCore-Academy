@@ -313,17 +313,20 @@ export class CourseCatalogService {
       throw new Error("Cannot reassign instructor after enrollment has opened.");
     }
 
-    // A section cannot be opened for registration without a primary instructor. This was
-    // previously only enforced client-side (SectionStatusActions.tsx disables the "Open for
-    // Registration" action), so a direct API call could create the invalid unstaffed/open
-    // state the catalog validation rule elsewhere rejects.
-    if (input.status === "open") {
+    // A section cannot open or start without a primary instructor — matches the catalog
+    // validation invariant in validation.ts ("open" and "in_progress" both require one).
+    // This was previously only enforced client-side (SectionStatusActions.tsx disables the
+    // "Open for Registration" action), so a direct API call could create the invalid
+    // unstaffed state that validation rejects elsewhere.
+    if (input.status === "open" || input.status === "in_progress") {
       const nextPrimaryInstructorId =
         input.primaryInstructorId !== undefined
           ? input.primaryInstructorId
           : section.primaryInstructorId;
       if (!nextPrimaryInstructorId) {
-        throw new Error("Cannot open a section for registration without a primary instructor assigned.");
+        // Must contain " must " so handleApi's message-based classification (api-utils.ts)
+        // maps this to a 400 instead of falling through to an unclassified 500.
+        throw new Error("A section must have a primary instructor assigned before it can open or start.");
       }
     }
 
