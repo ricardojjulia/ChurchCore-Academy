@@ -50,6 +50,7 @@ import {
   type StudentGroupDatabase,
 } from "@/modules/student-groups/postgres-repository";
 import { ShepherdAiSuggestion, WorkflowRecord } from "@/modules/shepherd-ai/types";
+import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import { CovenantRecord } from "@/modules/people/types";
 import {
   StudentProgramMembershipDialog,
@@ -251,6 +252,7 @@ export default async function StudentPage({
   if (!student || !person || !personId) notFound();
 
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
+  const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
 
   const activeMembership = programMemberships.find((item: StudentProgramMembership) => item.status === "active");
   const program = programs.find((item) => item.id === student.programId);
@@ -295,10 +297,12 @@ export default async function StudentPage({
             </div>
             <div className="student-identity-actions">
               <PersonEditTrigger personId={personId} person={person} />
-              <Link href="/workflows" className="academy-action-link">
-                Open workflow queue
-                <ArrowRight />
-              </Link>
+              {canReadShepherdAi && (
+                <Link href="/admin/workflows" className="academy-action-link">
+                  Open workflow queue
+                  <ArrowRight />
+                </Link>
+              )}
             </div>
           </div>
         </CardContent>
