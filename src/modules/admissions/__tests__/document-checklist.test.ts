@@ -8,6 +8,7 @@ import {
   DocumentStorageClient,
   ProgramDocumentRequirement,
   ReviewDocumentItemInput,
+  WaiveDocumentItemInput,
 } from "@/modules/admissions/document-checklist";
 import { AdmissionApplication } from "@/modules/admissions/types";
 import { AcademyActor } from "@/modules/academy-auth/policy";
@@ -170,6 +171,23 @@ function fixture() {
       item.reviewedByPersonId = reviewedByPersonId;
       item.reviewedAt = reviewedAt;
       item.officerNote = officerNote;
+      return item;
+    },
+    updateDocumentItemWaiver: async (
+      _tenantId: string,
+      documentItemId: string,
+      waivedByPersonId: string,
+      waivedAt: string,
+      waiverNote: string,
+    ) => {
+      const item = documentItems.find((i) => i.id === documentItemId);
+      if (!item) {
+        throw new Error("Document item not found during waiver update.");
+      }
+      item.status = "waived";
+      item.waivedByPersonId = waivedByPersonId;
+      item.waivedAt = waivedAt;
+      item.waiverNote = waiverNote;
       return item;
     },
     findApplicationByDocumentItemId: async (_tenantId: string, _documentItemId: string) =>
@@ -420,6 +438,90 @@ test("reviewDocumentItem: applicant actor cannot review - authorization error", 
 
   await assert.rejects(
     () => service.reviewDocumentItem(applicantActor, reviewInput),
+    /Forbidden document review access/,
+  );
+});
+
+test("getApplicationChecklist: 2 required items 1 waived 1 pending - completionPct = 50", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-1", isRequired: true, status: "waived" }),
+  );
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-2", isRequired: true, status: "pending" }),
+  );
+
+  const view = await service.getApplicationChecklist(applicantActor, "app-1");
+
+  assert.equal(view.completionPct, 50);
+});
+
+test("waiveDocumentItem: success - status = waived, note and waiver saved", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(mockDocumentItem({ id: "item-1", status: "pending" }));
+
+  const waiveInput: WaiveDocumentItemInput = {
+    documentItemId: "item-1",
+    waiverNote: "Document delivered directly to the registrar's office",
+  };
+
+  const result = await service.waiveDocumentItem(admissionsStaffActor, waiveInput);
+
+  assert.equal(result.status, "waived");
+  assert.equal(result.waiverNote, "Document delivered directly to the registrar's office");
+  assert.equal(result.waivedByPersonId, "person-staff");
+});
+
+test("waiveDocumentItem: empty note - validation error", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(mockDocumentItem({ id: "item-1", status: "pending" }));
+
+  await assert.rejects(
+    () =>
+      service.waiveDocumentItem(admissionsStaffActor, {
+        documentItemId: "item-1",
+        waiverNote: "   ",
+      }),
+    /Waiver note is required when waiving a document/,
+  );
+});
+
+test("waiveDocumentItem: cross-tenant actor - authorization error", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-1", tenantId: "tenant-1", status: "pending" }),
+  );
+
+  await assert.rejects(
+    () =>
+      service.waiveDocumentItem(crossTenantActor, {
+        documentItemId: "item-1",
+        waiverNote: "Not applicable for this applicant",
+      }),
+    /Forbidden cross-tenant document review access/,
+  );
+});
+
+test("waiveDocumentItem: applicant actor cannot waive - authorization error", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(mockDocumentItem({ id: "item-1", status: "pending" }));
+
+  await assert.rejects(
+    () =>
+      service.waiveDocumentItem(applicantActor, {
+        documentItemId: "item-1",
+        waiverNote: "Trying to waive my own requirement",
+      }),
     /Forbidden document review access/,
   );
 });

@@ -1,9 +1,17 @@
 # ADR-0048 — Application Document Checklist and Admissions Completion Workflow
 
 **Date:** 2026-06-25
-**Status:** Accepted
+**Status:** Superseded by ADR-0072 (data model only)
 **Deciders:** Ricardo Julia (sole approver)
 **Council review:** `docs/reviews/2026-06-25-council-review-10-partial-gap-closeout.md`
+
+> **2026-09-20:** The `academy_document_types` / `academy_application_documents` schema and
+> route plan described below was never fully built and was never wired to the admissions UI.
+> A separate, already-shipped implementation (`academy_program_document_requirements` /
+> `academy_application_document_items`, PR #142/#143) had independently become the live system
+> of record in the meantime. ADR-0072 reconciles the two: the checklist model is canonical, and
+> the waiver capability this ADR called for has been ported onto it. See ADR-0072 before
+> implementing anything against the schema below — it describes an abandoned design.
 
 ---
 

@@ -1,5 +1,19 @@
 # Application Document Checklist Implementation Notes
 
+**2026-09-20 update:** the "Existing Code Conflict" flagged below was never resolved and grew
+into two independent, partially-built implementations of the same feature. It has now been
+reconciled — see ADR-0072 (`docs/adr/0072-application-document-checklist-schema-reconciliation.md`).
+
+The checklist implementation at `src/modules/admissions/document-checklist.ts`
+(`academy_program_document_requirements` / `academy_application_document_items`) is the system
+of record. Everything described below this line — the `academy_document_types` /
+`academy_application_documents` schema, `document-service.ts`, and the API routes and frontend
+work planned against them — was removed or never built, and should not be resurrected. The one
+capability gap it identified (waiver support) has been ported onto the checklist implementation
+instead. This file is kept for historical context only; do not use it as a task list.
+
+---
+
 ## Completed (Backend)
 
 ### Database Migrations

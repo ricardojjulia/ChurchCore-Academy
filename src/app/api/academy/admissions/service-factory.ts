@@ -7,8 +7,6 @@ import {
   PostgresAdmissionsRepository,
 } from "@/modules/admissions/postgres-repository";
 import { AdmissionsService } from "@/modules/admissions/service";
-import { AdmissionDocumentService } from "@/modules/admissions/document-service";
-import { createStorageProvider } from "@/lib/supabase/storage";
 import {
   AcademyAuditQuery,
   PostgresAcademyAuditRepository,
@@ -32,18 +30,6 @@ export function createAdmissionsService(client: AcademyQueryClient) {
     new PostgresAcademyAuditRepository(
       asAcademyDatabase<AcademyAuditQuery>(client),
     ),
-  );
-}
-
-export function createAdmissionDocumentService(client: AcademyQueryClient) {
-  return new AdmissionDocumentService(
-    new PostgresAdmissionsRepository(
-      asAcademyDatabase<AdmissionsDatabase>(client),
-    ),
-    new PostgresAcademyAuditRepository(
-      asAcademyDatabase<AcademyAuditQuery>(client),
-    ),
-    createStorageProvider(),
   );
 }
 

@@ -26,13 +26,16 @@ interface ApplicationDocumentItem {
   requirementId: string;
   label: string;
   isRequired: boolean;
-  status: "pending" | "uploaded" | "reviewed" | "resubmission_required";
+  status: "pending" | "uploaded" | "reviewed" | "resubmission_required" | "waived";
   storagePath?: string;
   storageFilename?: string;
   officerNote?: string;
   reviewedByPersonId?: string;
   reviewedAt?: string;
   uploadedAt?: string;
+  waivedByPersonId?: string;
+  waivedAt?: string;
+  waiverNote?: string;
 }
 
 interface DocumentChecklist {
@@ -95,6 +98,12 @@ export function ApplicationTab({
   const [reviewNote, setReviewNote] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const [waiveModalOpen, setWaiveModalOpen] = useState(false);
+  const [waivingItemId, setWaivingItemId] = useState<string | null>(null);
+  const [waiverNote, setWaiverNote] = useState("");
+  const [waiveSubmitting, setWaiveSubmitting] = useState(false);
+  const [waiveError, setWaiveError] = useState<string | null>(null);
 
   const [downloadingItemId, setDownloadingItemId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -184,6 +193,49 @@ export function ApplicationTab({
       setReviewError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setReviewSubmitting(false);
+    }
+  }
+
+  function openWaiveModal(itemId: string) {
+    setWaivingItemId(itemId);
+    setWaiverNote("");
+    setWaiveError(null);
+    setWaiveModalOpen(true);
+  }
+
+  async function handleWaiveSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!waiverNote.trim()) {
+      setWaiveError("A note is required when waiving a document.");
+      return;
+    }
+
+    setWaiveSubmitting(true);
+    setWaiveError(null);
+
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/documents/${waivingItemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "waive",
+          waiverNote: waiverNote.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to waive document");
+      }
+
+      setWaiveModalOpen(false);
+      await fetchChecklist();
+      router.refresh();
+    } catch (err) {
+      console.error("Waiver submission error:", err);
+      setWaiveError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setWaiveSubmitting(false);
     }
   }
 
@@ -338,6 +390,11 @@ export function ApplicationTab({
                               Officer note: {item.officerNote}
                             </p>
                           )}
+                          {item.status === "waived" && item.waiverNote && (
+                            <p className="text-xs text-muted-foreground">
+                              Waived: {item.waiverNote}
+                            </p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -349,7 +406,9 @@ export function ApplicationTab({
                                 ? "warning"
                                 : item.status === "resubmission_required"
                                   ? "destructive"
-                                  : "outline"
+                                  : item.status === "waived"
+                                    ? "secondary"
+                                    : "outline"
                           }
                         >
                           {titleize(item.status)}
@@ -364,6 +423,17 @@ export function ApplicationTab({
                               onClick={() => openReviewModal(item.id)}
                             >
                               Review
+                            </Button>
+                          )}
+                          {(item.status === "pending" ||
+                            item.status === "uploaded" ||
+                            item.status === "resubmission_required") && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openWaiveModal(item.id)}
+                            >
+                              Waive
                             </Button>
                           )}
                           {(item.status === "uploaded" || item.status === "reviewed") && item.storagePath && (
@@ -520,6 +590,44 @@ export function ApplicationTab({
               </Button>
               <Button type="submit" disabled={reviewSubmitting}>
                 {reviewSubmitting ? "Submitting..." : "Submit Review"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={waiveModalOpen} onOpenChange={setWaiveModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Waive Document Requirement</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleWaiveSubmit}>
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="waiverNote">Reason (required)</Label>
+                <Textarea
+                  id="waiverNote"
+                  value={waiverNote}
+                  onChange={(e) => setWaiverNote(e.target.value)}
+                  required
+                  placeholder="Explain why this document requirement is being waived..."
+                />
+              </div>
+
+              {waiveError && (
+                <div className="text-sm text-destructive border border-destructive/50 bg-destructive/10 rounded p-2">
+                  {waiveError}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setWaiveModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={waiveSubmitting}>
+                {waiveSubmitting ? "Submitting..." : "Waive Requirement"}
               </Button>
             </DialogFooter>
           </form>
