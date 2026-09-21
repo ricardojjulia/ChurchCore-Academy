@@ -6,7 +6,8 @@ export type DocumentItemStatus =
   | "pending"
   | "uploaded"
   | "reviewed"
-  | "resubmission_required";
+  | "resubmission_required"
+  | "waived";
 
 export interface ProgramDocumentRequirement {
   id: string;
@@ -32,6 +33,9 @@ export interface ApplicationDocumentItem {
   reviewedByPersonId?: string;
   reviewedAt?: string;
   uploadedAt?: string;
+  waivedByPersonId?: string;
+  waivedAt?: string;
+  waiverNote?: string;
 }
 
 export interface ApplicationChecklistView {
@@ -64,6 +68,11 @@ export interface ReviewDocumentItemInput {
   documentItemId: string;
   decision: "reviewed" | "resubmission_required";
   officerNote?: string;
+}
+
+export interface WaiveDocumentItemInput {
+  documentItemId: string;
+  waiverNote: string;
 }
 
 export interface StoredObjectMetadata {
@@ -135,6 +144,13 @@ interface DocumentChecklistRepository {
     reviewedByPersonId: string,
     reviewedAt: string,
     officerNote?: string,
+  ): Promise<ApplicationDocumentItem>;
+  updateDocumentItemWaiver(
+    tenantId: string,
+    documentItemId: string,
+    waivedByPersonId: string,
+    waivedAt: string,
+    waiverNote: string,
   ): Promise<ApplicationDocumentItem>;
   findApplicationByDocumentItemId(
     tenantId: string,
@@ -323,14 +339,14 @@ export class DocumentChecklistService {
     assertDocumentReadAccess(actor, application);
 
     const requiredItems = items.filter((item) => item.isRequired);
-    const reviewedRequiredItems = requiredItems.filter(
-      (item) => item.status === "reviewed",
+    const satisfiedRequiredItems = requiredItems.filter(
+      (item) => item.status === "reviewed" || item.status === "waived",
     );
     const completionPct =
       requiredItems.length === 0
         ? 100
         : Math.round(
-            (reviewedRequiredItems.length / requiredItems.length) * 100,
+            (satisfiedRequiredItems.length / requiredItems.length) * 100,
           );
     return { items, completionPct };
   }
@@ -400,6 +416,32 @@ export class DocumentChecklistService {
       actor.userId,
       this.now(),
       input.officerNote,
+    );
+  }
+
+  async waiveDocumentItem(
+    actor: AcademyActor,
+    input: WaiveDocumentItemInput,
+  ): Promise<ApplicationDocumentItem> {
+    const item = await this.repository.findApplicationDocumentItemById(
+      actor.tenantId,
+      input.documentItemId,
+    );
+    if (!item) {
+      throw new Error("Document item not found.");
+    }
+    assertDocumentReviewAccess(actor, item.tenantId);
+
+    if (!input.waiverNote.trim()) {
+      throw new Error("Waiver note is required when waiving a document.");
+    }
+
+    return this.repository.updateDocumentItemWaiver(
+      actor.tenantId,
+      input.documentItemId,
+      actor.userId,
+      this.now(),
+      input.waiverNote.trim(),
     );
   }
 

@@ -53,6 +53,14 @@ export async function PATCH(request: Request, context: RouteContext) {
         });
       }
 
+      if (action === "waive") {
+        const { waiverNote } = body;
+        return service.waiveDocumentItem(actor, {
+          documentItemId: itemId,
+          waiverNote: String(waiverNote ?? ""),
+        });
+      }
+
       if (action === "download_url") {
         const url = await service.getSignedDownloadUrl(actor, itemId, storageClient);
         return { url };

@@ -71,6 +71,15 @@ function mapApplicationDocumentItemRow(
         : String(row.reviewed_by_person_id),
     reviewedAt: optionalIso(row.reviewed_at),
     uploadedAt: optionalIso(row.uploaded_at),
+    waivedByPersonId:
+      row.waived_by_person_id === null || row.waived_by_person_id === undefined
+        ? undefined
+        : String(row.waived_by_person_id),
+    waivedAt: optionalIso(row.waived_at),
+    waiverNote:
+      row.waiver_note === null || row.waiver_note === undefined
+        ? undefined
+        : String(row.waiver_note),
   };
 }
 
@@ -325,6 +334,30 @@ export class PostgresDocumentChecklistRepository {
     );
     if (!result.rows[0]) {
       throw new Error("Document item not found during review update.");
+    }
+    return mapApplicationDocumentItemRow(result.rows[0]);
+  }
+
+  async updateDocumentItemWaiver(
+    tenantId: string,
+    documentItemId: string,
+    waivedByPersonId: string,
+    waivedAt: string,
+    waiverNote: string,
+  ) {
+    const result = await this.database.query(
+      `update academy_application_document_items
+       set status = 'waived',
+           waived_by_person_id = $3,
+           waived_at = $4,
+           waiver_note = $5,
+           updated_at = now()
+       where tenant_id = $1 and id = $2
+       returning *`,
+      [tenantId, documentItemId, waivedByPersonId, waivedAt, waiverNote],
+    );
+    if (!result.rows[0]) {
+      throw new Error("Document item not found during waiver update.");
     }
     return mapApplicationDocumentItemRow(result.rows[0]);
   }
