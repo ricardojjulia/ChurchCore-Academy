@@ -531,7 +531,37 @@ test("updateSection: opening a section without a primary instructor is rejected"
   // state the catalog validation rule elsewhere rejects.
   await assert.rejects(
     service.updateSection(admin, createdSection.id, { status: "open" }),
-    /Cannot open a section for registration without a primary instructor assigned/,
+    /A section must have a primary instructor assigned before it can open or start/,
+  );
+});
+
+test("updateSection: starting a section (in_progress) without a primary instructor is rejected", async () => {
+  const repo = mockRepository();
+  const service = new CourseCatalogService(repo);
+
+  const created = await service.createCourse(admin, {
+    code: "BIB101",
+    title: "Course",
+    description: "Desc",
+    courseType: "bible_course",
+    courseLevel: "undergraduate",
+    recordType: "credit_course",
+  });
+
+  await service.updateCourse(admin, created.id, { status: "active" });
+
+  const createdSection = await service.createSection(admin, {
+    courseId: created.id,
+    academicPeriodId: "period-1",
+    sectionCode: "A",
+    deliveryMode: "in_person",
+  });
+
+  // The catalog validation invariant (validation.ts) requires a primary instructor for
+  // both "open" and "in_progress" — the service guard must cover both, not just "open".
+  await assert.rejects(
+    service.updateSection(admin, createdSection.id, { status: "in_progress" }),
+    /A section must have a primary instructor assigned before it can open or start/,
   );
 });
 
