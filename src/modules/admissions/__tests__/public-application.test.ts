@@ -26,6 +26,7 @@ function makeMockDb(overrides: {
   appInsertRow?: Record<string, unknown>;
   statusRows?: Record<string, unknown>[];
   rateLimitRows?: { attempt_count: number }[];
+  programRequirementRows?: Record<string, unknown>[];
 }) {
   const calls: MockCall[] = [];
 
@@ -95,6 +96,22 @@ function makeMockDb(overrides: {
       if (sqlNorm.includes("insert into academy_communication_messages")) {
         return { rowCount: 1, rows: [] };
       }
+      // Document checklist: program requirements lookup (snapshotChecklistForApplication)
+      if (sqlNorm.includes("from academy_program_document_requirements")) {
+        const rows = overrides.programRequirementRows ?? [];
+        return { rowCount: rows.length, rows };
+      }
+      // Document checklist: existing items lookup (idempotency check)
+      if (
+        sqlNorm.includes("from academy_application_document_items") &&
+        sqlNorm.startsWith("select")
+      ) {
+        return { rowCount: 0, rows: [] };
+      }
+      // Document checklist: item creation
+      if (sqlNorm.includes("insert into academy_application_document_items")) {
+        return { rowCount: 1, rows: [] };
+      }
       return { rowCount: 0, rows: [] };
     },
   };
@@ -150,6 +167,56 @@ test("valid submission: creates person record, application, event; returns appli
   assert.ok(
     sqlCalls.some((s) => s.includes("insert into academy_admission_application_events")),
     "must insert event",
+  );
+});
+
+test("valid submission: snapshots the document checklist from the program's requirements", async () => {
+  // Regression test for the admissions decision gate: without this snapshot, a submitted
+  // application would carry zero checklist items forever, so canAdvanceToDecision would
+  // trivially treat every application as complete regardless of the program's actual
+  // document requirements.
+  const db = makeMockDb({
+    appInsertRow: { id: "app-1", status_token: "tok-1" },
+    programRequirementRows: [
+      {
+        id: "req-1",
+        tenant_id: TENANT_ID,
+        program_id: PROGRAM_ID,
+        label: "Pastoral Reference Letter",
+        description: null,
+        is_required: true,
+        display_order: 0,
+      },
+    ],
+  });
+
+  const service = new PublicApplicationService(db);
+  await service.submitPublicApplication(validInput(), TENANT_ID, CLIENT_IP);
+
+  const sqlCalls = db.calls.map((c) => c.sql.toLowerCase());
+  assert.ok(
+    sqlCalls.some((s) => s.includes("from academy_program_document_requirements")),
+    "must look up the program's document requirements",
+  );
+  assert.ok(
+    sqlCalls.some((s) => s.includes("insert into academy_application_document_items")),
+    "must create checklist items from the program's requirements",
+  );
+});
+
+test("valid submission: a program with no document requirements creates no checklist items", async () => {
+  const db = makeMockDb({
+    appInsertRow: { id: "app-1", status_token: "tok-1" },
+    programRequirementRows: [],
+  });
+
+  const service = new PublicApplicationService(db);
+  await service.submitPublicApplication(validInput(), TENANT_ID, CLIENT_IP);
+
+  const sqlCalls = db.calls.map((c) => c.sql.toLowerCase());
+  assert.ok(
+    !sqlCalls.some((s) => s.includes("insert into academy_application_document_items")),
+    "must not attempt to create checklist items when the program has no requirements",
   );
 });
 

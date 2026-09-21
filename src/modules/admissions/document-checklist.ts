@@ -286,27 +286,31 @@ export class DocumentChecklistService {
     );
   }
 
+  // Takes tenantId directly rather than an actor: this runs as a side effect of an
+  // application reaching "submitted" (from both the public self-service flow, which has
+  // no authenticated actor, and the staff-initiated flow), not as a user-permission-gated
+  // action. Idempotent — safe to call every time an application is submitted.
   async snapshotChecklistForApplication(
-    actor: AcademyActor,
+    tenantId: string,
     applicationId: string,
     programId: string,
   ) {
     const existingItems = await this.repository.listApplicationDocumentItems(
-      actor.tenantId,
+      tenantId,
       applicationId,
     );
     if (existingItems.length > 0) {
       return existingItems;
     }
     const requirements = await this.repository.listProgramRequirements(
-      actor.tenantId,
+      tenantId,
       programId,
     );
     if (requirements.length === 0) {
       return [];
     }
     return this.repository.createApplicationDocumentItems(
-      actor.tenantId,
+      tenantId,
       applicationId,
       requirements,
     );
@@ -349,6 +353,49 @@ export class DocumentChecklistService {
             (satisfiedRequiredItems.length / requiredItems.length) * 100,
           );
     return { items, completionPct };
+  }
+
+  // Gate for the admissions decision route: an application cannot be accepted while a
+  // required document is still pending, uploaded-but-unreviewed, or flagged for
+  // resubmission. Waived counts as satisfied, same as getApplicationChecklist's
+  // completion math. Staff-only by way of assertDocumentReadAccess below (an applicant
+  // calling this for their own application would just learn what the checklist page
+  // already tells them; the decision route itself enforces the "decide" action).
+  async canAdvanceToDecision(
+    actor: AcademyActor,
+    applicationId: string,
+  ): Promise<{ complete: boolean; missingLabels: string[] }> {
+    const items = await this.repository.listApplicationDocumentItems(
+      actor.tenantId,
+      applicationId,
+    );
+    if (items.length === 0) {
+      return { complete: true, missingLabels: [] };
+    }
+    if (items[0].tenantId !== actor.tenantId) {
+      throw new AcademyAuthorizationError(
+        "Forbidden cross-tenant checklist access.",
+      );
+    }
+    const application = await this.repository.findApplicationByDocumentItemId(
+      actor.tenantId,
+      items[0].id,
+    );
+    if (!application) {
+      throw new Error("Application not found for checklist items.");
+    }
+    assertDocumentReadAccess(actor, application);
+
+    const missingLabels = items
+      .filter(
+        (item) =>
+          item.isRequired &&
+          item.status !== "reviewed" &&
+          item.status !== "waived",
+      )
+      .map((item) => item.label);
+
+    return { complete: missingLabels.length === 0, missingLabels };
   }
 
   async confirmDocumentUpload(

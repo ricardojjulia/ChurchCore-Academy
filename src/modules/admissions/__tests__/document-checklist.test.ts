@@ -239,7 +239,7 @@ test("snapshotChecklistForApplication: items created per program requirements", 
   );
 
   const items = await service.snapshotChecklistForApplication(
-    admissionsStaffActor,
+    "tenant-1",
     "app-1",
     "program-1",
   );
@@ -256,13 +256,13 @@ test("snapshotChecklistForApplication: idempotency - second call returns existin
 
   state.requirements.push(mockRequirement({ id: "req-1" }));
   const firstItems = await service.snapshotChecklistForApplication(
-    admissionsStaffActor,
+    "tenant-1",
     "app-1",
     "program-1",
   );
 
   const secondItems = await service.snapshotChecklistForApplication(
-    admissionsStaffActor,
+    "tenant-1",
     "app-1",
     "program-1",
   );
@@ -456,6 +456,64 @@ test("getApplicationChecklist: 2 required items 1 waived 1 pending - completionP
   const view = await service.getApplicationChecklist(applicantActor, "app-1");
 
   assert.equal(view.completionPct, 50);
+});
+
+test("canAdvanceToDecision: success - all required items reviewed or waived", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-1", isRequired: true, status: "reviewed" }),
+  );
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-2", isRequired: true, status: "waived" }),
+  );
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-3", isRequired: false, status: "pending" }),
+  );
+
+  const result = await service.canAdvanceToDecision(admissionsStaffActor, "app-1");
+
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.missingLabels, []);
+});
+
+test("canAdvanceToDecision: rejection - a pending required item blocks the decision", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-1", isRequired: true, status: "reviewed" }),
+  );
+  state.documentItems.push(
+    mockDocumentItem({ id: "item-2", isRequired: true, status: "pending", label: "Pastoral Reference Letter" }),
+  );
+
+  const result = await service.canAdvanceToDecision(admissionsStaffActor, "app-1");
+
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.missingLabels, ["Pastoral Reference Letter"]);
+});
+
+test("canAdvanceToDecision: empty checklist (no program requirements) - always complete", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  const result = await service.canAdvanceToDecision(admissionsStaffActor, "app-1");
+
+  assert.equal(result.complete, true);
+});
+
+test("canAdvanceToDecision: cross-tenant actor - throws AcademyAuthorizationError", async () => {
+  const state = fixture();
+  const service = new DocumentChecklistService(state.repository);
+
+  state.documentItems.push(mockDocumentItem({ id: "item-1", isRequired: true, status: "pending" }));
+
+  await assert.rejects(
+    () => service.canAdvanceToDecision(crossTenantActor, "app-1"),
+    /Forbidden cross-tenant checklist access/,
+  );
 });
 
 test("waiveDocumentItem: success - status = waived, note and waiver saved", async () => {

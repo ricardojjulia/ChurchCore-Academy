@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { handleApi } from "@/app/api/academy/api-utils";
 import { requireIdempotencyKey } from "@/app/api/academy/admissions/request-utils";
-import { createAdmissionsService } from "@/app/api/academy/admissions/service-factory";
+import {
+  createAdmissionsService,
+  createDocumentChecklistService,
+} from "@/app/api/academy/admissions/service-factory";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { assertCapability } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
@@ -19,14 +22,23 @@ export async function POST(request: Request, context: RouteContext) {
 
     return withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "admissionsWorkflows");
-      return {
-        application: await createAdmissionsService(client).submit(
-          actor,
-          id,
-          correlationId,
-          idempotencyKey,
-        ),
-      };
+      const application = await createAdmissionsService(client).submit(
+        actor,
+        id,
+        correlationId,
+        idempotencyKey,
+      );
+      // Snapshot the document checklist from the program's requirements — without this,
+      // the application would carry zero checklist items forever, and the admissions
+      // decision gate would trivially treat it as complete regardless of the program's
+      // actual requirements. Mirrors the same step in the public self-service flow
+      // (PublicApplicationService.submitPublicApplication).
+      await createDocumentChecklistService(client).snapshotChecklistForApplication(
+        actor.tenantId,
+        application.id,
+        application.programId,
+      );
+      return { application };
     });
   });
 }
