@@ -59,3 +59,38 @@ test("student detail page gates every ShepherdAI-derived render site behind canR
     "expected the default tab to fall back to 'record' when ShepherdAI content is hidden",
   );
 });
+
+test("student detail page skips the ShepherdAI repository reads themselves, not only their rendering", async () => {
+  // Copilot follow-up on PR #151: the render-site assertions above would still pass if
+  // fetchSuggestions/fetchWorkflows became unconditional again — a role without
+  // canReadShepherdAi would then trigger the restricted-data read even though nothing on
+  // the page shows the result. Assert the fetch calls are themselves guarded.
+  const source = await readFile(join(process.cwd(), pagePath), "utf8");
+
+  assert.match(
+    source,
+    /const canReadShepherdAi = canAccessShepherdAi\(actor, actor\.tenantId, "read"\);/,
+  );
+
+  // canReadShepherdAi must be computed before the data-fetch block that uses it.
+  const canReadIndex = source.indexOf(
+    'const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");',
+  );
+  const fetchBlockIndex = source.indexOf("await withAcademyDatabaseContext(actor, async (client) => {");
+  assert.ok(
+    canReadIndex >= 0 && fetchBlockIndex > canReadIndex,
+    "expected canReadShepherdAi to be computed before the data-fetch block that reads it",
+  );
+
+  assert.match(
+    source,
+    /const sugg = canReadShepherdAi \? await shepherdRepo\.fetchSuggestions\(actor\.tenantId\) : \[\];/,
+    "expected fetchSuggestions to be skipped entirely when canReadShepherdAi is false",
+  );
+
+  assert.match(
+    source,
+    /const wflow = canReadShepherdAi \? await shepherdRepo\.fetchWorkflows\(actor\.tenantId\) : \[\];/,
+    "expected fetchWorkflows to be skipped entirely when canReadShepherdAi is false",
+  );
+});

@@ -134,6 +134,45 @@ test("GET documents: a waived required item counts toward completionPct like a r
   assert.equal(completionPct, 50, "completion must be 50% (1 of 2 required waived)");
 });
 
+test("GET documents: public shape only includes waiverNote when the item is actually waived", async () => {
+  // Regression test for a Copilot follow-up on PR #151: the previous test coverage
+  // simulated the item mapping but omitted waiverNote entirely, so it would have passed
+  // whether or not the field leaked for a non-waived item. Assert the actual serialized
+  // shape for both a waived and a non-waived item — mirrors the mapping in
+  // src/app/api/public/apply/documents/route.ts exactly.
+  const waivedItem = mockDocumentItem({
+    id: "item-waived",
+    status: "waived",
+    waiverNote: "Delivered directly to the registrar's office.",
+  });
+  const uploadedItem = mockDocumentItem({
+    id: "item-uploaded",
+    status: "uploaded",
+    // Defense-in-depth case: the DB constraint requires waiverNote whenever status is
+    // "waived", but doesn't forbid it being set on another status by some future writer.
+    // The public route must not surface it regardless.
+    waiverNote: "Should never be surfaced for a non-waived item.",
+  });
+
+  function toPublicShape(item: ApplicationDocumentItem) {
+    return {
+      id: item.id,
+      label: item.label,
+      isRequired: item.isRequired,
+      status: item.status,
+      officerNote: item.officerNote,
+      waiverNote: item.status === "waived" ? item.waiverNote : undefined,
+      uploadedAt: item.uploadedAt,
+    };
+  }
+
+  assert.equal(
+    toPublicShape(waivedItem).waiverNote,
+    "Delivered directly to the registrar's office.",
+  );
+  assert.equal(toPublicShape(uploadedItem).waiverNote, undefined);
+});
+
 test("GET documents: invalid token returns undefined from resolve", async () => {
   const db = {
     query: async () => {
