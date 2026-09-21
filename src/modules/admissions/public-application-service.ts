@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { DocumentChecklistService } from "@/modules/admissions/document-checklist";
+import { PostgresDocumentChecklistRepository } from "@/modules/admissions/document-checklist-repository";
 
 export class PublicApplicationValidationError extends Error {
   constructor(message: string) {
@@ -245,6 +247,14 @@ export class PublicApplicationService {
        ) values ($1, $2, $3, 'submitted', 'draft', 'submitted', $4, now())`,
       [tenantId, applicationId, personId, idempotencyKey],
     );
+
+    // Step 5.5: Snapshot the document checklist from the program's requirements. Without
+    // this, the application would carry zero checklist items forever — no requirement to
+    // upload against, and the admissions decision gate (canAdvanceToDecision) would
+    // trivially treat it as complete regardless of the program's actual requirements.
+    await new DocumentChecklistService(
+      new PostgresDocumentChecklistRepository(this.db),
+    ).snapshotChecklistForApplication(tenantId, applicationId, input.programId);
 
     // Step 6: Queue confirmation email (best-effort — do not fail submission on error)
     try {

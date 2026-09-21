@@ -209,6 +209,7 @@ test("decision route maps transition conflicts and unknown failures safely", asy
         tenantId: "tenant-1",
         roles: ["admissions"],
       }),
+      checkCanAdvanceToDecision: async () => ({ complete: true, missingLabels: [] }),
       decide: async () => {
         throw new AcademyConflictError("Invalid admission transition.");
       },
@@ -225,6 +226,7 @@ test("decision route maps transition conflicts and unknown failures safely", asy
         tenantId: "tenant-1",
         roles: ["admissions"],
       }),
+      checkCanAdvanceToDecision: async () => ({ complete: true, missingLabels: [] }),
       decide: async () => {
         throw new Error("password=database-secret");
       },
@@ -232,6 +234,71 @@ test("decision route maps transition conflicts and unknown failures safely", asy
   );
   assert.equal(failure.status, 500);
   assert.deepEqual(await failure.json(), { error: "Unexpected API error." });
+});
+
+test("decision route blocks acceptance when required documents are incomplete, but not decline", async () => {
+  const request = (decision: "accepted" | "declined") =>
+    new Request(
+      "http://localhost/api/academy/admissions/applications/application-1/decision",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "idem-decision-gate",
+        },
+        body: JSON.stringify({ decision }),
+      },
+    );
+  const context = { params: Promise.resolve({ id: "application-1" }) };
+  const actor: AcademyActor = {
+    userId: "person-staff",
+    tenantId: "tenant-1",
+    roles: ["admissions"],
+  };
+
+  let decideCalls = 0;
+  const blocked = await decideAdmissionApplicationRequest(
+    request("accepted"),
+    context,
+    {
+      resolveActor: async () => actor,
+      checkCanAdvanceToDecision: async () => ({
+        complete: false,
+        missingLabels: ["Pastoral Reference Letter"],
+      }),
+      decide: async () => {
+        decideCalls += 1;
+        throw new Error("decide() should not be called when the checklist is incomplete");
+      },
+    },
+  );
+  assert.equal(blocked.status, 400);
+  const blockedBody = await blocked.json() as { error: string };
+  assert.match(blockedBody.error, /Pastoral Reference Letter/);
+  assert.equal(decideCalls, 0);
+
+  const declined = await decideAdmissionApplicationRequest(
+    request("declined"),
+    context,
+    {
+      resolveActor: async () => actor,
+      checkCanAdvanceToDecision: async () => {
+        throw new Error("checkCanAdvanceToDecision should not be called for a decline");
+      },
+      decide: async () => ({
+        id: "application-1",
+        tenantId: "tenant-1",
+        applicantPersonId: "person-applicant",
+        programId: "program-1",
+        legalName: "Jordan Rivera",
+        email: "jordan@example.com",
+        status: "declined",
+        createdAt: "2026-06-23T14:30:00.000Z",
+        updatedAt: "2026-06-23T14:30:00.000Z",
+      }),
+    },
+  );
+  assert.equal(declined.status, 200);
 });
 
 test("conversion route requires authentication and an idempotency key", async () => {

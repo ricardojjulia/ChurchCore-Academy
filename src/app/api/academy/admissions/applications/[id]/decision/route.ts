@@ -5,7 +5,10 @@ import {
   requireIdempotencyKey,
   toAdmissionApplicationResponse,
 } from "@/app/api/academy/admissions/request-utils";
-import { createAdmissionsService } from "@/app/api/academy/admissions/service-factory";
+import {
+  createAdmissionsService,
+  createDocumentChecklistService,
+} from "@/app/api/academy/admissions/service-factory";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { AcademyActor, assertCapability } from "@/modules/academy-auth/policy";
@@ -15,6 +18,10 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 interface DecideAdmissionApplicationDependencies {
   resolveActor(request: Request): Promise<AcademyActor>;
+  checkCanAdvanceToDecision(
+    actor: AcademyActor,
+    applicationId: string,
+  ): Promise<{ complete: boolean; missingLabels: string[] }>;
   decide(
     actor: AcademyActor,
     applicationId: string,
@@ -28,6 +35,14 @@ interface DecideAdmissionApplicationDependencies {
 const decisionDependencies: DecideAdmissionApplicationDependencies = {
   resolveActor: async (request) =>
     (await resolveAcademyActorFromSession(request)).actor,
+  checkCanAdvanceToDecision: async (actor, applicationId) =>
+    withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return createDocumentChecklistService(client).canAdvanceToDecision(
+        actor,
+        applicationId,
+      );
+    }),
   decide: async (
     actor,
     applicationId,
@@ -69,6 +84,17 @@ export async function decideAdmissionApplicationRequest(
     const correlationId =
       request.headers.get("x-correlation-id")?.trim() ||
       `corr-admission-${randomUUID()}`;
+
+    // Only "accepted" requires a complete document checklist — declining an application
+    // doesn't depend on the applicant having finished submitting documents.
+    if (decision === "accepted") {
+      const completion = await dependencies.checkCanAdvanceToDecision(actor, id);
+      if (!completion.complete) {
+        throw new Error(
+          `Required documents must be received or waived before this application can be accepted: ${completion.missingLabels.join(", ")}.`,
+        );
+      }
+    }
 
     return {
       application: toAdmissionApplicationResponse(

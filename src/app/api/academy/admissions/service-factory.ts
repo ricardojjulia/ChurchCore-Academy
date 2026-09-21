@@ -7,6 +7,11 @@ import {
   PostgresAdmissionsRepository,
 } from "@/modules/admissions/postgres-repository";
 import { AdmissionsService } from "@/modules/admissions/service";
+import { DocumentChecklistService } from "@/modules/admissions/document-checklist";
+import {
+  DocumentChecklistDatabase,
+  PostgresDocumentChecklistRepository,
+} from "@/modules/admissions/document-checklist-repository";
 import {
   AcademyAuditQuery,
   PostgresAcademyAuditRepository,
@@ -29,6 +34,14 @@ export function createAdmissionsService(client: AcademyQueryClient) {
     ),
     new PostgresAcademyAuditRepository(
       asAcademyDatabase<AcademyAuditQuery>(client),
+    ),
+  );
+}
+
+export function createDocumentChecklistService(client: AcademyQueryClient) {
+  return new DocumentChecklistService(
+    new PostgresDocumentChecklistRepository(
+      asAcademyDatabase<DocumentChecklistDatabase>(client),
     ),
   );
 }

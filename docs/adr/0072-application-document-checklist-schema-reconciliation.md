@@ -5,6 +5,18 @@
 **Deciders:** Ricardo Julia (sole approver)
 **Supersedes:** ADR-0048 (data model only — the checklist requirement and workflow goals of ADR-0048 remain in force)
 
+> **2026-09-21:** The decision-gate gap noted below is closed. `canAdvanceToDecision` was added to
+> `DocumentChecklistService` and wired into the admissions decision route (`accepted` decisions
+> only — declining doesn't depend on document completeness). Closing it surfaced a second,
+> previously undiscovered gap: `snapshotChecklistForApplication` (which turns a program's document
+> requirements into per-application checklist items) had never been called from either
+> application-submission path, so every submitted application carried zero checklist items
+> regardless of its program's actual requirements — the decision gate would have been a no-op
+> against real data. Both submission paths (`PublicApplicationService.submitPublicApplication`
+> and `AdmissionsService.submit` via its route) now snapshot the checklist on submission.
+> Applications submitted before this fix will not retroactively get checklist items — treated as
+> a known, low-risk limitation given this repo's single-tenant demo deployment, not backfilled.
+
 ---
 
 ## Context
@@ -105,10 +117,9 @@ Added to the checklist model (migration `20260920120000`):
 - Program-level document type reuse (defining "Pastoral Reference Letter" once and attaching it
   to multiple programs) is not supported by the checklist model — each program requirement is a
   freeform label. This was already true before this ADR; it is not a regression introduced here.
-- The decision-gate check (blocking an admissions decision when required documents are
-  incomplete) still does not exist under either model. It was never implemented for the
-  checklist model and was only planned, not built, for ADR-0048 (Prompt F). This remains an
-  open gap, tracked as a follow-up, not addressed by this ADR.
+- ~~The decision-gate check (blocking an admissions decision when required documents are
+  incomplete) still does not exist under either model.~~ Closed 2026-09-21 — see the update
+  note above.
 
 ---
 
