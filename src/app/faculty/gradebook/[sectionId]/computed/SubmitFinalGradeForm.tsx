@@ -14,9 +14,10 @@ interface SubmitFinalGradeFormProps {
   sectionId: string;
   computedGrades: ComputedGrade[];
   finalGradeStatus: SectionFinalGradeStatus[];
+  studentNames: Record<string, string>;
 }
 
-export function SubmitFinalGradeForm({ sectionId, computedGrades, finalGradeStatus }: SubmitFinalGradeFormProps) {
+export function SubmitFinalGradeForm({ sectionId, computedGrades, finalGradeStatus, studentNames }: SubmitFinalGradeFormProps) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<Record<string, string>>(
     () => Object.fromEntries(finalGradeStatus.map((s) => [s.learnerPersonId, s.finalLetterGrade ?? ""])),
@@ -108,7 +109,9 @@ export function SubmitFinalGradeForm({ sectionId, computedGrades, finalGradeStat
 
             return (
               <tr key={row.studentRegistrationId} className={index % 2 === 0 ? "bg-muted/20" : ""}>
-                <td className="p-3 font-medium">{row.learnerPersonId}</td>
+                <td className="p-3 font-medium">
+                  {studentNames[row.learnerPersonId] ?? row.learnerPersonId}
+                </td>
                 <td className="p-3">
                   {computed ? `${(computed.weightedPercentage * 100).toFixed(1)}% (${computed.totalWeightUsed}% graded)` : "—"}
                 </td>
