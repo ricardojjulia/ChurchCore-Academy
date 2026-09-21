@@ -67,7 +67,10 @@ export async function GET(request: Request) {
       isRequired: item.isRequired,
       status: item.status,
       officerNote: item.officerNote,
-      waiverNote: item.waiverNote,
+      // Only surface waiverNote when the item is actually waived — the DB constraint
+      // requires it to be set whenever status = 'waived', but doesn't prevent it from
+      // being populated for another status by some future writer.
+      waiverNote: item.status === "waived" ? item.waiverNote : undefined,
       uploadedAt: item.uploadedAt,
     }));
 

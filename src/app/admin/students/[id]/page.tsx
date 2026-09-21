@@ -99,6 +99,7 @@ export default async function StudentPage({
   const { id } = await params;
   const actor = await requireActor();
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
 
   const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations, person, personId, relationships, covenantEnabled, covenantRecord, programMemberships, programProgress, transcriptEntries, transcriptEntryCandidates, studentGroupMemberships, academicProgramOptions, academicYearOptions, availableSectionOptions } =
     await withAcademyDatabaseContext(actor, async (client) => {
@@ -113,8 +114,11 @@ export default async function StudentPage({
       const p = await fetchProgramList(actor.tenantId, client);
       const a = await fetchAdministrators(actor.tenantId, client);
       const sec = await fetchSectionList(actor.tenantId, client);
-      const sugg = await shepherdRepo.fetchSuggestions(actor.tenantId);
-      const wflow = await shepherdRepo.fetchWorkflows(actor.tenantId);
+      // Roles that can view this page but not ShepherdAI (registrar, admissions, dean)
+      // shouldn't trigger these restricted-data reads at all, not just have the results
+      // hidden from render.
+      const sugg = canReadShepherdAi ? await shepherdRepo.fetchSuggestions(actor.tenantId) : [];
+      const wflow = canReadShepherdAi ? await shepherdRepo.fetchWorkflows(actor.tenantId) : [];
 
       // id param is the student profile id (sp.id); join to get the person record
       const personResult = await client.query(
@@ -252,7 +256,6 @@ export default async function StudentPage({
   if (!student || !person || !personId) notFound();
 
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
-  const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
 
   const activeMembership = programMemberships.find((item: StudentProgramMembership) => item.status === "active");
   const program = programs.find((item) => item.id === student.programId);
