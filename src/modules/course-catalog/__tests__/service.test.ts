@@ -504,6 +504,68 @@ test("updateSection: instructor reassignment locked after enrollment_open", asyn
   );
 });
 
+test("updateSection: opening a section without a primary instructor is rejected", async () => {
+  const repo = mockRepository();
+  const service = new CourseCatalogService(repo);
+
+  const created = await service.createCourse(admin, {
+    code: "BIB101",
+    title: "Course",
+    description: "Desc",
+    courseType: "bible_course",
+    courseLevel: "undergraduate",
+    recordType: "credit_course",
+  });
+
+  await service.updateCourse(admin, created.id, { status: "active" });
+
+  const createdSection = await service.createSection(admin, {
+    courseId: created.id,
+    academicPeriodId: "period-1",
+    sectionCode: "A",
+    deliveryMode: "in_person",
+  });
+
+  // The UI-only guard (SectionStatusActions.tsx) disables this action client-side, but a
+  // direct API call must be rejected too — otherwise it creates the invalid unstaffed/open
+  // state the catalog validation rule elsewhere rejects.
+  await assert.rejects(
+    service.updateSection(admin, createdSection.id, { status: "open" }),
+    /Cannot open a section for registration without a primary instructor assigned/,
+  );
+});
+
+test("updateSection: opening a section succeeds when an instructor is assigned in the same call", async () => {
+  const repo = mockRepository();
+  const service = new CourseCatalogService(repo);
+
+  const created = await service.createCourse(admin, {
+    code: "BIB101",
+    title: "Course",
+    description: "Desc",
+    courseType: "bible_course",
+    courseLevel: "undergraduate",
+    recordType: "credit_course",
+  });
+
+  await service.updateCourse(admin, created.id, { status: "active" });
+
+  const createdSection = await service.createSection(admin, {
+    courseId: created.id,
+    academicPeriodId: "period-1",
+    sectionCode: "A",
+    deliveryMode: "in_person",
+  });
+
+  const updated = await service.updateSection(admin, createdSection.id, {
+    status: "open",
+    primaryInstructorId: "person-faculty-1",
+  });
+
+  assert.strictEqual(updated.status, "open");
+  assert.strictEqual(updated.primaryInstructorId, "person-faculty-1");
+});
+
 test("checkPrerequisites: returns true when student has completed all prerequisites", async () => {
   const repo = mockRepository();
   const service = new CourseCatalogService(repo);

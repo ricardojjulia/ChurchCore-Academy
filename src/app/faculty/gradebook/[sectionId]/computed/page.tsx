@@ -27,6 +27,13 @@ import { SubmitFinalGradeForm } from "./SubmitFinalGradeForm";
 
 export const dynamic = "force-dynamic";
 
+interface PeopleNameDatabase {
+  query(
+    sql: string,
+    params?: unknown[],
+  ): Promise<{ rows: Array<{ id: unknown; display_name: unknown }> }>;
+}
+
 interface PageProps {
   params: Promise<{ sectionId: string }>;
 }
@@ -43,30 +50,47 @@ export default async function FacultyComputedGradesPage({ params }: PageProps) {
     redirect("/login");
   }
 
-  const computedGrades = await withAcademyDatabaseContext(actor, async (client) => {
-    try {
-      return await computeSectionGrades(
-        asAcademyDatabase<AssignmentGradingDatabase>(client),
-        actor,
-        sectionId,
-      );
-    } catch (error) {
-      console.error("Failed to compute section grades:", error);
-      return [];
-    }
-  });
+  // Errors here (authorization, a missing section, a database outage) must reach the
+  // faculty error boundary (src/app/faculty/error.tsx), not be swallowed into an empty
+  // table — "no grades yet" and "the read failed" are different states, and faculty
+  // acting on the former when it's actually the latter can make an incorrect grading
+  // decision. Both functions already return [] on their own for the legitimate
+  // no-registrations-yet case; there is nothing else worth catching here.
+  const computedGrades = await withAcademyDatabaseContext(actor, async (client) =>
+    await computeSectionGrades(
+      asAcademyDatabase<AssignmentGradingDatabase>(client),
+      actor,
+      sectionId,
+    ),
+  );
 
-  const finalGradeStatus = await withAcademyDatabaseContext(actor, async (client) => {
-    try {
-      return await getSectionFinalGradeStatus(
-        asAcademyDatabase<AssignmentDatabase>(client),
-        actor,
-        sectionId,
-      );
-    } catch (error) {
-      console.error("Failed to load final grade status:", error);
-      return [];
-    }
+  const finalGradeStatus = await withAcademyDatabaseContext(actor, async (client) =>
+    await getSectionFinalGradeStatus(
+      asAcademyDatabase<AssignmentDatabase>(client),
+      actor,
+      sectionId,
+    ),
+  );
+
+  const learnerPersonIds = Array.from(
+    new Set([
+      ...computedGrades.map((grade) => grade.learnerPersonId),
+      ...finalGradeStatus.map((status) => status.learnerPersonId),
+    ]),
+  );
+
+  const studentNames = await withAcademyDatabaseContext(actor, async (client) => {
+    if (learnerPersonIds.length === 0) return {} as Record<string, string>;
+    const database = asAcademyDatabase<PeopleNameDatabase>(client);
+    const result = await database.query(
+      `select id, display_name
+         from academy_people
+        where tenant_id = $1 and id = any($2::text[])`,
+      [actor.tenantId, learnerPersonIds],
+    );
+    return Object.fromEntries(
+      result.rows.map((row) => [String(row.id), String(row.display_name)]),
+    );
   });
 
   return (
@@ -103,7 +127,9 @@ export default async function FacultyComputedGradesPage({ params }: PageProps) {
                 <TableBody>
                   {computedGrades.map((grade) => (
                     <TableRow key={grade.studentRegistrationId}>
-                      <TableCell className="font-medium">{grade.learnerPersonId}</TableCell>
+                      <TableCell className="font-medium">
+                        {studentNames[grade.learnerPersonId] ?? grade.learnerPersonId}
+                      </TableCell>
                       <TableCell>{(grade.weightedPercentage * 100).toFixed(1)}%</TableCell>
                       <TableCell>{grade.totalWeightUsed}%</TableCell>
                     </TableRow>
@@ -129,6 +155,7 @@ export default async function FacultyComputedGradesPage({ params }: PageProps) {
               sectionId={sectionId}
               computedGrades={computedGrades}
               finalGradeStatus={finalGradeStatus}
+              studentNames={studentNames}
             />
           </CardContent>
         </Card>
