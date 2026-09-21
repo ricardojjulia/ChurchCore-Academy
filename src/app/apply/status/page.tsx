@@ -17,8 +17,9 @@ interface ApplicationDocumentItem {
   id: string;
   label: string;
   isRequired: boolean;
-  status: "pending" | "uploaded" | "reviewed" | "resubmission_required";
+  status: "pending" | "uploaded" | "reviewed" | "resubmission_required" | "waived";
   officerNote?: string;
+  waiverNote?: string;
   uploadedAt?: string;
 }
 
@@ -312,7 +313,9 @@ function StatusContent() {
                               ? "apply-portal-badge apply-portal-badge-uploaded"
                               : item.status === "reviewed"
                                 ? "apply-portal-badge apply-portal-badge-reviewed"
-                                : "apply-portal-badge apply-portal-badge-resubmission"
+                                : item.status === "waived"
+                                  ? "apply-portal-badge apply-portal-badge-waived"
+                                  : "apply-portal-badge apply-portal-badge-resubmission"
                         }
                       >
                         {item.status === "pending"
@@ -321,7 +324,9 @@ function StatusContent() {
                             ? "Received — awaiting review"
                             : item.status === "reviewed"
                               ? "Approved"
-                              : "Resubmission required"}
+                              : item.status === "waived"
+                                ? "Waived"
+                                : "Resubmission required"}
                       </span>
                     </div>
                   </div>
@@ -329,6 +334,12 @@ function StatusContent() {
                   {item.status === "resubmission_required" && item.officerNote && (
                     <div className="apply-portal-officer-note">
                       <strong>Staff feedback:</strong> {item.officerNote}
+                    </div>
+                  )}
+
+                  {item.status === "waived" && item.waiverNote && (
+                    <div className="apply-portal-officer-note">
+                      <strong>Waived by staff:</strong> {item.waiverNote}
                     </div>
                   )}
 

@@ -311,43 +311,49 @@ export default async function StudentPage({
       <section className="ops-stats-grid">
         <StudentMetric label="Credits earned" value={student.creditsEarned} detail={`${progressPercent}% of required credits`} icon={<GraduationCap />} />
         <StudentMetric label="Expected credits" value={student.expectedCreditsByNow} detail="Academic pace benchmark" icon={<BookOpenCheck />} />
-        <StudentMetric label="Open suggestions" value={suggestions.length} detail="Suggested Academic Workflows" icon={<Sparkles />} />
-        <StudentMetric label="Active workflows" value={workflows.length} detail="Human-reviewed workflow items" icon={<ListChecks />} />
+        {canReadShepherdAi && (
+          <>
+            <StudentMetric label="Open suggestions" value={suggestions.length} detail="Suggested Academic Workflows" icon={<Sparkles />} />
+            <StudentMetric label="Active workflows" value={workflows.length} detail="Human-reviewed workflow items" icon={<ListChecks />} />
+          </>
+        )}
       </section>
 
-      <Tabs defaultValue="insights" className="student-tabs">
+      <Tabs defaultValue={canReadShepherdAi ? "insights" : "record"} className="student-tabs">
         <TabsList className="student-tabs-list">
-          <TabsTrigger value="insights">ShepherdAI Insights</TabsTrigger>
+          {canReadShepherdAi && <TabsTrigger value="insights">ShepherdAI Insights</TabsTrigger>}
           <TabsTrigger value="record">Academic Record</TabsTrigger>
           <TabsTrigger value="sections">Sections</TabsTrigger>
           <TabsTrigger value="relationships">Relationships</TabsTrigger>
           {covenantEnabled && <TabsTrigger value="covenant">Covenant Record</TabsTrigger>}
           <TabsTrigger value="signals">Administrative Signals</TabsTrigger>
-          <TabsTrigger value="workflows">Workflows</TabsTrigger>
+          {canReadShepherdAi && <TabsTrigger value="workflows">Workflows</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="insights">
-          <Card className="ops-panel">
-            <CardHeader className="ops-card-header">
-              <div className="ops-heading">
-                <div className="ops-icon">
-                  <Sparkles />
+        {canReadShepherdAi && (
+          <TabsContent value="insights">
+            <Card className="ops-panel">
+              <CardHeader className="ops-card-header">
+                <div className="ops-heading">
+                  <div className="ops-icon">
+                    <Sparkles />
+                  </div>
+                  <div>
+                    <CardTitle>ShepherdAI Insights</CardTitle>
+                    <CardDescription>Explainable academic workflow recommendations for registrar or advisor review.</CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle>ShepherdAI Insights</CardTitle>
-                  <CardDescription>Explainable academic workflow recommendations for registrar or advisor review.</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="student-insight-list">
-              {suggestions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No current ShepherdAI suggestions for this student.</p>
-              ) : (
-                suggestions.map((suggestion) => <SuggestionPanel key={suggestion.id} suggestion={suggestion} />)
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardHeader>
+              <CardContent className="student-insight-list">
+                {suggestions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No current ShepherdAI suggestions for this student.</p>
+                ) : (
+                  suggestions.map((suggestion) => <SuggestionPanel key={suggestion.id} suggestion={suggestion} />)
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="record">
           <section className="ops-content-grid">
@@ -605,24 +611,26 @@ export default async function StudentPage({
           </Card>
         </TabsContent>
 
-        <TabsContent value="workflows">
-          <Card className="ops-panel">
-            <CardHeader>
-              <CardTitle>Academic Workflows</CardTitle>
-              <CardDescription>Promoted workflow records connected to this student.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {workflows.length === 0 ? (
-                <div className="student-empty-state">
-                  <ListChecks />
-                  <span>No promoted workflows are currently attached to this student.</span>
-                </div>
-              ) : (
-                <WorkflowTable workflows={workflows} suggestions={suggestions} />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {canReadShepherdAi && (
+          <TabsContent value="workflows">
+            <Card className="ops-panel">
+              <CardHeader>
+                <CardTitle>Academic Workflows</CardTitle>
+                <CardDescription>Promoted workflow records connected to this student.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {workflows.length === 0 ? (
+                  <div className="student-empty-state">
+                    <ListChecks />
+                    <span>No promoted workflows are currently attached to this student.</span>
+                  </div>
+                ) : (
+                  <WorkflowTable workflows={workflows} suggestions={suggestions} />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </AdminShell>
   );

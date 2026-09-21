@@ -379,6 +379,11 @@ a {
   color: var(--sis-error);
 }
 
+.apply-portal-badge-waived {
+  background: color-mix(in srgb, var(--sis-text-secondary) 20%, transparent);
+  color: var(--sis-text-secondary);
+}
+
 .apply-portal-officer-note {
   margin-top: 0.75rem;
   padding: 0.75rem;

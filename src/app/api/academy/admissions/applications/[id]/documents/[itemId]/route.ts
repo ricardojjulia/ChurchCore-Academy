@@ -1,4 +1,4 @@
-import { handleApi } from "@/app/api/academy/api-utils";
+import { handleApi, requireStringField } from "@/app/api/academy/api-utils";
 import {
   asAcademyDatabase,
 } from "@/lib/academy-database-context";
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         const { waiverNote } = body;
         return service.waiveDocumentItem(actor, {
           documentItemId: itemId,
-          waiverNote: String(waiverNote ?? ""),
+          waiverNote: requireStringField(waiverNote, "waiverNote"),
         });
       }
 

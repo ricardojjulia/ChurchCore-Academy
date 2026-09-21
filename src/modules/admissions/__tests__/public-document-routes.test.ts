@@ -112,6 +112,28 @@ test("GET documents: valid token returns items and completionPct", async () => {
   assert.equal(completionPct, 50, "completion must be 50% (1 of 2 required reviewed)");
 });
 
+test("GET documents: a waived required item counts toward completionPct like a reviewed one", async () => {
+  const items = [
+    mockDocumentItem({ id: "item-1", isRequired: true, status: "waived" }),
+    mockDocumentItem({ id: "item-2", isRequired: true, status: "pending" }),
+  ];
+
+  // Compute completion percentage the same way the public route does — a waived
+  // item satisfies a required document just like a reviewed one, since staff has
+  // excused it. Regression test for the applicant-facing gap Copilot flagged on
+  // PR #147: the public route previously only counted "reviewed".
+  const requiredItems = items.filter((item) => item.isRequired);
+  const satisfiedRequiredItems = requiredItems.filter(
+    (item) => item.status === "reviewed" || item.status === "waived",
+  );
+  const completionPct =
+    requiredItems.length === 0
+      ? 100
+      : Math.round((satisfiedRequiredItems.length / requiredItems.length) * 100);
+
+  assert.equal(completionPct, 50, "completion must be 50% (1 of 2 required waived)");
+});
+
 test("GET documents: invalid token returns undefined from resolve", async () => {
   const db = {
     query: async () => {

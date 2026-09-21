@@ -49,14 +49,14 @@ export async function GET(request: Request) {
 
     // Compute completion percentage
     const requiredItems = items.filter((item) => item.isRequired);
-    const reviewedRequiredItems = requiredItems.filter(
-      (item) => item.status === "reviewed",
+    const satisfiedRequiredItems = requiredItems.filter(
+      (item) => item.status === "reviewed" || item.status === "waived",
     );
     const completionPct =
       requiredItems.length === 0
         ? 100
         : Math.round(
-            (reviewedRequiredItems.length / requiredItems.length) * 100,
+            (satisfiedRequiredItems.length / requiredItems.length) * 100,
           );
 
     // Public, unauthenticated endpoint — never expose internal storage paths
@@ -67,6 +67,7 @@ export async function GET(request: Request) {
       isRequired: item.isRequired,
       status: item.status,
       officerNote: item.officerNote,
+      waiverNote: item.waiverNote,
       uploadedAt: item.uploadedAt,
     }));
 
