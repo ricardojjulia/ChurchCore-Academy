@@ -93,7 +93,13 @@ Before guessing, consult:
 
 - **Sole approver:** @ricardojjulia. No other approvals required or expected.
 - **Branch pattern:** `feature/<phase>-<short-name>` or `fix/<short-name>`.
-- **Every PR must pass** `npm test`, `npm run lint`, `npm run build` before merge.
+- **Every PR must pass** `npm test`, `npm run lint`, `npm run build` (`npm run verify` runs all three) before merge.
+- **Before merging, triage review comments — CI passing is not the merge signal.** GitHub Copilot's automated review can post after status checks already show green, so a PR isn't ready just because `gh pr checks` is clean. Confirm a Copilot review has actually completed (`gh api repos/:owner/:repo/pulls/<pr>/reviews` — look for a submitted review from a `copilot` login) before treating the PR as reviewed, then:
+  - Query comments with `gh api repos/:owner/:repo/pulls/<pr>/comments`, but check resolution state via the GraphQL `reviewThreads` field (`isResolved`) rather than trusting the REST list alone — REST has no resolved field and will re-show findings already addressed in an earlier round.
+  - Triage every unresolved finding — security, RLS/tenant isolation, schema integrity, accessibility, assertion strictness, and any other correctness or quality concern raised, not only the categories that come up most often.
+  - Fix actionable findings directly on the branch, re-run `npm run verify`, and push.
+  - Mark each addressed thread resolved on GitHub, or reply explaining why it's intentionally not being addressed (false positive, out of scope, tracked separately elsewhere) — a thread should never be left silently unresolved past merge.
+  - If a comment lands after merge (Copilot's review can trail CI by a few minutes), treat it exactly the same way on a new branch — don't let it go stale just because the originating PR already closed.
 - **PR description must include:** what changed, why, tests added, ADR reference if applicable.
 - **Squash merge to `main`.** No force-pushes to `main`.
 - **`main` requires signed commits.** Without a configured signing key, every PR's merge will be blocked by branch protection ("the base branch policy prohibits the merge") even after status checks and review pass. Merging then requires `gh pr merge --admin` (squash), which bypasses the signature requirement — get the user's explicit sign-off before running it each time, never silently. This is a standing condition of this repo until a GPG/SSH signing key is configured for the commit author; don't treat it as a one-off surprise.
