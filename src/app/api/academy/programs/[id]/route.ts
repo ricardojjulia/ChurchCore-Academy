@@ -58,6 +58,13 @@ export async function PATCH(
         status: typeof body.status === "string" ? body.status as never : undefined,
         effectiveFrom: typeof body.effectiveFrom === "string" ? body.effectiveFrom : undefined,
         effectiveTo: typeof body.effectiveTo === "string" ? body.effectiveTo : undefined,
+        applicationFeeCents:
+          body.applicationFeeCents === null
+            ? null
+            : typeof body.applicationFeeCents === "number"
+              ? body.applicationFeeCents
+              : undefined,
+        applicationFeeCurrency: typeof body.applicationFeeCurrency === "string" ? body.applicationFeeCurrency : undefined,
       });
     });
   });

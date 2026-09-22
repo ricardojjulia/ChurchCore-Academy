@@ -261,4 +261,19 @@ export class PostgresAdmissionsRepository {
       ],
     );
   }
+
+  async checkApplicationFeeStatus(
+    tenantId: string,
+    applicationId: string,
+  ): Promise<"none" | "paid" | "waived" | "pending"> {
+    const result = await this.database.query(
+      `select status from academy_application_fee_charges
+       where tenant_id = $1 and application_id = $2 and fee_type = 'application_fee'`,
+      [tenantId, applicationId],
+    );
+    if (!result.rows[0]) {
+      return "none";
+    }
+    return String(result.rows[0].status) as "paid" | "waived" | "pending";
+  }
 }

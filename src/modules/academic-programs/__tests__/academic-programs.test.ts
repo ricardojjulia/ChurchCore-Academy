@@ -42,7 +42,8 @@ function createRecordingDb(rows: Record<string, unknown>[] = [createdProgramRow(
     db: {
       async query(sql: string, values?: unknown[]) {
         calls.push({ sql, values });
-        if (sql.includes("returning")) {
+        const normalized = sql.trim().toLowerCase();
+        if (normalized.includes("returning") || normalized.startsWith("select")) {
           return { rowCount: 1, rows };
         }
         return { rowCount: 1, rows: [] };
@@ -196,4 +197,76 @@ test("archive marks the legacy academy_programs row inactive without deleting FK
   assert.ok(legacyCall, "archive must update academy_programs compatibility row");
   assert.equal(legacyCall.values?.[9], "archived");
   assert.equal(legacyCall.values?.[10], false);
+});
+
+// An admin saves an application fee via PATCH (repo.update), which writes to the
+// canonical academy_academic_programs table. A later GET (repo.findById) reads that
+// same canonical table. If the SELECT_COLS/mapRow pair used by both don't include the
+// fee columns, the admin UI can save a fee and never see it again — this proves the
+// round trip actually works, not just that the write query ran.
+test("application fee round-trips through update() and is present in the mapped result", async () => {
+  const { db } = createRecordingDb([
+    createdProgramRow({
+      application_fee_cents: 5000,
+      application_fee_currency: "USD",
+    }),
+  ]);
+  const repo = new PostgresAcademicProgramRepository(db);
+
+  const updated = await repo.update("tenant-1", "11111111-1111-4111-8111-111111111111", {
+    applicationFeeCents: 5000,
+    applicationFeeCurrency: "USD",
+  });
+
+  assert.equal(updated.applicationFeeCents, 5000);
+  assert.equal(updated.applicationFeeCurrency, "USD");
+});
+
+test("application fee syncs to the legacy academy_programs row, since admissions reads that table directly", async () => {
+  const { db, calls } = createRecordingDb([
+    createdProgramRow({
+      application_fee_cents: 7500,
+      application_fee_currency: "USD",
+    }),
+  ]);
+  const repo = new PostgresAcademicProgramRepository(db);
+
+  await repo.update("tenant-1", "11111111-1111-4111-8111-111111111111", {
+    applicationFeeCents: 7500,
+    applicationFeeCurrency: "USD",
+  });
+
+  const legacyCall = calls.find((call) => call.sql.includes("insert into academy_programs"));
+  assert.ok(legacyCall, "update must refresh academy_programs compatibility row");
+  assert.equal(legacyCall.values?.[15], 7500);
+  assert.equal(legacyCall.values?.[16], "USD");
+});
+
+test("findById returns the application fee fields (proves GET can display what PATCH saved)", async () => {
+  const { db } = createRecordingDb([
+    createdProgramRow({
+      application_fee_cents: 5000,
+      application_fee_currency: "USD",
+    }),
+  ]);
+  const repo = new PostgresAcademicProgramRepository(db);
+
+  const program = await repo.findById("tenant-1", "11111111-1111-4111-8111-111111111111");
+
+  assert.equal(program?.applicationFeeCents, 5000);
+  assert.equal(program?.applicationFeeCurrency, "USD");
+});
+
+test("a program with no fee configured returns undefined, not a coerced zero", async () => {
+  const { db } = createRecordingDb([
+    createdProgramRow({
+      application_fee_cents: null,
+      application_fee_currency: null,
+    }),
+  ]);
+  const repo = new PostgresAcademicProgramRepository(db);
+
+  const program = await repo.findById("tenant-1", "11111111-1111-4111-8111-111111111111");
+
+  assert.equal(program?.applicationFeeCents, undefined);
 });

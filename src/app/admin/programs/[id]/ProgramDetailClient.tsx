@@ -79,6 +79,13 @@ export function ProgramDetailClient({
   const [savingCurriculum, setSavingCurriculum] = useState(false);
   const firstLoadRef = useRef(true);
 
+  // Application fee state
+  const [feeAmount, setFeeAmount] = useState(
+    program.applicationFeeCents != null ? (program.applicationFeeCents / 100).toString() : ""
+  );
+  const [feeCurrency, setFeeCurrency] = useState(program.applicationFeeCurrency ?? "USD");
+  const [savingFee, setSavingFee] = useState(false);
+
   const yearOptions = useMemo(
     () => academicYears.map((year) => ({
       value: year.id,
@@ -254,6 +261,52 @@ export function ProgramDetailClient({
     }
   }
 
+  async function handleSaveApplicationFee() {
+    setSavingFee(true);
+
+    try {
+      // Validate amount if provided
+      const amountNum = feeAmount.trim() ? parseFloat(feeAmount) : null;
+      if (amountNum !== null && (isNaN(amountNum) || amountNum <= 0)) {
+        notifyAcademy({
+          tone: "error",
+          title: "Invalid amount",
+          message: "Application fee amount must be greater than 0.",
+        });
+        return;
+      }
+
+      const res = await fetch(`/api/academy/programs/${program.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationFeeCents: amountNum !== null ? Math.round(amountNum * 100) : null,
+          applicationFeeCurrency: amountNum !== null ? feeCurrency : undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json() as { error?: string };
+        throw new Error(errorData.error ?? "Failed to save application fee.");
+      }
+
+      notifyAcademy({
+        tone: "success",
+        title: "Application fee saved",
+        message: "Program application fee was updated.",
+      });
+      router.refresh();
+    } catch (error) {
+      notifyAcademy({
+        tone: "error",
+        title: "Application fee save failed",
+        message: error instanceof Error ? error.message : "Failed to save application fee.",
+      });
+    } finally {
+      setSavingFee(false);
+    }
+  }
+
   return (
     <>
       <Card className="sis-route-card">
@@ -327,6 +380,53 @@ export function ProgramDetailClient({
           )}
         </CardContent>
       </Card>
+
+      {canManageProgram && (
+        <Card className="sis-route-card">
+          <CardHeader>
+            <div className="sis-route-heading">
+              <div>
+                <CardTitle>Application Fee</CardTitle>
+                <CardDescription>Optional fee required for admission applications to this program.</CardDescription>
+              </div>
+              <Button onClick={handleSaveApplicationFee} disabled={savingFee}>
+                <Save className="mr-2 h-4 w-4" />
+                {savingFee ? "Saving..." : "Save Fee"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2">
+                <label htmlFor="feeAmount" className="text-sm font-medium">
+                  Amount (leave blank for no fee)
+                </label>
+                <input
+                  id="feeAmount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  value={feeAmount}
+                  onChange={(e) => setFeeAmount(e.target.value)}
+                />
+              </div>
+              <Select
+                label="Currency"
+                data={[
+                  { value: "USD", label: "USD (US Dollar)" },
+                  { value: "EUR", label: "EUR (Euro)" },
+                  { value: "GBP", label: "GBP (British Pound)" },
+                  { value: "CAD", label: "CAD (Canadian Dollar)" },
+                ]}
+                value={feeCurrency}
+                onChange={setFeeCurrency}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="sis-route-card">
         <CardHeader>

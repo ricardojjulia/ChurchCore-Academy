@@ -37,6 +37,8 @@ function mapRow(row: Record<string, unknown>): AcademicProgram {
     status: String(row.status) as AcademicProgram["status"],
     effectiveFrom: row.effective_from != null ? String(row.effective_from).slice(0, 10) : undefined,
     effectiveTo: row.effective_to != null ? String(row.effective_to).slice(0, 10) : undefined,
+    applicationFeeCents: row.application_fee_cents != null ? Number(row.application_fee_cents) : undefined,
+    applicationFeeCurrency: row.application_fee_currency != null ? String(row.application_fee_currency) : undefined,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     createdByPersonId: row.created_by_person_id != null ? String(row.created_by_person_id) : undefined,
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
@@ -48,6 +50,7 @@ const SELECT_COLS = `
   institution_mode, credential_type, grade_band, subdivision_id,
   required_credits, required_clock_hours, required_competencies,
   typical_duration_periods, status, effective_from, effective_to,
+  application_fee_cents, application_fee_currency,
   created_at, created_by_person_id, updated_at
 `;
 
@@ -59,9 +62,10 @@ async function syncLegacyProgram(
     `insert into academy_programs (
        id, tenant_id, name, credential, required_credits, cohort_label,
        program_code, title, description, status, active, program_type,
-       credit_hours, clock_hours, academic_program_id
+       credit_hours, clock_hours, academic_program_id,
+       application_fee_cents, application_fee_currency
      ) values (
-       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
      )
      on conflict (id) do update set
        tenant_id = excluded.tenant_id,
@@ -77,7 +81,9 @@ async function syncLegacyProgram(
        program_type = excluded.program_type,
        credit_hours = excluded.credit_hours,
        clock_hours = excluded.clock_hours,
-       academic_program_id = excluded.academic_program_id`,
+       academic_program_id = excluded.academic_program_id,
+       application_fee_cents = excluded.application_fee_cents,
+       application_fee_currency = excluded.application_fee_currency`,
     [
       program.id,
       program.tenantId,
@@ -94,6 +100,8 @@ async function syncLegacyProgram(
       program.requiredCredits,
       program.requiredClockHours,
       program.id,
+      program.applicationFeeCents ?? null,
+      program.applicationFeeCurrency ?? null,
     ],
   );
 }
@@ -203,6 +211,8 @@ export class PostgresAcademicProgramRepository implements AcademicProgramReposit
     if (input.status !== undefined) { sets.push(`status = $${idx++}`); values.push(input.status); }
     if (input.effectiveFrom !== undefined) { sets.push(`effective_from = $${idx++}`); values.push(input.effectiveFrom); }
     if (input.effectiveTo !== undefined) { sets.push(`effective_to = $${idx++}`); values.push(input.effectiveTo); }
+    if (input.applicationFeeCents !== undefined) { sets.push(`application_fee_cents = $${idx++}`); values.push(input.applicationFeeCents); }
+    if (input.applicationFeeCurrency !== undefined) { sets.push(`application_fee_currency = $${idx++}`); values.push(input.applicationFeeCurrency); }
 
     const result = await this.database.query(
       `update academy_academic_programs

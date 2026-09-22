@@ -68,6 +68,21 @@ function makeMockDb(overrides: {
         const rows = overrides.existingAppRows ?? [];
         return { rowCount: rows.length, rows };
       }
+      // Application lookup for finalizeSubmission (applicant/program details)
+      if (sqlNorm.includes("applicant_person_id") && sqlNorm.includes("from academy_admission_applications")) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              applicant_person_id: "person-uuid-1",
+              program_id: PROGRAM_ID,
+              legal_name: "Test Applicant",
+              email: "applicant@example.com",
+              idempotency_key: "public-apply-person-uuid-1",
+            },
+          ],
+        };
+      }
       // Person insert
       if (sqlNorm.includes("insert into academy_people")) {
         return { rowCount: 1, rows: [] };

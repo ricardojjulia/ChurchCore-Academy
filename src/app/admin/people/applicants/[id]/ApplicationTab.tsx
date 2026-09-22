@@ -43,6 +43,20 @@ interface DocumentChecklist {
   completionPct: number;
 }
 
+interface ApplicationFeeCharge {
+  id: string;
+  tenantId: string;
+  applicationId: string;
+  status: "pending" | "paid" | "waived";
+  amountCents: number;
+  currency: string;
+  paidAt?: string;
+  paidByPersonId?: string;
+  waivedAt?: string;
+  waivedReason?: string;
+  waivedByPersonId?: string;
+}
+
 const APPLICANT_STATUSES = ["application_started", "pending", "admitted", "withdrawn"];
 
 function titleize(value: string) {
@@ -108,6 +122,43 @@ export function ApplicationTab({
   const [downloadingItemId, setDownloadingItemId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
+  const [feeCharge, setFeeCharge] = useState<ApplicationFeeCharge | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [feeError, setFeeError] = useState<string | null>(null);
+  const [feeActionSubmitting, setFeeActionSubmitting] = useState(false);
+  const [feeWaiveModalOpen, setFeeWaiveModalOpen] = useState(false);
+  const [feeWaiverReason, setFeeWaiverReason] = useState("");
+  const [feeWaiveError, setFeeWaiveError] = useState<string | null>(null);
+
+  const fetchFeeCharge = useCallback(async () => {
+    if (!applicationId) return;
+    setFeeLoading(true);
+    setFeeError(null);
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/fee`);
+      if (res.status === 404) {
+        // No fee charge for this application
+        setFeeCharge(null);
+        return;
+      }
+      if (res.status === 403) {
+        setFeeError("You do not have permission to view application fees.");
+        return;
+      }
+      if (!res.ok) {
+        setFeeError("Failed to load application fee.");
+        return;
+      }
+      const data = await res.json() as { feeCharge: ApplicationFeeCharge };
+      setFeeCharge(data.feeCharge);
+    } catch (err) {
+      console.error("Fee charge fetch error:", err);
+      setFeeError("Failed to load application fee.");
+    } finally {
+      setFeeLoading(false);
+    }
+  }, [applicationId]);
+
   const fetchChecklist = useCallback(async () => {
     if (!applicationId) return;
     setChecklistLoading(true);
@@ -138,14 +189,15 @@ export function ApplicationTab({
 
   useEffect(() => {
     // Standard data-fetching-on-mount/prop-change effect — synchronizing UI
-    // state with the checklist API for this applicationId, exactly the case
-    // this rule's own description sanctions. fetchChecklist is also called
-    // directly (not from an effect) after a successful review below.
+    // state with the checklist and fee APIs for this applicationId.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchChecklist().catch((err) => {
       console.error("Checklist fetch error:", err);
     });
-  }, [fetchChecklist]);
+    fetchFeeCharge().catch((err) => {
+      console.error("Fee charge fetch error:", err);
+    });
+  }, [fetchChecklist, fetchFeeCharge]);
 
   function openReviewModal(itemId: string) {
     setReviewingItemId(itemId);
@@ -264,6 +316,84 @@ export function ApplicationTab({
     }
   }
 
+  async function handleMarkFeePaid() {
+    if (!applicationId) return;
+    setFeeActionSubmitting(true);
+    setFeeError(null);
+
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/fee/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (res.status === 409) {
+        const data = await res.json();
+        setFeeError(data.error ?? "This fee has already been resolved.");
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to mark fee as paid");
+      }
+
+      await fetchFeeCharge();
+      router.refresh();
+    } catch (err) {
+      console.error("Mark fee paid error:", err);
+      setFeeError(err instanceof Error ? err.message : "Failed to mark fee as paid");
+    } finally {
+      setFeeActionSubmitting(false);
+    }
+  }
+
+  function openFeeWaiveModal() {
+    setFeeWaiverReason("");
+    setFeeWaiveError(null);
+    setFeeWaiveModalOpen(true);
+  }
+
+  async function handleFeeWaiveSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!feeWaiverReason.trim()) {
+      setFeeWaiveError("A reason is required when waiving the application fee.");
+      return;
+    }
+
+    setFeeActionSubmitting(true);
+    setFeeWaiveError(null);
+
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/fee/waive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: feeWaiverReason.trim() }),
+      });
+
+      if (res.status === 409) {
+        const data = await res.json();
+        setFeeWaiveError(data.error ?? "This fee has already been resolved.");
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to waive fee");
+      }
+
+      setFeeWaiveModalOpen(false);
+      await fetchFeeCharge();
+      router.refresh();
+    } catch (err) {
+      console.error("Fee waive error:", err);
+      setFeeWaiveError(err instanceof Error ? err.message : "Failed to waive fee");
+    } finally {
+      setFeeActionSubmitting(false);
+    }
+  }
+
   async function handleStatusChange(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -335,6 +465,90 @@ export function ApplicationTab({
           </div>
         </CardContent>
       </Card>
+
+      {applicationId && (
+        <Card className="ops-panel">
+          <CardHeader>
+            <CardTitle>Application Fee</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {feeLoading ? (
+              <p className="text-sm text-muted-foreground">Loading application fee...</p>
+            ) : feeError ? (
+              <p className="text-sm text-destructive">{feeError}</p>
+            ) : !feeCharge ? (
+              <p className="text-sm text-muted-foreground">
+                No application fee configured for this program.
+              </p>
+            ) : (
+              <>
+                <div className="student-field-list">
+                  <div className="ops-readiness-row">
+                    <span>Amount</span>
+                    <strong>
+                      {(feeCharge.amountCents / 100).toFixed(2)} {feeCharge.currency}
+                    </strong>
+                  </div>
+                  <div className="ops-readiness-row">
+                    <span>Status</span>
+                    <Badge
+                      variant={
+                        feeCharge.status === "paid"
+                          ? "success"
+                          : feeCharge.status === "waived"
+                            ? "secondary"
+                            : "outline"
+                      }
+                    >
+                      {titleize(feeCharge.status)}
+                    </Badge>
+                  </div>
+                  {feeCharge.status === "paid" && feeCharge.paidAt && (
+                    <div className="ops-readiness-row">
+                      <span>Paid at</span>
+                      <strong>{new Date(feeCharge.paidAt).toLocaleString()}</strong>
+                    </div>
+                  )}
+                  {feeCharge.status === "waived" && (
+                    <>
+                      {feeCharge.waivedReason && (
+                        <div className="ops-readiness-row">
+                          <span>Waiver reason</span>
+                          <strong className="text-right max-w-md">{feeCharge.waivedReason}</strong>
+                        </div>
+                      )}
+                      {feeCharge.waivedAt && (
+                        <div className="ops-readiness-row">
+                          <span>Waived at</span>
+                          <strong>{new Date(feeCharge.waivedAt).toLocaleString()}</strong>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {feeCharge.status === "pending" && (
+                  <div className="button-row">
+                    <Button
+                      onClick={handleMarkFeePaid}
+                      disabled={feeActionSubmitting}
+                    >
+                      {feeActionSubmitting ? "Processing..." : "Mark Paid"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={openFeeWaiveModal}
+                      disabled={feeActionSubmitting}
+                    >
+                      Waive
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="ops-panel">
         <CardHeader>
@@ -628,6 +842,44 @@ export function ApplicationTab({
               </Button>
               <Button type="submit" disabled={waiveSubmitting}>
                 {waiveSubmitting ? "Submitting..." : "Waive Requirement"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={feeWaiveModalOpen} onOpenChange={setFeeWaiveModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Waive Application Fee</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleFeeWaiveSubmit}>
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="feeWaiverReason">Reason (required)</Label>
+                <Textarea
+                  id="feeWaiverReason"
+                  value={feeWaiverReason}
+                  onChange={(e) => setFeeWaiverReason(e.target.value)}
+                  required
+                  placeholder="Explain why the application fee is being waived..."
+                />
+              </div>
+
+              {feeWaiveError && (
+                <div className="text-sm text-destructive border border-destructive/50 bg-destructive/10 rounded p-2">
+                  {feeWaiveError}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setFeeWaiveModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={feeActionSubmitting}>
+                {feeActionSubmitting ? "Submitting..." : "Waive Fee"}
               </Button>
             </DialogFooter>
           </form>
