@@ -92,6 +92,7 @@ function fixture(existing?: AdmissionApplication) {
           });
         }
       },
+      checkApplicationFeeStatus: async () => "none" as const,
     },
     audit: {
       append: async (event: AcademyAuditEventInput) => {

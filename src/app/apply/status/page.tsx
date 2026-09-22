@@ -28,6 +28,15 @@ interface DocumentChecklist {
   completionPct: number;
 }
 
+interface ApplicationFeeStatus {
+  required: boolean;
+  status?: "paid" | "waived";
+  checkoutUrl?: string | null;
+  message?: string;
+  amountCents?: number;
+  currency?: string;
+}
+
 function StatusContent() {
   const searchParams = useSearchParams();
   const tokenFromUrl = searchParams.get("token") ?? "";
@@ -47,6 +56,18 @@ function StatusContent() {
   // not tokenFromUrl (which is empty when the applicant typed the token in).
   const [activeToken, setActiveToken] = useState(tokenFromUrl);
 
+  const [feeStatus, setFeeStatus] = useState<ApplicationFeeStatus | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
+  // Read payment result from URL params once at mount
+  const [paymentResult] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    if (payment === "success") return "success";
+    if (payment === "cancelled") return "cancelled";
+    return null;
+  });
+
   // Track whether we've run the auto-lookup so it only fires once
   const didAutoLookup = useRef(false);
 
@@ -64,6 +85,28 @@ function StatusContent() {
       console.error("Failed to fetch document checklist:", e);
     } finally {
       setChecklistLoading(false);
+    }
+  }, []);
+
+  const fetchFeeStatus = useCallback(async (lookupToken: string) => {
+    setFeeLoading(true);
+    try {
+      // Extract tenant from URL if available
+      const params = new URLSearchParams(window.location.search);
+      const tenant = params.get("tenant") ?? "";
+
+      const res = await fetch(
+        `/api/public/apply/fee/pay?token=${encodeURIComponent(lookupToken)}&tenant=${encodeURIComponent(tenant)}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
+      );
+      if (res.ok) {
+        const data = await res.json() as ApplicationFeeStatus;
+        setFeeStatus(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch fee status:", e);
+    } finally {
+      setFeeLoading(false);
     }
   }, []);
 
@@ -97,10 +140,14 @@ function StatusContent() {
       setStatusData(data.status);
       setActiveToken(lookupToken.trim());
 
-      // Fetch document checklist after successful status lookup
+      // Fetch document checklist and fee status after successful status lookup
       fetchChecklist(lookupToken.trim()).catch((e) => {
         console.error("Failed to fetch document checklist:", e);
         // Don't fail the status lookup if checklist fails
+      });
+      fetchFeeStatus(lookupToken.trim()).catch((e) => {
+        console.error("Failed to fetch fee status:", e);
+        // Don't fail the status lookup if fee status fails
       });
     } catch (e) {
       console.error("Failed to fetch application status:", e);
@@ -108,7 +155,7 @@ function StatusContent() {
     } finally {
       setLoading(false);
     }
-  }, [fetchChecklist]);
+  }, [fetchChecklist, fetchFeeStatus]);
 
   const handleFileUpload = async (itemId: string, file: File, lookupToken: string) => {
     // Client-side validation
@@ -278,6 +325,83 @@ function StatusContent() {
               )}
             </dl>
           </section>
+
+          {paymentResult === "success" && (
+            <section className="apply-portal-status-card">
+              <h2 className="apply-portal-subheading">Payment Processing</h2>
+              <p className="apply-portal-body">
+                Your payment is being processed. This may take a few moments. Please refresh the page in a few seconds to see the updated status.
+              </p>
+            </section>
+          )}
+
+          {paymentResult === "cancelled" && (
+            <section className="apply-portal-status-card">
+              <h2 className="apply-portal-subheading">Payment Cancelled</h2>
+              <p className="apply-portal-body">
+                Your payment was cancelled. You can retry payment below.
+              </p>
+            </section>
+          )}
+
+          {feeLoading && (
+            <p className="apply-portal-body">Loading application fee...</p>
+          )}
+
+          {feeStatus && (feeStatus.required || feeStatus.status) && (
+            <section className="apply-portal-status-card">
+              <h2 className="apply-portal-subheading">Application Fee</h2>
+
+              {feeStatus.status === "paid" ? (
+                <div className="apply-portal-dl">
+                  <div className="apply-portal-dl-row">
+                    <dt className="apply-portal-dt">Status</dt>
+                    <dd className="apply-portal-dd">
+                      <span className="apply-portal-badge apply-portal-badge-reviewed">Fee Paid ✓</span>
+                    </dd>
+                  </div>
+                </div>
+              ) : feeStatus.status === "waived" ? (
+                <div className="apply-portal-dl">
+                  <div className="apply-portal-dl-row">
+                    <dt className="apply-portal-dt">Status</dt>
+                    <dd className="apply-portal-dd">
+                      <span className="apply-portal-badge apply-portal-badge-waived">Fee Waived</span>
+                    </dd>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="apply-portal-dl">
+                    <div className="apply-portal-dl-row">
+                      <dt className="apply-portal-dt">Amount</dt>
+                      <dd className="apply-portal-dd">
+                        {feeStatus.amountCents && feeStatus.currency
+                          ? `${(feeStatus.amountCents / 100).toFixed(2)} ${feeStatus.currency}`
+                          : "—"}
+                      </dd>
+                    </div>
+                  </div>
+
+                  {feeStatus.checkoutUrl ? (
+                    <div style={{ marginTop: "1rem" }}>
+                      <a
+                        href={feeStatus.checkoutUrl}
+                        className="apply-portal-button"
+                        style={{ textDecoration: "none", textAlign: "center" }}
+                      >
+                        Pay Application Fee
+                      </a>
+                    </div>
+                  ) : feeStatus.message ? (
+                    <p className="apply-portal-body" style={{ marginTop: "1rem" }}>
+                      {feeStatus.message}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </section>
+          )}
 
           {checklistLoading && (
             <p className="apply-portal-body">Loading document checklist...</p>

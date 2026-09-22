@@ -8,6 +8,7 @@ import {
   AdmissionApplication,
   AdmissionApplicationEventInput,
   AdmissionApplicationStatus,
+  ApplicationFeeRequiredError,
   CreateAdmissionApplicationInput,
 } from "@/modules/admissions/types";
 import { AcademyAuditEventInput } from "@/modules/audit/types";
@@ -49,6 +50,10 @@ interface AdmissionsRepository {
     },
   ): Promise<AdmissionApplication | undefined>;
   appendEvent(event: AdmissionApplicationEventInput): Promise<void>;
+  checkApplicationFeeStatus(
+    tenantId: string,
+    applicationId: string,
+  ): Promise<"none" | "paid" | "waived" | "pending">;
 }
 
 interface AuditRepository {
@@ -122,6 +127,18 @@ export class AdmissionsService {
     if (replay) {
       return replay;
     }
+
+    // Gate submission on application fee payment/waiver
+    const feeStatus = await this.repository.checkApplicationFeeStatus(
+      application.tenantId,
+      application.id,
+    );
+    if (feeStatus === "pending") {
+      throw new ApplicationFeeRequiredError(
+        "Application fee payment is required before submission.",
+      );
+    }
+
     return this.transition(
       actor,
       application,

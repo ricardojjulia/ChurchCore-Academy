@@ -46,6 +46,8 @@ export interface AcademicProgram {
   status: ProgramStatus;
   effectiveFrom?: string;
   effectiveTo?: string;
+  applicationFeeCents?: number;
+  applicationFeeCurrency?: string;
   createdAt: string;
   createdByPersonId?: string;
   updatedAt: string;
@@ -83,6 +85,8 @@ export interface UpdateAcademicProgramInput {
   status?: ProgramStatus;
   effectiveFrom?: string;
   effectiveTo?: string;
+  applicationFeeCents?: number | null;
+  applicationFeeCurrency?: string;
 }
 
 export interface AcademicProgramRepository {

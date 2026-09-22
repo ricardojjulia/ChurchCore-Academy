@@ -231,13 +231,86 @@ export class PublicApplicationService {
     const applicationId = String(appResult.rows[0].id);
     const statusToken = String(appResult.rows[0].status_token);
 
-    // Step 4: Transition draft → submitted
-    await this.db.query(
+    // Step 3.5: Create application fee charge if program requires it
+    const programFee = await this.db.query(
+      `select application_fee_cents, application_fee_currency
+       from academy_programs
+       where tenant_id = $1 and id = $2`,
+      [tenantId, input.programId],
+    );
+
+    if (programFee.rows[0]?.application_fee_cents) {
+      const feeCents = Number(programFee.rows[0].application_fee_cents);
+      const feeCurrency = String(programFee.rows[0].application_fee_currency ?? 'USD');
+
+      // Idempotent fee charge creation (unique constraint on application_id + fee_type)
+      await this.db.query(
+        `insert into academy_application_fee_charges (
+           tenant_id, application_id, fee_type, amount_cents, currency,
+           status, created_at, updated_at
+         ) values ($1, $2, 'application_fee', $3, $4, 'pending', now(), now())
+         on conflict (application_id, fee_type) do nothing`,
+        [tenantId, applicationId, feeCents, feeCurrency],
+      );
+
+      // Check if fee is satisfied before allowing submission
+      const feeCheck = await this.db.query(
+        `select status from academy_application_fee_charges
+         where tenant_id = $1 and application_id = $2 and fee_type = 'application_fee'`,
+        [tenantId, applicationId],
+      );
+
+      if (feeCheck.rows[0] && feeCheck.rows[0].status === 'pending') {
+        // Fee is pending — do not transition to submitted, return early
+        return { applicationId, statusToken };
+      }
+    }
+
+    await this.finalizeSubmission(tenantId, applicationId);
+
+    return { applicationId, statusToken };
+  }
+
+  /**
+   * Transitions a draft application to submitted and runs every side effect that
+   * transition requires: the audit event, the document-checklist snapshot (without
+   * it the admissions decision gate would trivially treat the application as complete
+   * regardless of the program's actual requirements), and the confirmation email.
+   *
+   * Idempotent via compare-and-set on status = 'draft' — safe to call from any path
+   * that resolves a submission blocker (fee payment, fee waiver), including ones that
+   * fire asynchronously (the Stripe webhook) or after the initial form submission.
+   */
+  async finalizeSubmission(tenantId: string, applicationId: string): Promise<void> {
+    const appRow = await this.db.query(
+      `select applicant_person_id, program_id, legal_name, email, idempotency_key
+       from academy_admission_applications
+       where tenant_id = $1 and id = $2`,
+      [tenantId, applicationId],
+    );
+
+    if (!appRow.rows[0]) {
+      throw new PublicApplicationNotFoundError("Application was not found.");
+    }
+
+    const personId = String(appRow.rows[0].applicant_person_id);
+    const programId = String(appRow.rows[0].program_id);
+    const displayName = String(appRow.rows[0].legal_name);
+    const normalizedEmail = String(appRow.rows[0].email);
+    const idempotencyKey = String(appRow.rows[0].idempotency_key);
+
+    // Step 4: Transition draft → submitted (compare-and-set — no-op if not currently draft,
+    // which makes this method safe to call more than once for the same application).
+    const transition = await this.db.query(
       `update academy_admission_applications
        set status = 'submitted', submitted_at = now(), updated_at = now()
        where tenant_id = $1 and id = $2 and status = 'draft'`,
       [tenantId, applicationId],
     );
+
+    if (!transition.rowCount) {
+      return;
+    }
 
     // Step 5: Append submitted event
     await this.db.query(
@@ -254,7 +327,7 @@ export class PublicApplicationService {
     // trivially treat it as complete regardless of the program's actual requirements.
     await new DocumentChecklistService(
       new PostgresDocumentChecklistRepository(this.db),
-    ).snapshotChecklistForApplication(tenantId, applicationId, input.programId);
+    ).snapshotChecklistForApplication(tenantId, applicationId, programId);
 
     // Step 6: Queue confirmation email (best-effort — do not fail submission on error)
     try {
@@ -280,8 +353,6 @@ export class PublicApplicationService {
     } catch {
       // Non-fatal — submission is complete regardless
     }
-
-    return { applicationId, statusToken };
   }
 
   async checkApplicationStatus(
