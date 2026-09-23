@@ -207,7 +207,7 @@
   gap: 0.35rem;
   border: 1px solid var(--color-accent-700);
   border-radius: 0.6rem;
-  color: var(--color-surface);
+  color: var(--color-neutral-100);
   background: var(--color-accent-700);
   padding: 0.55rem 0.9rem;
   font-size: 0.84rem;
@@ -313,7 +313,7 @@
   padding: 0.25rem 0.75rem;
   border: 1px solid var(--color-accent-700);
   border-radius: 0.6rem;
-  color: var(--color-surface);
+  color: var(--color-neutral-100);
   background: var(--color-accent-700);
   text-decoration: none;
   font-weight: 600;
@@ -355,7 +355,7 @@
 .student-lms-launch-link {
   border: 1px solid var(--color-accent-700);
   border-radius: 0.6rem;
-  color: var(--color-surface);
+  color: var(--color-neutral-100);
   background: var(--color-accent-700);
   padding: 0.55rem 0.9rem;
   font-size: 0.84rem;
@@ -997,7 +997,7 @@
   margin: 0 auto;
   place-items: center;
   border-radius: 1.1rem;
-  color: var(--color-surface);
+  color: var(--color-neutral-100);
   background: var(--color-accent-700);
 }
 
@@ -1062,7 +1062,7 @@
   gap: 0.5rem;
   margin-top: 1.5rem;
   border-radius: 0.75rem;
-  color: var(--color-surface);
+  color: var(--color-neutral-100);
   background: var(--color-accent-700);
   padding: 0.75rem 1rem;
   font-size: 0.85rem;
@@ -1174,7 +1174,7 @@
 /* ─── Dashboard additions ─── */
 
 .student-pwa-whats-next {
-  background: linear-gradient(135deg, rgba(27, 79, 138, 0.06), color-mix(in srgb, var(--color-accent) 4%, transparent));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent-700) 6%, transparent), color-mix(in srgb, var(--color-accent) 4%, transparent));
   border: 1px solid color-mix(in srgb, var(--color-accent) 18%, transparent);
   border-radius: var(--radius-panel);
   padding: 1.25rem 1.5rem;
@@ -1487,7 +1487,7 @@
   padding: 0.5rem 1.25rem;
   border-radius: 0.5rem;
   background: var(--color-accent-700);
-  color: var(--color-surface);
+  color: var(--color-neutral-100);
   font-size: 0.875rem;
   text-decoration: none;
   display: inline-block;

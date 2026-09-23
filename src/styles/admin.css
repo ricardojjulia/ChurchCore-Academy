@@ -428,7 +428,7 @@
   place-items: center;
   border-radius: 999px;
   background: linear-gradient(145deg, var(--color-accent-800), var(--color-accent-700));
-  color: var(--brand-primary);
+  color: var(--color-accent-100);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -2998,7 +2998,7 @@
   padding: 0.5rem 1.25rem;
   border-radius: 0.5rem;
   background: var(--color-accent-700);
-  color: var(--color-surface);
+  color: var(--color-neutral-100);
   font-size: 0.875rem;
   text-decoration: none;
   display: inline-block;
