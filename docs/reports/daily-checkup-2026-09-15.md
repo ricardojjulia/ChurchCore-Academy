@@ -31,7 +31,7 @@ Logged in as `admin@churchcore.academy` (roles: `institution_admin`, `registrar`
 | Ministry Formation | `/admin/formation`, `/admin/formation/[studentId]` | **Working — corrected a stale doc claim, see below** |
 | Gradebook | `/admin/gradebook` | Working — section grade status + registrar posting queue with real draft grades |
 | ShepherdAI Queue | `/admin/workflows` as `institution_admin` | **Correctly denies access** (by design) — but the dashboard was linking to it anyway, see Defect 1 |
-| Student PWA | Logged in as `student@churchcore.academy` (Lena Rivera) — Home, Progress | Working — no console errors, releases-only data shown |
+| Student PWA | Logged in as `student@churchcore.academy` (Lena Rivera) — Home, Progress | Working — no console errors on Home and Progress. *(Correction: this pass did not check `/student/formation` with a draft evaluation, so "releases-only" was not verified here. That path did leak draft evaluations; see §2.5, fixed in #111.)* |
 
 Not reached this run (time-boxed): Admissions, Finance/Billing, Reports, People & Roles admin, Faculty portal, Communications, LMS Providers settings, Denomination/Alumni (confirmed no UI exists — see below).
 
@@ -136,7 +136,7 @@ No new council proposal drafted this run. The standing plan — `docs/superpower
 
 ## Needs your attention
 
-- **All four PRs from this run (#108, #109, #110, #111) merged to `main`** — no PR was left open or needing review.
+- **#108, #109, #111 and #112 merged to `main`; #110 was closed without merge** (its report file reached `main` through #111, see §4). No PR was left open or needing review.
 - **§2.5 (draft ministry-formation evaluations exposed to students) was a real privacy-adjacent bug that shipped to `main` before today** — it's fixed now, but worth a moment's thought on whether any real (non-demo) tenant had draft evaluations a student could have already seen before this fix. On the local demo tenant, no harm — this is the first time it was caught.
 - **The full 12-step core-loop walkthrough is still not done in one sitting.** This is the top recommended focus for the next session — see §5.
 - **The scheduled job itself expires around 2026-09-21** (7-day session-cron limit) and only fires while the desktop session is open and idle at 6am — renew it before then if daily runs should continue.

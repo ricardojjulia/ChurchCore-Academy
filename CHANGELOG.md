@@ -263,7 +263,8 @@ No change to release posture. Billing, financial aid, communications, and LMS pr
 - Added tenant-aware composite foreign keys and database role-matrix verification.
 - Added append-only audit and learner-intelligence evidence storage.
 
-[Unreleased]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/03b660e...HEAD
+[0.10.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.9.0...03b660e
 [0.9.0]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ricardojjulia/ChurchCore-Academy/releases/tag/v0.8.0
 [0.7.1]: https://github.com/ricardojjulia/ChurchCore-Academy/compare/v0.7.0...v0.7.1

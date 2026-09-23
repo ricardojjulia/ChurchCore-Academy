@@ -71,7 +71,7 @@ This is the sequence of operations that must work completely before anything els
 11. Produce a Transcript Entry (official snapshot — preserved even if program later changes)
 ```
 
-If an admin cannot complete steps 1–10 end-to-end in the browser, the system does not work. A passing build does not mean the system works.
+If an admin cannot complete steps 1–11 end-to-end in the browser, the system does not work. A passing build does not mean the system works.
 
 ---
 
@@ -226,7 +226,7 @@ The Academy ↔ ChurchCore LMS integration contract covers:
 
 ## What NOT to Build Yet
 
-The following are explicitly out of scope until the Core Academic Loop (steps 1–10 above) works completely:
+The following are explicitly out of scope until the Core Academic Loop (steps 1–11 above) works completely:
 
 **Updated 2026-09-12:** several items below were listed as out of scope on the assumption that their prerequisites (grade/progress data, enrollment data, academic records) didn't exist yet. Per the 2026-09-12 feature inventory audit (`docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md`), those prerequisites are now built, and so are the dependent features — they are no longer "not yet built," they are built-but-externally-gated or built-and-live. See the audit for exact status per item. Struck through below; not deleted, so the reasoning trail stays visible.
 

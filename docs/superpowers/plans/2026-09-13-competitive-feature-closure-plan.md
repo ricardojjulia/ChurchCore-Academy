@@ -17,7 +17,7 @@ This is the complete Populi-parity gap list — confirmed absent from the codeba
 | # | Feature | Populi has it | Academy status |
 |---|---|---|---|
 | 1 | Public applicant self-service portal (status tracking, document upload, no staff login) | Yes | Not built — admissions is admin/staff-facing only |
-| 2 | Lead pipeline before "applicant" (inquiry → prospect → applicant stages) | Yes | Not built — application record starts at `draft`, no pre-application CRM stage |
+| 2 | Lead pipeline before "applicant" (inquiry → prospect → applicant stages) | Yes | Backend existed but was not surfaced: `Inquiry` (`src/modules/admissions/applicant-crm.ts`, `academy_inquiries`, statuses `new | contacted | nurturing | applied | enrolled | lost`, routes under `/api/academy/admissions/inquiries`) had no admin UI. *(Corrected 2026-09-23; the UI shipped in PR #135.)* |
 | 3 | Bulk SMS/email campaigns to applicant/prospect lists | Yes | Not built — communications module sends individual, triggered messages only |
 | 4 | Application fee collection | Yes | Not built — no fee line item tied to application submission |
 | 5 | E-signature on enrollment agreements | Yes | Not built |
@@ -64,6 +64,13 @@ Grouped into 7 initiatives by shared data surface. Each follows this repo's esta
 
 ### 3.1 Admissions CRM Completion
 *Covers: public applicant self-service portal, lead pipeline, bulk SMS/email, application fee collection, e-signature, conditional requirements*
+
+> **Status and corrections (2026-09-23).** Most of this package has since shipped, and several of the design points below were wrong about the existing code. Read them as the original proposal, not as a spec:
+> - **Lead pipeline:** there was no new `AdmissionInquiry` entity. PR #135 built the admin UI on the existing `Inquiry` model and its status vocabulary (`new | contacted | nurturing | applied | enrolled | lost`), which avoided duplicate lead records and a second state machine.
+> - **Application fees:** not a thin `billing` wrapper. `createPaymentIntent` needs a `studentPersonId` and `academicPeriodId` that a pre-enrollment applicant doesn't have, and `BillingSourceType` had no admissions source. PR #156 shipped a dedicated `academy_application_fee_charges` flow with its own applicant ownership, webhook reconciliation, and waiver path.
+> - **E-signature:** shipped in PR #157.
+> - **SMS:** the communications contract supports only `in_app` and `email` (`CommunicationChannel`), with no SMS channel or provider boundary. Any `sms | both` campaign channel needs its own contract, provider, consent and retry design first. Until then, campaigns are email-only.
+> - **Public-route security baseline:** the existing public routes are not a safe template. `/api/academy/admissions/inquiries` accepted anonymous writes under a caller-supplied `X-Tenant-Id` header (removed in PR #159; the route is now staff-only). `/api/public/apply/*` resolve the tenant from a query parameter or environment default. The status lookup has no rate limit; its token is a random UUID, so it can't practically be enumerated, but throttling would still add defense in depth. Any new public endpoint needs trusted institution resolution and throttling for both writes and lookups, and its security tests must also cover the existing public routes.
 
 **Why grouped:** all six extend the existing `src/modules/admissions/` module and its `AdmissionApplication` state machine (`draft → submitted → under_review → accepted/declined → withdrawn`). Splitting them into separate work packages would mean touching the same files six times.
 
@@ -155,7 +162,7 @@ Grouped into 7 initiatives by shared data surface. Each follows this repo's esta
 **Builds on** the existing `shepherd-ai`/`academic-workflows` signal-and-workflow infrastructure — this is additive to the signal engine, not a new subsystem.
 
 **Data model additions:**
-- `AdvisorCaseload`: derived view, not a stored table — `advisorPersonId` (from `StaffProfile` where `primaryRole` includes an advising capacity) joined against `StudentProgramMembership.advisorId` (already exists per the core-loop audit) counted and weighted by open `ShepherdAiSuggestion` severity.
+- `AdvisorCaseload`: derived view, not a stored table — `StudentProfile.advisorPersonId` (the existing academic-advisor assignment; `StudentProgramMembership` has no `advisorId`, and `StaffProfile.primaryRole` is a single role, not a set of capacities) grouped by advisor, with eligible advisors defined as staff holding the `advisor` role or referenced by at least one `advisorPersonId`, counted and weighted by open `ShepherdAiSuggestion` severity.
 - `AdvisingCaseQueueEntry`: a read-model surface (not a new write path) that ranks a given advisor's assigned students by open-signal severity — reuses `ShepherdAiSuggestion`'s existing `urgency`/`confidence` fields rather than inventing a parallel scoring system.
 
 **Service/API surface:** a new query function in `academic-workflows` — `getAdvisorCaseQueue(actor, advisorPersonId)` — and a UI surface for advisors (extends the faculty portal's existing `/faculty/shepherd` page rather than creating a new route tree).
