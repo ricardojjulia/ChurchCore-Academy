@@ -53,6 +53,9 @@ interface DatabaseClient {
 const PERSONAL_STATEMENT_MIN = 50;
 const PERSONAL_STATEMENT_MAX = 3000;
 const RATE_LIMIT_MAX = 3;
+// Status lookups are read-only and applicants legitimately re-check, so they get a much higher
+// daily ceiling than submissions. The token is a random UUID; this is defense in depth.
+const STATUS_LOOKUP_RATE_LIMIT_MAX = 60;
 const RATE_LIMIT_WINDOW_HOURS = 24;
 
 function validateInput(input: PublicApplicationInput): void {
@@ -84,6 +87,8 @@ async function checkRateLimit(
   db: DatabaseClient,
   tenantId: string,
   key: string,
+  max = RATE_LIMIT_MAX,
+  limitMessage = "Too many application attempts. Please try again later.",
 ): Promise<void> {
   const windowStart = new Date();
   windowStart.setHours(windowStart.getHours() - RATE_LIMIT_WINDOW_HOURS);
@@ -112,10 +117,8 @@ async function checkRateLimit(
     ? Number(upsertResult.rows[0].attempt_count)
     : 1;
 
-  if (count > RATE_LIMIT_MAX) {
-    throw new PublicApplicationRateLimitError(
-      "Too many application attempts. Please try again later.",
-    );
+  if (count > max) {
+    throw new PublicApplicationRateLimitError(limitMessage);
   }
 }
 
@@ -358,7 +361,16 @@ export class PublicApplicationService {
   async checkApplicationStatus(
     tenantId: string,
     statusToken: string,
+    clientIp: string,
   ): Promise<ApplicationStatusResult> {
+    await checkRateLimit(
+      this.db,
+      tenantId,
+      `status:${clientIp}`,
+      STATUS_LOOKUP_RATE_LIMIT_MAX,
+      "Too many status checks. Please try again later.",
+    );
+
     const result = await this.db.query(
       `select a.status, a.submitted_at, p.title as program_name
        from academy_admission_applications a
