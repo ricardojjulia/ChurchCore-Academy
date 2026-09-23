@@ -1,5 +1,6 @@
 import { getDatabasePool } from "@/lib/database";
 import { ShepherdAiSuggestion, WorkflowFeedbackRecord, WorkflowRecord } from "@/modules/shepherd-ai/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 interface DatabaseRow {
   [key: string]: unknown;
@@ -28,7 +29,7 @@ export class AcademicWorkflowsPostgresService {
 
     const suggestion = suggestionResult.rows[0] as SuggestionRow;
     if (suggestion.tenant_id !== tenantId) {
-      throw new Error("Forbidden ShepherdAI access.");
+      throw new AcademyAuthorizationError("Forbidden ShepherdAI access.");
     }
 
     const workflow: WorkflowRecord = {

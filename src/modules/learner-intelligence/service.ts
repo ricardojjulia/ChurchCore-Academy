@@ -20,6 +20,7 @@ import {
   validateLearnerIntelligenceConsentInput,
   validateLearnerMemoryEntryInput,
 } from "@/modules/learner-intelligence/validation";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 const staffRoles: ReadonlySet<AcademyRole> = new Set([
   "institution_admin",
@@ -64,7 +65,7 @@ export class LearnerIntelligenceService {
     const canRecordForLearner = actor.userId === input.learnerId;
     const canRecordAsStaff = actor.roles.some((role) => staffRoles.has(role));
     if (!canRecordForLearner && !canRecordAsStaff) {
-      throw new Error("Forbidden learner intelligence event write.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence event write.");
     }
 
     const validated = validateLearnerActivityEventInput(input);
@@ -78,7 +79,7 @@ export class LearnerIntelligenceService {
 
     const canManageOwnConsent = actor.userId === input.learnerId;
     if (!canManageOwnConsent) {
-      throw new Error("Forbidden learner intelligence consent write.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence consent write.");
     }
 
     const validated = validateLearnerIntelligenceConsentInput(input);
@@ -99,7 +100,7 @@ export class LearnerIntelligenceService {
   async revokeConsent(actor: AcademyActor, input: LearnerConsentRevocationInput) {
     this.assertSameTenant(actor, input.tenantId, "Forbidden learner intelligence consent write.");
     if (actor.userId !== input.learnerId) {
-      throw new Error("Forbidden learner intelligence consent write.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence consent write.");
     }
 
     const consentVersion = input.consentVersion.trim();
@@ -127,7 +128,7 @@ export class LearnerIntelligenceService {
 
     const hasMemoryWriteRole = actor.roles.some((role) => memoryWriteRoles.has(role));
     if (!hasMemoryWriteRole) {
-      throw new Error("Forbidden learner intelligence memory write.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence memory write.");
     }
 
     const validated = validateLearnerMemoryEntryInput(input);
@@ -141,7 +142,7 @@ export class LearnerIntelligenceService {
 
     const canReadAsStaff = actor.roles.some((role) => staffRoles.has(role));
     if (!canReadAsStaff) {
-      throw new Error("Forbidden learner intelligence read.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence read.");
     }
 
     const boundedLimit = Math.max(1, Math.min(100, Math.floor(limit)));
@@ -157,7 +158,7 @@ export class LearnerIntelligenceService {
 
     const canReadAsStaff = actor.roles.some((role) => staffRoles.has(role));
     if (!canReadAsStaff) {
-      throw new Error("Forbidden learner intelligence read.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence read.");
     }
 
     const boundedLimit = Math.max(1, Math.min(100, Math.floor(options.limit ?? 25)));
@@ -178,7 +179,7 @@ export class LearnerIntelligenceService {
 
     const canWriteAsStaff = actor.roles.some((role) => staffRoles.has(role));
     if (!canWriteAsStaff) {
-      throw new Error("Forbidden learner intelligence write.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence write.");
     }
 
     if (!interventionId.trim()) {
@@ -219,7 +220,7 @@ export class LearnerIntelligenceService {
 
     const canReadAsStaff = actor.roles.some((role) => staffRoles.has(role));
     if (!canReadAsStaff) {
-      throw new Error("Forbidden learner intelligence read.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence read.");
     }
 
     if (!interventionId.trim()) {
@@ -241,7 +242,7 @@ export class LearnerIntelligenceService {
     const canReadOwnConsent = actor.userId === learnerId;
     const canReadAsStaff = actor.roles.some((role) => consentReadRoles.has(role));
     if (!canReadOwnConsent && !canReadAsStaff) {
-      throw new Error("Forbidden learner intelligence consent read.");
+      throw new AcademyAuthorizationError("Forbidden learner intelligence consent read.");
     }
   }
 

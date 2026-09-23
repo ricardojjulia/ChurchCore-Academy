@@ -1,6 +1,7 @@
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import { CovenantRecord, CovenantFields } from "@/modules/people/types";
 import crypto from "node:crypto";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -18,7 +19,7 @@ function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
 
 function assertRole(actor: AcademyActor, allowedRoles: ReadonlySet<string>, action: string) {
   if (!actor.roles.some((role) => allowedRoles.has(role))) {
-    throw new Error(`Forbidden: ${action} requires one of roles: ${Array.from(allowedRoles).join(", ")}.`);
+    throw new AcademyAuthorizationError(`Forbidden: ${action} requires one of roles: ${Array.from(allowedRoles).join(", ")}.`);
   }
 }
 
@@ -77,7 +78,7 @@ export async function getCovenantRecord(
     );
 
     if (!assignment.rowCount || assignment.rowCount === 0) {
-      throw new Error("Forbidden: advisors can only access covenant records for assigned students.");
+      throw new AcademyAuthorizationError("Forbidden: advisors can only access covenant records for assigned students.");
     }
   }
 

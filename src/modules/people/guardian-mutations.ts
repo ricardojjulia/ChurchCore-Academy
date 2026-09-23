@@ -3,6 +3,7 @@ import { Person, StudentRelationship, StudentRelationshipAuthority, StudentRelat
 import { createPerson, CreatePersonInput } from "@/modules/people/person-mutations";
 import { createStudentRelationship, CreateRelationshipInput } from "@/modules/people/relationship-mutations";
 import crypto from "node:crypto";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -25,7 +26,7 @@ function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
 
 function assertRole(actor: AcademyActor, allowedRoles: ReadonlySet<string>, action: string) {
   if (!actor.roles.some((role) => allowedRoles.has(role))) {
-    throw new Error(`Forbidden: ${action} requires one of roles: ${Array.from(allowedRoles).join(", ")}.`);
+    throw new AcademyAuthorizationError(`Forbidden: ${action} requires one of roles: ${Array.from(allowedRoles).join(", ")}.`);
   }
 }
 

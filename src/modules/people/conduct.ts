@@ -1,4 +1,5 @@
 import type { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export type ConductIncidentType =
   | "academic_dishonesty"
@@ -356,7 +357,7 @@ export async function getConductRecord(
   db: DatabaseClient,
 ): Promise<ConductRecord> {
   if (!canReadConduct(actor)) {
-    throw new Error("Forbidden: Cannot access conduct records.");
+    throw new AcademyAuthorizationError("Forbidden: Cannot access conduct records.");
   }
 
   const result = await db.query(
@@ -377,7 +378,7 @@ export async function getStudentConductHistory(
   db: DatabaseClient,
 ): Promise<ConductRecord[]> {
   if (!canReadConduct(actor)) {
-    throw new Error("Forbidden: Cannot access conduct records.");
+    throw new AcademyAuthorizationError("Forbidden: Cannot access conduct records.");
   }
 
   if (!studentPersonId) {
@@ -414,7 +415,7 @@ export async function createIntervention(
   db: DatabaseClient,
 ): Promise<Intervention> {
   if (!canManageConduct(actor)) {
-    throw new Error("Forbidden: Only administrators can create interventions.");
+    throw new AcademyAuthorizationError("Forbidden: Only administrators can create interventions.");
   }
 
   if (!input.studentPersonId || !input.assignedToPersonId) {
@@ -563,7 +564,7 @@ export async function getStudentInterventions(
   const canReadAsStaff = canReadConduct(actor);
 
   if (!isOwnStudent && !canReadAsStaff) {
-    throw new Error("Forbidden: Cannot access student interventions.");
+    throw new AcademyAuthorizationError("Forbidden: Cannot access student interventions.");
   }
 
   const result = await db.query(
@@ -644,7 +645,7 @@ export async function reviewAppeal(
   db: DatabaseClient,
 ): Promise<ConductAppeal> {
   if (!canManageConduct(actor)) {
-    throw new Error("Forbidden: Only administrators can review appeals.");
+    throw new AcademyAuthorizationError("Forbidden: Only administrators can review appeals.");
   }
 
   if (!appealId || !decision) {
@@ -689,7 +690,7 @@ export async function getConductSummary(
   db: DatabaseClient,
 ): Promise<ConductSummary> {
   if (!canManageConduct(actor)) {
-    throw new Error("Forbidden: Only administrators can view conduct summary.");
+    throw new AcademyAuthorizationError("Forbidden: Only administrators can view conduct summary.");
   }
 
   // Count open records by severity

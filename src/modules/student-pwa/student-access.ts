@@ -2,6 +2,7 @@ import { AcademyActor } from "@/modules/academy-auth/policy";
 import { canAccessPeopleDomain } from "@/modules/people/access-policy";
 import { GuardianAccessCategory } from "@/modules/people/validation";
 import { PeopleConfiguration, StudentProfile } from "@/modules/people/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export type StudentPwaAccessMode = "student_self" | "guardian_relationship";
 
@@ -31,7 +32,7 @@ export function resolveStudentPwaAccess(
   asOf?: string,
 ): StudentPwaAccess {
   if (actor.tenantId !== config.institutionProfile.tenantId) {
-    throw new Error("Forbidden student PWA access.");
+    throw new AcademyAuthorizationError("Forbidden student PWA access.");
   }
 
   const studentProfile = config.studentProfiles.find(
@@ -42,7 +43,7 @@ export function resolveStudentPwaAccess(
   );
 
   if (!studentProfile || !studentPerson) {
-    throw new Error("Forbidden student PWA access.");
+    throw new AcademyAuthorizationError("Forbidden student PWA access.");
   }
 
   if (hasActiveActorRole(config, actor, "student") && actor.userId === targetStudentPersonId) {
@@ -75,5 +76,5 @@ export function resolveStudentPwaAccess(
     }
   }
 
-  throw new Error("Forbidden student PWA access.");
+  throw new AcademyAuthorizationError("Forbidden student PWA access.");
 }
