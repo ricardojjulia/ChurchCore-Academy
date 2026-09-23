@@ -1,28 +1,23 @@
 import type { Page } from "@playwright/test";
+import { E2E_PASSWORD, PERSONAS as PERSONA_REGISTRY, PERSONA_KEYS, type PersonaKey } from "./personas";
 
-// Local-only demo credentials — see memory/project_local_db_setup.md.
-// All demo accounts share the same password.
-export const DEMO_PASSWORD = "ChurchCore2026!";
+export { type PersonaKey } from "./personas";
 
-export const PERSONAS = {
-  institutionAdmin: "admin@churchcore.academy",
-  institutionAdmin2: "institution.admin@churchcore.academy",
-  teacher: "teacher@churchcore.academy",
-  student: "student@churchcore.academy",
-  finance: "finance@churchcore.academy",
-  faculty: "faculty@churchcore.academy",
-  admissions: "admissions@churchcore.academy",
-  guardian: "guardian@churchcore.academy",
-  registrar: "registrar@churchcore.academy",
-  academicAdmin: "academic.admin@churchcore.academy",
-  advisor: "advisor@churchcore.academy",
-  formationReviewer: "formation.reviewer@churchcore.academy",
-} as const;
+export const DEMO_PASSWORD = E2E_PASSWORD;
 
-export type PersonaKey = keyof typeof PERSONAS;
+// Email by persona key — the shape the hand-written specs use (`loginAs(page, PERSONAS.student)`).
+export const PERSONAS = Object.fromEntries(
+  PERSONA_KEYS.map((key) => [key, PERSONA_REGISTRY[key].email]),
+) as { [K in PersonaKey]: (typeof PERSONA_REGISTRY)[K]["email"] };
+
+/** Saved session for a persona, written once per run by e2e/global-setup.ts. */
+export function storageStateFor(key: PersonaKey) {
+  return `e2e/.auth/${key}.json`;
+}
 
 export async function loginAs(page: Page, email: string, password = DEMO_PASSWORD) {
-  await page.goto("/login");
+  // networkidle: submitting before hydration falls back to a native GET form submit.
+  await page.goto("/login", { waitUntil: "networkidle" });
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.locator('button[type="submit"]').click();
