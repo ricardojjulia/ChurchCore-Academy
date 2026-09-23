@@ -3,6 +3,7 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { ENROLLMENT_AGREEMENT_TEXT_V1 } from "@/modules/admissions/enrollment-agreement-constants";
 
 interface ApplicationStatus {
   status: string;
@@ -37,6 +38,11 @@ interface ApplicationFeeStatus {
   currency?: string;
 }
 
+interface EnrollmentAgreementStatus {
+  status: "pending" | "signed" | null;
+  signedAt?: string | null;
+}
+
 function StatusContent() {
   const searchParams = useSearchParams();
   const tokenFromUrl = searchParams.get("token") ?? "";
@@ -67,6 +73,11 @@ function StatusContent() {
     if (payment === "cancelled") return "cancelled";
     return null;
   });
+
+  const [agreementStatus, setAgreementStatus] = useState<EnrollmentAgreementStatus | null>(null);
+  const [agreementLoading, setAgreementLoading] = useState(false);
+  const [agreementSigning, setAgreementSigning] = useState(false);
+  const [agreementError, setAgreementError] = useState<string | null>(null);
 
   // Track whether we've run the auto-lookup so it only fires once
   const didAutoLookup = useRef(false);
@@ -110,6 +121,23 @@ function StatusContent() {
     }
   }, []);
 
+  const fetchAgreementStatus = useCallback(async (lookupToken: string) => {
+    setAgreementLoading(true);
+    try {
+      const res = await fetch(
+        `/api/public/apply/agreement/status?token=${encodeURIComponent(lookupToken)}`,
+      );
+      if (res.ok) {
+        const data = await res.json() as EnrollmentAgreementStatus;
+        setAgreementStatus(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch agreement status:", e);
+    } finally {
+      setAgreementLoading(false);
+    }
+  }, []);
+
   // fetchStatus is a plain async function (not setState inside an effect body)
   const fetchStatus = useCallback(async (lookupToken: string) => {
     if (!lookupToken.trim()) {
@@ -140,7 +168,7 @@ function StatusContent() {
       setStatusData(data.status);
       setActiveToken(lookupToken.trim());
 
-      // Fetch document checklist and fee status after successful status lookup
+      // Fetch document checklist, fee status, and agreement status after successful status lookup
       fetchChecklist(lookupToken.trim()).catch((e) => {
         console.error("Failed to fetch document checklist:", e);
         // Don't fail the status lookup if checklist fails
@@ -149,13 +177,47 @@ function StatusContent() {
         console.error("Failed to fetch fee status:", e);
         // Don't fail the status lookup if fee status fails
       });
+      fetchAgreementStatus(lookupToken.trim()).catch((e) => {
+        console.error("Failed to fetch agreement status:", e);
+        // Don't fail the status lookup if agreement status fails
+      });
     } catch (e) {
       console.error("Failed to fetch application status:", e);
       setError("Unable to check status. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [fetchChecklist, fetchFeeStatus]);
+  }, [fetchChecklist, fetchFeeStatus, fetchAgreementStatus]);
+
+  const handleSignAgreement = async () => {
+    setAgreementSigning(true);
+    setAgreementError(null);
+
+    try {
+      const res = await fetch(
+        `/api/public/apply/agreement/sign?token=${encodeURIComponent(activeToken)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        setAgreementError(data.error ?? "Failed to sign agreement. Please try again.");
+        return;
+      }
+
+      // Refresh agreement status to show signed state
+      await fetchAgreementStatus(activeToken);
+    } catch (e) {
+      console.error("Agreement signing error:", e);
+      setAgreementError("Failed to sign agreement. Please try again.");
+    } finally {
+      setAgreementSigning(false);
+    }
+  };
 
   const handleFileUpload = async (itemId: string, file: File, lookupToken: string) => {
     // Client-side validation
@@ -398,6 +460,53 @@ function StatusContent() {
                       {feeStatus.message}
                     </p>
                   ) : null}
+                </>
+              )}
+            </section>
+          )}
+
+          {statusData.status === "accepted" && agreementLoading && (
+            <p className="apply-portal-body">Loading enrollment agreement...</p>
+          )}
+
+          {statusData.status === "accepted" && agreementStatus && agreementStatus.status && (
+            <section className="apply-portal-status-card">
+              <h2 className="apply-portal-subheading">Enrollment Agreement</h2>
+
+              {agreementStatus.status === "signed" ? (
+                <div className="apply-portal-dl">
+                  <div className="apply-portal-dl-row">
+                    <dt className="apply-portal-dt">Status</dt>
+                    <dd className="apply-portal-dd">
+                      <span className="apply-portal-badge apply-portal-badge-reviewed">Agreement Signed ✓</span>
+                    </dd>
+                  </div>
+                  {agreementStatus.signedAt && (
+                    <div className="apply-portal-dl-row">
+                      <dt className="apply-portal-dt">Signed at</dt>
+                      <dd className="apply-portal-dd">
+                        {new Date(agreementStatus.signedAt).toLocaleString()}
+                      </dd>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div style={{ whiteSpace: "pre-wrap", marginBottom: "1.5rem", lineHeight: "1.6" }}>
+                    {ENROLLMENT_AGREEMENT_TEXT_V1}
+                  </div>
+
+                  {agreementError && (
+                    <p className="apply-portal-error">{agreementError}</p>
+                  )}
+
+                  <button
+                    onClick={handleSignAgreement}
+                    disabled={agreementSigning}
+                    className="apply-portal-button"
+                  >
+                    {agreementSigning ? "Signing..." : "I agree and sign"}
+                  </button>
                 </>
               )}
             </section>

@@ -57,6 +57,14 @@ interface ApplicationFeeCharge {
   waivedByPersonId?: string;
 }
 
+interface EnrollmentAgreementRecord {
+  id: string;
+  applicationId: string;
+  status: "pending" | "signed";
+  signedByPersonId?: string;
+  signedAt?: string;
+}
+
 const APPLICANT_STATUSES = ["application_started", "pending", "admitted", "withdrawn"];
 
 function titleize(value: string) {
@@ -130,6 +138,10 @@ export function ApplicationTab({
   const [feeWaiverReason, setFeeWaiverReason] = useState("");
   const [feeWaiveError, setFeeWaiveError] = useState<string | null>(null);
 
+  const [agreementRecord, setAgreementRecord] = useState<EnrollmentAgreementRecord | null>(null);
+  const [agreementLoading, setAgreementLoading] = useState(false);
+  const [agreementError, setAgreementError] = useState<string | null>(null);
+
   const fetchFeeCharge = useCallback(async () => {
     if (!applicationId) return;
     setFeeLoading(true);
@@ -156,6 +168,35 @@ export function ApplicationTab({
       setFeeError("Failed to load application fee.");
     } finally {
       setFeeLoading(false);
+    }
+  }, [applicationId]);
+
+  const fetchAgreementRecord = useCallback(async () => {
+    if (!applicationId) return;
+    setAgreementLoading(true);
+    setAgreementError(null);
+    try {
+      const res = await fetch(`/api/academy/admissions/applications/${applicationId}/agreement`);
+      if (res.status === 404) {
+        // No agreement record for this application (not yet accepted)
+        setAgreementRecord(null);
+        return;
+      }
+      if (res.status === 403) {
+        setAgreementError("You do not have permission to view enrollment agreements.");
+        return;
+      }
+      if (!res.ok) {
+        setAgreementError("Failed to load enrollment agreement.");
+        return;
+      }
+      const data = await res.json() as { agreement: EnrollmentAgreementRecord };
+      setAgreementRecord(data.agreement);
+    } catch (err) {
+      console.error("Agreement record fetch error:", err);
+      setAgreementError("Failed to load enrollment agreement.");
+    } finally {
+      setAgreementLoading(false);
     }
   }, [applicationId]);
 
@@ -189,7 +230,7 @@ export function ApplicationTab({
 
   useEffect(() => {
     // Standard data-fetching-on-mount/prop-change effect — synchronizing UI
-    // state with the checklist and fee APIs for this applicationId.
+    // state with the checklist, fee, and agreement APIs for this applicationId.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchChecklist().catch((err) => {
       console.error("Checklist fetch error:", err);
@@ -197,7 +238,10 @@ export function ApplicationTab({
     fetchFeeCharge().catch((err) => {
       console.error("Fee charge fetch error:", err);
     });
-  }, [fetchChecklist, fetchFeeCharge]);
+    fetchAgreementRecord().catch((err) => {
+      console.error("Agreement record fetch error:", err);
+    });
+  }, [fetchChecklist, fetchFeeCharge, fetchAgreementRecord]);
 
   function openReviewModal(itemId: string) {
     setReviewingItemId(itemId);
@@ -545,6 +589,40 @@ export function ApplicationTab({
                   </div>
                 )}
               </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {applicationId && (
+        <Card className="ops-panel">
+          <CardHeader>
+            <CardTitle>Enrollment Agreement</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {agreementLoading ? (
+              <p className="text-sm text-muted-foreground">Loading enrollment agreement...</p>
+            ) : agreementError ? (
+              <p className="text-sm text-destructive">{agreementError}</p>
+            ) : !agreementRecord ? (
+              null
+            ) : (
+              <div className="student-field-list">
+                <div className="ops-readiness-row">
+                  <span>Status</span>
+                  <Badge
+                    variant={agreementRecord.status === "signed" ? "success" : "outline"}
+                  >
+                    {agreementRecord.status === "pending" ? "Pending applicant signature" : titleize(agreementRecord.status)}
+                  </Badge>
+                </div>
+                {agreementRecord.status === "signed" && agreementRecord.signedAt && (
+                  <div className="ops-readiness-row">
+                    <span>Signed at</span>
+                    <strong>{new Date(agreementRecord.signedAt).toLocaleString()}</strong>
+                  </div>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

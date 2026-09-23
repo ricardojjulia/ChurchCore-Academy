@@ -56,6 +56,13 @@ interface AdmissionsRepository {
   ): Promise<"none" | "paid" | "waived" | "pending">;
 }
 
+interface EnrollmentAgreementRepository {
+  create(input: {
+    tenantId: string;
+    applicationId: string;
+  }): Promise<unknown>;
+}
+
 interface AuditRepository {
   append(input: AcademyAuditEventInput): Promise<unknown>;
 }
@@ -65,6 +72,7 @@ export class AdmissionsService {
     private readonly repository: AdmissionsRepository,
     private readonly audit: AuditRepository,
     private readonly now: () => string = () => new Date().toISOString(),
+    private readonly enrollmentAgreementRepository?: EnrollmentAgreementRepository,
   ) {}
 
   async createDraft(
@@ -173,7 +181,7 @@ export class AdmissionsService {
     if (replay) {
       return replay;
     }
-    return this.transition(
+    const updated = await this.transition(
       actor,
       application,
       decision,
@@ -186,6 +194,22 @@ export class AdmissionsService {
         decisionReason: reason,
       },
     );
+
+    // Auto-create enrollment agreement signature record when application is accepted
+    if (decision === "accepted" && this.enrollmentAgreementRepository) {
+      try {
+        await this.enrollmentAgreementRepository.create({
+          tenantId: application.tenantId,
+          applicationId: application.id,
+        });
+      } catch {
+        // Non-fatal — agreement creation is idempotent via unique constraint;
+        // if this fails (e.g., on a withdraw→re-accept cycle where the record
+        // already exists), the existing record persists as-is.
+      }
+    }
+
+    return updated;
   }
 
   private async requireApplication(
