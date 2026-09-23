@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import type {
   ApplicantCrmDatabase,
   Inquiry,
@@ -336,6 +337,17 @@ test("createInquiry: rejects cross-tenant by RLS (simulated)", async () => {
   // In real RLS, tenant-2 would not see tenant-1's data
   // Here we simulate successful creation in tenant-2
   assert.equal(inquiry.tenantId, "tenant-2");
+});
+
+test("createInquiry: rejects non-admissions and anonymous actors", async () => {
+  const db = mockDatabase();
+  const input: CreateInquiryInput = { firstName: "Jane", lastName: "Doe", email: "jane@example.com" };
+
+  await assert.rejects(createInquiry(studentActor, input, db), AcademyAuthorizationError);
+  await assert.rejects(
+    createInquiry({ userId: "anonymous", tenantId: "tenant-1", roles: [] }, input, db),
+    AcademyAuthorizationError,
+  );
 });
 
 test("listInquiries: returns filtered inquiries for admissions staff", async () => {
