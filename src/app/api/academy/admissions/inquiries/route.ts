@@ -1,8 +1,5 @@
 import { handleApi } from "@/app/api/academy/api-utils";
-import {
-  asAcademyDatabase,
-  withAcademyDatabaseContext,
-} from "@/lib/academy-database-context";
+import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { ApplicantCrmDatabase } from "@/modules/admissions/applicant-crm";
@@ -10,31 +7,18 @@ import {
   createInquiry,
   listInquiries,
 } from "@/modules/admissions/applicant-crm";
-import { AcademyActor, assertCapability } from "@/modules/academy-auth/policy";
+import { assertCapability } from "@/modules/academy-auth/policy";
 
 export async function POST(request: Request) {
   return handleApi(async () => {
+    // Staff-only. This route used to fall back to an anonymous actor whose tenant came from a
+    // caller-supplied X-Tenant-Id header, which let anyone write unthrottled inquiries into any
+    // tenant. No UI used that path. A public inquiry form, if built, belongs under
+    // /api/public/ with its own rate limiting, like /api/public/apply.
+    const { actor } = await resolveAcademyActorFromSession(request);
     const body = await request.json().catch(() => {
       throw new Error("Malformed JSON body.");
     });
-
-    // Support both authenticated and unauthenticated (public form) inquiries
-    let actor: AcademyActor;
-    try {
-      const resolved = await resolveAcademyActorFromSession(request);
-      actor = resolved.actor;
-    } catch {
-      // Unauthenticated: use X-Tenant-Id header
-      const tenantId = request.headers.get("X-Tenant-Id");
-      if (!tenantId) {
-        throw new Error("X-Tenant-Id header is required for unauthenticated inquiry submission.");
-      }
-      actor = {
-        userId: "anonymous",
-        tenantId,
-        roles: [],
-      };
-    }
 
     const input = {
       firstName: String(body.firstName ?? "").trim(),
@@ -49,9 +33,10 @@ export async function POST(request: Request) {
       throw new Error("firstName, lastName, and email are required.");
     }
 
-    const inquiry = await withAcademyDatabaseContext(actor, (client) =>
-      createInquiry(actor, input, asAcademyDatabase<ApplicantCrmDatabase>(client)),
-    );
+    const inquiry = await withCapabilityContext(actor, async (client, capabilities) => {
+      assertCapability(capabilities, "admissionsWorkflows");
+      return createInquiry(actor, input, asAcademyDatabase<ApplicantCrmDatabase>(client));
+    });
 
     return { inquiry };
   });

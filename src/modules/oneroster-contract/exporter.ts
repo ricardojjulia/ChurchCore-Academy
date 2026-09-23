@@ -220,6 +220,24 @@ function validateExportDataset(dataset: OneRosterExportDataset) {
   const courses = sourcedIds(dataset.courses);
   const classes = sourcedIds(dataset.classes);
 
+  for (const org of dataset.orgs) {
+    if (org.parentSourcedId) {
+      requireKnown("orgs.parentSourcedId", org.parentSourcedId, orgs);
+    }
+  }
+
+  for (const user of dataset.users) {
+    for (const orgSourcedId of splitList(user.orgSourcedIds)) {
+      requireKnown("users.orgSourcedIds", orgSourcedId, orgs);
+    }
+  }
+
+  for (const session of dataset.academicSessions) {
+    if (session.parentSourcedId) {
+      requireKnown("academicSessions.parentSourcedId", session.parentSourcedId, sessions);
+    }
+  }
+
   for (const role of dataset.roles) {
     requireKnown("roles.userSourcedId", role.userSourcedId, users);
     if (role.orgSourcedId) {

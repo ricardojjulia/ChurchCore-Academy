@@ -145,6 +145,36 @@ test("buildOneRosterCsvPackage rejects broken references before an export can sh
   );
 });
 
+test("buildOneRosterCsvPackage rejects dangling org, user-org, and parent-session references", () => {
+  const base = dataset();
+
+  assert.throws(
+    () => buildOneRosterCsvPackage({
+      ...base,
+      orgs: base.orgs.map((org, index) => (index === 0 ? { ...org, parentSourcedId: "missing-org" } : org)),
+    }, { generatedAt }),
+    /Unknown OneRoster reference: orgs\.parentSourcedId/,
+  );
+
+  assert.throws(
+    () => buildOneRosterCsvPackage({
+      ...base,
+      users: base.users.map((user, index) => (index === 0 ? { ...user, orgSourcedIds: "missing-org" } : user)),
+    }, { generatedAt }),
+    /Unknown OneRoster reference: users\.orgSourcedIds/,
+  );
+
+  assert.throws(
+    () => buildOneRosterCsvPackage({
+      ...base,
+      academicSessions: base.academicSessions.map((session, index) =>
+        index === 0 ? { ...session, parentSourcedId: "missing-session" } : session,
+      ),
+    }, { generatedAt }),
+    /Unknown OneRoster reference: academicSessions\.parentSourcedId/,
+  );
+});
+
 test("buildOneRosterCsvPackage does not emit credential fields", () => {
   const built = buildOneRosterCsvPackage(dataset(), { generatedAt });
   const text = built.files.map((file) => file.text).join("\n");

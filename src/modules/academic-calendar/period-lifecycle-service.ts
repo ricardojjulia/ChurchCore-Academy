@@ -1,5 +1,7 @@
 import { type AcademyDatabase } from "@/lib/academy-database-context";
 import { requireActor, type Actor } from "@/lib/require-actor";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import type { PlatformRole } from "@/modules/academy-auth/policy";
 import { AuditService } from "@/modules/audit/service";
 import { InvalidStateTransitionError, PermanentRecordError } from "../academy-errors";
 import type { AcademicPeriod } from "./types";
@@ -71,13 +73,23 @@ export class AcademicPeriodLifecycleService {
   /**
    * @description Reopens a completed period. THIS IS A PRIVILEGED, AUDITED "BREAK-GLASS" OPERATION.
    * It should not be exposed to a general API and is intended for platform admins via a runbook.
-   * @param actor The platform admin performing the action.
+   * @param actor The operator's Academy actor, used for the audit record.
+   * @param platformRoles The operator's platform roles from their PlatformSession. Platform roles
+   *   are never carried on an AcademyActor, so they must be passed in explicitly.
    * @param tenantId The tenant the period belongs to.
    * @param periodId The ID of the period to reopen.
    * @param reason A mandatory, detailed justification for this action.
    */
-  async reopenPeriod(actor: Actor, tenantId: string, periodId: string, reason: string) {
-    requireActor(actor, ["platform_admin"]);
+  async reopenPeriod(
+    actor: Actor,
+    platformRoles: readonly PlatformRole[],
+    tenantId: string,
+    periodId: string,
+    reason: string,
+  ) {
+    if (!platformRoles.includes("platform_admin")) {
+      throw new AcademyAuthorizationError("Forbidden Academy access.");
+    }
     if (!reason?.trim()) {
       throw new Error("A reason is required to reopen a completed academic period.");
     }

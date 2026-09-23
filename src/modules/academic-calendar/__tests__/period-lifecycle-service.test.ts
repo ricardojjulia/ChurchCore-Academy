@@ -3,6 +3,7 @@ import { describe, it, beforeEach } from "node:test";
 import { AcademicPeriodLifecycleService } from "../period-lifecycle-service";
 import { InvalidStateTransitionError, PermanentRecordError } from "../../academy-errors";
 import type { Actor } from "@/lib/require-actor";
+import type { PlatformRole } from "@/modules/academy-auth/policy";
 import type { AcademicPeriod } from "../types";
 import type { AcademyDatabase } from "@/lib/academy-database-context";
 import type { AuditService } from "@/modules/audit/service";
@@ -63,10 +64,11 @@ const mockAudit = {
 const mockDb = {} as unknown as AcademyDatabase;
 
 const adminActor: Actor = { tenantId: "t1", userId: "u1", roles: ["institution_admin"] };
-// `reopenPeriod` is a privileged escape-hatch gated on the platform_admin
-// role (a PlatformRole, not an AcademyRole) — cast since a real actor here
-// would come through a different session shape than a tenant AcademyActor.
-const platformAdminActor: Actor = { tenantId: "t1", userId: "u-platform", roles: ["platform_admin"] } as unknown as Actor;
+// `reopenPeriod` is a privileged escape-hatch gated on the platform_admin PlatformRole, which
+// arrives on the PlatformSession, never on the AcademyActor — so the operator is a real Actor
+// plus an explicit platformRoles list.
+const platformOperatorActor: Actor = { tenantId: "t1", userId: "u-platform", roles: ["institution_admin"] };
+const platformAdminRoles: PlatformRole[] = ["platform_admin"];
 const studentActor: Actor = { tenantId: "t1", userId: "u-student", roles: ["student"] };
 
 describe("AcademicPeriodLifecycleService", () => {
@@ -205,7 +207,7 @@ describe("AcademicPeriodLifecycleService", () => {
       mockRepo.returns.fetchPeriodById = period;
       mockRepo.returns.updatePeriodStatus = { ...period, status: "active" } as unknown as AcademicPeriod;
 
-      await service.reopenPeriod(platformAdminActor, "t1", "p1", "Clerical error in final grades.");
+      await service.reopenPeriod(platformOperatorActor, platformAdminRoles, "t1", "p1", "Clerical error in final grades.");
 
       assert.deepEqual(mockRepo.calls.updatePeriodStatus[0], {
         tenantId: "t1",
@@ -213,7 +215,7 @@ describe("AcademicPeriodLifecycleService", () => {
         status: "active",
       });
       assert.deepEqual(mockAudit.calls.log[0], {
-        actor: platformAdminActor,
+        actor: platformOperatorActor,
         action: "academic_period.reopened",
         metadata: {
           tenantId: "t1",
@@ -226,14 +228,19 @@ describe("AcademicPeriodLifecycleService", () => {
 
     it("should reject reopening from non-platform_admin roles", async () => {
       await assert.rejects(
-        service.reopenPeriod(adminActor, "t1", "p1", "some reason"),
+        service.reopenPeriod(adminActor, [], "t1", "p1", "some reason"),
         /Forbidden Academy access/i
       );
+      await assert.rejects(
+        service.reopenPeriod(platformOperatorActor, ["platform_staff"], "t1", "p1", "some reason"),
+        /Forbidden Academy access/i
+      );
+      assert.equal(mockRepo.calls.updatePeriodStatus.length, 0);
     });
 
     it("should reject reopening without a reason", async () => {
       await assert.rejects(
-        service.reopenPeriod(platformAdminActor, "t1", "p1", " "),
+        service.reopenPeriod(platformOperatorActor, platformAdminRoles, "t1", "p1", " "),
         /reason is required/i
       );
     });
@@ -243,7 +250,7 @@ describe("AcademicPeriodLifecycleService", () => {
       mockRepo.returns.fetchPeriodById = period;
 
       await assert.rejects(
-        service.reopenPeriod(platformAdminActor, "t1", "p1", "some reason"),
+        service.reopenPeriod(platformOperatorActor, platformAdminRoles, "t1", "p1", "some reason"),
         InvalidStateTransitionError
       );
     });
