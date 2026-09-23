@@ -61,7 +61,14 @@ export interface ApiObservabilityOptions {
 
 export async function handleApi<T>(handler: () => Promise<T>, observability: ApiObservabilityOptions = {}) {
   try {
-    return jsonOk(await handler());
+    const result = await handler();
+    // A handler that builds its own Response (e.g. the calendar archive routes' 409 with
+    // blockingRecords) must reach the client as-is — wrapping it in NextResponse.json would
+    // turn it into a 200 with an empty body.
+    if (result instanceof Response) {
+      return result;
+    }
+    return jsonOk(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected API error.";
 

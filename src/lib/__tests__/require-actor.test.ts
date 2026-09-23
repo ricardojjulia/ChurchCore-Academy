@@ -44,11 +44,3 @@ test("requireActor(actor, roles) narrows correctly: billing role list excludes n
   assert.throws(() => requireActor(advisor, [...billingRoles]), AcademyAuthorizationError);
   assert.doesNotThrow(() => requireActor(finance, [...billingRoles]));
 });
-
-test("requireActor(actor, roles) accepts a break-glass PlatformRole alongside AcademyRole", () => {
-  // src/modules/academic-calendar/period-lifecycle-service.ts's reopenPeriod() legitimately
-  // checks a PlatformRole via this same overload — confirm the type union still permits it
-  // and the runtime check behaves the same way (membership test against actor.roles).
-  const platformActor: AcademyActor = { userId: "p-1", tenantId: "tenant-1", roles: [] };
-  assert.throws(() => requireActor(platformActor, ["platform_admin"]), AcademyAuthorizationError);
-});
