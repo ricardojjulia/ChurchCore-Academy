@@ -8,15 +8,15 @@ type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost
 // (success/warning/destructive) use Tailwind's own dark-friendly steps
 // since they're outside Nocturne's mono accent+neutral scheme.
 const variantMap: Record<BadgeVariant, string> = {
-  default: "border-transparent bg-[#423a6a] text-[#f5f4ff]",
-  secondary: "border-transparent bg-[#3f424d] text-[#f3f5fe]",
+  default: "border-transparent bg-[var(--color-accent-800)] text-[var(--color-accent-100)]",
+  secondary: "border-transparent bg-[var(--color-neutral-800)] text-[var(--color-neutral-100)]",
   destructive: "border-transparent bg-red-950 text-red-200",
   outline: "border-accent text-accent",
   ghost: "border-transparent bg-transparent text-muted-foreground",
   link: "border-transparent bg-transparent text-accent underline-offset-4",
   success: "border-transparent bg-emerald-950 text-emerald-300",
   warning: "border-transparent bg-amber-950 text-amber-300",
-  info: "border-transparent bg-[#2b2741] text-[#d2cefd]",
+  info: "border-transparent bg-[var(--color-accent-900)] text-[var(--color-accent-300)]",
 };
 
 type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
