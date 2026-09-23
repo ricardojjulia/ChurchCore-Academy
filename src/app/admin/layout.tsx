@@ -6,7 +6,8 @@ import { resolveAcademicContext } from "@/modules/academic-calendar/user-context
 import { AcademicContextDataProvider, type AcademicContextData } from "@/contexts/academic-context";
 import { AdminCapabilityProvider } from "@/components/admin-capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
-import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
+import { canAccessInstitutionConfig, canAccessShepherdAi } from "@/modules/academy-auth/policy";
+import { canAccessLmsProviderReadiness } from "@/modules/lms-contract/provider-readiness";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
 import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
@@ -93,6 +94,8 @@ interface AdminCapabilityData {
   canReadShepherdAi: boolean;
   canManageDripSequences: boolean;
   canReadInquiryPipeline: boolean;
+  canReadInstitutionConfig: boolean;
+  canReadLmsProviderReadiness: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -124,6 +127,15 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // review, same class of bug as canManageDripSequences above.
   const canReadInquiryPipeline = hasRole(INQUIRY_PIPELINE_ROLES);
 
+  // System section: Institution, Calendar, People & Roles, and Grading all gate on
+  // assertInstitutionConfigAccess(..., "read"), and LMS Providers on
+  // assertLmsProviderReadinessAccess(..., "read") — both allow only institution_admin, dean,
+  // registrar, and academic_admin. The nav showed all five links to every staff role, so
+  // faculty, admissions, finance, etc. landed on access-denied pages. Flagged by Copilot review
+  // on PR #120; same bug class as canReadShepherdAi/canManageDripSequences above.
+  const canReadInstitutionConfig = canAccessInstitutionConfig(actor, actor.tenantId, "read");
+  const canReadLmsProviderReadiness = canAccessLmsProviderReadiness(actor, actor.tenantId, "read");
+
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
       const capabilities = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
@@ -134,6 +146,8 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         canReadShepherdAi,
         canManageDripSequences,
         canReadInquiryPipeline,
+        canReadInstitutionConfig,
+        canReadLmsProviderReadiness,
       };
     });
   } catch {
@@ -144,6 +158,8 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       canReadShepherdAi,
       canManageDripSequences,
       canReadInquiryPipeline,
+      canReadInstitutionConfig,
+      canReadLmsProviderReadiness,
     };
   }
 }
@@ -176,6 +192,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         canReadShepherdAi={capabilityData.canReadShepherdAi}
         canManageDripSequences={capabilityData.canManageDripSequences}
         canReadInquiryPipeline={capabilityData.canReadInquiryPipeline}
+        canReadInstitutionConfig={capabilityData.canReadInstitutionConfig}
+        canReadLmsProviderReadiness={capabilityData.canReadLmsProviderReadiness}
       >
         {children}
       </AdminCapabilityProvider>

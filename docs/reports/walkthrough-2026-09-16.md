@@ -1,12 +1,14 @@
-# Full 12-Step Core Academic Loop Walkthrough — 2026-09-16
+# Full 11-Step Core Academic Loop Walkthrough — 2026-09-16
 
-Follow-up session after the daily checkup, done at the user's request to (1) verify the previous run left nothing behind, and (2) work through that report's "needs your attention" list — including, for the first time, the complete 12-step Core Academic Loop from `docs/product/product-context.md` in one sitting.
+> **Correction (2026-09-23):** this report originally called the loop "12-step". `docs/product/product-context.md` defines the Core Academic Loop as steps 1–11. Step 12 there, Student Groups, sits in a separate section and was not part of this walkthrough. The §1 verification summary and the §3.2 conclusion have also been narrowed to match the evidence; see the notes inline. The §3.2 gap itself was later closed by PR #126 and PR #133.
+
+Follow-up session after the daily checkup, done at the user's request to (1) verify the previous run left nothing behind, and (2) work through that report's "needs your attention" list — including, for the first time, the complete 11-step Core Academic Loop from `docs/product/product-context.md` in one sitting.
 
 ## What changed today (this session)
 
 - **Confirmed clean:** previous daily-checkup run left no stray branches, processes, or uncommitted state. `npm test`/`lint`/`build` and migration tracking all verified healthy before starting.
 - **Fixed (PR [#123](https://github.com/ricardojjulia/ChurchCore-Academy/pull/123), merged):** Admissions queue showed raw `programId` instead of the program name — the deferred item from yesterday's report.
-- **Fixed (PR [#124](https://github.com/ricardojjulia/ChurchCore-Academy/pull/124), merged, 3 commits + 1 review round):** five real, independent defects found by actually walking the 12-step loop instead of sampling pages:
+- **Fixed (PR [#124](https://github.com/ricardojjulia/ChurchCore-Academy/pull/124), merged, 3 commits + 1 review round):** five real, independent defects found by actually walking the 11-step loop instead of sampling pages:
   1. Academic period creation was completely broken (404 on every submission).
   2. Every academic period status transition (Open Enrollment / Activate / Complete) was completely broken (404).
   3. `CourseFormDialog`'s required-field validation failed completely silently (no error message, no request, no feedback).
@@ -32,7 +34,7 @@ Using a freshly created academic year, period, course, program, section, and an 
 | 10 | Record a Grade for the Enrollment | **Partially broken → partially fixed** (§2.3); the assignment-level "submission" now works, but see §3.2 for why it doesn't become an official grade |
 | 11 | Produce a Transcript Entry | **Not verified** — blocked by §3.2, not something this session could complete through the UI |
 
-Steps 1–9 are now confirmed to work end-to-end through real UI interaction, not just by reading seeded data — several of them only *after* today's fixes. This closes the specific verification gap `product-context.md` has flagged as open since (at least) the 2026-07-03 verification dates it currently cites.
+Steps 1–9 were exercised end-to-end against newly created data, not just seeded data, several of them only *after* today's fixes. Two exceptions: step 8 depended on opening the section by calling the API directly, since no UI path existed (§3.1), so it was not browser-verified end to end; and step 11 was not verified at all. This closes the specific verification gap `product-context.md` has flagged as open since (at least) the 2026-07-03 verification dates it currently cites.
 
 ## 2. Defects found and fixed
 
@@ -64,7 +66,7 @@ Tracing exactly what happens after a faculty member enters a grade revealed that
 2. `/dashboard/faculty/gradebook` (a completely separate, older route tree — also `/dashboard/admin/gradebook`, `/dashboard/instructor/gradebook`, `/dashboard/student/grades`, `/dashboard/learner/grades`) — has a "Grade Entry Queue" that promotes a submission into an official `academy_gradebook_records` row via the already-implemented `submitGradeAction()`. **This is the only place that function is ever called from.** It exists, loads, and is real — but **has zero navigation entry anywhere in the current `admin-shell.tsx` sidebar**, so nothing in the visible app links to it. Tested logged in as the demo admin: the queue showed no pending submissions for that identity.
 3. `/admin/gradebook`'s "Registrar Posting Queue" — posts an already-official `academy_gradebook_records` row (status `draft`) to student-visible status via `postGradeAction()`. **Confirmed working** against pre-seeded data (the Daniel Hart / Naomi Price rows already visible there).
 
-The practical effect: a faculty member using only the app's visible navigation can create an assignment and record a grade for it (stage 1), but has **no discoverable way to reach stage 2** — so that grade can never become an official, transcript-eligible record, no matter how correctly stage 1 is used. Compounding this, no demo course instructor (e.g., Miriam Stone, the instructor on the section used throughout this walkthrough) has a login account in the seeded tenant at all, so even a direct link to stage 2 might be untestable as things are currently seeded.
+The practical effect: a faculty member using only the app's visible navigation can create an assignment and record a grade for it (stage 1), but has **no discoverable way to reach stage 2**, and this session could not exercise stage 2 with the seeded identities. That makes the path from stage 1 to an official record undiscoverable and unverified, not impossible: `submitGradeAction()` can create an official `academy_gradebook_records` row, and the student-detail transcript-entry UI consumes posted records. There is a second, separate handoff gap: transcript candidates also require an `academy_gradebook_course_summaries` row (joined in `src/modules/transcript-entries/postgres-repository.ts`), and neither the new assignment path nor the submit path writes one. *(Both gaps were closed later: PR #126 fixed the official-record write path, and PR #133 wired `submitDraftFinalGrade`, which writes the course-summary row.)* Compounding this, no demo course instructor (e.g., Miriam Stone, the instructor on the section used throughout this walkthrough) has a login account in the seeded tenant at all, so even a direct link to stage 2 might be untestable as things are currently seeded.
 
 **This is not something to patch with another URL fix.** It's a real product/architecture decision — likely, at minimum: (a) decide whether the `/dashboard/*` route tree is the intended long-term home for this stage or legacy debris from an earlier UI generation, (b) either link it from the current nav or migrate its logic into the `/admin` + `/faculty` tree that's actually linked today, and (c) make sure at least one demo instructor account exists so this can be verified end-to-end going forward. Recommended as a dedicated software-factory pass (Rule 0), not a daily-checkup fix.
 

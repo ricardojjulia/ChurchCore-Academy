@@ -27,7 +27,7 @@ test("admin layout computes canReadShepherdAi from the actor's role via canAcces
     "utf8",
   );
 
-  assert.match(layout, /import \{ canAccessShepherdAi \} from "@\/modules\/academy-auth\/policy"/);
+  assert.match(layout, /import \{[^}]*\bcanAccessShepherdAi\b[^}]*\} from "@\/modules\/academy-auth\/policy"/);
   assert.match(layout, /canAccessShepherdAi\(actor, actor\.tenantId, "read"\)/);
   assert.match(layout, /canReadShepherdAi=\{capabilityData\.canReadShepherdAi\}/);
 });

@@ -128,6 +128,14 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+// System pages gated by assertInstitutionConfigAccess(..., "read") on the page itself.
+const INSTITUTION_CONFIG_HREFS = new Set([
+  "/admin/settings/institution",
+  "/admin/settings/calendar",
+  "/admin/settings/people",
+  "/admin/settings/grading",
+]);
+
 function sectionForPath(pathname: string): AdminSection | null {
   for (const s of NAV_SECTIONS) {
     if (s.items.some((item) => pathname.startsWith(item.href))) return s.id;
@@ -173,6 +181,8 @@ function AdminShellInner({
     canReadShepherdAi,
     canManageDripSequences,
     canReadInquiryPipeline,
+    canReadInstitutionConfig,
+    canReadLmsProviderReadiness,
   } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
@@ -208,6 +218,12 @@ function AdminShellInner({
         return false;
       }
       if (item.href === "/admin/admissions/inquiries" && !canReadInquiryPipeline) {
+        return false;
+      }
+      if (INSTITUTION_CONFIG_HREFS.has(item.href) && !canReadInstitutionConfig) {
+        return false;
+      }
+      if (item.href === "/admin/settings/lms" && !canReadLmsProviderReadiness) {
         return false;
       }
       return true;
