@@ -4,6 +4,7 @@ import {
   PublicApplicationService,
   PublicApplicationValidationError,
   PublicApplicationNotFoundError,
+  PublicApplicationRateLimitError,
 } from "@/modules/admissions/public-application-service";
 
 const TENANT_ID = "tenant-test";
@@ -399,7 +400,7 @@ test("status lookup: token returns status, submittedAt, programName", async () =
   });
   const service = new PublicApplicationService(db);
 
-  const result = await service.checkApplicationStatus(TENANT_ID, "tok-check");
+  const result = await service.checkApplicationStatus(TENANT_ID, "tok-check", "203.0.113.7");
 
   assert.equal(result.status, "submitted");
   assert.ok(result.submittedAt, "submittedAt must be set");
@@ -413,13 +414,74 @@ test("unknown status token: throws NotFoundError", async () => {
   const service = new PublicApplicationService(db);
 
   await assert.rejects(
-    () => service.checkApplicationStatus(TENANT_ID, "tok-unknown"),
+    () => service.checkApplicationStatus(TENANT_ID, "tok-unknown", "203.0.113.7"),
     (err: unknown) => {
       assert.ok(err instanceof PublicApplicationNotFoundError, "must be NotFoundError");
       assert.match(err.message, /not found/i);
       return true;
     },
   );
+});
+
+test("status lookup: counts against a per-IP, per-tenant status key", async () => {
+  const db = makeMockDb({
+    statusRows: [{ status: "submitted", submitted_at: null, program_name: PROGRAM_TITLE }],
+  });
+  const service = new PublicApplicationService(db);
+
+  await service.checkApplicationStatus(TENANT_ID, "tok-check", "203.0.113.7");
+
+  const upsert = db.calls.find((call) => /insert into academy_rate_limits/i.test(call.sql));
+  assert.ok(upsert, "status lookup must record a rate-limit attempt");
+  assert.equal(upsert.values?.[0], TENANT_ID);
+  assert.equal(upsert.values?.[1], "status:203.0.113.7");
+});
+
+test("status lookup: over the limit throws RateLimitError before reading the application", async () => {
+  const db = makeMockDb({
+    statusRows: [{ status: "submitted", submitted_at: null, program_name: PROGRAM_TITLE }],
+    rateLimitRows: [{ attempt_count: 61 }],
+  });
+  const service = new PublicApplicationService(db);
+
+  await assert.rejects(
+    () => service.checkApplicationStatus(TENANT_ID, "tok-check", "203.0.113.7"),
+    (err: unknown) => {
+      assert.ok(err instanceof PublicApplicationRateLimitError, "must be RateLimitError");
+      assert.match(err.message, /too many status checks/i);
+      return true;
+    },
+  );
+  assert.equal(
+    db.calls.some((call) => /from academy_admission_applications a/i.test(call.sql)),
+    false,
+    "the application must not be read once the limit is hit",
+  );
+});
+
+test("status lookup: 60 lookups in a day are still allowed", async () => {
+  const db = makeMockDb({
+    statusRows: [{ status: "submitted", submitted_at: null, program_name: PROGRAM_TITLE }],
+    rateLimitRows: [{ attempt_count: 60 }],
+  });
+  const service = new PublicApplicationService(db);
+
+  const result = await service.checkApplicationStatus(TENANT_ID, "tok-check", "203.0.113.7");
+  assert.equal(result.status, "submitted");
+});
+
+test("status lookup: a different tenant uses its own counter", async () => {
+  const db = makeMockDb({
+    statusRows: [{ status: "submitted", submitted_at: null, program_name: PROGRAM_TITLE }],
+  });
+  const service = new PublicApplicationService(db);
+
+  await service.checkApplicationStatus("tenant-other", "tok-check", "203.0.113.7");
+
+  const upsert = db.calls.find((call) => /insert into academy_rate_limits/i.test(call.sql));
+  assert.equal(upsert?.values?.[0], "tenant-other");
+  const lookup = db.calls.find((call) => /from academy_admission_applications a/i.test(call.sql));
+  assert.equal(lookup?.values?.[0], "tenant-other");
 });
 
 test("resolveApplicationByToken: valid token returns applicationId", async () => {
