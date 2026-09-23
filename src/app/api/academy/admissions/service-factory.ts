@@ -1,4 +1,5 @@
 import {
+  AcademyDatabase,
   AcademyQueryClient,
   asAcademyDatabase,
 } from "@/lib/academy-database-context";
@@ -16,6 +17,7 @@ import {
   AcademyAuditQuery,
   PostgresAcademyAuditRepository,
 } from "@/modules/audit/postgres-repository";
+import { PostgresEnrollmentAgreementRepository } from "@/modules/admissions/enrollment-agreement-repository";
 import {
   EnrollmentConversionDatabase,
   PostgresEnrollmentConversionRepository,
@@ -34,6 +36,10 @@ export function createAdmissionsService(client: AcademyQueryClient) {
     ),
     new PostgresAcademyAuditRepository(
       asAcademyDatabase<AcademyAuditQuery>(client),
+    ),
+    undefined,
+    new PostgresEnrollmentAgreementRepository(
+      asAcademyDatabase<AcademyDatabase>(client),
     ),
   );
 }
@@ -55,6 +61,10 @@ export function createEnrollmentConversionService(
     ),
     new PostgresAcademyAuditRepository(
       asAcademyDatabase<AcademyAuditQuery>(client),
+    ),
+    undefined,
+    new PostgresEnrollmentAgreementRepository(
+      asAcademyDatabase<AcademyDatabase>(client),
     ),
   );
 }

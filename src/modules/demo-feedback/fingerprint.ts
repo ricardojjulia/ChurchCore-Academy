@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { DemoFeedbackSubmission } from "@/modules/demo-feedback/types";
 import { normalizeForFingerprint } from "@/modules/demo-feedback/normalize";
 
-function sha256Hex(input: string) {
+export function sha256Hex(input: string) {
   return createHash("sha256").update(input).digest("hex");
 }
 

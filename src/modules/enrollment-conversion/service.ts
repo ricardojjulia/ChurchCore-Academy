@@ -4,6 +4,14 @@ import { AcademyAuditEventInput } from "@/modules/audit/types";
 import { evaluateEnrollmentConversionEligibility } from "@/modules/enrollment-conversion/eligibility";
 import { assertEnrollmentConversionAccess } from "@/modules/enrollment-conversion/policy";
 import { EnrollmentConversionRepository } from "@/modules/enrollment-conversion/types";
+import { EnrollmentAgreementSignature } from "@/modules/admissions/enrollment-agreement-types";
+
+interface EnrollmentAgreementRepository {
+  findByApplication(
+    tenantId: string,
+    applicationId: string,
+  ): Promise<EnrollmentAgreementSignature | undefined>;
+}
 
 interface AuditRepository {
   append(input: AcademyAuditEventInput): Promise<unknown>;
@@ -14,6 +22,7 @@ export class EnrollmentConversionService {
     private readonly repository: EnrollmentConversionRepository,
     private readonly audit: AuditRepository,
     private readonly now: () => string = () => new Date().toISOString(),
+    private readonly enrollmentAgreementRepository?: EnrollmentAgreementRepository,
   ) {}
 
   async convert(
@@ -65,6 +74,24 @@ export class EnrollmentConversionService {
         );
       }
       return existing;
+    }
+
+    // Gate: enrollment agreement must be signed before conversion
+    if (this.enrollmentAgreementRepository) {
+      const agreement = await this.enrollmentAgreementRepository.findByApplication(
+        actor.tenantId,
+        applicationId,
+      );
+      if (!agreement) {
+        throw new AcademyConflictError(
+          "Enrollment agreement not found. This application cannot be converted.",
+        );
+      }
+      if (agreement.status !== "signed") {
+        throw new AcademyConflictError(
+          "The accepted applicant must sign the enrollment agreement before conversion.",
+        );
+      }
     }
 
     const result = await this.repository.convert({
