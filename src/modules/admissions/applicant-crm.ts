@@ -197,7 +197,7 @@ export async function createInquiry(
   input: CreateInquiryInput,
   database: ApplicantCrmDatabase,
 ): Promise<Inquiry> {
-  // Allow unauthenticated access; tenant is already enforced by RLS context
+  assertAdmissionsStaff(actor, actor.tenantId);
   const result = await database.query(
     `insert into academy_inquiries (
       tenant_id,
