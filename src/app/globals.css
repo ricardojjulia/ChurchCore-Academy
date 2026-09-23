@@ -76,30 +76,35 @@ textarea:focus-visible {
    instead of a flat border, painted as the row's own background so the
    fade spans the full row rather than each cell. */
 .table-row-rule {
-  background: linear-gradient(
-      to right,
-      transparent,
-      var(--color-divider) 48px,
-      var(--color-divider) calc(100% - 48px),
-      transparent
-    )
-    no-repeat bottom / 100% 1px;
+  /* Longhands, not the `background` shorthand: this rule is unlayered, so the shorthand would
+     reset background-color and override a caller's utility (e.g. a selected row's bg-muted/60). */
+  background-image: linear-gradient(
+    to right,
+    transparent,
+    var(--color-divider) 48px,
+    var(--color-divider) calc(100% - 48px),
+    transparent
+  );
+  background-repeat: no-repeat;
+  background-position: bottom;
+  background-size: 100% 1px;
 }
 .table-row-rule-hover:hover {
-  background:
+  background-image:
     linear-gradient(
-        color-mix(in srgb, var(--color-text) 4%, transparent),
-        color-mix(in srgb, var(--color-text) 4%, transparent)
-      )
-      no-repeat 0 0 / 100% 100%,
+      color-mix(in srgb, var(--color-text) 4%, transparent),
+      color-mix(in srgb, var(--color-text) 4%, transparent)
+    ),
     linear-gradient(
-        to right,
-        transparent,
-        color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
-        color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px),
-        transparent
-      )
-      no-repeat bottom / 100% 1px;
+      to right,
+      transparent,
+      color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+      color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px),
+      transparent
+    );
+  background-repeat: no-repeat, no-repeat;
+  background-position: 0 0, bottom;
+  background-size: 100% 100%, 100% 1px;
 }
 
 .demo-feedback-button {

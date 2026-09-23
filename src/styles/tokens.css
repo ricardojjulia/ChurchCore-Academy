@@ -159,3 +159,38 @@
   --ops-text: #e9e9ed;
   --ops-text-secondary: #b2b6ca;
 }
+
+/* Print: Nocturne's near-white text tokens would print white-on-white once the browser drops
+   backgrounds (the default). Swap text, surface and border tokens to ink-on-paper values so
+   the admin and student print layouts, which don't reset colors themselves, stay legible. */
+@media print {
+  :root {
+    --sis-bg-canvas: #ffffff;
+    --sis-surface: #ffffff;
+    --sis-border: #9ca3af;
+    --sis-text-primary: #111111;
+    --sis-text-secondary: #374151;
+    --surface-base: #ffffff;
+    --surface-card: #ffffff;
+    --text-primary: #111111;
+    --text-muted: #374151;
+    --border-subtle: #9ca3af;
+    --border-card: #9ca3af;
+    --background: #ffffff;
+    --foreground: #111111;
+    --muted-foreground: #374151;
+    --panel-border: #9ca3af;
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #111111;
+    --color-text-muted: #374151;
+    --border: #9ca3af;
+    --ops-text: #111111;
+    --ops-text-secondary: #374151;
+  }
+
+  body {
+    background: #ffffff;
+    color: #111111;
+  }
+}
