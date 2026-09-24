@@ -47,6 +47,7 @@ export function LoginForm() {
     // prefetches "/" while signed out, and the client router reuses that cached redirect-to-login
     // after sign-in, bouncing a successfully authenticated user back to /login. A document
     // navigation always sends the fresh session cookie to the server.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- deliberate full navigation, see above
     window.location.assign("/");
   }
 
