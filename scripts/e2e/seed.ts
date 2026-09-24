@@ -100,6 +100,19 @@ async function ensureFixtures(pool: Pool) {
      on conflict (id) do nothing`,
     [FIXTURE_IDS.assignmentId, PRIMARY_TENANT_ID, FIXTURE_IDS.sectionId],
   );
+  // A graduated student for the alumni pages (they only open for enrollment_status = graduated).
+  await pool.query(
+    `insert into academy_people (id, tenant_id, display_name, given_name, family_name, email, person_status)
+     values ($1, $2, 'E2E Alumnus', 'E2E', 'Alumnus', 'alumnus@e2e.churchcore.invalid', 'active')
+     on conflict (id) do nothing`,
+    [FIXTURE_IDS.alumniPersonId, PRIMARY_TENANT_ID],
+  );
+  await pool.query(
+    `insert into academy_student_profiles (id, tenant_id, person_id, student_number, student_type, enrollment_status)
+     values ($1, $2, $3, 'E2E-ALUM-1', 'child', 'graduated')
+     on conflict (id) do nothing`,
+    ["student-profile-e2e-alumnus", PRIMARY_TENANT_ID, FIXTURE_IDS.alumniPersonId],
+  );
   await pool.query(
     `insert into academy_alumni_records (id, tenant_id, person_id, graduation_year, degree_earned, status)
      values ($1, $2, $3, 2025, 'Certificate in Biblical Studies', 'active')

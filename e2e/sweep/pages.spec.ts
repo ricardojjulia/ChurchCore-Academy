@@ -5,6 +5,7 @@ import { PERSONA_KEYS } from "../personas";
 import { blockPrefetch, visitAndClassify } from "../surfaces/classify";
 import { PAGE_MANIFEST } from "../surfaces/manifest";
 import { PAGE_SAMPLES, RUNTIME_SAMPLES_FILE, resolvePath } from "../surfaces/samples";
+import { RECORDING, recordViolations } from "./record";
 import { knownIssueFor, pageViolation, type Who } from "./expectations";
 
 // Every page, as every persona and signed out, in a real browser against a production build:
@@ -29,6 +30,7 @@ for (const entry of PAGE_MANIFEST) {
       if (violation && !known) problems.push(`${who}: ${violation}`);
       if (!violation && known) problems.push(`${who}: works now — remove known issue ${known.issue} from e2e/surfaces/known-issues.ts`);
     }
+    if (RECORDING) return recordViolations(entry.path, "page", problems);
     expect(problems, `${path}\n${problems.join("\n")}`).toEqual([]);
   });
 }

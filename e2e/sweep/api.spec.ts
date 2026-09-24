@@ -6,6 +6,7 @@ import type { HttpMethod } from "../surfaces/discover";
 import { API_MANIFEST } from "../surfaces/manifest";
 import { fetchStatus } from "../surfaces/request";
 import { API_SAMPLES, RUNTIME_SAMPLES_FILE, resolvePath } from "../surfaces/samples";
+import { RECORDING, recordViolations } from "./record";
 import { apiViolation, isAllowed, knownIssueFor, type Who } from "./expectations";
 
 // Every API method: rejected without a session; GETs checked for every persona; mutations
@@ -38,6 +39,7 @@ for (const entry of API_MANIFEST) {
         if (!violation && known) problems.push(`${method} as ${who}: works now — remove known issue ${known.issue}`);
       }
     }
+    if (RECORDING) return recordViolations(entry.path, "api", problems);
     expect(problems, `${path}\n${problems.join("\n")}`).toEqual([]);
   });
 }

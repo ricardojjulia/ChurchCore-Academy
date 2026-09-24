@@ -43,7 +43,7 @@ export const PAGE_SAMPLES: Record<string, Record<string, string>> = {
 const API_SAMPLE_PREFIXES: [string, Record<string, string>][] = [
   ["/api/academy/admissions/applications/[id]", { id: "$applicationId" }],
   ["/api/academy/admissions/inquiries/[id]", { id: FIXTURE_IDS.inquiryId }],
-  ["/api/academy/admissions/programs/[programId]", { programId: "prog-biblical-studies" }],
+  ["/api/academy/admissions/programs/[programId]", { programId: "$academicProgramId" }],
   ["/api/academy/calendar/years/[id]", { id: "year-ministry-2026" }],
   ["/api/academy/courses/[id]", { id: "demo-multi-course-algebra", sectionId: FIXTURE_IDS.sectionId }],
   ["/api/academy/guardian/students/[studentId]", { studentId: STUDENT }],

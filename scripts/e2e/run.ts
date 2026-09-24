@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, openSync, readFileSync } from "node:fs";
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -80,7 +80,19 @@ async function waitForServer(server: ChildProcess) {
   throw new Error(`Server did not become ready at ${baseUrl}`);
 }
 
+async function assertPortFree() {
+  // If something already listens on the port, the suite would silently test that process instead
+  // of this build (and fail with "connection refused" whenever it goes away).
+  try {
+    await fetch(`${baseUrl}/login`);
+  } catch {
+    return;
+  }
+  throw new Error(`Port ${port} is already in use; stop that server or set E2E_PORT.`);
+}
+
 async function main() {
+  await assertPortFree();
   await prepareSupabaseWorkdir();
   const status = spawnSync("supabase", ["status", "--workdir", workdir], { encoding: "utf8" });
   if (status.status !== 0) {
@@ -101,14 +113,48 @@ async function main() {
     run("npx", ["next", "build"], env);
   }
 
-  const server = spawn("npx", ["next", "start", "--port", port], { env, stdio: ["ignore", "inherit", "inherit"] });
+  // Server output goes to a file so it doesn't bury the test report (expected access denials
+  // alone log hundreds of lines). CI uploads it with the report.
+  const serverLog = path.join(runtimeDir, "server.log");
+  const logFd = openSync(serverLog, "w");
+  console.log(`[test:full] app server log: ${path.relative(root, serverLog)}`);
+
+  // The server is supervised: if it dies mid-run, say so, restart it so the remaining checks stay
+  // meaningful, and fail the run at the end. A dead server must never masquerade as hundreds of
+  // "connection refused" test failures.
+  let stopping = false;
+  let restarts = 0;
+  let server: ChildProcess;
+  const startServer = () => {
+    // node directly (not npx) so an unexpected exit reports the real code/signal.
+    server = spawn(process.execPath, [path.join(root, "node_modules/next/dist/bin/next"), "start", "--port", port], {
+      env,
+      stdio: ["ignore", logFd, logFd],
+    });
+    server.on("exit", (code, signal) => {
+      if (stopping) return;
+      restarts += 1;
+      const tail = readFileSync(serverLog, "utf8").split("\n").slice(-20).join("\n");
+      console.error(`[test:full] next start exited unexpectedly (code ${code}, signal ${signal}); restarting. Last server output:\n${tail}`);
+      startServer();
+    });
+  };
+  startServer();
+
   let exitCode = 1;
   try {
-    await waitForServer(server);
-    const result = spawnSync("npx", ["playwright", "test", ...playwrightArgs], { stdio: "inherit", env });
-    exitCode = result.status ?? 1;
+    await waitForServer(server!);
+    exitCode = await new Promise<number>((resolve) => {
+      const tests = spawn("npx", ["playwright", "test", ...playwrightArgs], { stdio: "inherit", env });
+      tests.on("exit", (code) => resolve(code ?? 1));
+    });
+    if (restarts > 0) {
+      console.error(`[test:full] FAILED: the app server died ${restarts} time(s) during the run — see ${path.relative(root, serverLog)}`);
+      exitCode = exitCode || 1;
+    }
   } finally {
-    server.kill("SIGTERM");
+    stopping = true;
+    server!.kill("SIGTERM");
     if (flag("--stop")) spawnSync("supabase", ["stop", "--workdir", workdir], { stdio: "inherit" });
   }
   process.exitCode = exitCode;

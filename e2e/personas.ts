@@ -47,6 +47,6 @@ export const FIXTURE_IDS = {
   assignmentId: "00000000-0000-4000-8000-00000000e201",
   sectionId: "demo-multi-section-algebra",
   alumniRecordId: "e2e-alumni-record-1",
-  alumniPersonId: "person-daniel-hart",
+  alumniPersonId: "person-e2e-alumnus",
   studentProfileId: "student-profile-lena",
 } as const;

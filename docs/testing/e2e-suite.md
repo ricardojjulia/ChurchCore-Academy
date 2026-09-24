@@ -71,5 +71,19 @@ without filing an issue.
   16–22 routes, each passing through the proxy's Supabase `getUser()` call; at sweep volume that
   exhausts the local auth container's connections and shows up as spurious 401s. Journeys keep
   real prefetching.
-- Keep Playwright workers low (CI uses 2) for the same reason.
+- Keep Playwright workers low (CI uses 2) for the same reason. API checks also retry a
+  signed-in 401 or a 5xx a few times with backoff (`e2e/surfaces/request.ts`): local auth
+  strain is transient, a real bug reproduces every time.
+- The app server's output goes to `.e2e-runtime/server.log` (uploaded by CI on failure). The
+  runner supervises it: if it dies mid-run it's restarted and the run fails with an explicit
+  message, so a dead server never shows up as a wall of "connection refused" failures.
+- `test:full` refuses to start if something already listens on the e2e port (3300 by default,
+  `E2E_PORT` to change): otherwise the suite would silently test that other process.
 - The seed refuses to run against anything but the local e2e database.
+
+## Adopting after a large change
+
+`E2E_RECORD_VIOLATIONS=1 npm run test:full -- e2e/sweep` records every sweep violation to
+`e2e/.auth/violations/` instead of failing; `node --import tsx scripts/e2e/draft-known-issues.ts`
+turns them into `known-issues.ts` entries using its issue-mapping rules and lists anything
+unmapped. Unmapped violations need a fix or a new GitHub issue — never a catch-all rule.
