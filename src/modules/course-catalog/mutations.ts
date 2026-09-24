@@ -10,6 +10,7 @@ import type {
   CourseRecordType,
   DeliveryMode,
 } from "./types";
+import { assertCatalogAdmin } from "@/modules/course-catalog/service";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -171,6 +172,7 @@ export async function createCourse(
   input: CreateCourseInput,
   client: Queryable,
 ): Promise<Course> {
+  assertCatalogAdmin(actor);
   if (!input.code || input.code.trim().length === 0) {
     throw new Error("Course code is required.");
   }
@@ -225,6 +227,7 @@ export async function updateCourse(
   input: UpdateCourseInput,
   client: Queryable,
 ): Promise<Course> {
+  assertCatalogAdmin(actor);
   const existing = await client.query(
     `select id from academy_courses where tenant_id = $1 and id = $2`,
     [actor.tenantId, courseId],
@@ -322,6 +325,7 @@ export async function archiveCourse(
   courseId: string,
   client: Queryable,
 ): Promise<Course> {
+  assertCatalogAdmin(actor);
   const existing = await client.query(
     `select id from academy_courses where tenant_id = $1 and id = $2`,
     [actor.tenantId, courseId],
@@ -364,6 +368,7 @@ export async function activateCourse(
   courseId: string,
   client: Queryable,
 ): Promise<Course> {
+  assertCatalogAdmin(actor);
   const existing = await client.query(
     `select id, status from academy_courses where tenant_id = $1 and id = $2`,
     [actor.tenantId, courseId],
@@ -396,6 +401,7 @@ export async function createSection(
   input: CreateSectionInput,
   client: Queryable,
 ): Promise<CourseSection> {
+  assertCatalogAdmin(actor);
   if (!input.sectionCode || input.sectionCode.trim().length === 0) {
     throw new Error("Section code is required.");
   }
@@ -485,6 +491,7 @@ export async function updateSection(
   input: UpdateSectionInput,
   client: Queryable,
 ): Promise<CourseSection> {
+  assertCatalogAdmin(actor);
   const existing = await client.query(
     `select id, course_id, academic_period_id from academy_course_sections where tenant_id = $1 and id = $2`,
     [actor.tenantId, sectionId],
@@ -563,6 +570,7 @@ export async function assignInstructor(
   instructorPersonId: string,
   client: Queryable,
 ): Promise<CourseSection> {
+  assertCatalogAdmin(actor);
   const section = await client.query(
     `select id from academy_course_sections where tenant_id = $1 and id = $2`,
     [actor.tenantId, sectionId],
@@ -599,6 +607,7 @@ export async function deleteSection(
   sectionId: string,
   client: Queryable,
 ): Promise<void> {
+  assertCatalogAdmin(actor);
   const existing = await client.query(
     `select id from academy_course_sections where tenant_id = $1 and id = $2`,
     [actor.tenantId, sectionId],

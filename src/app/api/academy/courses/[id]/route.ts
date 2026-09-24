@@ -8,6 +8,7 @@ import {
 } from "@/modules/course-catalog/postgres-repository";
 import type { CourseStatus } from "@/modules/course-catalog/types";
 import { AcademyConflictError } from "@/modules/academy-auth/errors";
+import { assertCatalogAdmin } from "@/modules/course-catalog/service";
 
 type Queryable = {
   query(sql: string, params: unknown[]): Promise<{
@@ -68,6 +69,9 @@ export async function DELETE(request: Request, { params }: Params) {
   return handleApi(async () => {
     const { id } = await params;
     const { actor } = await resolveAcademyActorFromSession(request);
+    // This handler writes with raw SQL rather than through a module function, so it must check
+    // the role itself. It didn't, and any signed-in user could delete a draft course.
+    assertCatalogAdmin(actor);
 
     return withAcademyDatabaseContext(actor, async (client) => {
       const db = asAcademyDatabase<Queryable>(client);
