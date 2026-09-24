@@ -30,7 +30,7 @@ function walk(dir: string, fileName: string, found: string[] = []): string[] {
   return found;
 }
 
-function routePath(file: string, fileName: string) {
+function routePath(file: string) {
   const relative = path.relative(appDir, path.dirname(file)).split(path.sep);
   // Route groups "(name)" don't appear in the URL.
   const segments = relative.filter((segment) => segment && !/^\(.*\)$/.test(segment));
@@ -39,7 +39,7 @@ function routePath(file: string, fileName: string) {
 
 export function discoverPages(): DiscoveredPage[] {
   return walk(appDir, "page.tsx")
-    .map((file) => ({ path: routePath(file, "page.tsx"), file: path.relative(process.cwd(), file) }))
+    .map((file) => ({ path: routePath(file), file: path.relative(process.cwd(), file) }))
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
@@ -62,7 +62,7 @@ export function exportedMethods(source: string): HttpMethod[] {
 export function discoverApiRoutes(): DiscoveredApiRoute[] {
   return walk(path.join(appDir, "api"), "route.ts")
     .map((file) => ({
-      path: routePath(file, "route.ts"),
+      path: routePath(file),
       file: path.relative(process.cwd(), file),
       methods: exportedMethods(readFileSync(file, "utf8")),
     }))

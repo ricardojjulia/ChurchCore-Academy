@@ -110,7 +110,15 @@ async function main() {
 
   run("node", ["--import", "tsx", "scripts/e2e/seed.ts"], env);
   if (!flag("--skip-build") || !existsSync(path.join(root, ".next-e2e"))) {
-    run("npx", ["next", "build"], env);
+    // next build rewrites next-env.d.ts to point at the build's distDir; put it back so an e2e
+    // run never leaves the checked-in file pointing at .next-e2e.
+    const nextEnvPath = path.join(root, "next-env.d.ts");
+    const nextEnv = existsSync(nextEnvPath) ? readFileSync(nextEnvPath, "utf8") : undefined;
+    try {
+      run("npx", ["next", "build"], env);
+    } finally {
+      if (nextEnv !== undefined) await writeFile(nextEnvPath, nextEnv);
+    }
   }
 
   // Server output goes to a file so it doesn't bury the test report (expected access denials
@@ -135,7 +143,10 @@ async function main() {
       if (stopping) return;
       restarts += 1;
       const tail = readFileSync(serverLog, "utf8").split("\n").slice(-20).join("\n");
-      console.error(`[test:full] next start exited unexpectedly (code ${code}, signal ${signal}); restarting. Last server output:\n${tail}`);
+      const cause = code === 143 || signal === "SIGTERM"
+        ? " — it was sent SIGTERM by another process (for example another local tool stopping Next servers), not a crash"
+        : "";
+      console.error(`[test:full] next start exited unexpectedly (code ${code}, signal ${signal})${cause}; restarting. Last server output:\n${tail}`);
       startServer();
     });
   };

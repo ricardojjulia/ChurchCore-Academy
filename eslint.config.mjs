@@ -44,7 +44,7 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  globalIgnores([".next/**", "node_modules/**", "next-env.d.ts", ".claude/**"]),
+  globalIgnores([".next/**", ".next-e2e/**", ".e2e-runtime/**", "e2e/report/**", "e2e/.auth/**", "e2e/supabase-env/**", "test-results/**", "node_modules/**", "next-env.d.ts", ".claude/**"]),
 ]);
 
 export default eslintConfig;
