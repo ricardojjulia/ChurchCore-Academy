@@ -319,8 +319,8 @@ export class PublicApplicationService {
     await this.db.query(
       `insert into academy_admission_application_events (
          tenant_id, application_id, actor_person_id, event_type,
-         previous_status, next_status, idempotency_key, created_at
-       ) values ($1, $2, $3, 'submitted', 'draft', 'submitted', $4, now())`,
+         previous_status, next_status, idempotency_key
+       ) values ($1, $2, $3, 'submitted', 'draft', 'submitted', $4)`,
       [tenantId, applicationId, personId, idempotencyKey],
     );
 

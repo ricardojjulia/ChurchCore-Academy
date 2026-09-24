@@ -538,3 +538,14 @@ test("resolveApplicationByToken: wrong tenant returns undefined", async () => {
 
   assert.equal(result, undefined, "must return undefined for wrong tenant");
 });
+
+test("submission event insert only names columns the events table has", async () => {
+  // Regression: the insert named created_at, which academy_admission_application_events doesn't
+  // have (its timestamp is occurred_at, defaulted by the database), so every public application
+  // failed with a 500 in production.
+  const source = await (await import("node:fs/promises")).readFile("src/modules/admissions/public-application-service.ts", "utf8");
+  const insert = source.slice(source.indexOf("insert into academy_admission_application_events"));
+  const columns = insert.slice(insert.indexOf("(") + 1, insert.indexOf(")")).split(",").map((column) => column.trim());
+  const tableColumns = ["id", "tenant_id", "application_id", "actor_person_id", "event_type", "previous_status", "next_status", "redacted_notes", "correlation_id", "idempotency_key", "occurred_at"];
+  assert.deepEqual(columns.filter((column) => !tableColumns.includes(column)), []);
+});
