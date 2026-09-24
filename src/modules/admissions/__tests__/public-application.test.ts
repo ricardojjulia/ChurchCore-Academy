@@ -10,6 +10,7 @@ import {
 const TENANT_ID = "tenant-test";
 const CLIENT_IP = "127.0.0.1";
 const PROGRAM_ID = "program-1";
+const ACADEMIC_PROGRAM_ID = "11111111-1111-4111-8111-111111111111";
 const PROGRAM_TITLE = "Bachelor of Divinity";
 
 // ---------------------------------------------------------------------------
@@ -49,7 +50,7 @@ function makeMockDb(overrides: {
       // Program lookup
       if (sqlNorm.includes("from academy_programs")) {
         const rows = overrides.programRows ?? [
-          { id: PROGRAM_ID, title: PROGRAM_TITLE },
+          { id: PROGRAM_ID, title: PROGRAM_TITLE, academic_program_id: ACADEMIC_PROGRAM_ID },
         ];
         return { rowCount: rows.length, rows };
       }
@@ -548,4 +549,30 @@ test("submission event insert only names columns the events table has", async ()
   const columns = insert.slice(insert.indexOf("(") + 1, insert.indexOf(")")).split(",").map((column) => column.trim());
   const tableColumns = ["id", "tenant_id", "application_id", "actor_person_id", "event_type", "previous_status", "next_status", "redacted_notes", "correlation_id", "idempotency_key", "occurred_at"];
   assert.deepEqual(columns.filter((column) => !tableColumns.includes(column)), []);
+});
+
+test("checklist requirements are looked up by the linked academic program id", async () => {
+  // Regression: the legacy academy_programs id was passed to a uuid column, failing every
+  // public submission with "invalid input syntax for type uuid".
+  const db = makeMockDb({ appInsertRow: { id: "app-1", status_token: "tok-1" } });
+  await new PublicApplicationService(db).submitPublicApplication(validInput(), TENANT_ID, CLIENT_IP);
+
+  const requirementLookup = db.calls.find((call) => /from academy_program_document_requirements/i.test(call.sql));
+  assert.ok(requirementLookup, "must look up requirements");
+  assert.ok(requirementLookup.values?.includes(ACADEMIC_PROGRAM_ID), "must use the academic program id");
+  assert.equal(requirementLookup.values?.includes(PROGRAM_ID), false, "must not pass the legacy program id");
+});
+
+test("a legacy program with no linked academic program submits without a checklist", async () => {
+  const db = makeMockDb({
+    appInsertRow: { id: "app-1", status_token: "tok-1" },
+    programRows: [{ id: "prog-legacy", title: PROGRAM_TITLE, academic_program_id: null }],
+  });
+  const result = await new PublicApplicationService(db).submitPublicApplication(
+    { ...validInput(), programId: "prog-legacy" },
+    TENANT_ID,
+    CLIENT_IP,
+  );
+  assert.ok(result.statusToken);
+  assert.equal(db.calls.some((call) => /from academy_program_document_requirements/i.test(call.sql)), false);
 });
