@@ -85,6 +85,9 @@ async function ensurePersona(pool: Pool, persona: E2EPersona, authUserId: string
 }
 
 async function ensureFixtures(pool: Pool) {
+  // Public endpoints are rate limited per IP per day; every run comes from the same address, so
+  // reset the counters or repeated runs trip the (correctly working) limiter.
+  await pool.query("delete from academy_rate_limits");
   await pool.query(
     `insert into academy_inquiries (id, tenant_id, first_name, last_name, email, program_of_interest, source, status)
      values ($1, $2, 'Eli', 'Inquirer', 'eli.inquirer@e2e.churchcore.invalid', 'Biblical Studies', 'website', 'new')
@@ -99,6 +102,21 @@ async function ensureFixtures(pool: Pool) {
      from academy_course_sections s where s.tenant_id = $2 and s.id = $3
      on conflict (id) do nothing`,
     [FIXTURE_IDS.assignmentId, PRIMARY_TENANT_ID, FIXTURE_IDS.sectionId],
+  );
+  // A learner owned by the core-loop journey, so enrolling it never disturbs the student
+  // persona (Lena) that other specs sign in as.
+  await pool.query(
+    `insert into academy_people (id, tenant_id, display_name, given_name, family_name, email, person_status)
+     values ($1, $2, 'E2E Learner', 'E2E', 'Learner', 'learner@e2e.churchcore.invalid', 'active')
+     on conflict (id) do nothing`,
+    [FIXTURE_IDS.learnerPersonId, PRIMARY_TENANT_ID],
+  );
+  await pool.query(
+    `insert into academy_student_profiles (id, tenant_id, person_id, student_number, student_type, enrollment_status)
+     select $1, $2, $3, 'E2E-LEARNER-1', student_type, 'active'
+     from academy_student_profiles where tenant_id = $2 and id = 'student-profile-lena'
+     on conflict (id) do nothing`,
+    [FIXTURE_IDS.learnerProfileId, PRIMARY_TENANT_ID, FIXTURE_IDS.learnerPersonId],
   );
   // A graduated student for the alumni pages (they only open for enrollment_status = graduated).
   await pool.query(

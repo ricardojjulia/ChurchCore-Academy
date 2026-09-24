@@ -49,4 +49,6 @@ export const FIXTURE_IDS = {
   alumniRecordId: "e2e-alumni-record-1",
   alumniPersonId: "person-e2e-alumnus",
   studentProfileId: "student-profile-lena",
+  learnerPersonId: "person-e2e-learner",
+  learnerProfileId: "student-profile-e2e-learner",
 } as const;

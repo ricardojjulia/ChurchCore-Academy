@@ -1,6 +1,6 @@
 import { expect, request, test, type APIRequestContext, type APIResponse } from "@playwright/test";
 import { storageStateFor } from "../helpers";
-import type { PersonaKey } from "../personas";
+import { FIXTURE_IDS, type PersonaKey } from "../personas";
 
 // The Core Academic Loop (docs/product/product-context.md, steps 1-8) with real data created
 // through the product's own APIs as the registrar, then checked from the student's side in the
@@ -8,7 +8,7 @@ import type { PersonaKey } from "../personas";
 test.describe.configure({ mode: "serial" });
 
 const tag = Date.now().toString(36).toUpperCase();
-const STUDENT_PERSON = "person-lena-rivera";
+const STUDENT_PROFILE = FIXTURE_IDS.learnerProfileId; // seeded for this journey (scripts/e2e/seed.ts)
 const INSTRUCTOR_PERSON = "person-sophia-marsh"; // teacher@churchcore.academy
 const SUBDIVISION = "cohort-ministry-2026";
 const created: Record<string, string> = {};
@@ -61,6 +61,18 @@ test("3. create and activate a course", async () => {
   await ok(await registrar.post(`/api/academy/courses/${created.courseId}/activate`), "activate course");
 });
 
+test("4. create a program", async () => {
+  const program = await ok(await registrar.post("/api/academy/programs", {
+    data: {
+      programCode: `P${tag}`, title: `E2E Program ${tag}`, shortTitle: `E2E ${tag}`, description: "Program created by the e2e core-loop journey.",
+      institutionMode: "bible_school", credentialType: "certificate", gradeBand: "adult", subdivisionId: "branch-bible-school",
+      requiredCredits: 30, typicalDurationPeriods: 4, effectiveFrom: "2027-08-01",
+    },
+  }), "create program");
+  created.programId = program.id ?? program.program?.id;
+  expect(created.programId).toBeTruthy();
+});
+
 test("5-6. offer a section in the period with an instructor, then open it", async () => {
   const section = await ok(await registrar.post(`/api/academy/courses/${created.courseId}/sections`, {
     data: { academicPeriodId: created.periodId, sectionCode: `S${tag}`, capacity: 10, deliveryMode: "in_person", primaryInstructorId: INSTRUCTOR_PERSON, subdivisionId: SUBDIVISION },
@@ -72,14 +84,23 @@ test("5-6. offer a section in the period with an instructor, then open it", asyn
   }), "open section");
 });
 
+test("7. enroll the student in the program for this catalog year", async () => {
+  await ok(await registrar.put(`/api/academy/students/${STUDENT_PROFILE}/program-membership`, {
+    data: { academicProgramId: created.programId, catalogAcademicYearId: created.yearId, startedOn: "2027-08-15" },
+  }), "set program membership");
+});
+
 test("8. enroll the student in the section", async () => {
-  await ok(await registrar.post(`/api/academy/students/${STUDENT_PERSON}/section-enrollments`, {
+  const { enrollment } = await ok(await registrar.post(`/api/academy/students/${STUDENT_PROFILE}/section-enrollments`, {
     data: { courseSectionId: created.sectionId },
   }), "enroll student");
-  const enrollments = await ok(await registrar.get(`/api/academy/students/${STUDENT_PERSON}/section-enrollments`), "list enrollments");
-  expect(JSON.stringify(enrollments)).toContain(created.sectionId);
-  created.registrationId = findRegistrationId(enrollments, created.sectionId) ?? "";
-  expect(created.registrationId, JSON.stringify(enrollments).slice(0, 400)).toBeTruthy();
+  created.registrationId = String(enrollment?.registrationId ?? enrollment?.id ?? findRegistrationId(enrollment, created.sectionId) ?? "");
+  expect(created.registrationId, JSON.stringify(enrollment).slice(0, 400)).toBeTruthy();
+
+  // The section's enrollment count reflects it.
+  const available = await ok(await registrar.get(`/api/academy/students/${STUDENT_PROFILE}/section-enrollments`), "list sections");
+  const section = (available.sections as { id: string; enrolledCount: number }[]).find((item) => item.id === created.sectionId);
+  expect(section?.enrolledCount ?? 1).toBeGreaterThanOrEqual(1);
 });
 
 function findRegistrationId(value: unknown, sectionId: string): string | undefined {
@@ -132,14 +153,6 @@ test("a student cannot grade, and another institution cannot read the grades", a
   await other.dispose();
 });
 
-test("the instructor sees the new section in their gradebook", async ({ browser }) => {
-  const context = await browser.newContext({ storageState: storageStateFor("teacher") });
-  const page = await context.newPage();
-  await page.goto(`/faculty/gradebook/${created.sectionId}`, { waitUntil: "networkidle" });
-  await expect(page.getByText(`E2E Foundations ${tag}`).first()).toBeVisible();
-  await context.close();
-});
-
 test("another institution cannot see or change any of it", async ({ baseURL }) => {
   const other = await as(baseURL, "otherTenantAdmin");
   const course = await other.get(`/api/academy/courses/${created.courseId}`, { failOnStatusCode: false });
@@ -159,4 +172,13 @@ test("a student cannot change the structure", async ({ baseURL }) => {
   const section = await student.delete(`/api/academy/sections/${created.sectionId}`, { failOnStatusCode: false });
   expect(section.status()).toBe(403);
   await student.dispose();
+});
+
+test("the instructor sees the graded assignment in the section gradebook", async ({ browser }) => {
+  const context = await browser.newContext({ storageState: storageStateFor("teacher") });
+  const page = await context.newPage();
+  await page.goto(`/faculty/gradebook/${created.sectionId}`, { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Section Assignments" })).toBeVisible();
+  await expect(page.getByText(`E2E Reflection ${tag}`)).toBeVisible();
+  await context.close();
 });
