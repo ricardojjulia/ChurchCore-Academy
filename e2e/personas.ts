@@ -39,3 +39,14 @@ export const PERSONAS = {
 
 export type PersonaKey = keyof typeof PERSONAS;
 export const PERSONA_KEYS = Object.keys(PERSONAS) as PersonaKey[];
+
+// Fixed-ID records scripts/e2e/seed.ts creates, used as samples for dynamic routes that have no
+// record seeded by migrations.
+export const FIXTURE_IDS = {
+  inquiryId: "e2e-inquiry-1",
+  assignmentId: "00000000-0000-4000-8000-00000000e201",
+  sectionId: "demo-multi-section-algebra",
+  alumniRecordId: "e2e-alumni-record-1",
+  alumniPersonId: "person-daniel-hart",
+  studentProfileId: "student-profile-lena",
+} as const;

@@ -1,5 +1,7 @@
 import { chromium, type FullConfig } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+import { Pool } from "pg";
+import { RUNTIME_SAMPLE_QUERIES, RUNTIME_SAMPLES_FILE } from "./surfaces/samples";
 import { loginAs, storageStateFor } from "./helpers";
 import { PERSONAS, PERSONA_KEYS } from "./personas";
 
@@ -9,6 +11,7 @@ import { PERSONAS, PERSONA_KEYS } from "./personas";
 export default async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use.baseURL;
   await mkdir("e2e/.auth", { recursive: true });
+  await writeRuntimeSamples();
   const browser = await chromium.launch();
   try {
     for (const key of PERSONA_KEYS) {
@@ -24,5 +27,22 @@ export default async function globalSetup(config: FullConfig) {
     }
   } finally {
     await browser.close();
+  }
+}
+
+async function writeRuntimeSamples() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("[e2e setup] DATABASE_URL is required (run via npm run test:full).");
+  const pool = new Pool({ connectionString });
+  try {
+    const samples: Record<string, string> = {};
+    for (const [name, sql] of Object.entries(RUNTIME_SAMPLE_QUERIES)) {
+      const { rows } = await pool.query(sql);
+      if (!rows[0]) throw new Error(`[e2e setup] runtime sample ${name} found no row`);
+      samples[name] = String(Object.values(rows[0])[0]);
+    }
+    await writeFile(RUNTIME_SAMPLES_FILE, JSON.stringify(samples, null, 2));
+  } finally {
+    await pool.end();
   }
 }

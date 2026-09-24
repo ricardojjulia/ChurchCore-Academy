@@ -25,10 +25,17 @@ Before writing:
 - Structure tests as pure domain logic tests where possible (no DB, no network). Use inline data that matches the existing defaults helpers pattern.
 - For every student/guardian data test: include a `doesNotMatch` assertion verifying secret field names do not appear in the output.
 - For every multi-tenant test: include a cross-tenant rejection assertion.
-- Only edit `__tests__/` files. Do not edit any production code.
+- Only edit `__tests__/` files and the e2e test surface (`e2e/`, `scripts/e2e/seed.ts`). Do not edit any production code.
+
+**E2E test surface (required — see `docs/testing/e2e-suite.md`):**
+
+- Register every new page and API method in `e2e/surfaces/manifest.ts` with its access list (the coverage gate in `npm test` fails otherwise). Add samples for dynamic segments to `e2e/surfaces/samples.ts`, seeding a fixed-ID fixture in `scripts/e2e/seed.ts` when none exists.
+- Write a journey spec in `e2e/journeys/<feature>.spec.ts` that drives the new workflow through the UI as the right persona, creates its own data, and includes at least one denied-role or cross-tenant check.
+- If the feature adds a role, add a persona to `e2e/personas.ts`.
+- Run `npm run test:full -- e2e/journeys/<feature>.spec.ts e2e/sweep` and report the result.
 
 After writing:
-1. Run `npm test` — if any criterion fails, report exactly which one and why. Do not patch production code.
+1. Run `npm test` and `npm run test:full` for the new journey and the sweeps — if any criterion fails, report exactly which one and why. Do not patch production code.
 2. If any criterion cannot be covered cleanly, report it. Do not invent a workaround.
 3. Return a short summary:
    - Criteria covered (list each)

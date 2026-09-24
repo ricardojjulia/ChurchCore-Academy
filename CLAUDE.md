@@ -21,6 +21,7 @@ npm run dev          # start local dev server
 npm test             # run all tests (node --import tsx --test "src/**/*.test.ts")
 npm run lint         # eslint
 npm run build        # next build (TypeScript check + bundle)
+npm run test:full    # e2e: disposable Supabase + production build + Playwright (docs/testing/e2e-suite.md)
 ```
 
 ## Project layout
@@ -64,6 +65,7 @@ supabase/migrations/ # Postgres migrations (SQL)
 - Use `node:test` + `node:assert/strict`. No Jest, no Vitest.
 - Secret field names must never appear in test output (verify with `doesNotMatch`).
 - Run `npm test && npm run lint && npm run build` before marking any task complete.
+- **Every release ships its test surface.** A new page or API method must be registered in `e2e/surfaces/manifest.ts` (the coverage gate in `npm test` fails otherwise); a new workflow needs a journey spec in `e2e/journeys/`; a new role needs a persona in `e2e/personas.ts`. The e2e suite (`npm run test:full`, required CI check) runs them against a production build. See `docs/testing/e2e-suite.md`.
 - **Full dependency testing is required.** If the feature under test depends on prior data (student, year, period, section, program), the test must create that data through the real module functions — not stubs, not raw inserts, not mock data. Testing enrollment requires creating the student, the year, the period, the course, and the section first. No workarounds. No schema shortcuts. No PII/PHI in test output. The longest road that makes everything work correctly, or do not ship.
 
 ## Don't do

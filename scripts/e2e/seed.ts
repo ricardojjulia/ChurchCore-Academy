@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Pool } from "pg";
-import { E2E_PASSWORD, OTHER_TENANT_ID, PERSONAS, PRIMARY_TENANT_ID, type E2EPersona } from "../../e2e/personas";
+import { E2E_PASSWORD, FIXTURE_IDS, OTHER_TENANT_ID, PERSONAS, PRIMARY_TENANT_ID, type E2EPersona } from "../../e2e/personas";
 
 // Idempotent seed for the disposable e2e database, run after migrations. Migrations already seed
 // the demo tenant and most personas; this adds a login for every remaining AcademyRole and a
@@ -84,12 +84,37 @@ async function ensurePersona(pool: Pool, persona: E2EPersona, authUserId: string
   );
 }
 
+async function ensureFixtures(pool: Pool) {
+  await pool.query(
+    `insert into academy_inquiries (id, tenant_id, first_name, last_name, email, program_of_interest, source, status)
+     values ($1, $2, 'Eli', 'Inquirer', 'eli.inquirer@e2e.churchcore.invalid', 'Biblical Studies', 'website', 'new')
+     on conflict (id) do nothing`,
+    [FIXTURE_IDS.inquiryId, PRIMARY_TENANT_ID],
+  );
+  await pool.query(
+    `insert into academy_gradebook_assignments (
+       id, tenant_id, course_id, section_id, created_by_person_id, title, assignment_type, max_points, is_published
+     )
+     select $1, s.tenant_id, s.course_id, s.id, s.primary_instructor_id, 'E2E Reflection Paper', 'reflection', 100, true
+     from academy_course_sections s where s.tenant_id = $2 and s.id = $3
+     on conflict (id) do nothing`,
+    [FIXTURE_IDS.assignmentId, PRIMARY_TENANT_ID, FIXTURE_IDS.sectionId],
+  );
+  await pool.query(
+    `insert into academy_alumni_records (id, tenant_id, person_id, graduation_year, degree_earned, status)
+     values ($1, $2, $3, 2025, 'Certificate in Biblical Studies', 'active')
+     on conflict (id) do nothing`,
+    [FIXTURE_IDS.alumniRecordId, PRIMARY_TENANT_ID, FIXTURE_IDS.alumniPersonId],
+  );
+}
+
 async function main() {
   assertDisposableDatabase(databaseUrl);
   const pool = new Pool({ connectionString: databaseUrl });
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
   try {
     await ensureOtherTenant(pool);
+    await ensureFixtures(pool);
     for (const persona of Object.values(PERSONAS)) {
       if (persona.seeded !== "e2e") continue;
       const authUserId = await ensureAuthUser(admin, persona.email.toLowerCase());

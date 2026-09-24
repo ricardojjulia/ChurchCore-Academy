@@ -99,7 +99,7 @@ Invoke **test-verifier** with:
 - the approved technical brief
 - both builder summaries
 
-Wait for: acceptance test file, coverage report, any criteria that failed or need clarification.
+Wait for: acceptance test file, the e2e test surface (manifest entries for every new page and API method, a journey spec in `e2e/journeys/`, personas for new roles), `npm run test:full` results, and any criteria that failed or need clarification. A feature without its e2e test surface is not done — see `docs/testing/e2e-suite.md`.
 
 ---
 
@@ -144,5 +144,6 @@ If yes: create the PR with:
 - Never invoke frontend-builder before backend-builder has finished.
 - Never invoke test-verifier before both builders have finished.
 - Never invoke implementation-validator before test-verifier has run.
+- Never open a PR for a feature whose new surfaces aren't in `e2e/surfaces/manifest.ts` or whose workflow has no journey spec.
 - If any agent reports it cannot complete its task, stop and surface the reason.
 - Each agent runs in its own focused context. Pass only the inputs that agent needs.
