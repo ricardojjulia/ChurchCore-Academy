@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { handleApi, jsonError } from "@/app/api/academy/api-utils";
 import { AcademyActor, assertInstitutionConfigAccess, assertCapability } from "@/modules/academy-auth/policy";
-import { resolveLocalBootstrapAcademyActor } from "@/modules/academy-auth/request-context";
+import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { AcademyConfigRepository } from "@/modules/academy-config/postgres-repository";
 import { InstitutionProfile } from "@/modules/academy-config/types";
@@ -705,7 +705,9 @@ export async function buildLmsProgressReturnPlanPayload(
 
 export async function GET(request: Request) {
   return handleApi(async () => {
-    const actor = resolveLocalBootstrapAcademyActor(request);
+    // Session auth (with the loopback-only local bootstrap as its fallback). This used the
+    // bootstrap headers alone, so a real signed-in administrator always got 401 (#181).
+    const { actor } = await resolveAcademyActorFromSession(request);
     const requestCorrelationId = correlationId(request.headers);
 
     return withCapabilityContext(actor, async (_client, capabilities) => {
@@ -739,13 +741,13 @@ export async function POST(request: Request) {
   if (operation === "course_shell_plan") {
     try {
       const input = parseCourseShellPlanInput(payload);
-      const actor = resolveLocalBootstrapAcademyActor(request);
-      return handleApi(async () =>
-        withCapabilityContext(actor, async (_client, capabilities) => {
+      return handleApi(async () => {
+        const { actor } = await resolveAcademyActorFromSession(request);
+        return withCapabilityContext(actor, async (_client, capabilities) => {
           assertCapability(capabilities, "lmsRosterSync");
           return buildLmsCourseShellPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
-        }),
-      );
+        })
+      });
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);
     }
@@ -754,13 +756,13 @@ export async function POST(request: Request) {
   if (operation === "roster_sync_plan") {
     try {
       const input = parseRosterSyncPlanInput(payload);
-      const actor = resolveLocalBootstrapAcademyActor(request);
-      return handleApi(async () =>
-        withCapabilityContext(actor, async (_client, capabilities) => {
+      return handleApi(async () => {
+        const { actor } = await resolveAcademyActorFromSession(request);
+        return withCapabilityContext(actor, async (_client, capabilities) => {
           assertCapability(capabilities, "lmsRosterSync");
           return buildLmsRosterSyncPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
-        }),
-      );
+        })
+      });
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);
     }
@@ -769,13 +771,13 @@ export async function POST(request: Request) {
   if (operation === "grade_return_plan") {
     try {
       const input = parseGradeReturnPlanInput(payload);
-      const actor = resolveLocalBootstrapAcademyActor(request);
-      return handleApi(async () =>
-        withCapabilityContext(actor, async (_client, capabilities) => {
+      return handleApi(async () => {
+        const { actor } = await resolveAcademyActorFromSession(request);
+        return withCapabilityContext(actor, async (_client, capabilities) => {
           assertCapability(capabilities, "lmsGradeReturn");
           return buildLmsGradeReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
-        }),
-      );
+        })
+      });
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);
     }
@@ -784,13 +786,13 @@ export async function POST(request: Request) {
   if (operation === "progress_return_plan") {
     try {
       const input = parseProgressReturnPlanInput(payload);
-      const actor = resolveLocalBootstrapAcademyActor(request);
-      return handleApi(async () =>
-        withCapabilityContext(actor, async (_client, capabilities) => {
+      return handleApi(async () => {
+        const { actor } = await resolveAcademyActorFromSession(request);
+        return withCapabilityContext(actor, async (_client, capabilities) => {
           assertCapability(capabilities, "lmsGradeReturn");
           return buildLmsProgressReturnPlanPayload(new AcademyConfigRepository(), actor, actor.tenantId, requestCorrelationId, input);
-        }),
-      );
+        })
+      });
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "Invalid contract request payload.", 400);
     }
