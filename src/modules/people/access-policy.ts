@@ -3,6 +3,12 @@ import { GuardianAccessCategory, canGuardianAccessStudentCategory } from "@/modu
 import { PeopleConfiguration, PersonRoleAssignment, StudentRelationship } from "@/modules/people/types";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
+/**
+ * Roles that may read the institution-wide student roster and any student's record — the same
+ * set the admin student pages (/admin/students, /admin/people/students/[id]) enforce.
+ */
+export const STUDENT_RECORD_ROLES: AcademyRole[] = ["institution_admin", "dean", "registrar", "academic_admin", "admissions"];
+
 export type PeopleAccessAction =
   | "read_people"
   | "write_people"

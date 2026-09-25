@@ -1,7 +1,20 @@
-import { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyActor, type AcademyRole } from "@/modules/academy-auth/policy";
 import { AcademyConflictError } from "@/modules/academy-auth/errors";
 import { CalendarSystem } from "@/modules/academy-config/types";
 import type { AcademicYear, AcademicPeriod, AcademicPeriodType } from "./types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+
+// Calendar structure (years, terms, periods and their lifecycle) is institutional
+// configuration: the same roles that administer the course catalog. Every mutation below
+// checks it before touching the database; before this, any signed-in user in the tenant,
+// a student included, could create or delete academic years, terms, and periods.
+const calendarAdminRoles = new Set<AcademyRole>(["institution_admin", "registrar", "academic_admin", "dean"]);
+
+export function assertCalendarAdmin(actor: AcademyActor) {
+  if (!actor.roles.some((role) => calendarAdminRoles.has(role))) {
+    throw new AcademyAuthorizationError("Forbidden academic calendar administration access.");
+  }
+}
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -108,6 +121,7 @@ export async function createAcademicYear(
   input: CreateAcademicYearInput,
   client: Queryable,
 ): Promise<AcademicYear> {
+  assertCalendarAdmin(actor);
   if (!input.name || input.name.trim().length === 0) {
     throw new Error("Academic year name is required.");
   }
@@ -159,6 +173,7 @@ export async function createTerm(
   input: CreateTermInput,
   client: Queryable,
 ): Promise<TermMutationResult> {
+  assertCalendarAdmin(actor);
   if (!input.name || input.name.trim().length === 0) {
     throw new Error("Term name is required.");
   }
@@ -296,6 +311,7 @@ export async function updateTerm(
   forceUpdate: boolean,
   client: Queryable,
 ): Promise<TermMutationResult> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id, academic_year_id from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, termId],
@@ -436,6 +452,7 @@ export async function closeTerm(
   termId: string,
   client: Queryable,
 ): Promise<AcademicPeriod> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, termId],
@@ -487,6 +504,7 @@ export async function deleteTerm(
   termId: string,
   client: Queryable,
 ): Promise<void> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, termId],
@@ -528,6 +546,7 @@ export async function createPeriod(
   input: CreatePeriodInput,
   client: Queryable,
 ): Promise<AcademicPeriod> {
+  assertCalendarAdmin(actor);
   if (!input.name || input.name.trim().length === 0) {
     throw new Error("Period name is required.");
   }
@@ -609,6 +628,7 @@ export async function updatePeriod(
   input: UpdatePeriodInput,
   client: Queryable,
 ): Promise<AcademicPeriod> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id, parent_period_id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, periodId],
@@ -740,6 +760,7 @@ export async function transitionTermState(
   newState: string,
   client: Queryable,
 ): Promise<AcademicPeriod> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, termId],
@@ -775,6 +796,7 @@ export async function transitionPeriodState(
   newState: string,
   client: Queryable,
 ): Promise<AcademicPeriod> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, periodId],
@@ -809,6 +831,7 @@ export async function archiveTerm(
   termId: string,
   client: Queryable,
 ): Promise<{ success: boolean; blockingRecords?: number }> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, termId],
@@ -845,6 +868,7 @@ export async function archivePeriod(
   periodId: string,
   client: Queryable,
 ): Promise<{ success: boolean; blockingRecords?: number }> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id, status from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, periodId],
@@ -881,6 +905,7 @@ export async function deletePeriod(
   periodId: string,
   client: Queryable,
 ): Promise<void> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id from academy_academic_periods where tenant_id = $1 and id = $2`,
     [actor.tenantId, periodId],
@@ -920,6 +945,7 @@ export async function updateAcademicYear(
   input: UpdateAcademicYearInput,
   client: Queryable,
 ): Promise<AcademicYear> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id from academy_academic_years where tenant_id = $1 and id = $2`,
     [actor.tenantId, yearId],
@@ -967,6 +993,7 @@ export async function deleteAcademicYear(
   yearId: string,
   client: Queryable,
 ): Promise<void> {
+  assertCalendarAdmin(actor);
   const existing = await client.query(
     `select id from academy_academic_years where tenant_id = $1 and id = $2`,
     [actor.tenantId, yearId],
@@ -996,6 +1023,7 @@ export async function archiveAcademicYear(
   yearId: string,
   client: Queryable,
 ): Promise<AcademicYear> {
+  assertCalendarAdmin(actor);
   const result = await client.query(
     `update academy_academic_years set status = 'archived', updated_at = now()
      where tenant_id = $1 and id = $2 returning *`,

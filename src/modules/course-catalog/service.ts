@@ -20,7 +20,7 @@ export function hasCatalogAdminAccess(actor: AcademyActor) {
   return actor.roles.some((role) => catalogAdminRoles.has(role));
 }
 
-function assertCatalogAdmin(actor: AcademyActor) {
+export function assertCatalogAdmin(actor: AcademyActor) {
   if (!hasCatalogAdminAccess(actor)) {
     throw new AcademyAuthorizationError(
       "Forbidden course catalog administration access.",
