@@ -13,6 +13,16 @@ test("a guardian signs in and lands on the guardian portal", async ({ page }) =>
   await expect(page.getByText("Something went wrong")).toHaveCount(0);
 });
 
+test("the guardian portal shows guardian navigation, not the staff sidebar (#188)", async ({ page }) => {
+  await loginAs(page, PERSONAS.guardian);
+  const nav = page.getByRole("navigation", { name: "Guardian navigation" });
+  await expect(nav).toBeVisible();
+  await expect(nav.getByRole("button", { name: "Messages" })).toBeVisible();
+  for (const staffSection of ["Admissions", "Registrar", "System"]) {
+    await expect(page.getByRole("button", { name: staffSection })).toHaveCount(0);
+  }
+});
+
 test("the guardian can open their own child's page", async ({ browser }) => {
   const context = await browser.newContext({ storageState: storageStateFor("guardian") });
   const page = await context.newPage();

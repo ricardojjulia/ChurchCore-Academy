@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { MessageSquare, ShieldCheck } from "lucide-react";
-import { AdminShell } from "@/components/admin-shell";
+import { GuardianShell } from "@/components/guardian-shell";
 import { RecipientMessageCenter } from "@/components/recipient-message-center";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { getCurrentUser } from "@/lib/auth";
@@ -34,7 +34,7 @@ export default async function GuardianMessagesPage() {
   });
 
   return (
-    <AdminShell
+    <GuardianShell
       eyebrow="Guardian Portal"
       title="Guardian Messages"
       subtitle="Messages addressed to your guardian account from the Academy."
@@ -55,6 +55,6 @@ export default async function GuardianMessagesPage() {
           <span>Guardian messages are scoped to your account and active student relationships.</span>
         </div>
       </section>
-    </AdminShell>
+    </GuardianShell>
   );
 }
