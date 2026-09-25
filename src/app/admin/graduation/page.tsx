@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { PostgresGraduationClearanceRepository, type GraduationDatabase } from "@/modules/graduation/postgres-repository";
+import { GraduationClearanceService } from "@/modules/graduation/service";
 import { fetchCapabilitySet } from "@/lib/capability-context";
 import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
@@ -38,7 +40,7 @@ function credentialLabel(credential: string) {
 export default async function GraduationPage() {
   const actor = await requireActor();
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
-  const { students, programs, formationSummaries } = await withAcademyDatabaseContext(actor, async (client) => {
+  const { students, programs, formationSummaries, clearanceStatuses } = await withAcademyDatabaseContext(actor, async (client) => {
     const [s, p] = await Promise.all([
       fetchStudentRecords(actor.tenantId, client),
       fetchProgramList(actor.tenantId, client),
@@ -59,8 +61,18 @@ export default async function GraduationPage() {
       }
     }
 
-    return { students: s, programs: p, formationSummaries };
+    // Latest clearance status for each active student, through the graduation module (the
+    // page previously ran raw SQL with a uuid[] cast that failed for every real profile id).
+    const activeStudentIds = s
+      .filter((st) => st.enrollmentStatus === "active")
+      .map((st) => st.id);
+    const clearanceStatuses = await new GraduationClearanceService(
+      new PostgresGraduationClearanceRepository(asAcademyDatabase<GraduationDatabase>(client)),
+    ).statusesForStudents(actor, activeStudentIds);
+    return { students: s, programs: p, formationSummaries, clearanceStatuses };
   });
+
+  const clearanceByStudentId = clearanceStatuses;
 
   const activeStudents = students.filter((s) => s.enrollmentStatus === "active");
 
@@ -79,7 +91,8 @@ export default async function GraduationPage() {
     const formation = formationSummaries.find((f) => f.studentPersonId === student.personId);
     const formationComplete = formation?.formationComplete ?? null;
 
-    return { student, program, progressPct, holds, readyToReview, formationComplete };
+    const clearanceStatus = (clearanceByStudentId.get(student.id) as CandidateRow["clearanceStatus"]) ?? null;
+    return { student, program, progressPct, holds, readyToReview, formationComplete, clearanceStatus };
   });
 
   const reviewReady = candidateRows.filter((r) => r.readyToReview && r.holds.length === 0);
@@ -175,6 +188,7 @@ type CandidateRow = {
   holds: string[];
   readyToReview: boolean;
   formationComplete: boolean | null;
+  clearanceStatus: "pending" | "cleared" | "deferred" | null;
 };
 
 function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?: boolean }) {
@@ -188,12 +202,13 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
           <TableHead>Progress</TableHead>
           <TableHead>GPA</TableHead>
           <TableHead>Formation Status</TableHead>
+          <TableHead>Clearance</TableHead>
           {showHolds && <TableHead>Holds</TableHead>}
           <TableHead>Profile</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map(({ student, program, progressPct, holds, formationComplete }) => (
+        {rows.map(({ student, program, progressPct, holds, formationComplete, clearanceStatus }) => (
           <TableRow key={student.id}>
             <TableCell className="whitespace-normal">
               <div className="font-medium">{student.fullName}</div>
@@ -221,6 +236,17 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
               )}
             </TableCell>
             <TableCell>{student.gpa ?? "—"}</TableCell>
+            <TableCell>
+              {clearanceStatus === "cleared" ? (
+                <Badge variant="secondary">Cleared</Badge>
+              ) : clearanceStatus === "pending" ? (
+                <Badge variant="outline">Pending</Badge>
+              ) : clearanceStatus === "deferred" ? (
+                <Badge variant="destructive">Deferred</Badge>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+            </TableCell>
             <TableCell>
               {formationComplete === null ? (
                 <span className="text-sm text-muted-foreground">—</span>

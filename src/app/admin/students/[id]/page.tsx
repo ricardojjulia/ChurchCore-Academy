@@ -61,6 +61,13 @@ import { StudentSectionEnrollmentDialog } from "./StudentSectionEnrollmentDialog
 import { StudentProgramProgressCard } from "./StudentProgramProgressCard";
 import { StudentTranscriptEntriesCard } from "./StudentTranscriptEntriesCard";
 import { StudentGroupsCard } from "./StudentGroupsCard";
+import { GraduationClearanceCard } from "./GraduationClearanceCard";
+import {
+  PostgresGraduationClearanceRepository,
+  type GraduationDatabase,
+} from "@/modules/graduation/postgres-repository";
+import { canReviewGraduation, GraduationClearanceService } from "@/modules/graduation/service";
+import type { GraduationClearance } from "@/modules/graduation/types";
 
 interface RegistrationRow {
   id: string;
@@ -75,7 +82,8 @@ type StudentPageDatabase =
   StudentSectionEnrollmentDatabase &
   StudentProgramProgressDatabase &
   TranscriptEntryDatabase &
-  StudentGroupDatabase;
+  StudentGroupDatabase &
+  GraduationDatabase;
 
 function formatCode(value: string) {
   return value.replaceAll("_", " ");
@@ -101,7 +109,7 @@ export default async function StudentPage({
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
   const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
 
-  const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations, person, personId, relationships, covenantEnabled, covenantRecord, programMemberships, programProgress, transcriptEntries, transcriptEntryCandidates, studentGroupMemberships, academicProgramOptions, academicYearOptions, availableSectionOptions } =
+  const { students, programs, administrators, sections, allSuggestions, allWorkflows, registrations, person, personId, relationships, covenantEnabled, covenantRecord, programMemberships, programProgress, transcriptEntries, transcriptEntryCandidates, studentGroupMemberships, academicProgramOptions, academicYearOptions, availableSectionOptions, graduationClearance } =
     await withAcademyDatabaseContext(actor, async (client) => {
       const database = asAcademyDatabase<StudentPageDatabase>(client);
       const shepherdRepo = new ShepherdAiPostgresRepository(database);
@@ -110,6 +118,8 @@ export default async function StudentPage({
       const progressRepo = new PostgresStudentProgramProgressRepository(database);
       const transcriptEntryRepo = new PostgresTranscriptEntryRepository(database);
       const studentGroupRepo = new PostgresStudentGroupRepository(database);
+      const graduationRepo = new PostgresGraduationClearanceRepository(database);
+      const graduationService = new GraduationClearanceService(graduationRepo);
       const s = await fetchStudentRecords(actor.tenantId, client);
       const p = await fetchProgramList(actor.tenantId, client);
       const a = await fetchAdministrators(actor.tenantId, client);
@@ -202,6 +212,13 @@ export default async function StudentPage({
         /* covenant not available */
       }
 
+      // Only graduation-review roles see the clearance. Checked up front rather than by catching
+      // the service's error: this runs inside the page's shared transaction, and a swallowed
+      // database error there would silently abort every later query on the page.
+      const graduationClearance: GraduationClearance | undefined = canReviewGraduation(actor)
+        ? await graduationService.getForStudent(actor, id)
+        : undefined;
+
       return {
         students: s,
         programs: p,
@@ -249,6 +266,7 @@ export default async function StudentPage({
         availableSectionOptions,
         covenantEnabled,
         covenantRecord,
+        graduationClearance,
       };
     });
 
@@ -256,6 +274,7 @@ export default async function StudentPage({
   if (!student || !person || !personId) notFound();
 
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
+  const canManageClearance = canReviewGraduation(actor);
 
   const activeMembership = programMemberships.find((item: StudentProgramMembership) => item.status === "active");
   const program = programs.find((item) => item.id === student.programId);
@@ -398,6 +417,13 @@ export default async function StudentPage({
             </Card>
 
             <StudentProgramProgressCard progress={programProgress} />
+            <GraduationClearanceCard
+              clearance={graduationClearance}
+              studentProfileId={id}
+              academicProgramId={activeMembership?.academicProgramId}
+              academicYearId={activeMembership?.catalogAcademicYearId}
+              canManageClearance={canManageClearance}
+            />
 
             <StudentGroupsCard memberships={studentGroupMemberships} />
 

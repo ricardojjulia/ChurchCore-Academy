@@ -26,6 +26,8 @@ export const FACULTY_PORTAL_PRIMARY_TENANT: readonly PersonaKey[] = [
 export const FACULTY_PORTAL: readonly PersonaKey[] = [
   "faculty", "teacher", "professor", "institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "dean", "otherTenantAdmin",
 ];
+/** GRADUATION_REVIEW_ROLES in src/modules/graduation/service.ts. */
+export const GRADUATION_REVIEW: readonly PersonaKey[] = ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "dean", "otherTenantAdmin"];
 /** STUDENT_RECORD_ROLES in src/modules/people/access-policy.ts, as personas in the primary tenant. */
 export const STUDENT_RECORDS: readonly PersonaKey[] = ["institutionAdmin", "institutionAdmin2", "registrar", "admissions", "academicAdmin", "dean"];
 
@@ -231,6 +233,8 @@ export const API_MANIFEST: ApiEntry[] = [
   { path: "/api/academy/gradebook/assignments", methods: { POST: STAFF } },
   { path: "/api/academy/gradebook/assignments/[id]", methods: { DELETE: STAFF } },
   { path: "/api/academy/gradebook/assignments/[id]/scores", methods: { PUT: STAFF } },
+  { path: "/api/academy/graduation/clearances", methods: { GET: GRADUATION_REVIEW, POST: GRADUATION_REVIEW } },
+  { path: "/api/academy/graduation/clearances/[clearanceId]", methods: { PATCH: GRADUATION_REVIEW } },
   { path: "/api/academy/gradebook/records", methods: { GET: ["institutionAdmin", "institutionAdmin2", "registrar", "faculty", "teacher", "student", "academicAdmin", "dean", "professor", "otherTenantAdmin"], POST: STAFF } },
   { path: "/api/academy/guardian/students", methods: { GET: ["guardian"] } },
   { path: "/api/academy/guardian/students/[studentId]", methods: { GET: ["guardian"] } },
