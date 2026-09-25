@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
+import { requireSectionInTenant } from "@/lib/section-in-tenant";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { FacultyShell } from "@/components/faculty-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,7 +30,8 @@ interface PageProps {
 export default async function NewAssignmentPage({ params }: PageProps) {
   const { sectionId } = await params;
   const user = await getCurrentUser();
-  await requireActor();
+  const actor = await requireActor();
+  await requireSectionInTenant(actor, sectionId);
 
   async function signOutAction() {
     "use server";

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
+import { requireSectionInTenant } from "@/lib/section-in-tenant";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { FacultyShell } from "@/components/faculty-shell";
@@ -32,6 +33,7 @@ export default async function FacultyGradebookSectionPage({ params }: PageProps)
   const { sectionId } = await params;
   const user = await getCurrentUser();
   const actor = await requireActor();
+  await requireSectionInTenant(actor, sectionId);
 
   async function signOutAction() {
     "use server";

@@ -71,6 +71,10 @@ export default async function FormationDetailPage({
           // Otherwise, it's a staff member lacking formation-viewer access
           notFound();
         }
+        // A student outside this tenant (or none at all) is a 404, not the error screen.
+        if (error instanceof Error && /not found/i.test(error.message)) {
+          notFound();
+        }
         throw error;
       }
     });
