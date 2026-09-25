@@ -25,7 +25,7 @@ const registrarRoles = new Set(["institution_admin", "registrar", "academic_admi
 
 function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
   if (actor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 }
 
@@ -142,7 +142,7 @@ export async function registerStudentForSection(
     );
 
     if (!sectionData.rowCount || sectionData.rowCount === 0) {
-      throw new Error("Cross-tenant access is forbidden.");
+      throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
     }
 
     const section = sectionData.rows[0];

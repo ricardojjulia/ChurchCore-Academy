@@ -8,6 +8,7 @@ import {
   buildLmsWebhookDedupeKey,
   lmsProviderSecretFieldNames,
 } from "./contract";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 type LmsAuditMetadata = Record<string, unknown>;
 
@@ -60,7 +61,7 @@ function assertTargetReferencesAreTenantScoped(tenantId: string, targetReference
   const crossTenantReference = targetReferences.find((reference) => reference.includes(":") && !reference.startsWith(`${tenantId}:`));
 
   if (crossTenantReference) {
-    throw new Error("Cross-tenant LMS audit target reference denied.");
+    throw new AcademyAuthorizationError("Cross-tenant LMS audit target reference denied.");
   }
 }
 

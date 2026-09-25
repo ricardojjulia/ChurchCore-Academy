@@ -28,7 +28,7 @@ export interface UpdateRelationshipInput {
 
 function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
   if (actor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 }
 
@@ -106,7 +106,7 @@ export async function createStudentRelationship(
   );
 
   if (!student.rowCount || student.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   if (student.rows[0].person_status === "archived") {
@@ -201,7 +201,7 @@ export async function updateStudentRelationship(
   );
 
   if (!existing.rowCount || existing.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const oldValues = existing.rows[0];
@@ -299,7 +299,7 @@ export async function deactivateStudentRelationship(
   );
 
   if (!relationship.rowCount || relationship.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const oldStatus = relationship.rows[0].status;

@@ -41,7 +41,7 @@ const advisorNoteReadRoles = new Set(["institution_admin", "registrar", "advisor
 
 function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
   if (actor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 }
 
@@ -134,7 +134,7 @@ export async function addAdvisorNote(
   );
 
   if (!student.rowCount || student.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const visibleToStudent = input.visibleToStudent ?? false;
@@ -224,7 +224,7 @@ export async function addHold(
   );
 
   if (!student.rowCount || student.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const result = await db.query(
@@ -384,7 +384,7 @@ export async function updateStudentProfile(
   );
 
   if (!person.rowCount || person.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const oldValues = person.rows[0];

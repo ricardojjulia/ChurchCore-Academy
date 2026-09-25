@@ -100,6 +100,12 @@ export async function handleApi<T>(handler: () => Promise<T>, observability: Api
       return jsonError(message, 404);
     }
 
+    // Postgres "invalid_text_representation" (e.g. a malformed uuid in a route param) is bad
+    // client input, not a server fault. Don't echo the database message.
+    if ((error as { code?: unknown } | null)?.code === "22P02") {
+      return jsonError("Invalid identifier or value.", 400);
+    }
+
     if (
       message.startsWith("Invalid ") ||
       message.startsWith("Malformed ") ||

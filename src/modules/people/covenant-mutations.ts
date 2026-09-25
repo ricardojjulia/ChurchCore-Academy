@@ -13,7 +13,7 @@ const notesReadRoles = new Set(["institution_admin", "dean", "academic_admin"]);
 
 function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
   if (actor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 }
 
@@ -89,7 +89,7 @@ export async function getCovenantRecord(
   );
 
   if (!person.rowCount || person.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const result = await db.query(
@@ -143,7 +143,7 @@ export async function upsertCovenantRecord(
   );
 
   if (!person.rowCount || person.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   // Get existing record for audit

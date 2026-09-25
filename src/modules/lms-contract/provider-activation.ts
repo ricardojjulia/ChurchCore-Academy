@@ -1,4 +1,5 @@
 import type { LmsCapability, LmsProviderId } from "./contract";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export type ExternalLmsProviderId = Exclude<LmsProviderId, "none">;
 
@@ -176,7 +177,7 @@ export function redactProviderSecretShape<T>(value: T): T {
 
 function assertExpectedTenant(tenantId: string, expectedTenantId?: string) {
   if (expectedTenantId && tenantId !== expectedTenantId) {
-    throw new Error("Cross-tenant LMS provider config access denied.");
+    throw new AcademyAuthorizationError("Cross-tenant LMS provider config access denied.");
   }
 }
 

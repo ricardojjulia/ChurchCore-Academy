@@ -3,6 +3,7 @@ import type { ShepherdAiSuggestion } from "@/modules/shepherd-ai/types";
 import type { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { CommunicationsService } from "@/modules/communications/service";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export interface AttendanceThresholdConfig {
   warningPct: number;
@@ -219,7 +220,7 @@ export async function checkAttendanceThreshold(
 ): Promise<AttendanceThresholdResult> {
   // Enforce tenant isolation
   if (systemActor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant threshold check rejected.");
+    throw new AcademyAuthorizationError("Cross-tenant threshold check rejected.");
   }
 
   // Fetch attendance stats

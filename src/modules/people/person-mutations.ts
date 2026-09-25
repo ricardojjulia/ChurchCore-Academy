@@ -32,7 +32,7 @@ export interface UpdatePersonInput {
 
 function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
   if (actor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 }
 
@@ -176,7 +176,7 @@ export async function updatePersonFields(
   );
 
   if (!existing.rowCount || existing.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const oldValues = existing.rows[0];
@@ -273,7 +273,7 @@ export async function archivePerson(
   );
 
   if (!person.rowCount || person.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   if (person.rows[0].person_status === "archived") {

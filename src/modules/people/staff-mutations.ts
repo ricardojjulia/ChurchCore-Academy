@@ -27,7 +27,7 @@ export interface UpdateStaffProfileInput {
 
 function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
   if (actor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 }
 
@@ -101,7 +101,7 @@ export async function createStaffProfile(
   );
 
   if (!person.rowCount || person.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   // Generate staff number: STF- + 6-digit zero-padded sequential
@@ -174,7 +174,7 @@ export async function updateStaffProfile(
   );
 
   if (!existing.rowCount || existing.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const oldValues = existing.rows[0];
@@ -266,7 +266,7 @@ export async function deactivateStaff(
   );
 
   if (!profile.rowCount || profile.rowCount === 0) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const oldStatus = profile.rows[0].employment_status;
