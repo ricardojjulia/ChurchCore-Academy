@@ -38,7 +38,7 @@ function credentialLabel(credential: string) {
 export default async function GraduationPage() {
   const actor = await requireActor();
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
-  const { students, programs, formationSummaries } = await withAcademyDatabaseContext(actor, async (client) => {
+  const { students, programs, formationSummaries, clearanceRows } = await withAcademyDatabaseContext(actor, async (client) => {
     const [s, p] = await Promise.all([
       fetchStudentRecords(actor.tenantId, client),
       fetchProgramList(actor.tenantId, client),
@@ -59,8 +59,26 @@ export default async function GraduationPage() {
       }
     }
 
-    return { students: s, programs: p, formationSummaries };
+    // Fetch graduation clearances for all active students in a single batch query
+    const activeStudentIds = s
+      .filter((st) => st.enrollmentStatus === "active")
+      .map((st) => st.id);
+    let clearanceRows: { student_profile_id: string; status: string }[] = [];
+    if (activeStudentIds.length > 0) {
+      const clearanceResult = (await client.query(
+        `select student_profile_id, status
+           from academy_graduation_clearances
+          where tenant_id = $1 and student_profile_id = any($2::uuid[])`,
+        [actor.tenantId, activeStudentIds],
+      )) as { rows: { student_profile_id: string; status: string }[] };
+      clearanceRows = clearanceResult.rows;
+    }
+    return { students: s, programs: p, formationSummaries, clearanceRows };
   });
+
+  const clearanceByStudentId = new Map(
+    clearanceRows.map((r) => [r.student_profile_id, r.status]),
+  );
 
   const activeStudents = students.filter((s) => s.enrollmentStatus === "active");
 
@@ -79,7 +97,8 @@ export default async function GraduationPage() {
     const formation = formationSummaries.find((f) => f.studentPersonId === student.personId);
     const formationComplete = formation?.formationComplete ?? null;
 
-    return { student, program, progressPct, holds, readyToReview, formationComplete };
+    const clearanceStatus = (clearanceByStudentId.get(student.id) as CandidateRow["clearanceStatus"]) ?? null;
+    return { student, program, progressPct, holds, readyToReview, formationComplete, clearanceStatus };
   });
 
   const reviewReady = candidateRows.filter((r) => r.readyToReview && r.holds.length === 0);
@@ -175,6 +194,7 @@ type CandidateRow = {
   holds: string[];
   readyToReview: boolean;
   formationComplete: boolean | null;
+  clearanceStatus: "pending" | "cleared" | "deferred" | null;
 };
 
 function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?: boolean }) {
@@ -188,12 +208,13 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
           <TableHead>Progress</TableHead>
           <TableHead>GPA</TableHead>
           <TableHead>Formation Status</TableHead>
+          <TableHead>Clearance</TableHead>
           {showHolds && <TableHead>Holds</TableHead>}
           <TableHead>Profile</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map(({ student, program, progressPct, holds, formationComplete }) => (
+        {rows.map(({ student, program, progressPct, holds, formationComplete, clearanceStatus }) => (
           <TableRow key={student.id}>
             <TableCell className="whitespace-normal">
               <div className="font-medium">{student.fullName}</div>
@@ -221,6 +242,17 @@ function CandidateTable({ rows, showHolds }: { rows: CandidateRow[]; showHolds?:
               )}
             </TableCell>
             <TableCell>{student.gpa ?? "—"}</TableCell>
+            <TableCell>
+              {clearanceStatus === "cleared" ? (
+                <Badge variant="secondary">Cleared</Badge>
+              ) : clearanceStatus === "pending" ? (
+                <Badge variant="outline">Pending</Badge>
+              ) : clearanceStatus === "deferred" ? (
+                <Badge variant="destructive">Deferred</Badge>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+            </TableCell>
             <TableCell>
               {formationComplete === null ? (
                 <span className="text-sm text-muted-foreground">—</span>
