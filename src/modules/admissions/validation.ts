@@ -1,4 +1,5 @@
 import { CreateAdmissionApplicationInput } from "@/modules/admissions/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 const serverOwnedFields = new Set([
   "status",
@@ -57,7 +58,7 @@ export function normalizeCreateAdmissionApplicationInput(
 
   const tenantId = requiredString(input, "tenantId");
   if (tenantId !== actorTenantId) {
-    throw new Error("Forbidden admission application tenant.");
+    throw new AcademyAuthorizationError("Forbidden admission application tenant.");
   }
 
   return {

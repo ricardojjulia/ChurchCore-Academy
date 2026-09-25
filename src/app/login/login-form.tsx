@@ -2,15 +2,12 @@
 
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, GraduationCap, KeyRound, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +43,12 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/");
-    router.refresh();
+    // Full navigation, not router.push: in production builds the "Back to Dashboard" <Link href="/">
+    // prefetches "/" while signed out, and the client router reuses that cached redirect-to-login
+    // after sign-in, bouncing a successfully authenticated user back to /login. A document
+    // navigation always sends the fresh session cookie to the server.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- deliberate full navigation, see above
+    window.location.assign("/");
   }
 
   return (

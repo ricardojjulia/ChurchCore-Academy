@@ -1,6 +1,7 @@
 import { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 import { GuardianAccessCategory, canGuardianAccessStudentCategory } from "@/modules/people/validation";
 import { PeopleConfiguration, PersonRoleAssignment, StudentRelationship } from "@/modules/people/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 /**
  * Roles that may read the institution-wide student roster and any student's record — the same
@@ -145,6 +146,6 @@ export function canAccessPeopleDomain(actor: AcademyActor, config: PeopleConfigu
 
 export function assertPeopleAccess(actor: AcademyActor, config: PeopleConfiguration, request: PeopleAccessRequest) {
   if (!canAccessPeopleDomain(actor, config, request)) {
-    throw new Error("Forbidden people domain access.");
+    throw new AcademyAuthorizationError("Forbidden people domain access.");
   }
 }

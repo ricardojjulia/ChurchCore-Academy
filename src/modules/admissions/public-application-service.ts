@@ -319,8 +319,8 @@ export class PublicApplicationService {
     await this.db.query(
       `insert into academy_admission_application_events (
          tenant_id, application_id, actor_person_id, event_type,
-         previous_status, next_status, idempotency_key, created_at
-       ) values ($1, $2, $3, 'submitted', 'draft', 'submitted', $4, now())`,
+         previous_status, next_status, idempotency_key
+       ) values ($1, $2, $3, 'submitted', 'draft', 'submitted', $4)`,
       [tenantId, applicationId, personId, idempotencyKey],
     );
 
@@ -328,9 +328,22 @@ export class PublicApplicationService {
     // this, the application would carry zero checklist items forever — no requirement to
     // upload against, and the admissions decision gate (canAdvanceToDecision) would
     // trivially treat it as complete regardless of the program's actual requirements.
-    await new DocumentChecklistService(
-      new PostgresDocumentChecklistRepository(this.db),
-    ).snapshotChecklistForApplication(tenantId, applicationId, programId);
+    //
+    // Requirements are configured per academic program (uuid), but the public form lists
+    // academy_programs rows, whose ids may be legacy text ids. Resolve the linked academic
+    // program first; an unlinked legacy program can't have requirements configured, so there
+    // is nothing to snapshot. Passing the legacy id straight through failed every submission
+    // with "invalid input syntax for type uuid".
+    const academicProgram = await this.db.query(
+      `select academic_program_id from academy_programs where tenant_id = $1 and id = $2`,
+      [tenantId, programId],
+    );
+    const academicProgramId = academicProgram.rows[0]?.academic_program_id;
+    if (typeof academicProgramId === "string" && academicProgramId) {
+      await new DocumentChecklistService(
+        new PostgresDocumentChecklistRepository(this.db),
+      ).snapshotChecklistForApplication(tenantId, applicationId, academicProgramId);
+    }
 
     // Step 6: Queue confirmation email (best-effort — do not fail submission on error)
     try {

@@ -31,6 +31,11 @@ function createMockDatabase(): MockDatabase {
         };
       }
 
+      // Mock the legacy -> academic program link used for the checklist snapshot
+      if (sql.includes("select academic_program_id from academy_programs")) {
+        return { rowCount: 1, rows: [{ academic_program_id: "11111111-1111-4111-8111-111111111111" }] };
+      }
+
       // Mock program fee query (with fee)
       if (sql.includes("select application_fee_cents")) {
         return {

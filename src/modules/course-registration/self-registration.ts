@@ -309,7 +309,7 @@ export async function dropStudentFromSection(
   if (!canBypassEnrollmentWindow(actor)) {
     // Students can only drop their own registrations
     if (registration.student_person_id !== actor.userId) {
-      throw new Error("Forbidden: cannot drop another student's registration.");
+      throw new AcademyAuthorizationError("Forbidden: cannot drop another student's registration.");
     }
 
     if (!registration.enrollment_window_id) {
