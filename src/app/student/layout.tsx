@@ -7,6 +7,7 @@ import { resolveAcademyActorForServerComponent } from "@/modules/academy-auth/re
 import { AcademyAuthenticationError } from "@/modules/academy-auth/errors";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { fetchCapabilitySet } from "@/lib/capability-context";
+import { requirePortalRole } from "@/lib/portal-access";
 
 export const metadata: Metadata = {
   title: {
@@ -28,6 +29,9 @@ export default async function StudentLayout({ children }: Readonly<{ children: R
     throw error;
   }
 
+  // Staff and guardians who open the student portal are sent to their own portal (this
+  // assertion used to throw from the layout, which surfaced as the root error screen).
+  requirePortalRole(actor, ["student"]);
   assertStudentPortalAccess(actor);
 
   const ministryFormationEnabled = await withAcademyDatabaseContext(actor, async (client) => {

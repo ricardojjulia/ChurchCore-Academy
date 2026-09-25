@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { isAuthorizationDenial } from "@/modules/academy-auth/errors";
 
 export default function FacultyError({
   error,
@@ -15,6 +16,22 @@ export default function FacultyError({
       console.error("[Academy/Faculty] Error boundary triggered. Digest:", error.digest);
     }
   }, [error]);
+
+  // Production builds strip error messages; AcademyAuthorizationError's digest survives (#167).
+  if (isAuthorizationDenial(error)) {
+    return (
+      <div className="ops-error-boundary">
+        <div className="ops-error-content">
+          <p className="ops-error-eyebrow">Faculty Portal</p>
+          <h1 className="ops-error-title">You don&apos;t have access to this page</h1>
+          <p className="ops-error-copy">This section belongs to another instructor, or your role doesn&apos;t include it. If you believe this is a mistake, contact your registrar.</p>
+          <div className="ops-error-actions">
+            <Link className="ops-error-home" href="/faculty">Return to dashboard</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ops-error-boundary">
