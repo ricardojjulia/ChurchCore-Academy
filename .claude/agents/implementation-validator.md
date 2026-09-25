@@ -28,6 +28,7 @@ Inputs you should expect:
 8. **Pattern consistency** — new code matches patterns in CLAUDE.md and existing similar modules
 9. **Duplicate logic** — no new helper that duplicates an existing one
 10. **ADR conflicts** — no decision that contradicts a committed ADR in `docs/adr/`
+11. **E2E test surface** — every new page and API method is in `e2e/surfaces/manifest.ts` with an access list that matches the code's guards; the new workflow has a journey spec in `e2e/journeys/`; bugs the change fixes are removed from `e2e/surfaces/known-issues.ts` (missing any of these is **Critical**)
 
 **Output format, every time:**
 

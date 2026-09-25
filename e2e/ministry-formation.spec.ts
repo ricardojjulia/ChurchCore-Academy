@@ -58,18 +58,18 @@ test.describe.serial("ministry formation — admin golden path", () => {
     // Filter and select the advisor test persona created for this run.
     const filterInput = page.getByPlaceholder(/search/i);
     if (await filterInput.isVisible().catch(() => false)) {
-      await filterInput.fill("Ava Advisor");
+      await filterInput.fill("E2E Advisor");
     }
-    await page.locator("select").filter({ hasText: /Ava Advisor|Select/i }).first().selectOption({ label: "Ava Advisor" }).catch(async () => {
+    await page.locator("select").filter({ hasText: /E2E Advisor|Select/i }).first().selectOption({ label: "E2E Advisor" }).catch(async () => {
       // Fallback: select by visible text match on any select on the dialog.
       const select = page.locator("select").last();
-      await select.selectOption({ label: "Ava Advisor" });
+      await select.selectOption({ label: "E2E Advisor" });
     });
     await page.getByRole("button", { name: /^assign$|confirm/i }).last().click();
     await page.waitForTimeout(1500); // page reloads on success, resetting to the default tab
 
     await page.getByRole("tab", { name: "Formation Advisor" }).click();
-    await expect(page.locator("body")).toContainText("Ava Advisor");
+    await expect(page.locator("body")).toContainText("E2E Advisor");
   });
 
   test("faculty (no relationship to this student) cannot see the assign-advisor button enabled", async ({ page }) => {
@@ -92,14 +92,14 @@ test.describe("ministry formation reviewer role — grant/revoke", () => {
     // detail route is keyed by person id, not email.
     await page.goto("/admin/people/staff");
     await page.waitForTimeout(500);
-    const staffLink = page.locator("a", { hasText: "Ava Advisor" }).first();
+    const staffLink = page.locator("a", { hasText: "E2E Advisor" }).first();
     const hasStaffLink = await staffLink.isVisible().catch(() => false);
-    test.skip(!hasStaffLink, "Ava Advisor not listed on /admin/people/staff — role may not surface there; covered indirectly by the assign-advisor test instead.");
+    test.skip(!hasStaffLink, "E2E Advisor not listed on /admin/people/staff — role may not surface there; covered indirectly by the assign-advisor test instead.");
 
     await staffLink.click();
     await page.waitForTimeout(500);
 
-    // Require the control rather than silently no-op'ing if it's missing — Ava Advisor
+    // Require the control rather than silently no-op'ing if it's missing — E2E Advisor
     // doesn't hold ministry_formation_reviewer yet, so the grant control must be present.
     const grantButton = page.getByRole("button", { name: /grant/i });
     await expect(grantButton).toBeVisible();

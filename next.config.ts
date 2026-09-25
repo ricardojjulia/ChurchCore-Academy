@@ -2,6 +2,8 @@ import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The e2e suite builds into its own directory so it never overwrites the dev server's .next.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   allowedDevOrigins: ["127.0.0.1"],
   outputFileTracingRoot: fileURLToPath(new URL("./", import.meta.url)),
   async headers() {

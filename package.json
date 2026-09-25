@@ -24,6 +24,7 @@
     "lint": "eslint",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "test:e2e": "playwright test",
+    "test:full": "node --import tsx scripts/e2e/run.ts",
     "verify": "npm test && npm run lint && npm run build",
     "verify:admissions-rls": "node --env-file=.env.local --import tsx scripts/verify-admissions-rls.ts",
     "verify:enrollment-conversion-rls": "node --env-file=.env.local --import tsx scripts/verify-enrollment-conversion-rls.ts",
