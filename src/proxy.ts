@@ -66,11 +66,15 @@ export async function proxy(request: NextRequest) {
       },
     });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // getClaims() verifies the session JWT locally against the project's JWKS (asymmetric
+    // signing keys) instead of calling Supabase Auth over the network on every request, which
+    // includes every <Link> prefetch: a production admin page view cost 20-40 Auth round trips
+    // (#177). With symmetric keys it falls back to getUser() internally, so it is never less
+    // strict than before. It also refreshes an expired session, whose cookies setAll writes.
+    // Route handlers still call getUser() for a revocation-fresh check before touching data.
+    const { data, error } = await supabase.auth.getClaims();
 
-    if (!user) {
+    if (error || !data?.claims?.sub) {
       return redirectToLogin();
     }
   } catch {
