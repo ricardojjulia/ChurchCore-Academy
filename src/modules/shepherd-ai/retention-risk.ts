@@ -146,58 +146,61 @@ export async function scoreStudentRisk(
     throw new AcademyAuthorizationError("Forbidden retention risk scoring access.");
   }
 
-  // Fetch student data: GPA, attendance, financial holds, credit count
+  // Fetch student data: GPA, attendance, financial holds, SAP standing, registered credits.
+  // scoringPeriod is an academic period id (academy_academic_periods.id). This query used to
+  // read tables and columns that don't exist (academy_sap_reviews, academy_financial_holds,
+  // sp.cumulative_gpa, cs.credits, cs.term, csr.registration_status, ar.attendance_status,
+  // ar.meeting_date), so scoring could never run against a real database (#187).
   const studentResult = await db.query(
     `select
        sp.person_id,
        sp.program_id,
-       sp.cumulative_gpa,
+       sp.gpa as cumulative_gpa,
        sp.enrollment_status,
-       coalesce(
-         (select avg(
-           case
-             when ar.attendance_status = 'present' then 100.0
-             when ar.attendance_status = 'absent' then 0.0
-             else 50.0
-           end
-         )
-         from academy_attendance_records ar
-         where ar.tenant_id = sp.tenant_id
-           and ar.student_person_id = sp.person_id
-           and ar.meeting_date >= current_date - interval '90 days'
-         ), null
+       (select avg(
+          case
+            when ar.status = 'present' then 100.0
+            when ar.status = 'absent' then 0.0
+            else 50.0
+          end
+        )
+        from academy_attendance_records ar
+        where ar.tenant_id = sp.tenant_id
+          and ar.student_person_id = sp.person_id
+          and ar.session_date >= current_date - interval '90 days'
        ) as attendance_rate,
        exists (
-         select 1 from academy_financial_holds fh
-         where fh.tenant_id = sp.tenant_id
-           and fh.person_id = sp.person_id
-           and fh.status = 'active'
+         select 1 from academy_student_holds hold
+         where hold.tenant_id = sp.tenant_id
+           and hold.student_person_id = sp.person_id
+           and hold.hold_type = 'financial'
+           and hold.cleared_at is null
        ) as has_holds,
-       exists (
-         select 1 from academy_sap_reviews sap
-         where sap.tenant_id = sp.tenant_id
-           and sap.student_person_id = sp.person_id
-           and sap.status = 'warning'
-           and sap.reviewed_period = $3
-       ) as has_sap_warning,
-       exists (
-         select 1 from academy_sap_reviews sap
-         where sap.tenant_id = sp.tenant_id
-           and sap.student_person_id = sp.person_id
-           and sap.status in ('suspended', 'aid_revoked')
-           and sap.reviewed_period = $3
-       ) as has_sap_suspended,
+       -- SAP is a standing that holds until the next evaluation, so use the latest one.
+       latest_sap.qualitative_standard in ('warning', 'probation')
+         or latest_sap.quantitative_standard in ('warning', 'probation') as has_sap_warning,
+       latest_sap.qualitative_standard = 'suspended'
+         or latest_sap.quantitative_standard = 'suspended' as has_sap_suspended,
        coalesce(
-         (select sum(cs.credits)
-         from academy_course_section_registrations csr
-         join academy_course_sections cs on cs.id = csr.course_section_id and cs.tenant_id = csr.tenant_id
-         where csr.tenant_id = sp.tenant_id
-           and csr.student_person_id = sp.person_id
-           and csr.registration_status = 'enrolled'
-           and cs.term = $3
+         (select sum(c.default_credits)
+          from academy_course_section_registrations csr
+          join academy_course_sections cs on cs.id = csr.course_section_id and cs.tenant_id = csr.tenant_id
+          join academy_courses c on c.id = cs.course_id and c.tenant_id = cs.tenant_id
+          where csr.tenant_id = sp.tenant_id
+            and csr.student_person_id = sp.person_id
+            and csr.status = 'registered'
+            and cs.academic_period_id = $3
          ), 0
        ) as registered_credits
      from academy_student_profiles sp
+     left join lateral (
+       select sap.qualitative_standard, sap.quantitative_standard
+       from academy_sap_evaluations sap
+       where sap.tenant_id = sp.tenant_id
+         and sap.student_person_id = sp.person_id
+       order by sap.evaluation_date desc, sap.created_at desc
+       limit 1
+     ) latest_sap on true
      where sp.tenant_id = $1
        and sp.person_id = $2`,
     [tenantId, input.studentPersonId, input.scoringPeriod],
