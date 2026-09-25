@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { Shield, Users } from "lucide-react";
-import { AdminShell } from "@/components/admin-shell";
+import { GuardianShell } from "@/components/guardian-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { requireActor } from "@/lib/require-actor";
@@ -29,7 +29,7 @@ export default async function GuardianDashboardPage() {
   );
 
   return (
-    <AdminShell
+    <GuardianShell
       eyebrow="Guardian Portal"
       title="My Students"
       subtitle="Students linked to your account. Contact the institution to update guardian relationships."
@@ -96,6 +96,6 @@ export default async function GuardianDashboardPage() {
           )}
         </CardContent>
       </Card>
-    </AdminShell>
+    </GuardianShell>
   );
 }
