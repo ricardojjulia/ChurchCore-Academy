@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { isAuthorizationDenial } from "@/modules/academy-auth/errors";
 
 export default function AdminError({
   error,
@@ -16,14 +17,10 @@ export default function AdminError({
     }
   }, [error]);
 
-  // Error subclasses (AcademyAuthorizationError, etc.) don't survive the server/client
-  // boundary as instanceof-checkable types — Next.js strips them down to message + digest.
-  // Every authorization denial in this codebase throws a message containing "Forbidden"
-  // (see src/lib/require-actor.ts and src/modules/academy-auth/policy.ts), matching the
-  // same convention the API layer already uses in handleApi for the same reason.
-  const isAuthorizationDenial = error.message.includes("Forbidden");
-
-  if (isAuthorizationDenial) {
+  // Error subclasses don't survive the server/client boundary as instanceof-checkable types,
+  // and production builds also replace the message. AcademyAuthorizationError carries a fixed
+  // digest that Next.js preserves, so that's what identifies a denial in production.
+  if (isAuthorizationDenial(error)) {
     return (
       <div className="ops-error-boundary">
         <div className="ops-error-content">

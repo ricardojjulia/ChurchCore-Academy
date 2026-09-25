@@ -8,6 +8,7 @@ import {
 import { PlatformRole } from "@/modules/academy-auth/policy";
 import { isConcreteInstitutionMode, normalizeSelectedInstitutionModes } from "@/modules/academy-config/mode-packs";
 import type { ConcreteInstitutionMode, InstitutionMode } from "@/modules/academy-config/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export interface CreatePlatformTenantInput {
   externalSubject: string;
@@ -76,7 +77,7 @@ export class PlatformAdminService {
 
   async createTenant(input: CreatePlatformTenantInput): Promise<PlatformProvisionedTenant> {
     if (!input.platformRoles.includes("platform_admin")) {
-      throw new Error("Forbidden platform admin access.");
+      throw new AcademyAuthorizationError("Forbidden platform admin access.");
     }
 
     const tenantId = sanitizeRequired(input.tenantId, "tenantId").toLowerCase();

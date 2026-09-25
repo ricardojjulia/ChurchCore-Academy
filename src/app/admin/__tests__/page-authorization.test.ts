@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
+import { ACADEMY_FORBIDDEN_DIGEST, AcademyAuthorizationError, isAuthorizationDenial } from "@/modules/academy-auth/errors";
 
 // Regression coverage for the admin-page authorization fix (PR #106): every page under
 // src/app/admin/ previously called requireActor() with no role argument (authentication
@@ -202,8 +203,21 @@ test("program mutation APIs enforce catalog-admin roles", async () => {
 
 test("admin error boundary distinguishes an authorization denial from a real error", async () => {
   const source = await readPage("src/app/admin/error.tsx");
-  assert.match(source, /Forbidden/);
+  assert.match(source, /isAuthorizationDenial\(error\)/);
   assert.match(source, /don&apos;t have access to this page/);
+});
+
+test("authorization denials are recognizable after production strips the error message", () => {
+  // In a production build the client receives a generic message plus the error's digest.
+  const denial = new AcademyAuthorizationError("Forbidden institution configuration access.");
+  const productionShape = Object.assign(new Error("An error occurred in the Server Components render."), {
+    digest: denial.digest,
+  });
+
+  assert.equal(denial.digest, ACADEMY_FORBIDDEN_DIGEST);
+  assert.equal(isAuthorizationDenial(productionShape), true);
+  assert.equal(isAuthorizationDenial(Object.assign(new Error("boom"), { digest: "123456" })), false);
+  assert.equal(isAuthorizationDenial(new Error("Forbidden Academy access.")), true);
 });
 
 // Regression test for a real, previously-shipped bug found via live browser testing: four

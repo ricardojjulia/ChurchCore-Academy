@@ -1,6 +1,7 @@
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import { StudentEnrollmentStatus } from "@/modules/people/types";
 import crypto from "node:crypto";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 interface Queryable {
   query(sql: string, params: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -46,7 +47,7 @@ function assertTenantIsolation(actor: AcademyActor, tenantId: string) {
 
 function assertRole(actor: AcademyActor, allowedRoles: ReadonlySet<string>, action: string) {
   if (!actor.roles.some((role) => allowedRoles.has(role))) {
-    throw new Error(`Forbidden: ${action} requires one of roles: ${Array.from(allowedRoles).join(", ")}.`);
+    throw new AcademyAuthorizationError(`Forbidden: ${action} requires one of roles: ${Array.from(allowedRoles).join(", ")}.`);
   }
 }
 
@@ -276,7 +277,7 @@ export async function listAdvisorNotes(
 
   // Guardians must never see advisor notes
   if (actor.roles.includes("guardian")) {
-    throw new Error("Forbidden: guardians cannot access advisor notes.");
+    throw new AcademyAuthorizationError("Forbidden: guardians cannot access advisor notes.");
   }
 
   // Verify student exists
@@ -294,7 +295,7 @@ export async function listAdvisorNotes(
   const isStaff = actor.roles.some((role) => advisorNoteReadRoles.has(role));
 
   if (!isStudent && !isStaff) {
-    throw new Error("Forbidden: list advisor notes requires student (self only) or staff role.");
+    throw new AcademyAuthorizationError("Forbidden: list advisor notes requires student (self only) or staff role.");
   }
 
   const sql = isStudent
@@ -366,11 +367,11 @@ export async function updateStudentProfile(
 
   // Only the student themselves can update their profile via this function
   if (actor.userId !== personId) {
-    throw new Error("Forbidden: students can only update their own profile.");
+    throw new AcademyAuthorizationError("Forbidden: students can only update their own profile.");
   }
 
   if (!actor.roles.includes("student")) {
-    throw new Error("Forbidden: only students can use this function.");
+    throw new AcademyAuthorizationError("Forbidden: only students can use this function.");
   }
 
   // Verify person exists in tenant

@@ -1,4 +1,5 @@
 import type { InstitutionCapabilitySet } from "@/modules/academy-config/types";
+import { AcademyAuthorizationError } from "./errors";
 
 // Single source of truth for every valid AcademyRole value. Any code that needs to
 // validate, parse, or enumerate roles at runtime (e.g. filtering DB rows to known roles)
@@ -60,7 +61,7 @@ export function canAccessInstitutionConfig(actor: AcademyActor, tenantId: string
 
 export function assertInstitutionConfigAccess(actor: AcademyActor, tenantId: string, action: InstitutionConfigAction) {
   if (!canAccessInstitutionConfig(actor, tenantId, action)) {
-    throw new Error("Forbidden institution configuration access.");
+    throw new AcademyAuthorizationError("Forbidden institution configuration access.");
   }
 }
 
@@ -75,7 +76,7 @@ export function canAccessShepherdAi(actor: AcademyActor, tenantId: string, actio
 
 export function assertShepherdAiAccess(actor: AcademyActor, tenantId: string, action: ShepherdAiAction) {
   if (!canAccessShepherdAi(actor, tenantId, action)) {
-    throw new Error("Forbidden ShepherdAI access.");
+    throw new AcademyAuthorizationError("Forbidden ShepherdAI access.");
   }
 }
 
@@ -87,7 +88,7 @@ export function canAccessPlatformStaffWorkspace(roles: string[]) {
 
 export function assertPlatformStaffWorkspaceAccess(roles: string[]) {
   if (!canAccessPlatformStaffWorkspace(roles)) {
-    throw new Error("Forbidden platform staff access.");
+    throw new AcademyAuthorizationError("Forbidden platform staff access.");
   }
 }
 
@@ -96,7 +97,7 @@ export function assertStudentPortalAccess(
   capabilities?: InstitutionCapabilitySet,
 ): void {
   if (!actor.roles.includes("student")) {
-    throw new Error("Forbidden student portal access.");
+    throw new AcademyAuthorizationError("Forbidden student portal access.");
   }
   if (capabilities) {
     assertCapability(capabilities, "studentPwa");
