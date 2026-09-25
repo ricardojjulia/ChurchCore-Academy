@@ -208,6 +208,9 @@ function mockApplicationFeeDb(overrides: {
       if (normalized.includes("insert into academy_admission_application_events")) {
         return { rowCount: 1, rows: [] };
       }
+      if (normalized.includes("select academic_program_id from academy_programs")) {
+        return { rowCount: 1, rows: [{ academic_program_id: "11111111-1111-4111-8111-111111111111" }] };
+      }
       if (normalized.includes("academy_program_document_requirements")) {
         return { rowCount: 0, rows: [] };
       }
