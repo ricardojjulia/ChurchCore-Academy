@@ -22,6 +22,7 @@ import type {
   OneRosterRegistrationRepository,
   OneRosterSectionRegistrationSource,
 } from "./postgres-registration-repository";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export interface OneRosterPeopleRepository {
   fetchPeopleConfiguration(tenantId: string): Promise<PeopleConfiguration>;
@@ -93,7 +94,7 @@ export function mapAcademyOneRosterDataset(
     ...catalog.academicYears, ...catalog.academicPeriods, ...catalog.courses, ...catalog.sections,
     ...registrations];
   if (records.some((record) => record.tenantId !== tenantId)) {
-    throw new Error("Forbidden cross-tenant roster export.");
+    throw new AcademyAuthorizationError("Forbidden cross-tenant roster export.");
   }
   const generatedOrgSourcedId = sourcedId("org", tenantId);
   const sections = catalog.sections

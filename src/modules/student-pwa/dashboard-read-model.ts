@@ -1,6 +1,7 @@
 import { AcademyActor } from "@/modules/academy-auth/policy";
 import { PeopleConfiguration } from "@/modules/people/types";
 import { resolveStudentPwaAccess, StudentPwaAccessMode } from "@/modules/student-pwa/student-access";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export type StudentDashboardReleaseStatus = "draft" | "released" | "held";
 
@@ -125,7 +126,7 @@ export function buildStudentDashboardReadModel(
   asOf?: string,
 ): StudentDashboardReadModel {
   if (source.tenantId !== source.people.institutionProfile.tenantId || actor.tenantId !== source.tenantId) {
-    throw new Error("Forbidden student PWA access.");
+    throw new AcademyAuthorizationError("Forbidden student PWA access.");
   }
 
   const access = resolveStudentPwaAccess(actor, source.people, targetStudentPersonId, asOf);
@@ -134,7 +135,7 @@ export function buildStudentDashboardReadModel(
   );
 
   if (!studentPerson) {
-    throw new Error("Forbidden student PWA access.");
+    throw new AcademyAuthorizationError("Forbidden student PWA access.");
   }
 
   const canReadSchedule = access.allowedCategories.has("schedule");

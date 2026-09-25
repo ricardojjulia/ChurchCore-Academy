@@ -8,6 +8,7 @@ import {
 import { computeStudentGpa } from "@/modules/grading-records/gpa-calculator";
 import { evaluateStudentGpaSignal } from "@/modules/shepherd-ai/gpa-drop-evaluator";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 const INSTRUCTOR_ROLES = new Set(["faculty", "teacher", "professor"]);
 const ADMIN_ROLES = new Set(["institution_admin", "dean", "registrar", "academic_admin"]);
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
         return repo.fetchLearnerGradebook(actor.tenantId, actor.userId);
       }
 
-      throw new Error("Forbidden: your role does not have gradebook access.");
+      throw new AcademyAuthorizationError("Forbidden: your role does not have gradebook access.");
     });
   });
 }
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     const { actor } = await resolveAcademyActorFromSession(request);
 
     if (!actor.roles.some((r) => INSTRUCTOR_ROLES.has(r)) && !actor.roles.some((r) => ADMIN_ROLES.has(r))) {
-      throw new Error("Forbidden: only instructors and admins may submit grades.");
+      throw new AcademyAuthorizationError("Forbidden: only instructors and admins may submit grades.");
     }
 
     const body = await request.json() as Record<string, unknown>;
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
           [actor.tenantId, assignmentId, actor.userId],
         );
         if (owns.rows.length === 0) {
-          throw new Error("Forbidden: you do not own the section for this assignment.");
+          throw new AcademyAuthorizationError("Forbidden: you do not own the section for this assignment.");
         }
       }
 

@@ -12,6 +12,7 @@ import {
   ShepherdAiDatabase,
   ShepherdAiPostgresRepository,
 } from "@/modules/shepherd-ai/postgres-repository";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 interface EvaluationResult {
   dataset: { tenantId: string };
@@ -31,7 +32,7 @@ export async function buildShepherdEvaluationPayload(actor: AcademyActor, runner
 
   const result = await runner();
   if (result.dataset.tenantId !== actor.tenantId) {
-    throw new Error("Forbidden ShepherdAI access.");
+    throw new AcademyAuthorizationError("Forbidden ShepherdAI access.");
   }
 
   return {

@@ -1,5 +1,6 @@
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import type { GradebookQueryClient } from "@/lib/actions/gradebook/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 const gradebookAdminRoles = new Set([
   "institution_admin",
@@ -53,7 +54,7 @@ export async function assertCanSubmitGradeTarget(
   );
 
   if (!result.rows[0]) {
-    throw new Error("Forbidden gradebook write access.");
+    throw new AcademyAuthorizationError("Forbidden gradebook write access.");
   }
 }
 
@@ -90,6 +91,6 @@ export async function assertCanOverrideGradeTarget(
   );
 
   if (!result.rows[0]) {
-    throw new Error("Forbidden gradebook override access.");
+    throw new AcademyAuthorizationError("Forbidden gradebook override access.");
   }
 }

@@ -2,6 +2,7 @@ import type { InstitutionProfile, LmsProvider, LmsSelectionStatus } from "@/modu
 import type { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 import type { LmsReadinessSandboxCheckItem } from "@/modules/lms-contract/sandbox-check-results";
 import type { LmsActivationRequestRecord } from "@/modules/lms-contract/activation-requests";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export type LmsReadinessAccess = "read" | "manage";
 export type LmsProviderReadinessStatus =
@@ -88,7 +89,7 @@ export function canAccessLmsProviderReadiness(actor: AcademyActor, tenantId: str
 
 export function assertLmsProviderReadinessAccess(actor: AcademyActor, tenantId: string, access: LmsReadinessAccess) {
   if (!canAccessLmsProviderReadiness(actor, tenantId, access)) {
-    throw new Error("Forbidden LMS provider readiness access.");
+    throw new AcademyAuthorizationError("Forbidden LMS provider readiness access.");
   }
 }
 
