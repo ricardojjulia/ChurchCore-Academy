@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { BookOpen, CreditCard, ShieldCheck } from "lucide-react";
-import { AdminShell } from "@/components/admin-shell";
+import { GuardianShell } from "@/components/guardian-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { requireActor } from "@/lib/require-actor";
@@ -35,7 +35,7 @@ export default async function GuardianStudentPage({
 
   if (summary === null) {
     return (
-      <AdminShell
+      <GuardianShell
         eyebrow="Guardian Portal"
         title="Record Access Restricted"
         subtitle="Access to this student's records has been restricted by the institution."
@@ -50,7 +50,7 @@ export default async function GuardianStudentPage({
             <p>Contact the registrar if you believe this restriction is incorrect.</p>
           </CardContent>
         </Card>
-      </AdminShell>
+      </GuardianShell>
     );
   }
 
@@ -59,7 +59,7 @@ export default async function GuardianStudentPage({
   }
 
   return (
-    <AdminShell
+    <GuardianShell
       eyebrow="Guardian Portal"
       title={summary.studentName}
       subtitle="Guardian-scoped records. Contact the institution for any record changes."
@@ -162,6 +162,6 @@ export default async function GuardianStudentPage({
           </CardContent>
         </Card>
       )}
-    </AdminShell>
+    </GuardianShell>
   );
 }
