@@ -16,6 +16,32 @@ function parseJson<T>(value: unknown) {
   return value as T;
 }
 
+/**
+ * Suggestions seeded by migration 20260618010000 store an older explanation shape
+ * ({ headline, signals: [{ label, value }] }); the engine writes SuggestionExplanation. Reading
+ * the old shape as the new one crashed every page that renders an explanation
+ * (e.g. /admin/faculty). Normalize both, and never return missing arrays.
+ */
+export function normalizeExplanation(value: unknown): ShepherdAiSuggestion["explanation"] {
+  const raw = (parseJson<Record<string, unknown>>(value) ?? {}) as Record<string, unknown>;
+  const list = (item: unknown) => (Array.isArray(item) ? item.map(String) : []);
+  if (Array.isArray(raw.detected) || Array.isArray(raw.whySurfaced)) {
+    return {
+      detected: list(raw.detected),
+      whySurfaced: list(raw.whySurfaced),
+      sourceSignalCategories: list(raw.sourceSignalCategories) as ShepherdAiSuggestion["explanation"]["sourceSignalCategories"],
+      limitations: list(raw.limitations),
+    };
+  }
+  const signals = Array.isArray(raw.signals) ? (raw.signals as { label?: unknown; value?: unknown }[]) : [];
+  return {
+    detected: signals.map((signal) => `${String(signal.label ?? "Signal")}: ${String(signal.value ?? "")}`),
+    whySurfaced: typeof raw.headline === "string" ? [raw.headline] : [],
+    sourceSignalCategories: [],
+    limitations: [],
+  };
+}
+
 export class ShepherdAiPostgresRepository {
   constructor(private readonly database: ShepherdAiDatabase = getDatabasePool()) {}
 
@@ -206,7 +232,7 @@ export class ShepherdAiPostgresRepository {
           confidenceScore: row.confidence_score,
           urgency: row.urgency,
           suggestedActions: parseJson<ShepherdAiSuggestion["suggestedActions"]>(row.suggested_actions),
-          explanation: parseJson<ShepherdAiSuggestion["explanation"]>(row.explanation_json),
+          explanation: normalizeExplanation(row.explanation_json),
           boundaryNote: row.boundary_note,
           messageDraft: row.message_draft ?? undefined,
           status: row.status,

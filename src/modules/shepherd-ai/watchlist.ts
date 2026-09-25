@@ -71,7 +71,7 @@ export async function fetchWatchlist(
         join academy_course_sections cs on cs.id = csr.course_section_id and cs.tenant_id = csr.tenant_id
         where cs.tenant_id = $1
           and cs.primary_instructor_id = $${params.length + 1}
-          and csr.registration_status = 'enrolled'
+          and csr.status = 'registered'
       )`
     );
     params.push(actor.userId);
@@ -118,9 +118,11 @@ export async function fetchWatchlist(
        p.display_name as student_name,
        prog.name as program,
        sp.enrollment_status,
-       sp.cumulative_gpa,
+       sp.gpa as cumulative_gpa,
        array_agg(distinct sug.workflow_code) as active_signal_types,
-       max(
+       -- Most urgent signal wins: rank 1 is high. (max() over the text value compared
+       -- alphabetically, so "medium" outranked "high".)
+       min(
          case sug.urgency
            when 'high' then 1
            when 'medium' then 2
@@ -128,14 +130,15 @@ export async function fetchWatchlist(
            else 4
          end
        ) as urgency_rank,
-       max(sug.urgency) as highest_urgency,
        count(sug.id) as open_signal_count
      from ai_suggestions sug
      join academy_student_profiles sp on sp.person_id = sug.entity_id and sp.tenant_id = sug.tenant_id
      join academy_people p on p.id = sp.person_id and p.tenant_id = sug.tenant_id
-     left join academy_academic_programs prog on prog.id = sp.program_id and prog.tenant_id = sug.tenant_id
+     -- student_profiles.program_id holds academy_programs ids (text); academy_academic_programs
+     -- ids are uuids, so joining there failed with "operator does not exist: uuid = text".
+     left join academy_programs prog on prog.id = sp.program_id and prog.tenant_id = sug.tenant_id
      where ${whereClause}
-     group by sp.person_id, p.display_name, prog.name, sp.enrollment_status, sp.cumulative_gpa
+     group by sp.person_id, p.display_name, prog.name, sp.enrollment_status, sp.gpa
      order by urgency_rank asc, open_signal_count desc, p.display_name asc
      limit $${params.length + 1} offset $${params.length + 2}`,
     [...params, pageSize, offset],
@@ -148,7 +151,7 @@ export async function fetchWatchlist(
     enrollmentStatus: String(row.enrollment_status),
     cumulativeGpa: row.cumulative_gpa != null ? Number(row.cumulative_gpa) : null,
     activeSignalTypes: (row.active_signal_types as string[]) ?? [],
-    highestUrgency: String(row.highest_urgency) as "high" | "medium" | "low",
+    highestUrgency: (["high", "medium", "low"][Number(row.urgency_rank) - 1] ?? "low") as "high" | "medium" | "low",
     openSignalCount: Number(row.open_signal_count),
   }));
 

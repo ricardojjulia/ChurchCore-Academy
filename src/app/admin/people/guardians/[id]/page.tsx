@@ -53,7 +53,8 @@ export default async function GuardianDetailPage(props: PageProps) {
     actor,
     async (client) => {
       const personResult = await client.query(
-        `SELECT id, display_name, given_name, family_name, email, phone, date_of_birth, person_status
+        `SELECT id, display_name AS "displayName", given_name AS "givenName", family_name AS "familyName", email, phone,
+                date_of_birth::text AS "dateOfBirth", person_status AS "personStatus"
          FROM academy_people
          WHERE id = $2 AND tenant_id = $1`,
         [actor.tenantId, params.id],
