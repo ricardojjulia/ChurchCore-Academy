@@ -18,6 +18,14 @@ export const STAFF: readonly PersonaKey[] = PERSONA_KEYS.filter((key) => key !==
 export const ALL_SIGNED_IN: readonly PersonaKey[] = PERSONA_KEYS;
 /** Faculty-portal roles. */
 export const FACULTY: readonly PersonaKey[] = ["faculty", "teacher", "professor"];
+/** FACULTY_PORTAL_ROLES in src/lib/portal-access.ts: teaching roles plus academic administrators. */
+/** FACULTY_PORTAL within one tenant: for pages about a specific cca-main record. */
+export const FACULTY_PORTAL_PRIMARY_TENANT: readonly PersonaKey[] = [
+  "faculty", "teacher", "professor", "institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "dean",
+];
+export const FACULTY_PORTAL: readonly PersonaKey[] = [
+  "faculty", "teacher", "professor", "institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "dean", "otherTenantAdmin",
+];
 /** STUDENT_RECORD_ROLES in src/modules/people/access-policy.ts, as personas in the primary tenant. */
 export const STUDENT_RECORDS: readonly PersonaKey[] = ["institutionAdmin", "institutionAdmin2", "registrar", "admissions", "academicAdmin", "dean"];
 
@@ -83,26 +91,26 @@ export const PAGE_MANIFEST: PageEntry[] = [
   { path: "/dashboard/instructor/gradebook", access: STAFF, redirectsTo: "/dashboard/faculty/gradebook" },
   { path: "/dashboard/learner/grades", access: STAFF, redirectsTo: "/dashboard/student/grades" },
   { path: "/dashboard/student/grades", access: ALL_SIGNED_IN },
-  { path: "/faculty", access: ALL_SIGNED_IN },
-  { path: "/faculty/attendance", access: ALL_SIGNED_IN },
-  { path: "/faculty/gradebook", access: ALL_SIGNED_IN },
-  { path: "/faculty/gradebook/[sectionId]", access: ALL_SIGNED_IN },
+  { path: "/faculty", access: FACULTY_PORTAL },
+  { path: "/faculty/attendance", access: FACULTY_PORTAL },
+  { path: "/faculty/gradebook", access: FACULTY_PORTAL },
+  { path: "/faculty/gradebook/[sectionId]", access: FACULTY_PORTAL_PRIMARY_TENANT },
   { path: "/faculty/gradebook/[sectionId]/assignments/[assignmentId]", access: ["institutionAdmin", "institutionAdmin2", "registrar", "faculty", "teacher", "academicAdmin", "dean", "professor"] },
-  { path: "/faculty/gradebook/[sectionId]/assignments/new", access: ALL_SIGNED_IN },
+  { path: "/faculty/gradebook/[sectionId]/assignments/new", access: FACULTY_PORTAL_PRIMARY_TENANT },
   { path: "/faculty/gradebook/[sectionId]/computed", access: ["institutionAdmin", "institutionAdmin2", "registrar", "teacher", "academicAdmin", "dean"] },
-  { path: "/faculty/roster", access: ALL_SIGNED_IN },
-  { path: "/faculty/schedule", access: FACULTY },
-  { path: "/faculty/sections", access: FACULTY },
-  { path: "/faculty/shepherd", access: FACULTY },
-  { path: "/guardian", access: ALL_SIGNED_IN },
+  { path: "/faculty/roster", access: FACULTY_PORTAL },
+  { path: "/faculty/schedule", access: FACULTY_PORTAL },
+  { path: "/faculty/sections", access: FACULTY_PORTAL },
+  { path: "/faculty/shepherd", access: FACULTY_PORTAL },
+  { path: "/guardian", access: ["guardian"] },
   { path: "/guardian/[studentId]", access: ["guardian"] },
-  { path: "/guardian/messages", access: ALL_SIGNED_IN },
+  { path: "/guardian/messages", access: ["guardian"] },
   { path: "/hq", access: STAFF, redirectsTo: "/internal/hq" },
   { path: "/internal/hq", access: ALL_SIGNED_IN },
   { path: "/login", access: "public" },
   { path: "/platform/control", access: ["institutionAdmin"] },
   { path: "/programs", access: STAFF, redirectsTo: "/admin/programs" },
-  { path: "/programs/[id]", access: STAFF, redirectsTo: "/admin/programs" },
+  { path: "/programs/[id]", access: STAFF, redirectsTo: "/admin/programs/[id]" },
   { path: "/settings/calendar", access: STAFF, redirectsTo: "/admin/settings/calendar" },
   { path: "/settings/courses", access: STAFF, redirectsTo: "/admin/settings/courses" },
   { path: "/settings/demo-feedback", access: ALL_SIGNED_IN },
@@ -123,7 +131,7 @@ export const PAGE_MANIFEST: PageEntry[] = [
   { path: "/student/progress", access: ["student"] },
   { path: "/student/schedule", access: ["student"] },
   { path: "/students", access: STAFF, redirectsTo: "/admin/students" },
-  { path: "/students/[id]", access: STAFF, redirectsTo: "/admin/students" },
+  { path: "/students/[id]", access: STAFF, redirectsTo: "/admin/students/[id]" },
   { path: "/workflows", access: STAFF, redirectsTo: "/admin/workflows" },
 ];
 
