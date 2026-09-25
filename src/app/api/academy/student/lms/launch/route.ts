@@ -3,7 +3,8 @@ import { jsonError, jsonOk } from "@/app/api/academy/api-utils";
 import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { resolveStudentAcademyActorFromSession } from "@/modules/academy-auth/request-context";
-import { AcademyActor, assertStudentPortalAccess, assertCapability } from "@/modules/academy-auth/policy";
+import { AcademyActor, assertStudentPortalAccess, assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
+import { NextResponse } from "next/server";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
 import { PeopleConfiguration } from "@/modules/people/types";
 import {
@@ -118,6 +119,15 @@ export async function launchStudentLmsRequest(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to resolve student LMS launch.";
 
+    // Same response handleApi gives a disabled capability (the institution hasn't enabled LMS
+    // launch); it was falling through to a 500.
+    if (error instanceof CapabilityDisabledError) {
+      return NextResponse.json(
+        { available: false, capability: error.capability, reason: "Not enabled for this institution." },
+        { status: 451 },
+      );
+    }
+
     if (message.includes("Malformed") || message.includes("Invalid")) {
       return jsonError(message, 400);
     }
@@ -130,6 +140,7 @@ export async function launchStudentLmsRequest(
       return jsonError(message, 404);
     }
 
+    console.error("[student/lms/launch] Unexpected error:", message);
     return jsonError("Unable to resolve student LMS launch.", 500);
   }
 }

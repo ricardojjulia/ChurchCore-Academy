@@ -61,7 +61,11 @@ export default async function FacultySchedulePage() {
          cs.schedule_pattern,
          cs.status,
          cs.capacity,
-         cs.roster_count
+         (select count(*)::int
+            from academy_course_section_registrations csr
+           where csr.tenant_id = cs.tenant_id
+             and csr.course_section_id = cs.id
+             and csr.status = 'registered') as roster_count
        from academy_course_sections cs
        join academy_courses c
          on c.id        = cs.course_id

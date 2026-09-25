@@ -84,24 +84,26 @@ async function collectReportData(
   const yearParts = reportingYear.split("-");
   const startYear = yearParts[0] ?? reportingYear;
 
+  // Every count reads the live Academy schema. (This previously queried academy_students.gender
+  // / .status, academy_staff_members and academy_federal_programs, which don't exist, so no
+  // report could ever be generated. Gender isn't collected in academy_people, so it's omitted
+  // rather than reported as zero.)
   const enrollmentResult = await db.query(
-    `select count(*) as total_students,
-            sum(case when gender = 'male' then 1 else 0 end) as male_count,
-            sum(case when gender = 'female' then 1 else 0 end) as female_count
-     from academy_students
-     where tenant_id = $1 and status = 'active'`,
+    `select count(*)::int as total_students
+     from academy_student_profiles
+     where tenant_id = $1 and enrollment_status = 'active'`,
     [actor.tenantId],
   );
   const staffResult = await db.query(
-    `select count(*) as total_staff
-     from academy_staff_members
-     where tenant_id = $1 and status = 'active'`,
+    `select count(*)::int as total_staff
+     from academy_staff_profiles
+     where tenant_id = $1 and employment_status = 'active'`,
     [actor.tenantId],
   );
   const programResult = await db.query(
-    `select count(*) as total_programs
-     from academy_programs
-     where tenant_id = $1 and active = true`,
+    `select count(*)::int as total_programs
+     from academy_academic_programs
+     where tenant_id = $1 and status = 'active'`,
     [actor.tenantId],
   );
 
@@ -116,10 +118,10 @@ async function collectReportData(
 
   if (reportType === "ats_annual" || reportType === "ipeds_annual") {
     const degreeResult = await db.query(
-      `select program_type, count(*) as count
-       from academy_programs
-       where tenant_id = $1 and active = true
-       group by program_type`,
+      `select credential_type as program_type, count(*)::int as count
+       from academy_academic_programs
+       where tenant_id = $1 and status = 'active'
+       group by credential_type`,
       [actor.tenantId],
     );
     snapshot.programsByType = degreeResult.rows;
@@ -127,8 +129,10 @@ async function collectReportData(
 
   if (reportType === "title_iv_enrollment") {
     const aidResult = await db.query(
-      `select count(*) as total_aid_recipients
-       from academy_federal_programs
+      // Title IV aid is recorded as federal disbursements; academy_aid_awards only holds
+      // institutional/denominational/mission/church awards.
+      `select count(distinct student_person_id)::int as total_aid_recipients
+       from academy_federal_disbursement_reports
        where tenant_id = $1`,
       [actor.tenantId],
     );

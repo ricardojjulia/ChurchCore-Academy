@@ -75,3 +75,19 @@ test("plain handler values are still wrapped as a 200 JSON response", async () =
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { success: true });
 });
+
+test("a Postgres invalid-input error (malformed id) is a 400 that doesn't echo the database message", async () => {
+  const response = await handleApi(async () => {
+    throw Object.assign(new Error('invalid input syntax for type uuid: "prog-x"'), { code: "22P02" });
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "Invalid identifier or value." });
+});
+
+test("cross-tenant denials are 403, not 500", async () => {
+  const { AcademyAuthorizationError: DenialError } = await import("@/modules/academy-auth/errors");
+  const response = await handleApi(async () => {
+    throw new DenialError("Cross-tenant access is forbidden.");
+  });
+  assert.equal(response.status, 403);
+});

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Pool } from "pg";
+import { PostgresPlatformAdminRepository } from "../../src/modules/platform-admin/postgres-repository";
 import { E2E_PASSWORD, FIXTURE_IDS, OTHER_TENANT_ID, PERSONAS, PRIMARY_TENANT_ID, type E2EPersona } from "../../e2e/personas";
 
 // Idempotent seed for the disposable e2e database, run after migrations. Migrations already seed
@@ -23,18 +24,32 @@ function assertDisposableDatabase(url: string) {
   }
 }
 
-async function ensureOtherTenant(pool: Pool) {
-  await pool.query(
-    `insert into academy_institution_profiles (
-       tenant_id, institution_name, legal_name, primary_mode, supported_modes, operating_rules,
-       capabilities, lms_preference, created_at, updated_at
-     )
-     select $1, 'E2E Other Institution', 'E2E Other Institution', primary_mode, supported_modes,
-            operating_rules, capabilities, lms_preference, now(), now()
-     from academy_institution_profiles where tenant_id = $2
-     on conflict (tenant_id) do nothing`,
-    [OTHER_TENANT_ID, PRIMARY_TENANT_ID],
-  );
+async function ensureOtherTenant(pool: Pool, admin: SupabaseClient) {
+  // Created through the product's own provisioning (the same path as the platform control
+  // panel), so the second tenant gets exactly what a real new institution gets: institution,
+  // calendar, grading and catalog profiles, a root subdivision, and an institution admin linked
+  // to the login. A hand-copied profile row missed most of that.
+  const existing = await pool.query("select 1 from academy_institution_profiles where tenant_id = $1", [OTHER_TENANT_ID]);
+  if (existing.rowCount) return;
+  const persona = PERSONAS.otherTenantAdmin;
+  const externalSubject = await ensureAuthUser(admin, persona.email.toLowerCase());
+  const client = await pool.connect();
+  try {
+    await new PostgresPlatformAdminRepository(client).provisionTenant({
+      externalSubject,
+      tenantId: OTHER_TENANT_ID,
+      displayName: "E2E Other Institution",
+      institutionName: "E2E Other Institution",
+      legalName: "E2E Other Institution",
+      primaryMode: "bible_school",
+      supportedModes: ["bible_school"],
+      lifecycleStatus: "active",
+      isDemo: false,
+      initialInstitutionAdmin: { displayName: "E2E Other Admin", givenName: "E2E", familyName: "Other Admin", email: persona.email },
+    });
+  } finally {
+    client.release();
+  }
 }
 
 async function ensureAuthUser(admin: SupabaseClient, email: string): Promise<string> {
@@ -144,10 +159,10 @@ async function main() {
   const pool = new Pool({ connectionString: databaseUrl });
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
   try {
-    await ensureOtherTenant(pool);
+    await ensureOtherTenant(pool, admin);
     await ensureFixtures(pool);
     for (const persona of Object.values(PERSONAS)) {
-      if (persona.seeded !== "e2e") continue;
+      if (persona.seeded !== "e2e" || persona.tenantId !== PRIMARY_TENANT_ID) continue;
       const authUserId = await ensureAuthUser(admin, persona.email.toLowerCase());
       await ensurePersona(pool, persona, authUserId);
     }

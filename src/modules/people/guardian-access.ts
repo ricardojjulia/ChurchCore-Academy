@@ -82,7 +82,7 @@ export async function fetchGuardianStudentSummary(
   const attendanceResult = await db.query(
     `select
        ar.course_section_id::text as section_id,
-       cs.course_code || ' ' || cs.section_code as section_name,
+       c.code || ' ' || cs.section_code as section_name,
        count(*) filter (where ar.status = 'present') as present_count,
        count(*) filter (where ar.status = 'absent') as absent_count,
        count(*) filter (where ar.status = 'late') as late_count,
@@ -90,9 +90,10 @@ export async function fetchGuardianStudentSummary(
          filter (where ar.status = 'absent') as recent_absence_dates
      from academy_attendance_records ar
      join academy_course_sections cs on cs.id = ar.course_section_id and cs.tenant_id = ar.tenant_id
+     join academy_courses c on c.id = cs.course_id and c.tenant_id = cs.tenant_id
      where ar.tenant_id = $1
        and ar.student_person_id::text = $2
-     group by ar.course_section_id, cs.course_code, cs.section_code`,
+     group by ar.course_section_id, c.code, cs.section_code`,
     [tenantId, studentPersonId],
   ) as {
     rows: {
@@ -119,17 +120,16 @@ export async function fetchGuardianStudentSummary(
 
   if (hasFerpaRights) {
     const gradesResult = await db.query(
+      // Official posted course grades live in transcript entries (academy_gradebook_records is
+      // per-assignment and has no section, final grade, or status columns).
       `select
-         c.course_code,
-         c.title as course_title,
-         gr.final_letter_grade as grade
-       from academy_gradebook_records gr
-       join academy_course_sections cs on cs.id::text = gr.section_id and cs.tenant_id = gr.tenant_id
-       join academy_courses c on c.id = cs.course_id and c.tenant_id = cs.tenant_id
-       where gr.tenant_id = $1
-         and gr.learner_person_id = $2
-         and gr.status = 'official'
-       order by c.course_code`,
+         te.course_code,
+         te.course_title,
+         te.final_letter_grade as grade
+       from academy_transcript_entries te
+       where te.tenant_id = $1
+         and te.student_person_id = $2
+       order by te.course_code`,
       [tenantId, studentPersonId],
     ) as { rows: { course_code: string; course_title: string; grade: string | null }[] };
 

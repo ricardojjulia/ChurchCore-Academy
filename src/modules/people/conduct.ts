@@ -266,7 +266,7 @@ export async function fileConductRecord(
   }
 
   if (studentCheck.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const result = await db.query(
@@ -325,7 +325,7 @@ export async function updateConductStatus(
   }
 
   if (check.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const isResolved = update.status === "resolved";
@@ -396,7 +396,7 @@ export async function getStudentConductHistory(
   }
 
   if (studentCheck.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const result = await db.query(
@@ -433,7 +433,7 @@ export async function createIntervention(
   }
 
   if (studentCheck.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   // If conduct record is specified, verify it exists and belongs to this tenant/student
@@ -448,7 +448,7 @@ export async function createIntervention(
     }
 
     if (recordCheck.rows[0].tenant_id !== actor.tenantId) {
-      throw new Error("Cross-tenant access is forbidden.");
+      throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
     }
 
     if (recordCheck.rows[0].student_person_id !== input.studentPersonId) {
@@ -504,7 +504,7 @@ export async function updateInterventionStatus(
   }
 
   if (check.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   // Must be either admin or the assigned person
@@ -556,7 +556,7 @@ export async function getStudentInterventions(
   }
 
   if (studentCheck.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   // Students can read their own interventions; staff with read permission can read any
@@ -597,7 +597,7 @@ export async function fileAppeal(
   }
 
   if (recordCheck.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const studentPersonId = String(recordCheck.rows[0].student_person_id);
@@ -667,7 +667,7 @@ export async function reviewAppeal(
   }
 
   if (check.rows[0].tenant_id !== actor.tenantId) {
-    throw new Error("Cross-tenant access is forbidden.");
+    throw new AcademyAuthorizationError("Cross-tenant access is forbidden.");
   }
 
   const result = await db.query(

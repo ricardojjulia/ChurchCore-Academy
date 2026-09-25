@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
-export default function LegacyProgramRedirect({ params }: { params: Promise<{ id: string }> }) {
-  void params.then(({ id }) => redirect(`/admin/programs/${id}`));
-  redirect("/admin/programs");
+
+// Legacy URL. Await params and redirect once: the previous version redirected to the list
+// synchronously and left an un-awaited redirect to throw as an unhandled rejection (#176).
+export default async function LegacyProgramRedirect({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  redirect(`/admin/programs/${encodeURIComponent(id)}`);
 }

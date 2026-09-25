@@ -160,3 +160,22 @@ test("fetchSuggestions maps dismiss_note and snooze_until fields", async () => {
   assert.equal(suggestions[0].dismissNote, "Handled externally");
   assert.equal(suggestions[0].snoozeUntil, "2026-06-30T00:00:00.000Z");
 });
+test("normalizeExplanation maps the legacy seeded shape and never returns missing arrays", async () => {
+  const { normalizeExplanation } = await import("@/modules/shepherd-ai/postgres-repository");
+  const legacy = normalizeExplanation(JSON.stringify({
+    headline: "Enrollment pending 21+ days",
+    signals: [{ label: "Days pending", value: 21, weight: "primary" }],
+    confidence: "High",
+  }));
+  assert.deepEqual(legacy.whySurfaced, ["Enrollment pending 21+ days"]);
+  assert.deepEqual(legacy.detected, ["Days pending: 21"]);
+  assert.deepEqual(legacy.sourceSignalCategories, []);
+  assert.deepEqual(legacy.limitations, []);
+
+  const current = normalizeExplanation({ detected: ["a"], whySurfaced: ["b"], sourceSignalCategories: ["academic"], limitations: [] });
+  assert.deepEqual(current.detected, ["a"]);
+  assert.deepEqual(current.sourceSignalCategories, ["academic"]);
+
+  const empty = normalizeExplanation(null);
+  assert.deepEqual(empty, { detected: [], whySurfaced: [], sourceSignalCategories: [], limitations: [] });
+});

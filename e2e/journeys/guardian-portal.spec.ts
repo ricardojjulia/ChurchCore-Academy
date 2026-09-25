@@ -14,9 +14,6 @@ test("a guardian signs in and lands on the guardian portal", async ({ page }) =>
 });
 
 test("the guardian can open their own child's page", async ({ browser }) => {
-  // Known issue #170: the child page queries a column that doesn't exist and crashes. This test
-  // is expected to fail until that's fixed; Playwright flags it when it starts passing.
-  test.fail(true, "#170 — /guardian/[studentId] queries cs.course_code, which doesn't exist");
   const context = await browser.newContext({ storageState: storageStateFor("guardian") });
   const page = await context.newPage();
   await page.goto(`/guardian/${CHILD}`, { waitUntil: "networkidle" });

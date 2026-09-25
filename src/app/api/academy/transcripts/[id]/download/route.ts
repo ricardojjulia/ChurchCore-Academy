@@ -2,7 +2,7 @@ import {
   asAcademyDatabase,
 } from "@/lib/academy-database-context";
 import { withCapabilityContext } from "@/lib/capability-context";
-import { assertCapability } from "@/modules/academy-auth/policy";
+import { assertCapability, CapabilityDisabledError } from "@/modules/academy-auth/policy";
 import { resolveAcademyActorFromSession } from "@/modules/academy-auth/request-context";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import {
@@ -233,6 +233,14 @@ function mapDownloadError(error: unknown) {
     return NextResponse.json({ error: message }, { status: 409 });
   }
 
+  // Same response handleApi gives when the institution hasn't enabled a capability.
+  if (error instanceof CapabilityDisabledError) {
+    return NextResponse.json(
+      { available: false, capability: error.capability, reason: "Not enabled for this institution." },
+      { status: 451 },
+    );
+  }
+
   if (message.includes("not found") || message.includes("was not found")) {
     return NextResponse.json({ error: message }, { status: 404 });
   }
@@ -241,5 +249,6 @@ function mapDownloadError(error: unknown) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  console.error("[transcripts/download] Unexpected error:", message);
   return NextResponse.json({ error: "Unexpected API error." }, { status: 500 });
 }

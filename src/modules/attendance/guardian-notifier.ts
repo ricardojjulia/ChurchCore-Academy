@@ -2,6 +2,7 @@ import type { AcademyActor } from "@/modules/academy-auth/policy";
 import type { CommunicationsService } from "@/modules/communications/service";
 import type { AttendanceThresholdDatabase } from "@/modules/attendance/threshold-evaluator";
 import type { SessionType } from "@/modules/attendance/types";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 export interface GuardianNotificationResult {
   notificationSent: boolean;
@@ -313,7 +314,7 @@ export async function checkGuardianNotification(
 ): Promise<GuardianNotificationResult> {
   // Enforce tenant isolation
   if (actor.tenantId !== tenantId) {
-    throw new Error("Cross-tenant guardian notification check rejected.");
+    throw new AcademyAuthorizationError("Cross-tenant guardian notification check rejected.");
   }
 
   // Only check for absences

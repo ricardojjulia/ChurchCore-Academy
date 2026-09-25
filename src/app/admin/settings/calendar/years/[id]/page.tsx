@@ -27,7 +27,8 @@ export default async function YearDetailPage({ params }: { params: Promise<{ id:
     const allPeriods = await repo.listPeriods(actor.tenantId);
     const year = yearResult.rows[0];
     if (!year) {
-      throw new Error("Year not found");
+      // Unknown here, including another tenant's year: a 404, not the error screen.
+      return { year: null, periods: [] };
     }
     const periods = allPeriods.filter(p => p.academicYearId === id);
     return { year, periods };

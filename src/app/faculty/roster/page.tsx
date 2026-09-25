@@ -69,7 +69,11 @@ export default async function FacultyRosterPage({ searchParams }: Props) {
          cs.section_code,
          c.title             as course_title,
          cs.capacity,
-         cs.roster_count,
+         (select count(*)::int
+            from academy_course_section_registrations csr
+           where csr.tenant_id = cs.tenant_id
+             and csr.course_section_id = cs.id
+             and csr.status = 'registered') as roster_count,
          cs.primary_instructor_id
        from academy_course_sections cs
        join academy_courses c

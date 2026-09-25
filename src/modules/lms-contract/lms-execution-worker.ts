@@ -10,6 +10,7 @@ import {
   emitOperationalEvent,
   type OperationalEventSink,
 } from "@/modules/observability/operational-events";
+import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 
 type LiveLmsProviderId = Exclude<LmsProviderId, "none">;
 
@@ -385,7 +386,7 @@ export async function runNextLmsOperation(
 
   if (job.tenantId !== input.tenantId) {
     await input.repository.save({ ...job, status: job.attempts > 0 ? "retrying" : "queued", updatedAt: nowIso(now) });
-    throw new Error("Cross-tenant LMS job execution rejected.");
+    throw new AcademyAuthorizationError("Cross-tenant LMS job execution rejected.");
   }
 
   if (await input.isProviderCircuitOpen?.(job.tenantId, job.providerId)) {

@@ -66,7 +66,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         return { url };
       }
 
-      throw new Error(`Unknown action: ${action}`);
+      throw new Error(`Invalid action: ${action || "(missing)"}.`);
     });
   });
 }

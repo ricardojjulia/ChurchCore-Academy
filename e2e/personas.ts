@@ -34,7 +34,8 @@ export const PERSONAS = {
   professor: { email: "professor@churchcore.academy", tenantId: PRIMARY_TENANT_ID, role: "professor", personId: "person-e2e-professor", seeded: "e2e", home: "/admin" },
   alumniRelations: { email: "alumni.relations@churchcore.academy", tenantId: PRIMARY_TENANT_ID, role: "alumni_relations", personId: "person-e2e-alumni-relations", seeded: "e2e", home: "/admin" },
   formationReviewer: { email: "formation.reviewer@churchcore.academy", tenantId: PRIMARY_TENANT_ID, role: "ministry_formation_reviewer", personId: "person-e2e-formation-reviewer", seeded: "e2e", home: "/admin" },
-  otherTenantAdmin: { email: "other.admin@e2e.churchcore.invalid", tenantId: OTHER_TENANT_ID, role: "institution_admin", personId: "person-e2e-other-admin", seeded: "e2e", home: "/admin" },
+  // Provisioned (with its tenant) by the real platform provisioning path; its person id is generated.
+  otherTenantAdmin: { email: "other.admin@e2e.churchcore.invalid", tenantId: OTHER_TENANT_ID, role: "institution_admin", personId: "(provisioned)", seeded: "e2e", home: "/admin" },
 } as const satisfies Record<string, E2EPersona>;
 
 export type PersonaKey = keyof typeof PERSONAS;

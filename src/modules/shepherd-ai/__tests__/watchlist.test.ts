@@ -41,7 +41,7 @@ function buildDb(entries: WatchlistEntry[] = [mockEntry()], totalOverride?: numb
           enrollment_status: e.enrollmentStatus,
           cumulative_gpa: e.cumulativeGpa !== null ? String(e.cumulativeGpa) : null,
           active_signal_types: e.activeSignalTypes,
-          highest_urgency: e.highestUrgency,
+          urgency_rank: ({ high: 1, medium: 2, low: 3 } as Record<string, number>)[e.highestUrgency] ?? 4,
           open_signal_count: String(e.openSignalCount),
         })),
       };
