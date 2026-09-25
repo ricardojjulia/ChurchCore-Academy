@@ -64,6 +64,9 @@ function makeRepo(
   state: { clearance?: GraduationClearance } = {},
 ): GraduationClearanceRepository {
   return {
+    async studentBelongsToTenant(tenantId, _studentProfileId) {
+      return tenantId === TENANT;
+    },
     async create(tenantId, initiatedByPersonId, input) {
       const c = makeClearance({
         tenantId,
@@ -84,8 +87,7 @@ function makeRepo(
         ...state.clearance,
         status: input.action === "clear" ? "cleared" : "deferred",
         clearedByPersonId,
-        clearedAt:
-          input.action === "clear" ? "2026-09-23T11:00:00.000Z" : undefined,
+        clearedAt: "2026-09-23T11:00:00.000Z",
         deferredReason: input.deferredReason,
         notes: input.notes,
         updatedAt: "2026-09-23T11:00:00.000Z",
@@ -95,6 +97,13 @@ function makeRepo(
     },
     async findByStudent(_tenantId, _studentProfileId) {
       return state.clearance;
+    },
+    async latestStatusesForStudents(_tenantId, studentProfileIds) {
+      const statuses = new Map<string, GraduationClearance["status"]>();
+      if (state.clearance && studentProfileIds.includes(state.clearance.studentProfileId)) {
+        statuses.set(state.clearance.studentProfileId, state.clearance.status);
+      }
+      return statuses;
     },
     async findById(_tenantId, clearanceId) {
       return state.clearance?.id === clearanceId ? state.clearance : undefined;
@@ -106,7 +115,7 @@ function makeRepo(
 // Test cases
 // ---------------------------------------------------------------------------
 
-await test("initiate — success: creates a pending clearance and returns it", async () => {
+test("initiate — success: creates a pending clearance and returns it", async () => {
   const repo = makeRepo();
   const svc = new GraduationClearanceService(repo);
 
@@ -124,7 +133,7 @@ await test("initiate — success: creates a pending clearance and returns it", a
   assert.doesNotMatch(json, /secret/i);
 });
 
-await test("initiate — idempotency guard: second call for same student/program/year throws a known error", async () => {
+test("initiate — idempotency guard: second call for same student/program/year throws a known error", async () => {
   const repo = makeRepo({ clearance: makeClearance({ status: "pending" }) });
   const svc = new GraduationClearanceService(repo);
 
@@ -137,7 +146,7 @@ await test("initiate — idempotency guard: second call for same student/program
   );
 });
 
-await test("initiate — deferred clearance allows re-initiation", async () => {
+test("initiate — deferred clearance allows re-initiation", async () => {
   // A deferred clearance should NOT block a fresh initiation
   const repo = makeRepo({ clearance: makeClearance({ status: "deferred" }) });
   const svc = new GraduationClearanceService(repo);
@@ -145,7 +154,7 @@ await test("initiate — deferred clearance allows re-initiation", async () => {
   assert.equal(result.status, "pending");
 });
 
-await test("update clear — success: transitions pending → cleared, sets cleared_at and cleared_by", async () => {
+test("update clear — success: transitions pending → cleared, sets cleared_at and cleared_by", async () => {
   const existing = makeClearance({ status: "pending" });
   const repo = makeRepo({ clearance: existing });
   const svc = new GraduationClearanceService(repo);
@@ -164,7 +173,7 @@ await test("update clear — success: transitions pending → cleared, sets clea
   assert.equal(result.notes, "All requirements verified.");
 });
 
-await test("update defer — success: transitions pending → deferred, requires deferredReason", async () => {
+test("update defer — success: transitions pending → deferred, requires deferredReason", async () => {
   const existing = makeClearance({ status: "pending" });
   const repo = makeRepo({ clearance: existing });
   const svc = new GraduationClearanceService(repo);
@@ -181,7 +190,7 @@ await test("update defer — success: transitions pending → deferred, requires
   assert.equal(result.deferredReason, "Missing formation hours — 4 units outstanding.");
 });
 
-await test("update defer — validation: missing deferredReason throws", async () => {
+test("update defer — validation: missing deferredReason throws", async () => {
   const existing = makeClearance({ status: "pending" });
   const repo = makeRepo({ clearance: existing });
   const svc = new GraduationClearanceService(repo);
@@ -201,7 +210,7 @@ await test("update defer — validation: missing deferredReason throws", async (
   );
 });
 
-await test("cross-tenant rejection: getForStudent throws when actor.tenantId does not match", async () => {
+test("cross-tenant rejection: getForStudent throws when actor.tenantId does not match", async () => {
   const repo = makeRepo({ clearance: makeClearance() });
   const svc = new GraduationClearanceService(repo);
 
@@ -214,7 +223,7 @@ await test("cross-tenant rejection: getForStudent throws when actor.tenantId doe
   );
 });
 
-await test("cross-tenant rejection: initiate throws when actor.tenantId does not match", async () => {
+test("cross-tenant rejection: initiate throws when actor.tenantId does not match", async () => {
   const repo = makeRepo();
   const svc = new GraduationClearanceService(repo);
 
@@ -227,7 +236,7 @@ await test("cross-tenant rejection: initiate throws when actor.tenantId does not
   );
 });
 
-await test("cross-tenant rejection: update throws when actor.tenantId does not match", async () => {
+test("cross-tenant rejection: update throws when actor.tenantId does not match", async () => {
   const existing = makeClearance({ status: "pending" });
   const repo = makeRepo({ clearance: existing });
   const svc = new GraduationClearanceService(repo);
@@ -245,7 +254,7 @@ await test("cross-tenant rejection: update throws when actor.tenantId does not m
   );
 });
 
-await test("role rejection: student role is rejected from initiate", async () => {
+test("role rejection: student role is rejected from initiate", async () => {
   const repo = makeRepo();
   const svc = new GraduationClearanceService(repo);
 
@@ -258,7 +267,7 @@ await test("role rejection: student role is rejected from initiate", async () =>
   );
 });
 
-await test("role rejection: faculty role is rejected from getForStudent", async () => {
+test("role rejection: faculty role is rejected from getForStudent", async () => {
   const repo = makeRepo({ clearance: makeClearance() });
   const svc = new GraduationClearanceService(repo);
 
@@ -271,7 +280,7 @@ await test("role rejection: faculty role is rejected from getForStudent", async 
   );
 });
 
-await test("update — not found: unknown clearanceId throws AuthorizationError", async () => {
+test("update — not found: unknown clearanceId throws AuthorizationError", async () => {
   const repo = makeRepo(); // no clearance in state
   const svc = new GraduationClearanceService(repo);
 
@@ -286,4 +295,52 @@ await test("update — not found: unknown clearanceId throws AuthorizationError"
       return true;
     },
   );
+});
+
+test("a decided clearance can't be decided again", async () => {
+  const state: { clearance?: GraduationClearance } = {};
+  const service = new GraduationClearanceService(makeRepo(state));
+  const created = await service.initiate(REGISTRAR_ACTOR, {
+    studentProfileId: "student-profile-1",
+    academicProgramId: "11111111-1111-4111-8111-111111111111",
+    academicYearId: "year-1",
+  });
+  await service.update(REGISTRAR_ACTOR, { clearanceId: created.id, action: "clear" });
+
+  await assert.rejects(
+    service.update(REGISTRAR_ACTOR, { clearanceId: created.id, action: "defer", deferredReason: "Changed my mind" }),
+    /already cleared/,
+  );
+});
+
+test("a deferral records who decided and when", async () => {
+  const state: { clearance?: GraduationClearance } = {};
+  const service = new GraduationClearanceService(makeRepo(state));
+  const created = await service.initiate(REGISTRAR_ACTOR, {
+    studentProfileId: "student-profile-1",
+    academicProgramId: "11111111-1111-4111-8111-111111111111",
+    academicYearId: "year-1",
+  });
+  const deferred = await service.update(REGISTRAR_ACTOR, {
+    clearanceId: created.id,
+    action: "defer",
+    deferredReason: "Outstanding practicum hours",
+  });
+  assert.equal(deferred.status, "deferred");
+  assert.equal(deferred.clearedByPersonId, REGISTRAR_ACTOR.userId);
+  assert.ok(deferred.clearedAt);
+});
+
+test("statusesForStudents returns latest statuses and enforces the review role", async () => {
+  const state: { clearance?: GraduationClearance } = {};
+  const service = new GraduationClearanceService(makeRepo(state));
+  await service.initiate(REGISTRAR_ACTOR, {
+    studentProfileId: "student-profile-1",
+    academicProgramId: "11111111-1111-4111-8111-111111111111",
+    academicYearId: "year-1",
+  });
+  const statuses = await service.statusesForStudents(REGISTRAR_ACTOR, ["student-profile-1", "student-profile-2"]);
+  assert.equal(statuses.get("student-profile-1"), "pending");
+  assert.equal(statuses.has("student-profile-2"), false);
+  await assert.rejects(service.statusesForStudents(FACULTY_ACTOR, ["student-profile-1"]), /requires/);
 });

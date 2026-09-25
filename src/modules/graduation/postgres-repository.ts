@@ -99,7 +99,9 @@ export class PostgresGraduationClearanceRepository
       [
         newStatus,
         clearedByPersonId,
-        input.action === "clear" ? now : null,
+        // cleared_by/cleared_at record who decided and when, for a deferral too (the table
+        // requires both for any non-pending status).
+        now,
         input.deferredReason ?? null,
         input.notes ?? null,
         now,
@@ -125,6 +127,31 @@ export class PostgresGraduationClearanceRepository
     return result.rows[0]
       ? mapGraduationClearanceRow(result.rows[0])
       : undefined;
+  }
+
+  async studentBelongsToTenant(tenantId: string, studentProfileId: string): Promise<boolean> {
+    const result = await this.database.query(
+      `select 1 from academy_student_profiles where tenant_id = $1 and id = $2`,
+      [tenantId, studentProfileId],
+    );
+    return Boolean(result.rowCount);
+  }
+
+  async latestStatusesForStudents(
+    tenantId: string,
+    studentProfileIds: string[],
+  ): Promise<Map<string, GraduationClearanceStatus>> {
+    // Profile ids are text; a uuid[] cast here failed for every real id.
+    const result = await this.database.query(
+      `select distinct on (student_profile_id) student_profile_id, status
+         from academy_graduation_clearances
+        where tenant_id = $1 and student_profile_id = any($2::text[])
+        order by student_profile_id, initiated_at desc`,
+      [tenantId, studentProfileIds],
+    );
+    return new Map(
+      result.rows.map((row) => [String(row.student_profile_id), row.status as GraduationClearanceStatus]),
+    );
   }
 
   async findById(

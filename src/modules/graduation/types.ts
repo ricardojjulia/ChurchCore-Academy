@@ -31,6 +31,11 @@ export interface UpdateClearanceInput {
 }
 
 export interface GraduationClearanceRepository {
+  studentBelongsToTenant(tenantId: string, studentProfileId: string): Promise<boolean>;
+  latestStatusesForStudents(
+    tenantId: string,
+    studentProfileIds: string[],
+  ): Promise<Map<string, GraduationClearanceStatus>>;
   create(
     tenantId: string,
     initiatedByPersonId: string,

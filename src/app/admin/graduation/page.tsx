@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { PostgresGraduationClearanceRepository, type GraduationDatabase } from "@/modules/graduation/postgres-repository";
+import { GraduationClearanceService } from "@/modules/graduation/service";
 import { fetchCapabilitySet } from "@/lib/capability-context";
 import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 import { listStudentsWithFormationSummary } from "@/modules/ministry-formation/service";
@@ -38,7 +40,7 @@ function credentialLabel(credential: string) {
 export default async function GraduationPage() {
   const actor = await requireActor();
   requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
-  const { students, programs, formationSummaries, clearanceRows } = await withAcademyDatabaseContext(actor, async (client) => {
+  const { students, programs, formationSummaries, clearanceStatuses } = await withAcademyDatabaseContext(actor, async (client) => {
     const [s, p] = await Promise.all([
       fetchStudentRecords(actor.tenantId, client),
       fetchProgramList(actor.tenantId, client),
@@ -59,26 +61,18 @@ export default async function GraduationPage() {
       }
     }
 
-    // Fetch graduation clearances for all active students in a single batch query
+    // Latest clearance status for each active student, through the graduation module (the
+    // page previously ran raw SQL with a uuid[] cast that failed for every real profile id).
     const activeStudentIds = s
       .filter((st) => st.enrollmentStatus === "active")
       .map((st) => st.id);
-    let clearanceRows: { student_profile_id: string; status: string }[] = [];
-    if (activeStudentIds.length > 0) {
-      const clearanceResult = (await client.query(
-        `select student_profile_id, status
-           from academy_graduation_clearances
-          where tenant_id = $1 and student_profile_id = any($2::uuid[])`,
-        [actor.tenantId, activeStudentIds],
-      )) as { rows: { student_profile_id: string; status: string }[] };
-      clearanceRows = clearanceResult.rows;
-    }
-    return { students: s, programs: p, formationSummaries, clearanceRows };
+    const clearanceStatuses = await new GraduationClearanceService(
+      new PostgresGraduationClearanceRepository(asAcademyDatabase<GraduationDatabase>(client)),
+    ).statusesForStudents(actor, activeStudentIds);
+    return { students: s, programs: p, formationSummaries, clearanceStatuses };
   });
 
-  const clearanceByStudentId = new Map(
-    clearanceRows.map((r) => [r.student_profile_id, r.status]),
-  );
+  const clearanceByStudentId = clearanceStatuses;
 
   const activeStudents = students.filter((s) => s.enrollmentStatus === "active");
 

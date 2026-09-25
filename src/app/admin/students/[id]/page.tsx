@@ -66,7 +66,7 @@ import {
   PostgresGraduationClearanceRepository,
   type GraduationDatabase,
 } from "@/modules/graduation/postgres-repository";
-import { GraduationClearanceService } from "@/modules/graduation/service";
+import { canReviewGraduation, GraduationClearanceService } from "@/modules/graduation/service";
 import type { GraduationClearance } from "@/modules/graduation/types";
 
 interface RegistrationRow {
@@ -212,14 +212,12 @@ export default async function StudentPage({
         /* covenant not available */
       }
 
-      // Fetch graduation clearance for graduation-review roles
-      // (roles without access get undefined; admissions role hits auth error)
-      let graduationClearance: GraduationClearance | undefined = undefined;
-      try {
-        graduationClearance = await graduationService.getForStudent(actor, id);
-      } catch {
-        // actor may not have graduation-review access (e.g., admissions) — skip silently
-      }
+      // Only graduation-review roles see the clearance. Checked up front rather than by catching
+      // the service's error: this runs inside the page's shared transaction, and a swallowed
+      // database error there would silently abort every later query on the page.
+      const graduationClearance: GraduationClearance | undefined = canReviewGraduation(actor)
+        ? await graduationService.getForStudent(actor, id)
+        : undefined;
 
       return {
         students: s,
@@ -276,9 +274,7 @@ export default async function StudentPage({
   if (!student || !person || !personId) notFound();
 
   const canEditNotes = actor.roles.some(r => ['institution_admin', 'dean', 'academic_admin'].includes(r));
-  const canManageClearance = actor.roles.some((r) =>
-    ['institution_admin', 'dean', 'registrar', 'academic_admin'].includes(r as string),
-  );
+  const canManageClearance = canReviewGraduation(actor);
 
   const activeMembership = programMemberships.find((item: StudentProgramMembership) => item.status === "active");
   const program = programs.find((item) => item.id === student.programId);
