@@ -72,15 +72,13 @@ function TabsTrigger({ value, className, ...props }: React.ComponentProps<"butto
 
 function TabsContent({ value, className, ...props }: React.ComponentProps<"div"> & { value: string }) {
   const context = useTabsContext();
-  if (context.value !== value) {
-    return null;
-  }
 
   return (
     <div
       role="tabpanel"
       id={`tabpanel-${value}`}
       aria-labelledby={`tab-${value}`}
+      hidden={context.value !== value}
       className={cn("outline-none", className)}
       {...props}
     />
