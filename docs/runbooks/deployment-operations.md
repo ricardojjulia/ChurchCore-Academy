@@ -130,3 +130,5 @@ For every controlled-pilot deployment, record:
 - operator;
 - open risks;
 - rollback target.
+
+Use `docs/templates/deployment-record.md` for the record. The deployment record must identify the exact commit SHA and deployment URL, separate migration evidence from application deployment evidence, and state whether the decision was proceed, rollback, or hold.

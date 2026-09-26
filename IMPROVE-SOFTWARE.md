@@ -1,12 +1,23 @@
 # IMPROVE-SOFTWARE — ChurchCore Academy Council Review Protocol
 
-This file defines the repeatable 4-agent council review process for advancing ChurchCore Academy toward MVP and competitive readiness. Run this council at the end of every major sprint or when deciding the next implementation priority.
+This file defines the repeatable Council review process for advancing ChurchCore Academy while keeping the SDLC auditable. It covers the four read-only audit agents, synthesis, ADR/change management, the Documenter close-out, and the mandatory PR-review gate.
+
+---
+
+## Mandate
+
+Run the Council before every non-trivial merge to the default branch. Non-trivial work includes product behavior, schema, auth/privacy, LMS contract, ShepherdAI, LLIS, UI workflow, migration, release/deployment, or accumulated multi-file changes.
+
+Small, isolated changes may skip the Council only when the PR explains why the work is trivial. The `pr-review` gate still runs for every PR.
+
+The Council is not a substitute for implementation tests. A Council finding, agent success, or dry run is not verification evidence.
 
 ---
 
 ## When to Run the Council
 
 - After merging a significant feature branch
+- Before merging a non-trivial feature branch
 - Before planning the next sprint
 - When the product backlog needs reprioritization
 - After any production incident or user feedback cycle
@@ -16,7 +27,7 @@ This file defines the repeatable 4-agent council review process for advancing Ch
 
 ## Council Structure
 
-The council always runs 4 agents in parallel, each with a distinct audit lens. They do not edit code. They read and report. A fifth synthesis step (human or AI) combines findings into ADRs and implementation prompts.
+The council runs 4 agents in parallel, each with a distinct audit lens. They do not edit code. They read and report. A fifth synthesis step combines findings into ADRs and implementation prompts. After verified implementation, the Documenter closes the loop in docs and records.
 
 | Agent | Role | Focus |
 |-------|------|-------|
@@ -24,6 +35,7 @@ The council always runs 4 agents in parallel, each with a distinct audit lens. T
 | **Agent 2** | Route & Page Audit | Nav links, 404s, stub pages, API coverage |
 | **Agent 3** | UX & Shell Audit | ARIA, loading states, error handling, mobile, CSS |
 | **Agent 4** | Feature & Competitive Audit | Phase completion, user-type coverage, competitive gaps, MVP score |
+| **Documenter** | Close-Out Writer | Changelog, docs, ADRs, run records, residual risk after verification |
 
 ---
 
@@ -171,6 +183,21 @@ For every agreed-upon change, write a concrete implementation prompt using this 
 
 List prompts in dependency order. Note which are independent (can run in parallel) and which must be sequential.
 
+### 5. Documenter Close-Out
+
+After implementation and verification are clean, the Documenter must:
+
+- update `CHANGELOG.md` and affected README/docs/runbooks;
+- correct stale roadmap/status language instead of preserving known drift;
+- finalize ADRs that governed the work;
+- create or update a factory run record from `docs/templates/factory-run-record.md` for substantial work;
+- preserve the distinction between implemented, verified, browser-verified, deployed, and externally or pilot-validated;
+- record residual risk and follow-up work.
+
+### 6. PR Review Gate
+
+Run `pr-review` on every PR or reviewable diff, including changes small enough to skip Council. Critical or Important findings block merge until resolved, explained as false positives, or explicitly deferred with a tracking issue and owner.
+
 ---
 
 ## Output Location
@@ -180,6 +207,7 @@ After each council run, commit the following:
 - `docs/reviews/YYYY-MM-DD-council-review-[N]-synthesis.md` — full synthesis with prompts
 - `docs/reviews/YYYY-MM-DD-council-review-[N]-agent-[1–4]-*.md` — individual agent reports
 - `docs/adr/XXXX-*.md` — any new ADRs drafted by the council
+- documenter updates to `CHANGELOG.md`, roadmap/status docs, README/docs/runbooks, and factory run records when implementation follows
 
 ---
 
@@ -191,3 +219,5 @@ After each council run, commit the following:
 - Implementation prompts must be self-contained — a coder reading only the prompt should know exactly what to build.
 - Every prompt that touches auth, tenant isolation, or student records must explicitly state what security check is expected.
 - ADRs must be committed before implementation begins.
+- Verification evidence must name exact commands and results.
+- Council output must state whether it reviewed the full repo, a product area, or only the current diff.

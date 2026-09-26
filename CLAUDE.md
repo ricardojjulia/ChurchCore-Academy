@@ -1,7 +1,8 @@
 # ChurchCore Academy — Agent Reference
 
-This file is the authoritative guide for AI-assisted development in this repository.
-It is loaded automatically by every Claude Code session and every factory agent.
+This file is the detailed guide for AI-assisted development in this repository.
+`AGENTS.md` is the cross-agent operating contract; read both before meaningful work.
+This file is loaded automatically by every Claude Code session and every factory agent.
 Keep it under 300 lines. Move procedures to `.claude/skills/`. Move architecture to `docs/`.
 
 ## Stack
@@ -21,6 +22,8 @@ npm run dev          # start local dev server
 npm test             # run all tests (node --import tsx --test "src/**/*.test.ts")
 npm run lint         # eslint
 npm run build        # next build (TypeScript check + bundle)
+npm run verify       # npm test && npm run lint && npm run build
+npm run verify:governance # verify required SDLC/Council/PR-review docs are wired
 npm run test:full    # e2e: disposable Supabase + production build + Playwright (docs/testing/e2e-suite.md)
 ```
 
@@ -83,9 +86,11 @@ supabase/migrations/ # Postgres migrations (SQL)
 
 Before guessing, consult:
 
+- `AGENTS.md` — cross-agent SDLC, Council, verification, and delivery rules
 - `docs/architecture.md` — system boundary and domain layout
 - `docs/product/faith-based-academy-master-plan.md` — product vision
 - `docs/product/factory-roadmap.md` — phase plan (Phases 1–22) and sprint shape
+- `docs/sdlc/academy-sdlc.md` — auditable SDLC and change-class matrix
 - `docs/product/sis-competitive-research-and-expansion-roadmap.md` — competitive intelligence
 - `docs/software-factory.md` — factory process (intake → delivery)
 - `docs/adr/` — architecture decisions (read before contradicting one)
