@@ -70,18 +70,21 @@ function TabsTrigger({ value, className, ...props }: React.ComponentProps<"butto
   );
 }
 
-function TabsContent({ value, className, ...props }: React.ComponentProps<"div"> & { value: string }) {
+function TabsContent({ value, className, children, ...props }: React.ComponentProps<"div"> & { value: string }) {
   const context = useTabsContext();
+  const selected = context.value === value;
 
   return (
     <div
       role="tabpanel"
       id={`tabpanel-${value}`}
       aria-labelledby={`tab-${value}`}
-      hidden={context.value !== value}
+      hidden={!selected}
       className={cn("outline-none", className)}
       {...props}
-    />
+    >
+      {selected ? children : null}
+    </div>
   );
 }
 
