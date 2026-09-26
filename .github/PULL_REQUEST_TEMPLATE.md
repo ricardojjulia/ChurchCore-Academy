@@ -19,6 +19,13 @@ Describe the problem and the reviewable outcome.
 - [ ] Migrations include constraints, indexes, grants, RLS, and rollback/forward considerations.
 - [ ] Secrets and private data are excluded.
 
+## Council / Factory
+
+- [ ] Council required and completed, or explicitly not required because this is trivial.
+- [ ] Feature-factory story/brief or scoped plan is linked for non-trivial work.
+- [ ] Documenter close-out completed for docs, changelog, ADRs, and run records that changed.
+- [ ] `pr-review` gate completed and Critical/Important findings are resolved or explicitly deferred with owner and issue.
+
 ## Test Surface (required for user-facing changes — docs/testing/e2e-suite.md)
 
 - [ ] New pages / API methods are registered in `e2e/surfaces/manifest.ts` with their access list.
@@ -30,6 +37,7 @@ Describe the problem and the reviewable outcome.
 ## Verification
 
 ```text
+npm run verify:governance
 npm test
 npm run lint
 npm run build

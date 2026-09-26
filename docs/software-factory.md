@@ -182,6 +182,17 @@ Each role should work from the same product boundary docs, but with a narrow res
 
 The workflow layer is the orchestrated path from idea to verified change.
 
+## Idea To Feature Pipeline
+
+New updates and features should be generated from concrete evidence:
+
+- Council findings and competitive/product audits;
+- pilot feedback and automatic error-triage patterns;
+- roadmap and product-context priorities;
+- incidents, CI failures, or verified browser/API/data defects.
+
+Each candidate becomes a bounded story before implementation. Evidence creates priority; it does not grant permission to widen scope beyond the approved story or technical brief.
+
 Default factory workflow:
 
 1. Intake
@@ -207,9 +218,13 @@ Default factory workflow:
 
 8. Review
    - inspect the diff for product boundary, security, data, and regression risks
+   - run Council for non-trivial work
+   - run `pr-review` for every PR
 
 9. Delivery
    - summarize changes, verification, remaining risks, and next steps
+   - run the Documenter close-out
+   - record a factory run when the change is substantial
 
 ## Delivery Layer
 
@@ -218,6 +233,7 @@ The delivery layer prevents unfinished or unsafe changes from being presented as
 Required local checks for most changes:
 
 ```bash
+npm run verify:governance
 npm test
 npm run lint
 npm run build
@@ -231,6 +247,21 @@ Additional checks when relevant:
 - provider contract tests for LMS work
 - role and data-boundary tests for student, guardian, faculty, and admin features
 - security review for auth, student records, LMS sync, and ShepherdAI signal handling
+
+## Audit Records
+
+Substantial work should leave a committed Factory Run Record based on `docs/templates/factory-run-record.md`. Release or controlled-pilot deployment work should leave a deployment record based on `docs/templates/deployment-record.md`.
+
+A record must distinguish:
+
+- implemented in code;
+- covered by tests;
+- browser/API/data verified;
+- merged to `main`;
+- deployed;
+- externally or pilot validated.
+
+Do not collapse these states into "done."
 
 ## Feature Factory Template
 
@@ -283,6 +314,9 @@ Security/privacy review:
 8. UI work must be verified visually when possible.
 9. Delivery summaries must state what was verified and what remains risky.
 10. Product direction changes must update durable docs, not only code.
+11. Council runs before non-trivial default-branch merges.
+12. `pr-review` runs for every PR.
+13. The Documenter closes the loop after verification, not before.
 
 ## Current Factory State
 
@@ -303,6 +337,11 @@ The factory currently has:
 - auth and tenant-access operations runbook
 - verification evidence that distinguishes implemented, verified, planned, and externally blocked work
 - ShepherdAI guardrail docs and tests
+- root `AGENTS.md`
+- Council and PR-review skills under `.claude/skills/`
+- Documenter agent definition
+- auditable SDLC at `docs/sdlc/academy-sdlc.md`
+- governance documentation verifier (`npm run verify:governance`)
 
 The next maturity step is to add actual domain-specific implementation plans for institution configuration, academic calendar, course catalog, grading, student PWA, LMS contracts, Moodle adapter, Canvas adapter, and ShepherdAI expansion.
 

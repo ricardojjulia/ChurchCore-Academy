@@ -26,6 +26,7 @@
     "test:e2e": "playwright test",
     "test:full": "node --import tsx scripts/e2e/run.ts",
     "verify": "npm test && npm run lint && npm run build",
+    "verify:governance": "node scripts/check-governance-docs.mjs",
     "verify:admissions-rls": "node --env-file=.env.local --import tsx scripts/verify-admissions-rls.ts",
     "verify:enrollment-conversion-rls": "node --env-file=.env.local --import tsx scripts/verify-enrollment-conversion-rls.ts",
     "verify:llis-consent-rls": "node --env-file=.env.local --import tsx scripts/verify-llis-consent-rls.ts",
