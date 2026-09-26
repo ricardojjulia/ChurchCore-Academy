@@ -21,8 +21,10 @@ Describe the problem and the reviewable outcome.
 
 ## Council / Factory
 
+- [ ] `docs/development-guide.md` was followed for current MVP/competitive objective, Council, Testing Council, factory, and verification posture.
 - [ ] Council required and completed, or explicitly not required because this is trivial.
 - [ ] Feature-factory story/brief or scoped plan is linked for non-trivial work.
+- [ ] Testing Council surface reviewed for pages, APIs, journeys, personas, known issues, and denied-role/cross-tenant coverage.
 - [ ] Documenter close-out completed for docs, changelog, ADRs, and run records that changed.
 - [ ] `pr-review` gate completed and Critical/Important findings are resolved or explicitly deferred with owner and issue.
 

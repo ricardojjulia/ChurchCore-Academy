@@ -1,6 +1,7 @@
 # Graduation Clearance Workflow — Council-Approved Implementation Plan
 
-**Status:** OPEN — implementation not yet started  
+**Status:** COMPLETED / SUPERSEDED — retained for historical implementation context
+**Closed by:** PR #155, as recorded by `docs/reports/mvp-and-competitive-status-2026-09-25.md`
 **Approved:** 2026-09-22 (4/4 council voices)  
 **Phase alignment:** Roadmap Phase 14, Sprint 5 — "formation release policy and graduation readiness integration"  
 **Scope guard:** This plan covers ONLY the per-student graduation clearance record and its admin UI.
@@ -9,6 +10,8 @@ issuance automation, FERPA-release notifications, or degree conferral letters.
 Those are separate future work packages. Stay in this boundary.
 
 ## Context
+
+Current status: the Graduation audit + clearance workflow is working as of the latest MVP and competitive evaluation. Do not treat this file as an active open plan. Use `docs/development-guide.md` for the active MVP and competitive implementation backlog.
 
 The graduation audit page (`/admin/graduation`) already identifies which students are near
 or above the credit threshold, shows formation completion status, and flags holds. However,

@@ -4,6 +4,7 @@ This directory contains the durable product, architecture, delivery, operations,
 
 ## Start Here
 
+- [Development Guide](development-guide.md) — canonical MVP/competitive objective, active backlog, Council, Testing Council, software factory, verification, and release posture
 - [Repository README](../README.md)
 - [HOWTO](../HOWTO.md)
 - [CHANGELOG](../CHANGELOG.md)
@@ -13,7 +14,7 @@ This directory contains the durable product, architecture, delivery, operations,
 - [Architecture Boundary](architecture.md)
 - [Product Master Plan](product/faith-based-academy-master-plan.md)
 - [Factory Roadmap](product/factory-roadmap.md)
-- [Software Factory](software-factory.md)
+- [Software Factory](software-factory.md) — supporting detail; defer to the Development Guide for current process
 - [Council System AI Coder Prompt](prompts/2026-06-26-council-system-ai-coder-prompt.md)
 - [Software Factory AI Coder Prompt](prompts/2026-06-26-software-factory-ai-coder-prompt.md)
 - [Testing and Code Health AI Coder Prompt](prompts/2026-06-26-testing-code-health-ai-coder-prompt.md)
@@ -54,7 +55,8 @@ This directory contains the durable product, architecture, delivery, operations,
 
 ## Delivery Artifacts
 
-- [Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current code-verified completeness reference
+- [MVP and Competitive Status](reports/mvp-and-competitive-status-2026-09-25.md) — latest MVP and competitive evaluation
+- [Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — historical code-verified completeness reference
 - [0.9.0 Release Notes — Capability Enforcement](releases/2026-06-30-capability-enforcement-release-notes.md)
 - [0.8.0 Release Notes — Full LMS Integration](releases/2026-06-26-full-lms-integration-readiness.md)
 - `docs/releases/`: all release notes and readiness packages
@@ -68,10 +70,11 @@ This directory contains the durable product, architecture, delivery, operations,
 
 When documents conflict, use this precedence:
 
-1. accepted ADRs and security policies
-2. current approved design specification
-3. current implementation plan
-4. product roadmap and master plan
-5. historical plans and reviews
+1. `docs/development-guide.md` for current development objective, backlog, process, and release posture
+2. accepted ADRs and security policies
+3. current approved design specification
+4. current implementation plan
+5. product roadmap and master plan
+6. historical plans and reviews
 
 Update durable documentation in the same pull request when behavior, architecture, operations, or product status changes.

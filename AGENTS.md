@@ -1,11 +1,12 @@
 # ChurchCore Academy Agent Rules
 
-This repository owns ChurchCore Academy, the faith-based SIS and education-management product in the ChurchCore platform. `CLAUDE.md` remains the detailed project reference; this file is the cross-agent operating contract for Codex, Claude Code, GitHub Copilot, and similar AI coding tools.
+This repository owns ChurchCore Academy, the faith-based SIS and education-management product in the ChurchCore platform. `docs/development-guide.md` is the canonical development guide; this file is the short cross-agent operating contract for Codex, Claude Code, GitHub Copilot, and similar AI coding tools.
 
 ## Start Here
 
-- Read `CLAUDE.md` and `docs/product/product-context.md` before planning or editing.
-- For meaningful work, read `docs/software-factory.md`, `IMPROVE-SOFTWARE.md`, the relevant ADRs under `docs/adr/`, and any existing plan or review in `docs/reviews/`, `docs/superpowers/`, or `docs/prompts/`.
+- Read `docs/development-guide.md` first. It is the single canonical guide for the current MVP/competitive objective, active backlog, Council, Testing Council, software factory, verification gates, and release posture.
+- Read `CLAUDE.md` for stack and architecture rules before planning or editing.
+- Read supporting docs, ADRs, reviews, specs, or plans only when they are relevant evidence for the current task. If a supporting doc conflicts with `docs/development-guide.md` or verified code, update the stale doc instead of following both.
 - Preserve the Academy/LMS boundary: Academy is the academic system of record; LMS runtime code belongs outside this repository and provider-specific work stays behind `src/modules/lms-contract/`.
 - Do not replace existing product features, workflows, or governance artifacts when additive updates are enough.
 
@@ -13,6 +14,7 @@ This repository owns ChurchCore Academy, the faith-based SIS and education-manag
 
 - Use the Academy software factory for substantial work: intake, discovery, story, technical brief, implementation, verification, review, documentation, PR.
 - Run the Council before every non-trivial merge to the default branch. Non-trivial means product behavior, schema, auth/privacy, LMS contract, ShepherdAI, UI workflow, migration, or accumulated multi-file work.
+- Include the Testing Council for meaningful work that changes user-facing behavior, APIs, auth/routing, roles, data boundaries, or CI/e2e coverage.
 - Run the `pr-review` gate before every PR merge, including small fixes. It is separate from the Council.
 - A feature is not done until the workflow works in the browser or through the relevant API/data path, docs are updated, and verification evidence is recorded.
 - Every meaningful run must leave an auditable record: intent, affected product area, scope boundaries, Council/review status, commands run, results, residual risks, and follow-up work.

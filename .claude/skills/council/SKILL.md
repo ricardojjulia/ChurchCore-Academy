@@ -5,17 +5,18 @@ description: Runs the ChurchCore Academy Council review: four read-only audit vo
 
 # ChurchCore Academy Council
 
-`IMPROVE-SOFTWARE.md` is the source of truth. This skill makes that process operational.
+`docs/development-guide.md` is the source of truth. `IMPROVE-SOFTWARE.md` is the detailed prompt appendix. This skill makes that process operational.
 
 ## Chain
 
-1. Read `CLAUDE.md`, `AGENTS.md`, `docs/product/product-context.md`, `docs/software-factory.md`, and `IMPROVE-SOFTWARE.md`.
+1. Read `docs/development-guide.md`, `CLAUDE.md`, `AGENTS.md`, and any supporting docs needed for the scoped review.
 2. Scope the Council to either the full repo, a product area, or the current diff. Say which one it is.
 3. Run four read-only audits in parallel:
    - Agent 1: SIS/data/API/security state
    - Agent 2: routes/pages/API completeness
    - Agent 3: UX/shell/accessibility/error states
    - Agent 4: feature/competitive/product-readiness
+   - Testing Council: test surface, journeys, personas, known issues, denied-role/cross-tenant evidence, CI proof
 4. Synthesize findings into `docs/reviews/YYYY-MM-DD-council-review-[N]-synthesis.md`, with individual agent reports when a full Council is run.
 5. Draft ADRs for durable decisions before implementation begins.
 6. Convert approved findings into feature-factory prompts or scoped implementation plans.

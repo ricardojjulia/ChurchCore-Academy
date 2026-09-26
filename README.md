@@ -51,6 +51,8 @@ The product currently covers:
 
 Authoritative status docs:
 
+- [Development Guide](docs/development-guide.md) — canonical MVP/competitive objective, active backlog, Council, Testing Council, software factory, verification, and deferred deployment posture
+- [MVP and Competitive Status](docs/reports/mvp-and-competitive-status-2026-09-25.md) — latest MVP and competitive evaluation
 - [Feature Inventory Audit and MVP Evaluation](docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current code-verified completeness reference
 - [Project Status](docs/project-status.md)
 - [Factory Roadmap](docs/product/factory-roadmap.md)

@@ -2,12 +2,16 @@ import { readFileSync, existsSync } from "node:fs";
 
 const checks = [
   {
+    file: "docs/development-guide.md",
+    patterns: [/Implementation Backlog/, /Testing Council/, /Verification Gates/, /Deployment is deferred/],
+  },
+  {
     file: "AGENTS.md",
-    patterns: [/Council before every non-trivial merge/, /npm run verify:governance/],
+    patterns: [/docs\/development-guide\.md/, /Council before every non-trivial merge/, /npm run verify:governance/],
   },
   {
     file: "CLAUDE.md",
-    patterns: [/docs\/software-factory\.md/, /npm run verify/],
+    patterns: [/docs\/development-guide\.md/, /npm run verify/],
   },
   {
     file: "IMPROVE-SOFTWARE.md",
