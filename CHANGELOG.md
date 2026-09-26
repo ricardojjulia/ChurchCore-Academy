@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Canonical Academy development guide at `docs/development-guide.md`, consolidating the active MVP/competitive objective, implementation backlog, Council, Testing Council, software factory, verification gates, and deferred deployment posture into one source of truth.
 - Auditable Academy SDLC discipline: root `AGENTS.md`, `docs/sdlc/academy-sdlc.md`, Council/pr-review Claude skills, a Documenter agent, factory/deployment record templates, and `npm run verify:governance` wired into CI and the PR template.
 - Ministry Formation admin UI (`/admin/formation`, `/admin/formation/[studentId]`), student formation dashboard (`/student/formation`), and a display-only formation-completion badge on the graduation-readiness page, surfacing the previously backend-only `ministry-formation` module (practicum sessions, faith milestones, evaluations, endorsement) with navigation entries (PR #105). Adds one-to-one formation-advisor assignment. First item in the "Surface the Built Differentiators" competitive closure plan.
 - Full ADR-0045 role-scoped access for ministry formation records (`docs/adr/0071-ministry-formation-reviewer-role-and-capability-gating.md`): a new `ministry_formation_reviewer` role (grant/revoke UI on the staff detail page, institution_admin-only), pastoral notes restricted to institution_admin, the reviewer role, or the record's own evaluator, faculty scoped to their own course sections, formation-advisors scoped to their own advisees, and registrar capped to released-only records with no pastoral-notes access ever — this closes a gap where every formation-viewer role previously had identical tenant-wide access including pastoral notes.
@@ -18,6 +19,7 @@ Working vertical slice — code-complete and test-verified through Council Revie
 
 ### Fixed
 
+- Marked the old Graduation Clearance Workflow implementation plan completed/superseded so it no longer appears as active work after PR #155.
 - **Security:** every page under `/admin/*` (41 pages) previously called `requireActor()` with no role argument — authentication only, no authorization — meaning any logged-in user, including a `student`, `guardian`, or `applicant`, could load any admin page and read institution configuration, student/staff/guardian records, billing, financial aid, gradebook, and attendance data. Mutations were already correctly protected at the API layer; this was a read-side information-disclosure gap across the entire admin section. Added a baseline staff-only gate in `src/app/admin/layout.tsx` plus per-page role refinement reusing existing `requireActor(actor, roles)` / `assertInstitutionConfigAccess` conventions. Working vertical slice — build/test/lint verified, not yet browser click-tested with a real unauthorized account.
 
 ## [0.10.0] - 2026-09-12

@@ -1,7 +1,11 @@
 # ChurchCore Academy SDLC
 
 Date: 2026-09-26
-Status: Active
+Status: Superseded by `docs/development-guide.md`
+
+`docs/development-guide.md` is the canonical development guide for ChurchCore Academy. It now contains the SDLC, Council, Testing Council, software factory, MVP/competitive backlog, verification matrix, and release posture in one document.
+
+This file remains as a compatibility entrypoint for older references and governance checks. Do not add new SDLC guidance here unless it is also added to `docs/development-guide.md`.
 
 ## Purpose
 

@@ -1,5 +1,9 @@
 # IMPROVE-SOFTWARE — ChurchCore Academy Council Review Protocol
 
+Status: Supporting detail. The canonical development guide is `docs/development-guide.md`.
+
+Use `docs/development-guide.md` first for the current Council, Testing Council, MVP/competitive objective, backlog, and verification rules. This file remains a prompt appendix for detailed Council audit passes.
+
 This file defines the repeatable Council review process for advancing ChurchCore Academy while keeping the SDLC auditable. It covers the four read-only audit agents, synthesis, ADR/change management, the Documenter close-out, and the mandatory PR-review gate.
 
 ---
@@ -35,6 +39,7 @@ The council runs 4 agents in parallel, each with a distinct audit lens. They do 
 | **Agent 2** | Route & Page Audit | Nav links, 404s, stub pages, API coverage |
 | **Agent 3** | UX & Shell Audit | ARIA, loading states, error handling, mobile, CSS |
 | **Agent 4** | Feature & Competitive Audit | Phase completion, user-type coverage, competitive gaps, MVP score |
+| **Testing Council** | Test Surface & Verification Audit | e2e manifest, journeys, personas, known issues, denied-role/cross-tenant evidence, CI proof |
 | **Documenter** | Close-Out Writer | Changelog, docs, ADRs, run records, residual risk after verification |
 
 ---

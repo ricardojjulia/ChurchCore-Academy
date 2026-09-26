@@ -1,7 +1,8 @@
 # ChurchCore Academy — Agent Reference
 
-This file is the detailed guide for AI-assisted development in this repository.
-`AGENTS.md` is the cross-agent operating contract; read both before meaningful work.
+This file is the stack and architecture reference for AI-assisted development in this repository.
+`docs/development-guide.md` is the canonical development guide; read it before meaningful work.
+`AGENTS.md` is the short cross-agent operating contract.
 This file is loaded automatically by every Claude Code session and every factory agent.
 Keep it under 300 lines. Move procedures to `.claude/skills/`. Move architecture to `docs/`.
 
@@ -86,13 +87,14 @@ supabase/migrations/ # Postgres migrations (SQL)
 
 Before guessing, consult:
 
-- `AGENTS.md` — cross-agent SDLC, Council, verification, and delivery rules
+- `docs/development-guide.md` — canonical MVP/competitive objective, active backlog, Council, Testing Council, software factory, verification gates, and release posture
+- `AGENTS.md` — short cross-agent entrypoint
 - `docs/architecture.md` — system boundary and domain layout
 - `docs/product/faith-based-academy-master-plan.md` — product vision
 - `docs/product/factory-roadmap.md` — phase plan (Phases 1–22) and sprint shape
-- `docs/sdlc/academy-sdlc.md` — auditable SDLC and change-class matrix
+- `docs/sdlc/academy-sdlc.md` — legacy SDLC entrypoint; defer to `docs/development-guide.md`
 - `docs/product/sis-competitive-research-and-expansion-roadmap.md` — competitive intelligence
-- `docs/software-factory.md` — factory process (intake → delivery)
+- `docs/software-factory.md` — legacy factory detail; defer to `docs/development-guide.md`
 - `docs/adr/` — architecture decisions (read before contradicting one)
 - `supabase/migrations/` — schema history
 
@@ -128,7 +130,7 @@ Before guessing, consult:
 
 ### Rule 0 — Use the software factory for substantial work
 
-For major features, architecture changes, LMS integration work, student PWA work, grading/transcript work, auth/privacy work, or ShepherdAI expansion, follow `docs/software-factory.md`.
+For major features, architecture changes, LMS integration work, student PWA work, grading/transcript work, auth/privacy work, or ShepherdAI expansion, follow `docs/development-guide.md`.
 
 The software factory is tool-agnostic and must remain compatible with Codex, GitHub Copilot, Claude Code, and similar AI coding tools. Do not make essential process depend on one vendor-specific feature.
 

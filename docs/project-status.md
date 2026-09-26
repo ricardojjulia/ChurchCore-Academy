@@ -6,7 +6,9 @@
 
 ## Current Assessment
 
-**The authoritative, code-verified feature completeness reference is now [`docs/reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md`](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md).** It confirms the Core Academic Loop (academic years/periods, course catalog, programs, program curriculum, course sections, student program membership, section enrollment, student progress, grade entry, transcript entries, student groups) is fully built end-to-end with real Postgres-backed logic, admin UI, and tests — correcting an earlier `docs/product/product-context.md` table that had gone stale and claimed several of these did not exist. It also confirms billing, financial aid, communications, and LMS provider activation are functionally complete but deliberately gated behind external approval/compliance evidence, consistent with the controlled-pilot posture below — that gating is a release-management decision, not a missing-code gap. Read that audit before assuming either this document or `product-context.md` is current; both are point-in-time claims and code is the tiebreaker.
+**The canonical current development guide is [`docs/development-guide.md`](development-guide.md).** The latest code-verified MVP and competitive evaluation is [`docs/reports/mvp-and-competitive-status-2026-09-25.md`](reports/mvp-and-competitive-status-2026-09-25.md). Older status docs remain useful history, but code and current CI evidence are the tiebreaker when documents drift.
+
+The 2026-09-25 evaluation confirms the MVP is functionally built, the Core Academic Loop works end to end, and the next repo work is to automate steps 9 and 11, resolve trusted institution selection for the public portal, and close competitive gaps for the first target customer profile. Vercel and hosted Supabase deployment are deferred until owner approval.
 
 ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, the ADR-0059 full Moodle/Canvas LMS implementation closeout, and the ADR-0061 institution capability enforcement closeout.
 

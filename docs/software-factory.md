@@ -1,5 +1,9 @@
 # ChurchCore Academy Software Factory
 
+Status: Supporting detail. The canonical development guide is `docs/development-guide.md`.
+
+Use `docs/development-guide.md` first for the current MVP/competitive objective, active backlog, Council, Testing Council, verification gates, and release posture. This file remains historical and supporting factory detail.
+
 ## Purpose
 
 The ChurchCore Academy software factory is the repeatable operating model for building this product with AI assistance while keeping human control over product direction, architecture, safety, and delivery.
