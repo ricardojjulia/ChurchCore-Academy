@@ -278,7 +278,7 @@ export const API_MANIFEST: ApiEntry[] = [
   { path: "/api/academy/reporting/accreditation/[id]/compile", methods: { POST: STAFF } },
   { path: "/api/academy/reporting/accreditation/[id]/url", methods: { GET: ["institutionAdmin", "institutionAdmin2", "otherTenantAdmin"] } },
   { path: "/api/academy/reporting/ipeds", methods: { GET: ["institutionAdmin", "institutionAdmin2", "registrar", "finance", "academicAdmin", "dean", "otherTenantAdmin"] } },
-  { path: "/api/academy/reports", methods: { GET: ["institutionAdmin", "institutionAdmin2", "registrar", "finance", "academicAdmin", "dean", "otherTenantAdmin"] } },
+  { path: "/api/academy/reports", methods: { GET: ["institutionAdmin", "institutionAdmin2", "registrar", "finance", "academicAdmin", "dean", "otherTenantAdmin"], POST: ["institutionAdmin", "institutionAdmin2", "registrar", "finance", "academicAdmin", "dean", "otherTenantAdmin"] } },
   { path: "/api/academy/reports/compliance", methods: { GET: ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "otherTenantAdmin"], POST: STAFF } },
   { path: "/api/academy/reports/compliance/[id]", methods: { GET: ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "otherTenantAdmin"] } },
   { path: "/api/academy/reports/compliance/[id]/advance", methods: { POST: STAFF } },

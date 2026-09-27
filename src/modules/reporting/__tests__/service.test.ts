@@ -4,16 +4,21 @@ import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
 import {
   buildReportingDashboard,
+  exportCustomReportCsv,
   exportReportCsv,
   exportIpedsCsv,
   generateIpedsExport,
   IPEDS_REVIEW_DISCLAIMER,
+  normalizeCustomReportInput,
   reportDefinitions,
   ReportingService,
 } from "@/modules/reporting/service";
 import type {
+  CustomReportDefinitionInput,
+  CustomReportRepository,
   ReportDataset,
   ReportRepository,
+  SavedCustomReportDefinition,
 } from "@/modules/reporting/types";
 
 const adminActor: AcademyActor = {
@@ -127,6 +132,48 @@ class FakeReportRepository implements ReportRepository {
   }
 }
 
+class FakeCustomReportRepository implements CustomReportRepository {
+  created: Array<{ tenantId: string; userId: string; input: CustomReportDefinitionInput }> = [];
+  reports: SavedCustomReportDefinition[] = [{
+    id: "custom-1",
+    tenantId: "tenant-1",
+    name: "Active enrollment",
+    baseReportId: "enrollment",
+    selectedColumns: ["studentNumber", "studentName", "status"],
+    filters: [{ columnKey: "status", operator: "equals", value: "active" }],
+    createdByUserId: "admin-1",
+    createdAt: "2026-09-27",
+    updatedAt: "2026-09-27",
+  }];
+
+  async listCustomReports(tenantId: string) {
+    return this.reports.filter((report) => report.tenantId === tenantId);
+  }
+
+  async readCustomReport(tenantId: string, id: string) {
+    return this.reports.find((report) => report.tenantId === tenantId && report.id === id);
+  }
+
+  async createCustomReport(
+    tenantId: string,
+    userId: string,
+    input: CustomReportDefinitionInput,
+  ) {
+    this.created.push({ tenantId, userId, input });
+    const report: SavedCustomReportDefinition = {
+      id: `custom-${this.created.length + 1}`,
+      tenantId,
+      createdByUserId: userId,
+      createdAt: "2026-09-27",
+      updatedAt: "2026-09-27",
+      ...input,
+      filters: input.filters ?? [],
+    };
+    this.reports.push(report);
+    return report;
+  }
+}
+
 test("report definitions cover the approved full SIS report family", () => {
   assert.deepEqual(
     reportDefinitions.map((definition) => definition.id),
@@ -158,6 +205,7 @@ test("dashboard builder produces stable cards and report previews", () => {
   );
   assert.equal(dashboard.reports.enrollment.rows[0].studentName, "Ada Rivera");
   assert.equal(dashboard.reports.program_completion.rows[0].completionPercent, "20%");
+  assert.deepEqual(dashboard.customReports, []);
 });
 
 test("CSV export uses stable headers and protects spreadsheet consumers", () => {
@@ -186,6 +234,82 @@ test("service scopes report reads to actor tenant", async () => {
 
   assert.equal(dashboard.tenantId, "tenant-1");
   assert.deepEqual(repository.tenantIds, ["tenant-1"]);
+});
+
+test("custom report input is constrained to approved report columns and filters", () => {
+  assert.deepEqual(
+    normalizeCustomReportInput({
+      name: "Active enrollment",
+      baseReportId: "enrollment",
+      selectedColumns: ["studentNumber", "studentName", "studentNumber"],
+      filters: [{ columnKey: "status", operator: "equals", value: "active" }],
+    }),
+    {
+      name: "Active enrollment",
+      baseReportId: "enrollment",
+      selectedColumns: ["studentNumber", "studentName"],
+      filters: [{ columnKey: "status", operator: "equals", value: "active" }],
+    },
+  );
+
+  assert.throws(
+    () => normalizeCustomReportInput({
+      name: "Unsafe",
+      baseReportId: "enrollment",
+      selectedColumns: ["studentNumber", "billingPrivateNote"],
+    }),
+    /Invalid custom report column/,
+  );
+});
+
+test("custom report CSV exports selected columns after approved filters", () => {
+  const csv = exportCustomReportCsv({
+    id: "custom-1",
+    tenantId: "tenant-1",
+    name: "Active enrollment",
+    baseReportId: "enrollment",
+    selectedColumns: ["studentNumber", "studentName"],
+    filters: [{ columnKey: "status", operator: "equals", value: "active" }],
+    createdByUserId: "admin-1",
+    createdAt: "2026-09-27",
+    updatedAt: "2026-09-27",
+  }, {
+    ...dataset,
+    reports: {
+      ...dataset.reports,
+      enrollment: [
+        ...dataset.reports.enrollment,
+        {
+          studentNumber: "S-002",
+          studentName: "Inactive Student",
+          program: "Diploma in Ministry",
+          status: "withdrawn",
+          activeTerm: "",
+          creditsEarned: 0,
+        },
+      ],
+    },
+  });
+
+  assert.equal(csv, "Student Number,Student Name\r\nS-001,Ada Rivera\r\n");
+});
+
+test("service creates and exports tenant-scoped custom reports", async () => {
+  const repository = new FakeReportRepository();
+  const customRepository = new FakeCustomReportRepository();
+  const service = new ReportingService(repository, customRepository);
+
+  const created = await service.createCustomReport(adminActor, {
+    name: "Completion snapshot",
+    baseReportId: "program_completion",
+    selectedColumns: ["studentName", "completionPercent"],
+    filters: [{ columnKey: "completionPercent", operator: "not_empty" }],
+  });
+  const csv = await service.exportCustomCsv(adminActor, "custom-1");
+
+  assert.equal(created.tenantId, "tenant-1");
+  assert.equal(customRepository.created[0].userId, "admin-1");
+  assert.equal(csv, "Student Number,Student Name,Status\r\nS-001,Ada Rivera,active\r\n");
 });
 
 test("service denies non-reporting roles", async () => {

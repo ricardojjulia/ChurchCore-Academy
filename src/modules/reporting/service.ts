@@ -1,12 +1,16 @@
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import type { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
 import type {
+  CustomReportDefinitionInput,
+  CustomReportFilter,
+  CustomReportRepository,
   ReportDataset,
   ReportDefinition,
   ReportId,
   ReportRepository,
   ReportRow,
   ReportingDashboard,
+  SavedCustomReportDefinition,
   ScheduledReport,
 } from "@/modules/reporting/types";
 
@@ -200,6 +204,69 @@ export function parseReportId(value: string | null | undefined): ReportId {
   throw new Error("Invalid report type.");
 }
 
+function definitionFor(reportId: ReportId) {
+  const definition = definitionsById.get(reportId);
+  if (!definition) throw new Error("Invalid report type.");
+  return definition;
+}
+
+function allowedColumnKeys(reportId: ReportId) {
+  return new Set(definitionFor(reportId).columns.map((column) => column.key));
+}
+
+function normalizeCustomFilter(
+  filter: CustomReportFilter,
+  allowedKeys: ReadonlySet<string>,
+): CustomReportFilter {
+  const columnKey = typeof filter.columnKey === "string" ? filter.columnKey.trim() : "";
+  if (!allowedKeys.has(columnKey)) {
+    throw new Error("Invalid custom report filter column.");
+  }
+
+  if (filter.operator !== "equals" && filter.operator !== "contains" && filter.operator !== "not_empty") {
+    throw new Error("Invalid custom report filter operator.");
+  }
+
+  const value = typeof filter.value === "string" ? filter.value.trim() : "";
+  if (filter.operator !== "not_empty" && value.length === 0) {
+    throw new Error("Invalid custom report filter value.");
+  }
+
+  return filter.operator === "not_empty"
+    ? { columnKey, operator: filter.operator }
+    : { columnKey, operator: filter.operator, value };
+}
+
+export function normalizeCustomReportInput(input: CustomReportDefinitionInput): CustomReportDefinitionInput {
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  if (name.length < 3 || name.length > 80) {
+    throw new Error("Invalid custom report name.");
+  }
+
+  const baseReportId = parseReportId(input.baseReportId);
+  const allowedKeys = allowedColumnKeys(baseReportId);
+  const selectedColumns = [...new Set(
+    (Array.isArray(input.selectedColumns) ? input.selectedColumns : [])
+      .map((column) => typeof column === "string" ? column.trim() : "")
+      .filter(Boolean),
+  )];
+
+  if (selectedColumns.length === 0 || selectedColumns.length > 12) {
+    throw new Error("Invalid custom report columns.");
+  }
+  for (const column of selectedColumns) {
+    if (!allowedKeys.has(column)) {
+      throw new Error("Invalid custom report column.");
+    }
+  }
+
+  const filters = (Array.isArray(input.filters) ? input.filters : [])
+    .slice(0, 5)
+    .map((filter) => normalizeCustomFilter(filter, allowedKeys));
+
+  return { name, baseReportId, selectedColumns, filters };
+}
+
 function sectorCodeForMode(mode: string) {
   switch (mode) {
     case "seminary":
@@ -331,7 +398,10 @@ export function assertReportingAccess(actor: AcademyActor) {
   }
 }
 
-export function buildReportingDashboard(dataset: ReportDataset): ReportingDashboard {
+export function buildReportingDashboard(
+  dataset: ReportDataset,
+  customReports: SavedCustomReportDefinition[] = [],
+): ReportingDashboard {
   const reports = Object.fromEntries(
     reportDefinitions.map((definition) => [
       definition.id,
@@ -368,6 +438,7 @@ export function buildReportingDashboard(dataset: ReportDataset): ReportingDashbo
       },
     ],
     reports,
+    customReports,
   };
 }
 
@@ -383,8 +454,7 @@ function csvValue(value: unknown) {
 }
 
 export function exportReportCsv(reportId: ReportId, dataset: ReportDataset) {
-  const definition = definitionsById.get(reportId);
-  if (!definition) throw new Error("Invalid report type.");
+  const definition = definitionFor(reportId);
 
   const rows = dataset.reports[reportId] ?? [];
   const header = definition.columns.map((column) => csvValue(column.label)).join(",");
@@ -394,15 +464,71 @@ export function exportReportCsv(reportId: ReportId, dataset: ReportDataset) {
   return `${[header, ...body].join("\r\n")}\r\n`;
 }
 
+function matchesCustomFilters(row: ReportRow, filters: CustomReportFilter[] = []) {
+  return filters.every((filter) => {
+    const value = row[filter.columnKey];
+    const text = value == null ? "" : String(value);
+    switch (filter.operator) {
+      case "equals":
+        return text === filter.value;
+      case "contains":
+        return text.toLowerCase().includes(String(filter.value ?? "").toLowerCase());
+      case "not_empty":
+        return text.trim().length > 0;
+      default:
+        return false;
+    }
+  });
+}
+
+export function exportCustomReportCsv(
+  customReport: SavedCustomReportDefinition,
+  dataset: ReportDataset,
+) {
+  const normalized = normalizeCustomReportInput(customReport);
+  const definition = definitionFor(normalized.baseReportId);
+  const columnLabels = new Map(definition.columns.map((column) => [column.key, column.label]));
+  const rows = (dataset.reports[normalized.baseReportId] ?? [])
+    .filter((row) => matchesCustomFilters(row, normalized.filters));
+
+  const header = normalized.selectedColumns
+    .map((columnKey) => csvValue(columnLabels.get(columnKey) ?? columnKey))
+    .join(",");
+  const body = rows.map((row) =>
+    normalized.selectedColumns
+      .map((columnKey) => csvValue(row[columnKey]))
+      .join(","),
+  );
+
+  return `${[header, ...body].join("\r\n")}\r\n`;
+}
+
 export class ReportingService {
+  private readonly customReportRepository?: CustomReportRepository;
+  private readonly dependencies: ReportingServiceDependencies;
+
   constructor(
     private readonly repository: ReportRepository,
-    private readonly dependencies: ReportingServiceDependencies = {},
-  ) {}
+    customReportRepositoryOrDependencies?: CustomReportRepository | ReportingServiceDependencies,
+    dependencies: ReportingServiceDependencies = {},
+  ) {
+    if (
+      customReportRepositoryOrDependencies &&
+      "listCustomReports" in customReportRepositoryOrDependencies
+    ) {
+      this.customReportRepository = customReportRepositoryOrDependencies;
+      this.dependencies = dependencies;
+    } else {
+      this.dependencies = customReportRepositoryOrDependencies ?? {};
+    }
+  }
 
   async readDashboard(actor: AcademyActor) {
     assertReportingAccess(actor);
-    return buildReportingDashboard(await this.repository.readDataset(actor.tenantId));
+    const customReports = this.customReportRepository
+      ? await this.customReportRepository.listCustomReports(actor.tenantId)
+      : [];
+    return buildReportingDashboard(await this.repository.readDataset(actor.tenantId), customReports);
   }
 
   async exportCsv(actor: AcademyActor, reportId: ReportId) {
@@ -415,6 +541,36 @@ export class ReportingService {
     return exportIpedsCsv(generateIpedsExportFromDataset(
       await this.repository.readDataset(actor.tenantId),
     ));
+  }
+
+  async listCustomReports(actor: AcademyActor) {
+    assertReportingAccess(actor);
+    if (!this.customReportRepository) return [];
+    return this.customReportRepository.listCustomReports(actor.tenantId);
+  }
+
+  async createCustomReport(actor: AcademyActor, input: CustomReportDefinitionInput) {
+    assertReportingAccess(actor);
+    if (!this.customReportRepository) {
+      throw new Error("Custom report repository is not configured.");
+    }
+    return this.customReportRepository.createCustomReport(
+      actor.tenantId,
+      actor.userId,
+      normalizeCustomReportInput(input),
+    );
+  }
+
+  async exportCustomCsv(actor: AcademyActor, customReportId: string) {
+    assertReportingAccess(actor);
+    if (!this.customReportRepository) {
+      throw new Error("Custom report repository is not configured.");
+    }
+    const customReport = await this.customReportRepository.readCustomReport(actor.tenantId, customReportId);
+    if (!customReport) {
+      throw new Error("Custom report was not found.");
+    }
+    return exportCustomReportCsv(customReport, await this.repository.readDataset(actor.tenantId));
   }
 
   async runScheduledReports(actor: AcademyActor, schedules: ScheduledReport[]) {
