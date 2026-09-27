@@ -1,6 +1,6 @@
 # ChurchCore Academy Development Guide
 
-Date: 2026-09-26
+Date: 2026-09-27
 Status: Canonical
 
 This is the single operating guide for ChurchCore Academy development. It combines the product objective, MVP and competitive status, Council process, Testing Council, software factory, implementation backlog, verification gates, and release discipline into one source of truth.
@@ -30,11 +30,10 @@ The latest MVP and competitive evaluation is `docs/reports/mvp-and-competitive-s
 
 - The MVP is functionally built.
 - The Core Academic Loop works end to end against a real migration-built database.
-- Steps 1-8 and 10 are automated in CI.
-- Steps 9 and 11 are built and manually verified, but still need automated journey coverage.
+- Steps 1-11 are automated in CI, including progress against requirements and immutable transcript entry coverage added in PR #196.
 - Academy is not live.
 - No Vercel project or hosted Academy Supabase project should be created until deployment is approved.
-- The first-customer blockers are trusted institution resolution for the public portal, complete automated core-loop coverage, and a product decision about which customer profile drives the next competitive gap work.
+- The remaining first-customer blockers are trusted institution resolution for the public portal and a product decision about which customer profile drives the next competitive gap work.
 
 ## First Target Customer Profile
 
@@ -52,17 +51,16 @@ This is the active plan until a newer MVP and competitive evaluation replaces it
 
 ### P0: MVP Confidence
 
-1. Automate Core Academic Loop step 9: progress against requirements.
-   - Add journey coverage to `e2e/journeys/core-academic-loop.spec.ts`.
-   - Prove the progress view reflects program requirements and completed work.
-   - Include role/tenant denial evidence where applicable.
+Completed:
 
-2. Automate Core Academic Loop step 11: transcript entry.
-   - Extend the journey from grade entry through final grade posting and registrar transcript entry.
-   - Prove immutable transcript entry behavior from the browser/API path.
-   - Keep held, draft, or unreleased records out of student-facing surfaces.
+- Core Academic Loop step 9 is automated in `e2e/journeys/core-academic-loop.spec.ts`.
+  The journey now proves in-progress and completed curriculum progress, including staff-only access and tenant isolation.
+- Core Academic Loop step 11 is automated in `e2e/journeys/core-academic-loop.spec.ts`.
+  The journey now posts the official grade, completes the registration, creates an immutable transcript entry, and proves student/cross-tenant denial behavior.
 
-3. Resolve public portal trusted institution selection before live use.
+Remaining:
+
+1. Resolve public portal trusted institution selection before live use.
    - Track as GitHub issue `#162`.
    - The portal must not depend on ambiguous `?tenant=` or environment-default behavior for real applicants.
    - This can be built before deployment, but live activation remains deferred.
