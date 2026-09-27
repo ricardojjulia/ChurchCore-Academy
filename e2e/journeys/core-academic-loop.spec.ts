@@ -2,13 +2,14 @@ import { expect, request, test, type APIRequestContext, type APIResponse } from 
 import { storageStateFor } from "../helpers";
 import { FIXTURE_IDS, type PersonaKey } from "../personas";
 
-// The Core Academic Loop (docs/product/product-context.md, steps 1-8) with real data created
-// through the product's own APIs as the registrar, then checked from the student's side in the
-// browser and from another institution's side for isolation. Each run uses fresh codes.
+// The Core Academic Loop (docs/product/product-context.md, steps 1-11) with real data created
+// through the product's own APIs, then checked from browser-visible and sensitive API paths.
+// Each run uses fresh codes.
 test.describe.configure({ mode: "serial" });
 
 const tag = Date.now().toString(36).toUpperCase();
 const STUDENT_PROFILE = FIXTURE_IDS.learnerProfileId; // seeded for this journey (scripts/e2e/seed.ts)
+const STUDENT_PERSON = FIXTURE_IDS.learnerPersonId;
 const INSTRUCTOR_PERSON = "person-sophia-marsh"; // teacher@churchcore.academy
 const SUBDIVISION = "cohort-ministry-2026";
 const created: Record<string, string> = {};
@@ -53,7 +54,7 @@ test("3. create and activate a course", async () => {
   const course = await ok(await registrar.post("/api/academy/courses", {
     data: {
       code: `E2E${tag}`, title: `E2E Foundations ${tag}`, description: "Course created by the e2e core-loop journey.",
-      courseType: "bible_course", recordType: "completion_record", courseLevel: "certificate",
+      courseType: "bible_course", recordType: "transcript", courseLevel: "certificate",
       defaultCredits: 3, defaultClockHours: 30, owningSubdivisionId: SUBDIVISION, prerequisiteIds: [],
     },
   }), "create course");
@@ -71,6 +72,25 @@ test("4. create a program", async () => {
   }), "create program");
   created.programId = program.id ?? program.program?.id;
   expect(created.programId).toBeTruthy();
+});
+
+test("4b. define a catalog-year curriculum requirement for the program", async () => {
+  const curriculum = await ok(await registrar.put(`/api/academy/programs/${created.programId}/curriculum`, {
+    data: {
+      academicYearId: created.yearId,
+      requirements: [{
+        courseId: created.courseId,
+        requirementType: "required",
+        requirementGroup: "core",
+        sequence: 1,
+        credits: 3,
+        minimumGrade: "C",
+        notes: "E2E core-loop requirement.",
+      }],
+    },
+  }), "save curriculum requirement");
+  expect(curriculum.requirements).toHaveLength(1);
+  expect(curriculum.requirements[0].courseId).toBe(created.courseId);
 });
 
 test("5-6. offer a section in the period with an instructor, then open it", async () => {
@@ -101,6 +121,30 @@ test("8. enroll the student in the section", async () => {
   const available = await ok(await registrar.get(`/api/academy/students/${STUDENT_PROFILE}/section-enrollments`), "list sections");
   const section = (available.sections as { id: string; enrolledCount: number }[]).find((item) => item.id === created.sectionId);
   expect(section?.enrolledCount ?? 1).toBeGreaterThanOrEqual(1);
+});
+
+test("9. staff can track in-progress curriculum progress, without leaking it cross-tenant", async ({ baseURL }) => {
+  const progress = await ok(await registrar.get(`/api/academy/students/${STUDENT_PROFILE}/program-progress`), "read program progress");
+  expect(progress.progress?.academicProgramId).toBe(created.programId);
+  expect(progress.progress?.requiredCredits).toBe(3);
+  expect(progress.progress?.inProgressCredits).toBe(3);
+  expect(progress.progress?.completedCredits).toBe(0);
+  expect(progress.progress?.requirements).toHaveLength(1);
+  expect(progress.progress?.requirements[0]).toMatchObject({
+    courseId: created.courseId,
+    status: "in_progress",
+    activeRegistrationId: created.registrationId,
+  });
+
+  const student = await as(baseURL, "student");
+  const studentRead = await student.get(`/api/academy/students/${STUDENT_PROFILE}/program-progress`, { failOnStatusCode: false });
+  expect(studentRead.status()).toBe(403);
+  await student.dispose();
+
+  const other = await as(baseURL, "otherTenantAdmin");
+  const otherRead = await ok(await other.get(`/api/academy/students/${STUDENT_PROFILE}/program-progress`), "other tenant progress read");
+  expect(otherRead.progress).toBeNull();
+  await other.dispose();
 });
 
 function findRegistrationId(value: unknown, sectionId: string): string | undefined {
@@ -135,7 +179,137 @@ test("10. the instructor creates an assignment and records a grade", async ({ ba
   }), "enter grade");
   const grades = await ok(await teacher.get(`/api/academy/sections/${created.sectionId}/assignments/${created.assignmentId}/grades`), "read grades");
   expect(JSON.stringify(grades)).toContain("92");
+  const savedGrade = findAssignmentGrade(grades, created.registrationId);
+  expect(savedGrade?.id).toBeTruthy();
+  expect(savedGrade?.learnerPersonId).toBe(STUDENT_PERSON);
+  created.submissionId = savedGrade!.id;
+  created.learnerPersonId = savedGrade!.learnerPersonId;
   await teacher.dispose();
+});
+
+test("10b. the grade is officially posted and the final course grade completes the registration", async ({ baseURL, browser }) => {
+  const teacher = await as(baseURL, "teacher");
+  const submitted = await ok(await teacher.post("/api/academy/gradebook/records", {
+    data: {
+      submissionId: created.submissionId,
+      assignmentId: created.assignmentId,
+      learnerPersonId: created.learnerPersonId,
+      pointsEarned: 92,
+      letterGrade: "A",
+      isPassing: true,
+      instructorFeedback: "E2E official posting candidate.",
+    },
+  }), "submit official grade record");
+  created.gradeRecordId = submitted.id ?? submitted.gradeRecord?.id ?? submitted.gradeRecordId;
+  expect(created.gradeRecordId, JSON.stringify(submitted).slice(0, 400)).toBeTruthy();
+  await teacher.dispose();
+
+  const context = await browser.newContext({ storageState: storageStateFor("registrar") });
+  const page = await context.newPage();
+  await page.goto("/admin/gradebook", { waitUntil: "networkidle" });
+  const postingRow = page.getByRole("row").filter({ hasText: `E2E Reflection ${tag}` });
+  await expect(postingRow).toBeVisible();
+  await postingRow.getByRole("button", { name: /Post grade/i }).click();
+  await context.close();
+
+  await expect.poll(async () => {
+    const model = await ok(await registrar.get("/api/academy/gradebook/records"), "read gradebook records");
+    const record = findGradebookRecord(model, created.gradeRecordId);
+    return record?.postingStatus;
+  }, { timeout: 15_000 }).toBe("posted");
+
+  const finalGrade = await teacherPostFinalGrade(baseURL, {
+    sectionId: created.sectionId,
+    learnerPersonId: created.learnerPersonId,
+    letterGrade: "A",
+    isPassing: true,
+  });
+  expect(finalGrade).toMatchObject({
+    sectionId: created.sectionId,
+    learnerPersonId: created.learnerPersonId,
+    letterGrade: "A",
+    isPassing: true,
+  });
+
+  const completedProgress = await ok(await registrar.get(`/api/academy/students/${STUDENT_PROFILE}/program-progress`), "read completed progress");
+  expect(completedProgress.progress?.completedCredits).toBe(3);
+  expect(completedProgress.progress?.inProgressCredits).toBe(0);
+  expect(completedProgress.progress?.percentComplete).toBe(100);
+  expect(completedProgress.progress?.requirements[0]).toMatchObject({
+    courseId: created.courseId,
+    status: "completed",
+    completedRegistrationId: created.registrationId,
+    finalLetterGrade: "A",
+  });
+});
+
+async function teacherPostFinalGrade(
+  baseURL: string | undefined,
+  input: { sectionId: string; learnerPersonId: string; letterGrade: string; isPassing: boolean },
+) {
+  const teacher = await as(baseURL, "teacher");
+  try {
+    return await ok(await teacher.post(`/api/academy/sections/${input.sectionId}/final-grades`, {
+      data: {
+        learnerPersonId: input.learnerPersonId,
+        letterGrade: input.letterGrade,
+        isPassing: input.isPassing,
+      },
+    }), "submit final grade");
+  } finally {
+    await teacher.dispose();
+  }
+}
+
+test("11. the registrar posts an immutable transcript entry for the completed course", async ({ baseURL }) => {
+  const candidateModel = await ok(await registrar.get(`/api/academy/students/${STUDENT_PROFILE}/transcript-entries`), "list transcript candidates");
+  const candidate = (candidateModel.candidates as Array<Record<string, unknown>>)
+    .find((item) => item.courseSectionRegistrationId === created.registrationId);
+  expect(candidate).toMatchObject({
+    courseCode: `E2E${tag}`,
+    courseTitle: `E2E Foundations ${tag}`,
+    finalLetterGrade: "A",
+    isPassing: true,
+  });
+
+  const posted = await ok(await registrar.post(`/api/academy/students/${STUDENT_PROFILE}/transcript-entries`, {
+    data: { courseSectionRegistrationId: created.registrationId },
+  }), "post transcript entry");
+  created.transcriptEntryId = posted.entry?.id ?? posted.id;
+  expect(created.transcriptEntryId).toBeTruthy();
+  expect(posted.entry).toMatchObject({
+    courseSectionRegistrationId: created.registrationId,
+    courseCode: `E2E${tag}`,
+    courseTitle: `E2E Foundations ${tag}`,
+    creditsEarned: 3,
+    finalLetterGrade: "A",
+    isPassing: true,
+  });
+
+  const readBack = await ok(await registrar.get(`/api/academy/students/${STUDENT_PROFILE}/transcript-entries`), "read transcript entry");
+  const entry = (readBack.entries as Array<Record<string, unknown>>)
+    .find((item) => item.id === created.transcriptEntryId);
+  expect(entry).toMatchObject({
+    courseSectionRegistrationId: created.registrationId,
+    courseCode: `E2E${tag}`,
+    finalLetterGrade: "A",
+  });
+  expect((readBack.candidates as Array<Record<string, unknown>>)
+    .some((item) => item.courseSectionRegistrationId === created.registrationId)).toBe(false);
+
+  const student = await as(baseURL, "student");
+  const studentPost = await student.post(`/api/academy/students/${STUDENT_PROFILE}/transcript-entries`, {
+    data: { courseSectionRegistrationId: created.registrationId },
+    failOnStatusCode: false,
+  });
+  expect(studentPost.status()).toBe(403);
+  await student.dispose();
+
+  const other = await as(baseURL, "otherTenantAdmin");
+  const otherRead = await ok(await other.get(`/api/academy/students/${STUDENT_PROFILE}/transcript-entries`), "other tenant transcript read");
+  expect(otherRead.entries).toEqual([]);
+  expect(otherRead.candidates).toEqual([]);
+  await other.dispose();
 });
 
 test("a student cannot grade, and another institution cannot read the grades", async ({ baseURL }) => {
@@ -152,6 +326,44 @@ test("a student cannot grade, and another institution cannot read the grades", a
   expect([403, 404]).toContain(read.status());
   await other.dispose();
 });
+
+function findAssignmentGrade(value: unknown, registrationId: string): { id: string; learnerPersonId: string } | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findAssignmentGrade(item, registrationId);
+      if (found) return found;
+    }
+  } else if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (record.studentRegistrationId === registrationId && typeof record.id === "string" && typeof record.learnerPersonId === "string") {
+      return { id: record.id, learnerPersonId: record.learnerPersonId };
+    }
+    for (const nested of Object.values(record)) {
+      const found = findAssignmentGrade(nested, registrationId);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+function findGradebookRecord(value: unknown, gradeRecordId: string): { postingStatus?: string } | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findGradebookRecord(item, gradeRecordId);
+      if (found) return found;
+    }
+  } else if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (record.id === gradeRecordId) {
+      return { postingStatus: typeof record.postingStatus === "string" ? record.postingStatus : undefined };
+    }
+    for (const nested of Object.values(record)) {
+      const found = findGradebookRecord(nested, gradeRecordId);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
 
 test("another institution cannot see or change any of it", async ({ baseURL }) => {
   const other = await as(baseURL, "otherTenantAdmin");
