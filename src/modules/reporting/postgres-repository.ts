@@ -1,9 +1,13 @@
 import { getDatabasePool } from "@/lib/database";
 import type {
+  CustomReportDefinitionInput,
+  CustomReportFilter,
+  CustomReportRepository,
   ReportDataset,
   ReportId,
   ReportRepository,
   ReportRow,
+  SavedCustomReportDefinition,
 } from "@/modules/reporting/types";
 
 interface QueryResult {
@@ -19,6 +23,11 @@ function dateOnly(value: unknown) {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
 }
 
+function timestamp(value: unknown) {
+  if (value == null) return "";
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
 function moneyFromCents(value: unknown) {
   return (Number(value ?? 0) / 100).toFixed(2);
 }
@@ -28,7 +37,25 @@ function percent(numerator: number, denominator: number) {
   return `${Math.round((numerator / denominator) * 100)}%`;
 }
 
-export class PostgresReportRepository implements ReportRepository {
+function mapCustomReport(row: Record<string, unknown>): SavedCustomReportDefinition {
+  return {
+    id: String(row.id),
+    tenantId: String(row.tenant_id),
+    name: String(row.name),
+    baseReportId: String(row.base_report_id) as ReportId,
+    selectedColumns: Array.isArray(row.selected_columns)
+      ? row.selected_columns.map(String)
+      : [],
+    filters: Array.isArray(row.filters)
+      ? row.filters as CustomReportFilter[]
+      : [],
+    createdByUserId: String(row.created_by_user_id),
+    createdAt: timestamp(row.created_at),
+    updatedAt: timestamp(row.updated_at),
+  };
+}
+
+export class PostgresReportRepository implements ReportRepository, CustomReportRepository {
   constructor(
     private readonly database: ReportingDatabase = getDatabasePool() as ReportingDatabase,
   ) {}
@@ -59,6 +86,62 @@ export class PostgresReportRepository implements ReportRepository {
         program_completion: programCompletion,
       } satisfies Record<ReportId, ReportRow[]>,
     };
+  }
+
+  async listCustomReports(tenantId: string): Promise<SavedCustomReportDefinition[]> {
+    const result = await this.database.query(
+      `select id, tenant_id, name, base_report_id, selected_columns, filters,
+              created_by_user_id, created_at, updated_at
+         from academy_custom_report_definitions
+        where tenant_id = $1
+          and archived_at is null
+        order by updated_at desc, name asc`,
+      [tenantId],
+    );
+
+    return result.rows.map(mapCustomReport);
+  }
+
+  async readCustomReport(
+    tenantId: string,
+    id: string,
+  ): Promise<SavedCustomReportDefinition | undefined> {
+    const result = await this.database.query(
+      `select id, tenant_id, name, base_report_id, selected_columns, filters,
+              created_by_user_id, created_at, updated_at
+         from academy_custom_report_definitions
+        where tenant_id = $1
+          and id = $2
+          and archived_at is null
+        limit 1`,
+      [tenantId, id],
+    );
+
+    return result.rows[0] ? mapCustomReport(result.rows[0]) : undefined;
+  }
+
+  async createCustomReport(
+    tenantId: string,
+    userId: string,
+    input: CustomReportDefinitionInput,
+  ): Promise<SavedCustomReportDefinition> {
+    const result = await this.database.query(
+      `insert into academy_custom_report_definitions (
+         tenant_id, name, base_report_id, selected_columns, filters, created_by_user_id
+       ) values ($1, $2, $3, $4::text[], $5::jsonb, $6)
+       returning id, tenant_id, name, base_report_id, selected_columns, filters,
+                 created_by_user_id, created_at, updated_at`,
+      [
+        tenantId,
+        input.name,
+        input.baseReportId,
+        input.selectedColumns,
+        JSON.stringify(input.filters ?? []),
+        userId,
+      ],
+    );
+
+    return mapCustomReport(result.rows[0]);
   }
 
   private async readEnrollment(tenantId: string): Promise<ReportRow[]> {

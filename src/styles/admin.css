@@ -2892,6 +2892,31 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #2563eb) 20%, transparent);
 }
 
+.custom-report-column-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--background, #fff);
+}
+
+.custom-report-column-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.custom-report-column-option {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--foreground, #111);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
 .ops-form-actions {
   display: flex;
   justify-content: flex-end;

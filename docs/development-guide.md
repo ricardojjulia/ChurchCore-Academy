@@ -68,9 +68,10 @@ Remaining:
 ### P1: Competitive Wedge For First Customer
 
 4. Custom report builder.
+   - Initial P1 slice: saved custom report definitions over approved fixed-report datasets, constrained column selection, simple filters, and CSV export.
    - Replace fixed-report-only posture with an institution-safe, role-gated report builder.
    - Protect tenant isolation, PII, grades, billing, and financial-aid fields.
-   - Start with saved report definitions and CSV export, then expand only with evidence.
+   - Expand only with evidence: saved-definition editing, better filter UI, scheduling integration, field-level policy affordances, and more report families.
 
 5. Bulk communications.
    - Keep existing email drip sequences.

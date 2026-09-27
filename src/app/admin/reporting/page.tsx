@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, Download, FileSpreadsheet, ShieldCheck } from "lucide-react";
+import { revalidatePath } from "next/cache";
+import { BarChart3, Download, FileSpreadsheet, PlusCircle, ShieldCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,7 +18,7 @@ import {
   ReportingService,
   reportDefinitions,
 } from "@/modules/reporting/service";
-import type { ReportRowValue } from "@/modules/reporting/types";
+import type { CustomReportFilter, ReportId, ReportRowValue } from "@/modules/reporting/types";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,23 @@ function displayValue(value: ReportRowValue) {
   return String(value);
 }
 
+function reportingRoles() {
+  return ["institution_admin", "dean", "registrar", "academic_admin", "finance"] as const;
+}
+
+function selectedColumnLabels(reportId: ReportId, selectedColumns: string[]) {
+  const definition = reportDefinitions.find((item) => item.id === reportId);
+  const labels = new Map((definition?.columns ?? []).map((column) => [column.key, column.label]));
+  return selectedColumns.map((column) => labels.get(column) ?? column).join(", ");
+}
+
+function customReportExportHref(id: string) {
+  return `/api/academy/reports?customReportId=${encodeURIComponent(id)}&format=csv`;
+}
+
 export default async function ReportingPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "finance"]);
+  requireActor(actor, [...reportingRoles()]);
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -38,11 +53,47 @@ export default async function ReportingPage() {
     redirect("/login");
   }
 
+  async function createCustomReportAction(formData: FormData) {
+    "use server";
+    const actionActor = await requireActor();
+    requireActor(actionActor, [...reportingRoles()]);
+
+    const baseReportId = String(formData.get("baseReportId") ?? "") as ReportId;
+    const selectedColumns = formData.getAll("selectedColumns")
+      .map((value) => String(value))
+      .filter((value) => value.startsWith(`${baseReportId}:`))
+      .map((value) => value.slice(baseReportId.length + 1));
+    const filterColumnValue = String(formData.get("filterColumn") ?? "");
+    const filterOperator = String(formData.get("filterOperator") ?? "");
+    const filterValue = String(formData.get("filterValue") ?? "");
+    const filters: CustomReportFilter[] = filterColumnValue.startsWith(`${baseReportId}:`) && filterOperator
+      ? [{
+        columnKey: filterColumnValue.slice(baseReportId.length + 1),
+        operator: filterOperator === "equals" || filterOperator === "contains" ? filterOperator : "not_empty",
+        value: filterOperator === "not_empty" ? undefined : filterValue,
+      }]
+      : [];
+
+    await withAcademyDatabaseContext(actionActor, async (client) => {
+      const repository = new PostgresReportRepository(
+        asAcademyDatabase<ReportingDatabase>(client),
+      );
+      const service = new ReportingService(repository, repository);
+      await service.createCustomReport(actionActor, {
+        name: String(formData.get("name") ?? ""),
+        baseReportId,
+        selectedColumns,
+        filters,
+      });
+    });
+    revalidatePath("/admin/reporting");
+  }
+
   const dashboard = await withAcademyDatabaseContext(actor, async (client) => {
     const repository = new PostgresReportRepository(
       asAcademyDatabase<ReportingDatabase>(client),
     );
-    const service = new ReportingService(repository);
+    const service = new ReportingService(repository, repository);
     return service.readDashboard(actor);
   });
 
@@ -80,6 +131,137 @@ export default async function ReportingPage() {
             </div>
           </div>
         </CardHeader>
+      </Card>
+
+      <Card className="ops-panel">
+        <CardHeader className="ops-card-header">
+          <div className="ops-heading">
+            <div className="ops-icon"><PlusCircle /></div>
+            <div>
+              <CardTitle>Saved Custom Reports</CardTitle>
+              <CardDescription>
+                Save a constrained view from approved report fields, then export it as a tenant-scoped CSV.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form action={createCustomReportAction} className="ops-form">
+            <div className="ops-form-row">
+              <div className="ops-field">
+                <label htmlFor="custom-report-name">Name</label>
+                <input
+                  id="custom-report-name"
+                  name="name"
+                  className="ops-input"
+                  placeholder="Active ministry students"
+                  minLength={3}
+                  maxLength={80}
+                  required
+                />
+              </div>
+              <div className="ops-field">
+                <label htmlFor="custom-report-base">Base report</label>
+                <select id="custom-report-base" name="baseReportId" className="ops-input" required>
+                  {reportDefinitions.map((definition) => (
+                    <option key={definition.id} value={definition.id}>{definition.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="ops-field">
+              <label>Columns</label>
+              <div className="admin-dashboard-grid">
+                {reportDefinitions.map((definition) => (
+                  <div key={definition.id} className="custom-report-column-group">
+                    <strong>{definition.label}</strong>
+                    <div className="custom-report-column-list">
+                      {definition.columns.map((column) => (
+                        <label key={column.key} className="custom-report-column-option">
+                          <input
+                            type="checkbox"
+                            name="selectedColumns"
+                            value={`${definition.id}:${column.key}`}
+                          />
+                          <span>{column.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="ops-form-row">
+              <div className="ops-field">
+                <label htmlFor="custom-report-filter-column">Filter column</label>
+                <select id="custom-report-filter-column" name="filterColumn" className="ops-input">
+                  <option value="">No filter</option>
+                  {reportDefinitions.flatMap((definition) =>
+                    definition.columns.map((column) => (
+                      <option key={`${definition.id}:${column.key}`} value={`${definition.id}:${column.key}`}>
+                        {definition.label}: {column.label}
+                      </option>
+                    )),
+                  )}
+                </select>
+              </div>
+              <div className="ops-field">
+                <label htmlFor="custom-report-filter-operator">Filter</label>
+                <select id="custom-report-filter-operator" name="filterOperator" className="ops-input">
+                  <option value="">None</option>
+                  <option value="equals">Equals</option>
+                  <option value="contains">Contains</option>
+                  <option value="not_empty">Is not empty</option>
+                </select>
+              </div>
+              <div className="ops-field">
+                <label htmlFor="custom-report-filter-value">Value</label>
+                <input id="custom-report-filter-value" name="filterValue" className="ops-input" />
+              </div>
+            </div>
+
+            <div className="ops-form-actions">
+              <button className="ops-btn-primary" type="submit">
+                <PlusCircle size={14} />
+                Save Custom Report
+              </button>
+            </div>
+          </form>
+
+          {dashboard.customReports.length === 0 ? (
+            <p className="admin-signal-empty">No saved custom reports yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Base</TableHead>
+                  <TableHead>Columns</TableHead>
+                  <TableHead>Export</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dashboard.customReports.map((customReport) => {
+                  const base = reportDefinitions.find((definition) => definition.id === customReport.baseReportId);
+                  return (
+                    <TableRow key={customReport.id}>
+                      <TableCell>{customReport.name}</TableCell>
+                      <TableCell>{base?.label ?? customReport.baseReportId}</TableCell>
+                      <TableCell>{selectedColumnLabels(customReport.baseReportId, customReport.selectedColumns)}</TableCell>
+                      <TableCell>
+                        <Link className="ops-page-action-link" href={customReportExportHref(customReport.id)}>
+                          Export CSV
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
       </Card>
 
       <Card className="ops-panel">
