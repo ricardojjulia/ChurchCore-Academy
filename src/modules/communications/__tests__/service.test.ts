@@ -35,6 +35,7 @@ const facultyActor: AcademyActor = {
 const directory: CommunicationDirectory = {
   people: [
     { id: "student-1", displayName: "Ada Rivera", email: "ada@example.edu", roles: ["student"] },
+    { id: "student-2", displayName: "No Email", roles: ["student"] },
     { id: "guardian-1", displayName: "Marisol Rivera", email: "marisol@example.edu", roles: ["guardian"] },
     { id: "faculty-1", displayName: "Dr. Stone", email: "stone@example.edu", roles: ["faculty"] },
   ],
@@ -153,6 +154,35 @@ test("audience resolver includes active guardians only through relationships", (
   });
 
   assert.deepEqual(recipients.map((recipient) => recipient.personId), ["guardian-1"]);
+});
+
+test("manual bulk email queues role recipients with email addresses only", async () => {
+  const repository = new FakeCommunicationsRepository();
+  const service = new CommunicationsService(repository);
+
+  const messages = await service.createCommunication(
+    adminActor,
+    input({
+      templateKey: "manual_bulk_email",
+      audience: { type: "role", roles: ["student"] },
+      channels: ["email"],
+      variables: {
+        subject: "Chapel update",
+        body: "Please review the chapel schedule.",
+      },
+      sourceType: "manual",
+      sourceId: "manual-bulk-email",
+      idempotencyKey: "bulk-1",
+      essential: false,
+    }),
+  );
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].recipientPersonId, "student-1");
+  assert.equal(messages[0].recipientEmail, "ada@example.edu");
+  assert.equal(messages[0].channel, "email");
+  assert.equal(messages[0].templateKey, "manual_bulk_email");
+  assert.equal(messages[0].subject, "Chapel update");
 });
 
 test("service queues in-app message and suppresses non-essential opted-out email", async () => {

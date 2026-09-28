@@ -38,6 +38,10 @@ function templateKey(value: unknown): CommunicationTemplateKey {
     "grade_release",
     "attendance_concern",
     "workflow_assignment",
+    "application_received",
+    "award_letter_ready",
+    "admissions_inquiry_activity",
+    "manual_bulk_email",
   ];
   if (typeof value === "string" && allowed.includes(value as CommunicationTemplateKey)) {
     return value as CommunicationTemplateKey;
@@ -88,6 +92,12 @@ function audience(value: unknown): CommunicationAudience {
       throw new Error("audience.roles are required.");
     }
     return { type: "staff_role", roles: candidate.roles.map((role) => text(role, "audience.role") as AcademyRole) };
+  }
+  if (candidate.type === "role") {
+    if (!Array.isArray(candidate.roles) || candidate.roles.length === 0) {
+      throw new Error("audience.roles are required.");
+    }
+    return { type: "role", roles: candidate.roles.map((role) => text(role, "audience.role") as AcademyRole) };
   }
   throw new Error("Invalid communication audience.");
 }

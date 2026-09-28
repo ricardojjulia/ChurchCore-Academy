@@ -269,7 +269,12 @@ function mockCommunicationsService() {
 
   const directory: CommunicationDirectory = {
     people: [
-      { id: "person-admissions-staff", displayName: "Admissions Staff", roles: ["admissions"] },
+      {
+        id: "person-admissions-staff",
+        displayName: "Admissions Staff",
+        email: "admissions@example.edu",
+        roles: ["admissions"],
+      },
     ],
     relationships: [],
     emailOptOutPersonIds: [],

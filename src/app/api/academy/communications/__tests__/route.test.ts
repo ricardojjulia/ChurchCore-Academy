@@ -76,6 +76,83 @@ test("communications route creates messages for authorized staff", async () => {
   assert.equal(payload[0].recipientPersonId, "student-1");
 });
 
+test("communications route accepts manual bulk email and rejects SMS", async () => {
+  const response = await mutateCommunications(
+    new Request("http://localhost/api/academy/communications", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "create",
+        templateKey: "manual_bulk_email",
+        audience: { type: "role", roles: ["student"] },
+        channels: ["email"],
+        variables: {
+          subject: "Academy update",
+          body: "Please review this update.",
+        },
+        sourceType: "manual",
+        sourceId: "manual-bulk-email",
+        idempotencyKey: "bulk-1",
+        essential: false,
+      }),
+    }),
+    {
+      resolveActor: async () => adminActor,
+      serviceForActor: async () => ({
+        createCommunication: async (_actor: AcademyActor, input) => [{
+          ...message,
+          channel: "email",
+          templateKey: input.templateKey,
+          subject: String(input.variables.subject),
+          body: String(input.variables.body),
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          idempotencyKey: input.idempotencyKey,
+        }],
+        listMyMessages: async () => [],
+        listTenantMessages: async () => [],
+        markRead: async () => message,
+        recordProviderFailure: async () => message,
+      }),
+    },
+  );
+
+  assert.equal(response.status, 200);
+  const payload = await response.json() as CommunicationMessage[];
+  assert.equal(payload[0].templateKey, "manual_bulk_email");
+  assert.equal(payload[0].channel, "email");
+
+  const smsResponse = await mutateCommunications(
+    new Request("http://localhost/api/academy/communications", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "create",
+        templateKey: "manual_bulk_email",
+        audience: { type: "role", roles: ["student"] },
+        channels: ["sms"],
+        variables: { subject: "Nope", body: "No SMS yet." },
+        sourceType: "manual",
+        sourceId: "manual-bulk-email",
+        idempotencyKey: "bulk-sms",
+        essential: false,
+      }),
+    }),
+    {
+      resolveActor: async () => adminActor,
+      serviceForActor: async () => ({
+        createCommunication: async () => [],
+        listMyMessages: async () => [],
+        listTenantMessages: async () => [],
+        markRead: async () => message,
+        recordProviderFailure: async () => message,
+      }),
+    },
+  );
+
+  assert.equal(smsResponse.status, 400);
+});
+
 test("communications route lists student self-scoped messages", async () => {
   const response = await listCommunications(
     new Request("http://localhost/api/academy/communications"),
