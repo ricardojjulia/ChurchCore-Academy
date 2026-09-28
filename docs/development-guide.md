@@ -74,8 +74,9 @@ Remaining:
    - Expand only with evidence: saved-definition editing, better filter UI, scheduling integration, field-level policy affordances, and more report families.
 
 5. Bulk communications.
+   - Initial P1 slice: manual bulk email queues through the existing communications provider boundary with role-based audiences, idempotency, opt-out handling, and audit records.
    - Keep existing email drip sequences.
-   - Add ad-hoc bulk email first.
+   - Expand ad-hoc bulk email only with evidence: richer segmentation, saved recipient lists, approval/review flow, and delivery analytics.
    - Add SMS only after provider, consent, opt-out, audit, and rate-limit rules are approved.
 
 6. Donor and alumni expansion.

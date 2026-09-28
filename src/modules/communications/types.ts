@@ -10,7 +10,8 @@ export type CommunicationTemplateKey =
   | "workflow_assignment"
   | "application_received"
   | "award_letter_ready"
-  | "admissions_inquiry_activity";
+  | "admissions_inquiry_activity"
+  | "manual_bulk_email";
 
 export type CommunicationChannel = "in_app" | "email";
 export type CommunicationStatus = "queued" | "sent" | "failed" | "read" | "cancelled";
@@ -48,7 +49,8 @@ export interface CommunicationDirectory {
 export type CommunicationAudience =
   | { type: "student"; personId: string }
   | { type: "guardian"; studentPersonId: string }
-  | { type: "staff_role"; roles: AcademyRole[] };
+  | { type: "staff_role"; roles: AcademyRole[] }
+  | { type: "role"; roles: AcademyRole[] };
 
 export interface CommunicationRecipient {
   personId: string;

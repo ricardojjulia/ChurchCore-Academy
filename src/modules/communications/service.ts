@@ -87,6 +87,11 @@ const templates: Record<CommunicationTemplateKey, TemplateDefinition> = {
     body: "Update for inquiry {{applicantName}} ({{programName}}): {{summary}} Review at {{actionUrl}}.",
     required: ["applicantName", "actionUrl"],
   },
+  manual_bulk_email: {
+    subject: "{{subject}}",
+    body: "{{body}}",
+    required: ["subject", "body"],
+  },
 };
 
 function assertAdmin(actor: AcademyActor) {
@@ -197,6 +202,9 @@ export class CommunicationsService {
         if (channel === "email" && !input.essential && emailOptOuts.has(recipient.personId)) {
           continue;
         }
+        if (channel === "email" && !recipient.email) {
+          continue;
+        }
         messages.push({
           id: randomUUID(),
           tenantId: actor.tenantId,
@@ -217,6 +225,10 @@ export class CommunicationsService {
           createdAt,
         });
       }
+    }
+
+    if (messages.length === 0) {
+      return [];
     }
 
     return this.repository.enqueueMessages(
