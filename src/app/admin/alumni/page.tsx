@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, DollarSign, TrendingUp, Gift } from "lucide-react";
+import { Users, DollarSign, TrendingUp, Gift, Target } from "lucide-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -229,6 +229,13 @@ export default async function AlumniRosterPage({
               </CardDescription>
             </div>
           </div>
+          <Link
+            href="/admin/alumni/campaigns"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-accent hover:underline"
+          >
+            <Target size={16} />
+            Donor campaigns
+          </Link>
         </CardHeader>
         <CardContent>
           <div className="mb-4">

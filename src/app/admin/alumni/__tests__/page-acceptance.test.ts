@@ -442,22 +442,23 @@ for (const { path, methods } of alumniApiRoutes) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// Criterion 13: Out of scope confirmed absent (no campaign entity, no Student PWA files touched)
+// Criterion 13: Campaign management is now the approved P1 donor/alumni expansion slice;
+// staff detail must still stay out of the alumni surface.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-test("CRITERION 13 — NEGATIVE TEST: no campaign entity in alumni module", async () => {
+test("CRITERION 13 — donor campaign management is present and uses the approved campaign table", async () => {
   const source = await readFile(join(repoRoot, "src/modules/people/alumni.ts"), "utf8");
 
-  assert.doesNotMatch(
+  assert.match(
     source,
-    /campaign/i,
-    "alumni module must NOT contain campaign entity (out of scope)"
+    /DonorCampaign/,
+    "alumni module must include donor campaign types"
   );
 
-  assert.doesNotMatch(
+  assert.match(
     source,
-    /academy_campaigns/,
-    "alumni module must NOT reference academy_campaigns table (out of scope)"
+    /academy_donor_campaigns/,
+    "alumni module must reference the approved tenant-scoped donor campaign table"
   );
 });
 

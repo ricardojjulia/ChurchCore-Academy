@@ -81,7 +81,8 @@ Remaining:
 
 6. Donor and alumni expansion.
    - Existing alumni records and giving are foundations.
-   - Add donor campaign management.
+   - Initial P1 slice: donor campaign management with tenant-scoped campaign records, goal/status/date metadata, campaign-linked gifts, legacy fund-designation matching, campaign progress summaries, an admin campaign page, API coverage, and e2e verification.
+   - Expand campaign management only with evidence: campaign editing, closed-campaign rules, segmented alumni/donor recipient lists, pledge fulfillment, and delivery analytics.
    - Add opt-in alumni directory with privacy controls.
 
 7. Advising and faculty-load intelligence.

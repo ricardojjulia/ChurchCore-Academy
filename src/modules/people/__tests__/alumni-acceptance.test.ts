@@ -78,6 +78,7 @@ function mockGift(overrides: Partial<GivingRecord> = {}): GivingRecord {
     id: "gift-1",
     tenantId: "tenant-1",
     alumniPersonId: "person-graduate-1",
+    donorCampaignId: null,
     giftAmountCents: 10000,
     giftDate: "2026-06-01",
     giftType: "one_time",
@@ -96,6 +97,7 @@ function giftToRow(g: GivingRecord): Record<string, unknown> {
     id: g.id,
     tenant_id: g.tenantId,
     alumni_person_id: g.alumniPersonId,
+    donor_campaign_id: g.donorCampaignId,
     gift_amount_cents: g.giftAmountCents,
     gift_date: new Date(g.giftDate),
     gift_type: g.giftType,
@@ -191,11 +193,12 @@ function createMockDb(alumni: AlumniRecord[] = [], gifts: GivingRecord[] = []): 
           id: `gift-${storedGifts.length + 1}`,
           tenantId: String(values?.[0] ?? "tenant-1"),
           alumniPersonId: String(values?.[1] ?? "person-1"),
-          giftAmountCents: Number(values?.[2] ?? 0),
-          giftDate: String(values?.[3] ?? "2026-01-01"),
-          giftType: (values?.[4] as GivingRecord["giftType"]) ?? "one_time",
-          fundDesignation: values?.[5] ? String(values[5]) : null,
-          notes: values?.[6] ? String(values[6]) : null,
+          donorCampaignId: values?.[2] ? String(values[2]) : null,
+          giftAmountCents: Number(values?.[3] ?? 0),
+          giftDate: String(values?.[4] ?? "2026-01-01"),
+          giftType: (values?.[5] as GivingRecord["giftType"]) ?? "one_time",
+          fundDesignation: values?.[6] ? String(values[6]) : null,
+          notes: values?.[7] ? String(values[7]) : null,
         });
         storedGifts.push(newGift);
         return { rowCount: 1, rows: [giftToRow(newGift)] };

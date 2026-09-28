@@ -4,10 +4,13 @@ import type { AcademyActor } from "@/modules/academy-auth/policy";
 import type {
   AlumniDatabase,
   AlumniRecord,
+  DonorCampaign,
   GivingRecord,
 } from "@/modules/people/alumni";
 import {
+  createDonorCampaign,
   createAlumniRecord,
+  listDonorCampaigns,
   listAlumni,
   updateAlumniRecord,
   recordGift,
@@ -65,6 +68,7 @@ function mockGift(overrides: Partial<GivingRecord> = {}): GivingRecord {
     id: "gift-1",
     tenantId: "tenant-1",
     alumniPersonId: "person-graduate-1",
+    donorCampaignId: null,
     giftAmountCents: 10000,
     giftDate: "2026-06-01",
     giftType: "one_time",
@@ -72,6 +76,24 @@ function mockGift(overrides: Partial<GivingRecord> = {}): GivingRecord {
     acknowledgmentSentAt: null,
     notes: null,
     createdAt: "2026-06-24T09:00:00Z",
+    ...overrides,
+  };
+}
+
+function mockCampaign(overrides: Partial<DonorCampaign> = {}): DonorCampaign {
+  return {
+    id: "campaign-1",
+    tenantId: "tenant-1",
+    name: "Scholarship Sunday",
+    fundDesignation: "Scholarship Fund",
+    goalAmountCents: 100000,
+    startsOn: "2026-09-01",
+    endsOn: "2026-12-31",
+    status: "active",
+    description: "Scholarship gifts",
+    createdByPersonId: "person-admin",
+    createdAt: "2026-09-28T09:00:00Z",
+    updatedAt: "2026-09-28T09:00:00Z",
     ...overrides,
   };
 }
@@ -101,6 +123,7 @@ function giftToRow(g: GivingRecord): Record<string, unknown> {
     id: g.id,
     tenant_id: g.tenantId,
     alumni_person_id: g.alumniPersonId,
+    donor_campaign_id: g.donorCampaignId,
     gift_amount_cents: g.giftAmountCents,
     gift_date: new Date(g.giftDate),
     gift_type: g.giftType,
@@ -111,13 +134,32 @@ function giftToRow(g: GivingRecord): Record<string, unknown> {
   };
 }
 
+function campaignToRow(c: DonorCampaign): Record<string, unknown> {
+  return {
+    id: c.id,
+    tenant_id: c.tenantId,
+    name: c.name,
+    fund_designation: c.fundDesignation,
+    goal_amount_cents: c.goalAmountCents,
+    starts_on: c.startsOn ? new Date(c.startsOn) : null,
+    ends_on: c.endsOn ? new Date(c.endsOn) : null,
+    status: c.status,
+    description: c.description,
+    created_by_person_id: c.createdByPersonId,
+    created_at: new Date(c.createdAt),
+    updated_at: new Date(c.updatedAt),
+  };
+}
+
 function createMockDb(
   alumni: AlumniRecord[] = [],
   gifts: GivingRecord[] = [],
+  campaigns: DonorCampaign[] = [],
   options: { nonGraduatedPersonIds?: Set<string>; unknownPersonIds?: Set<string> } = {},
 ): AlumniDatabase {
   const storedAlumni = [...alumni];
   const storedGifts = [...gifts];
+  const storedCampaigns = [...campaigns];
   const nonGraduatedPersonIds = options.nonGraduatedPersonIds ?? new Set<string>();
   const unknownPersonIds = options.unknownPersonIds ?? new Set<string>();
 
@@ -159,14 +201,32 @@ function createMockDb(
           id: `gift-${storedGifts.length + 1}`,
           tenantId: String(values?.[0] ?? "tenant-1"),
           alumniPersonId: String(values?.[1] ?? "person-1"),
-          giftAmountCents: Number(values?.[2] ?? 0),
-          giftDate: String(values?.[3] ?? "2026-01-01"),
-          giftType: (values?.[4] as GivingRecord["giftType"]) ?? "one_time",
-          fundDesignation: values?.[5] ? String(values[5]) : null,
-          notes: values?.[6] ? String(values[6]) : null,
+          donorCampaignId: values?.[2] ? String(values[2]) : null,
+          giftAmountCents: Number(values?.[3] ?? 0),
+          giftDate: String(values?.[4] ?? "2026-01-01"),
+          giftType: (values?.[5] as GivingRecord["giftType"]) ?? "one_time",
+          fundDesignation: values?.[6] ? String(values[6]) : null,
+          notes: values?.[7] ? String(values[7]) : null,
         });
         storedGifts.push(newGift);
         return { rowCount: 1, rows: [giftToRow(newGift)] };
+      }
+
+      if (sqlLower.includes("insert into academy_donor_campaigns")) {
+        const newCampaign = mockCampaign({
+          id: `campaign-${storedCampaigns.length + 1}`,
+          tenantId: String(values?.[0] ?? "tenant-1"),
+          name: String(values?.[1] ?? "Campaign"),
+          fundDesignation: String(values?.[2] ?? "General Fund"),
+          goalAmountCents: Number(values?.[3] ?? 100),
+          startsOn: values?.[4] ? String(values[4]) : null,
+          endsOn: values?.[5] ? String(values[5]) : null,
+          status: (values?.[6] as DonorCampaign["status"]) ?? "planned",
+          description: values?.[7] ? String(values[7]) : null,
+          createdByPersonId: values?.[8] ? String(values[8]) : null,
+        });
+        storedCampaigns.push(newCampaign);
+        return { rowCount: 1, rows: [campaignToRow(newCampaign)] };
       }
 
       if (sqlLower.includes("select * from academy_alumni_records") && sqlLower.includes("order by")) {
@@ -285,6 +345,32 @@ function createMockDb(
         };
       }
 
+      if (sqlLower.includes("from academy_donor_campaigns dc")) {
+        const tenantId = values?.[0];
+        const statusFilter = values?.[1] ? String(values[1]) : undefined;
+        let filtered = storedCampaigns.filter(c => c.tenantId === tenantId);
+        if (statusFilter) filtered = filtered.filter(c => c.status === statusFilter);
+
+        return {
+          rowCount: null,
+          rows: filtered.map(c => {
+            const campaignGifts = storedGifts.filter(g =>
+              g.tenantId === c.tenantId &&
+              (g.donorCampaignId === c.id || (!g.donorCampaignId && g.fundDesignation === c.fundDesignation))
+            );
+            return {
+              ...campaignToRow(c),
+              gift_count: campaignGifts.length,
+              donor_count: new Set(campaignGifts.map(g => g.alumniPersonId)).size,
+              total_given_cents: campaignGifts.reduce((sum, g) => sum + g.giftAmountCents, 0),
+              last_gift_date: campaignGifts.length > 0
+                ? new Date(Math.max(...campaignGifts.map(g => new Date(g.giftDate).getTime())))
+                : null,
+            };
+          }),
+        };
+      }
+
       return { rowCount: 0, rows: [] };
     },
   };
@@ -334,7 +420,7 @@ test("createAlumniRecord — rejects invalid graduationYear", async () => {
 // security and data-integrity boundary, reachable directly via the API.
 
 test("createAlumniRecord — rejects a person who is not a graduated student", async () => {
-  const db = createMockDb([], [], { nonGraduatedPersonIds: new Set(["person-enrolled-1"]) });
+  const db = createMockDb([], [], [], { nonGraduatedPersonIds: new Set(["person-enrolled-1"]) });
   await assert.rejects(
     () => createAlumniRecord(
       adminActor,
@@ -346,7 +432,7 @@ test("createAlumniRecord — rejects a person who is not a graduated student", a
 });
 
 test("createAlumniRecord — rejects a person not found in the tenant", async () => {
-  const db = createMockDb([], [], { unknownPersonIds: new Set(["person-ghost"]) });
+  const db = createMockDb([], [], [], { unknownPersonIds: new Set(["person-ghost"]) });
   await assert.rejects(
     () => createAlumniRecord(
       adminActor,
@@ -452,6 +538,24 @@ test("recordGift — success", async () => {
   assert.equal(gift.fundDesignation, "Scholarship Fund");
 });
 
+test("recordGift — links gift to donor campaign", async () => {
+  const db = createMockDb([mockAlumni()], [], [mockCampaign({ id: "campaign-scholarship" })]);
+
+  const gift = await recordGift(
+    adminActor,
+    {
+      alumniPersonId: "person-graduate-1",
+      donorCampaignId: "campaign-scholarship",
+      giftAmountCents: 25000,
+      giftDate: "2026-06-01",
+      fundDesignation: "Scholarship Fund",
+    },
+    db,
+  );
+
+  assert.equal(gift.donorCampaignId, "campaign-scholarship");
+});
+
 test("recordGift — rejects zero amount", async () => {
   const db = createMockDb();
   await assert.rejects(
@@ -498,6 +602,108 @@ test("getGivingSummary — rejects non-admin", async () => {
   const db = createMockDb();
   await assert.rejects(
     () => getGivingSummary(alumniStaffActor, db),
+    { name: "AcademyAuthorizationError" },
+  );
+});
+
+test("createDonorCampaign — creates a tenant-scoped campaign", async () => {
+  const db = createMockDb();
+
+  const campaign = await createDonorCampaign(
+    alumniStaffActor,
+    {
+      name: "Scholarship Sunday",
+      fundDesignation: "Scholarship Fund",
+      goalAmountCents: 250000,
+      startsOn: "2026-09-01",
+      endsOn: "2026-12-31",
+      status: "active",
+    },
+    db,
+  );
+
+  assert.equal(campaign.tenantId, "tenant-1");
+  assert.equal(campaign.name, "Scholarship Sunday");
+  assert.equal(campaign.goalAmountCents, 250000);
+  assert.equal(campaign.status, "active");
+});
+
+test("createDonorCampaign — rejects invalid goal and date order", async () => {
+  const db = createMockDb();
+
+  await assert.rejects(
+    () => createDonorCampaign(
+      adminActor,
+      { name: "Bad Goal", fundDesignation: "General", goalAmountCents: 0 },
+      db,
+    ),
+    /goalAmountCents must be a positive integer/,
+  );
+
+  await assert.rejects(
+    () => createDonorCampaign(
+      adminActor,
+      {
+        name: "Bad Dates",
+        fundDesignation: "General",
+        goalAmountCents: 1000,
+        startsOn: "2026-12-31",
+        endsOn: "2026-01-01",
+      },
+      db,
+    ),
+    /endsOn must be on or after startsOn/,
+  );
+});
+
+test("createDonorCampaign — rejects student", async () => {
+  const db = createMockDb();
+  await assert.rejects(
+    () => createDonorCampaign(
+      studentActor,
+      { name: "Student Campaign", fundDesignation: "General", goalAmountCents: 1000 },
+      db,
+    ),
+    { name: "AcademyAuthorizationError" },
+  );
+});
+
+test("listDonorCampaigns — includes direct and legacy fund-designation gifts", async () => {
+  const campaign = mockCampaign({ id: "campaign-scholarship", fundDesignation: "Scholarship Fund", goalAmountCents: 100000 });
+  const gifts = [
+    mockGift({ id: "gift-direct", alumniPersonId: "person-1", donorCampaignId: "campaign-scholarship", giftAmountCents: 20000, giftDate: "2026-09-15" }),
+    mockGift({ id: "gift-legacy", alumniPersonId: "person-2", donorCampaignId: null, fundDesignation: "Scholarship Fund", giftAmountCents: 30000, giftDate: "2026-09-20" }),
+    mockGift({ id: "gift-other", alumniPersonId: "person-3", donorCampaignId: null, fundDesignation: "Building Fund", giftAmountCents: 40000 }),
+  ];
+  const db = createMockDb([], gifts, [campaign]);
+
+  const campaigns = await listDonorCampaigns(adminActor, {}, db);
+
+  assert.equal(campaigns.length, 1);
+  assert.equal(campaigns[0].giftCount, 2);
+  assert.equal(campaigns[0].donorCount, 2);
+  assert.equal(campaigns[0].totalGivenCents, 50000);
+  assert.equal(campaigns[0].progressPercent, 50);
+  assert.equal(campaigns[0].lastGiftDate, "2026-09-20");
+});
+
+test("listDonorCampaigns — filters by status and tenant", async () => {
+  const db = createMockDb([], [], [
+    mockCampaign({ id: "campaign-active", status: "active" }),
+    mockCampaign({ id: "campaign-planned", status: "planned" }),
+    mockCampaign({ id: "campaign-other-tenant", tenantId: "tenant-2", status: "active" }),
+  ]);
+
+  const campaigns = await listDonorCampaigns(adminActor, { status: "active" }, db);
+
+  assert.equal(campaigns.length, 1);
+  assert.equal(campaigns[0].id, "campaign-active");
+});
+
+test("listDonorCampaigns — rejects student", async () => {
+  const db = createMockDb([], [], [mockCampaign()]);
+  await assert.rejects(
+    () => listDonorCampaigns(studentActor, {}, db),
     { name: "AcademyAuthorizationError" },
   );
 });
