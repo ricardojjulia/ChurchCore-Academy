@@ -17,6 +17,7 @@ function toIsoString(value: unknown): string {
 
 export type AlumniStatus = "active" | "lost_contact" | "deceased";
 export type GiftType = "one_time" | "recurring" | "pledge";
+export type DonorCampaignStatus = "planned" | "active" | "paused" | "completed";
 
 export interface AlumniRecord {
   id: string;
@@ -38,6 +39,7 @@ export interface GivingRecord {
   id: string;
   tenantId: string;
   alumniPersonId: string;
+  donorCampaignId: string | null;
   giftAmountCents: number;
   giftDate: string;
   giftType: GiftType;
@@ -45,6 +47,29 @@ export interface GivingRecord {
   acknowledgmentSentAt: string | null;
   notes: string | null;
   createdAt: string;
+}
+
+export interface DonorCampaign {
+  id: string;
+  tenantId: string;
+  name: string;
+  fundDesignation: string;
+  goalAmountCents: number;
+  startsOn: string | null;
+  endsOn: string | null;
+  status: DonorCampaignStatus;
+  description: string | null;
+  createdByPersonId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DonorCampaignWithGiving extends DonorCampaign {
+  giftCount: number;
+  donorCount: number;
+  totalGivenCents: number;
+  lastGiftDate: string | null;
+  progressPercent: number;
 }
 
 export interface CreateAlumniInput {
@@ -67,11 +92,22 @@ export interface UpdateAlumniInput {
 
 export interface RecordGiftInput {
   alumniPersonId: string;
+  donorCampaignId?: string;
   giftAmountCents: number;
   giftDate: string;
   giftType?: GiftType;
   fundDesignation?: string;
   notes?: string;
+}
+
+export interface CreateDonorCampaignInput {
+  name: string;
+  fundDesignation: string;
+  goalAmountCents: number;
+  startsOn?: string;
+  endsOn?: string;
+  status?: DonorCampaignStatus;
+  description?: string;
 }
 
 export interface AlumniGivingSummary {
@@ -132,6 +168,7 @@ function rowToGiving(row: Record<string, unknown>): GivingRecord {
     id: String(row.id),
     tenantId: String(row.tenant_id),
     alumniPersonId: String(row.alumni_person_id),
+    donorCampaignId: row.donor_campaign_id ? String(row.donor_campaign_id) : null,
     giftAmountCents: Number(row.gift_amount_cents),
     giftDate: toDateString(row.gift_date) as string,
     giftType: row.gift_type as GiftType,
@@ -140,6 +177,46 @@ function rowToGiving(row: Record<string, unknown>): GivingRecord {
     notes: row.notes ? String(row.notes) : null,
     createdAt: toIsoString(row.created_at),
   };
+}
+
+function rowToDonorCampaign(row: Record<string, unknown>): DonorCampaign {
+  return {
+    id: String(row.id),
+    tenantId: String(row.tenant_id),
+    name: String(row.name),
+    fundDesignation: String(row.fund_designation),
+    goalAmountCents: Number(row.goal_amount_cents),
+    startsOn: toDateString(row.starts_on),
+    endsOn: toDateString(row.ends_on),
+    status: row.status as DonorCampaignStatus,
+    description: row.description ? String(row.description) : null,
+    createdByPersonId: row.created_by_person_id ? String(row.created_by_person_id) : null,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+  };
+}
+
+function rowToDonorCampaignWithGiving(row: Record<string, unknown>): DonorCampaignWithGiving {
+  const campaign = rowToDonorCampaign(row);
+  const totalGivenCents = Number(row.total_given_cents ?? 0);
+  const progressPercent = campaign.goalAmountCents > 0
+    ? Math.min(100, Math.round((totalGivenCents / campaign.goalAmountCents) * 100))
+    : 0;
+
+  return {
+    ...campaign,
+    giftCount: Number(row.gift_count ?? 0),
+    donorCount: Number(row.donor_count ?? 0),
+    totalGivenCents,
+    lastGiftDate: toDateString(row.last_gift_date),
+    progressPercent,
+  };
+}
+
+function assertCampaignStatus(status: unknown): asserts status is DonorCampaignStatus {
+  if (!["planned", "active", "paused", "completed"].includes(String(status))) {
+    throw new Error(`Invalid donor campaign status: ${String(status)}`);
+  }
 }
 
 export async function createAlumniRecord(
@@ -275,12 +352,13 @@ export async function recordGift(
 
   const result = await db.query(
     `insert into academy_giving_records
-       (tenant_id, alumni_person_id, gift_amount_cents, gift_date, gift_type, fund_designation, notes)
-     values ($1, $2, $3, $4, $5, $6, $7)
+       (tenant_id, alumni_person_id, donor_campaign_id, gift_amount_cents, gift_date, gift_type, fund_designation, notes)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
      returning *`,
     [
       actor.tenantId,
       input.alumniPersonId,
+      input.donorCampaignId?.trim() ?? null,
       input.giftAmountCents,
       input.giftDate,
       input.giftType ?? "one_time",
@@ -292,6 +370,106 @@ export async function recordGift(
   const row = result.rows[0];
   if (!row) throw new Error("Failed to record gift.");
   return rowToGiving(row);
+}
+
+export async function createDonorCampaign(
+  actor: AcademyActor,
+  input: CreateDonorCampaignInput,
+  db: AcademyQueryClient | AlumniDatabase,
+): Promise<DonorCampaign> {
+  assertAlumniAccess(actor);
+
+  const name = input.name.trim();
+  const fundDesignation = input.fundDesignation.trim();
+  const status = input.status ?? "planned";
+  assertCampaignStatus(status);
+
+  if (!name) throw new Error("name is required.");
+  if (!fundDesignation) throw new Error("fundDesignation is required.");
+  if (!Number.isInteger(input.goalAmountCents) || input.goalAmountCents <= 0) {
+    throw new Error("goalAmountCents must be a positive integer.");
+  }
+  if (input.startsOn && input.endsOn && input.endsOn < input.startsOn) {
+    throw new Error("endsOn must be on or after startsOn.");
+  }
+
+  const result = await db.query(
+    `insert into academy_donor_campaigns
+       (tenant_id, name, fund_designation, goal_amount_cents, starts_on, ends_on, status, description, created_by_person_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     returning *`,
+    [
+      actor.tenantId,
+      name,
+      fundDesignation,
+      input.goalAmountCents,
+      input.startsOn ?? null,
+      input.endsOn ?? null,
+      status,
+      input.description?.trim() || null,
+      actor.userId,
+    ],
+  ) as { rows: Record<string, unknown>[] };
+
+  const row = result.rows[0];
+  if (!row) throw new Error("Failed to create donor campaign.");
+  return rowToDonorCampaign(row);
+}
+
+export async function listDonorCampaigns(
+  actor: AcademyActor,
+  filters: { status?: DonorCampaignStatus } = {},
+  db: AcademyQueryClient | AlumniDatabase,
+): Promise<DonorCampaignWithGiving[]> {
+  assertAlumniAccess(actor);
+
+  const params: unknown[] = [actor.tenantId];
+  const conditions = ["dc.tenant_id = $1"];
+
+  if (filters.status !== undefined) {
+    assertCampaignStatus(filters.status);
+    params.push(filters.status);
+    conditions.push(`dc.status = $${params.length}`);
+  }
+
+  const result = await db.query(
+    `select
+       dc.*,
+       coalesce(gift_agg.gift_count, 0) as gift_count,
+       coalesce(gift_agg.donor_count, 0) as donor_count,
+       coalesce(gift_agg.total_given_cents, 0) as total_given_cents,
+       gift_agg.last_gift_date
+     from academy_donor_campaigns dc
+     left join (
+       select
+         dc_inner.id as campaign_id,
+         count(g.id) as gift_count,
+         count(distinct g.alumni_person_id) as donor_count,
+         coalesce(sum(g.gift_amount_cents), 0) as total_given_cents,
+         max(g.gift_date) as last_gift_date
+       from academy_donor_campaigns dc_inner
+       left join academy_giving_records g
+         on g.tenant_id = dc_inner.tenant_id
+        and (
+          g.donor_campaign_id = dc_inner.id
+          or (g.donor_campaign_id is null and g.fund_designation = dc_inner.fund_designation)
+        )
+       where dc_inner.tenant_id = $1
+       group by dc_inner.id
+     ) gift_agg on gift_agg.campaign_id = dc.id
+     where ${conditions.join(" and ")}
+     order by
+       case dc.status
+         when 'active' then 1
+         when 'planned' then 2
+         when 'paused' then 3
+         else 4
+       end,
+       dc.created_at desc`,
+    params,
+  ) as { rows: Record<string, unknown>[] };
+
+  return result.rows.map(rowToDonorCampaignWithGiving);
 }
 
 export async function getAlumniGivingHistory(

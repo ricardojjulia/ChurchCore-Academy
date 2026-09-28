@@ -49,6 +49,7 @@ export async function POST(
           giftAmountCents,
           giftDate,
           giftType: body.giftType ? (body.giftType as GiftType) : undefined,
+          donorCampaignId: body.donorCampaignId ? String(body.donorCampaignId) : undefined,
           fundDesignation: body.fundDesignation ? String(body.fundDesignation) : undefined,
           notes: body.notes ? String(body.notes) : undefined,
         },

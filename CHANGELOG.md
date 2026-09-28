@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- P1 donor campaign management for Alumni & Giving: tenant-scoped campaign records, campaign-linked gifts, legacy fund-designation matching, campaign progress summaries, admin campaign page, API surface, migration, and e2e coverage.
 - Canonical Academy development guide at `docs/development-guide.md`, consolidating the active MVP/competitive objective, implementation backlog, Council, Testing Council, software factory, verification gates, and deferred deployment posture into one source of truth.
 - Auditable Academy SDLC discipline: root `AGENTS.md`, `docs/sdlc/academy-sdlc.md`, Council/pr-review Claude skills, a Documenter agent, factory/deployment record templates, and `npm run verify:governance` wired into CI and the PR template.
 - Ministry Formation admin UI (`/admin/formation`, `/admin/formation/[studentId]`), student formation dashboard (`/student/formation`), and a display-only formation-completion badge on the graduation-readiness page, surfacing the previously backend-only `ministry-formation` module (practicum sessions, faith milestones, evaluations, endorsement) with navigation entries (PR #105). Adds one-to-one formation-advisor assignment. First item in the "Surface the Built Differentiators" competitive closure plan.
