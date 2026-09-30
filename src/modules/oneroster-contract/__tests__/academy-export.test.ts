@@ -493,3 +493,48 @@ test("completed sections retain archived catalog parents in valid CSV packages",
   assert.equal(dataset.courses[0].status, "active");
   await buildAcademyOneRosterExportPackage({ actor, peopleRepository: fakePeopleRepository(), courseCatalogRepository: { fetchCourseCatalogConfiguration: async () => catalog }, registrationRepository: fakeRegistrationRepository() });
 });
+
+test("archived sections emit deleted classes and enrollments while retaining active users", () => {
+  const catalog = courseCatalogConfiguration();
+  catalog.sections[0].status = "archived";
+  const dataset = mapAcademyOneRosterDataset(tenantId, peopleConfiguration(), catalog, registrations());
+
+  assert.equal(dataset.classes[0].status, "tobedeleted");
+  assert.equal(dataset.enrollments.every((record) => record.status === "tobedeleted"), true);
+  assert.equal(dataset.users.every((record) => record.status === "active"), true);
+});
+
+test("departed students emit deleted users, roles, and enrollments", () => {
+  const people = peopleConfiguration();
+  people.studentProfiles[0].enrollmentStatus = "withdrawn";
+  const dataset = mapAcademyOneRosterDataset(tenantId, people, courseCatalogConfiguration(), registrations());
+  const studentId = "academy:person:person-student-1";
+
+  assert.equal(dataset.users.find((record) => record.sourcedId === studentId)?.status, "tobedeleted");
+  assert.equal(dataset.users.find((record) => record.sourcedId === studentId)?.enabledUser, false);
+  assert.equal(dataset.roles.find((record) => record.userSourcedId === studentId)?.status, "tobedeleted");
+  assert.equal(
+    dataset.enrollments.filter((record) => record.userSourcedId === studentId).every((record) => record.status === "tobedeleted"),
+    true,
+  );
+});
+
+test("a departed student who remains active faculty keeps an active user account", () => {
+  const people = peopleConfiguration();
+  people.studentProfiles[0].enrollmentStatus = "withdrawn";
+  people.staffProfiles.push({
+    ...people.staffProfiles[0],
+    id: "staff-profile-dual-role",
+    personId: "person-student-1",
+  });
+  const catalog = courseCatalogConfiguration();
+  catalog.sections[0].primaryInstructorId = "person-student-1";
+
+  const dataset = mapAcademyOneRosterDataset(tenantId, people, catalog, registrations());
+  const personId = "academy:person:person-student-1";
+
+  assert.equal(dataset.users.find((record) => record.sourcedId === personId)?.status, "active");
+  assert.equal(dataset.users.find((record) => record.sourcedId === personId)?.enabledUser, true);
+  assert.equal(dataset.roles.find((record) => record.userSourcedId === personId && record.role === "student")?.status, "tobedeleted");
+  assert.equal(dataset.roles.find((record) => record.userSourcedId === personId && record.role === "teacher")?.status, "active");
+});

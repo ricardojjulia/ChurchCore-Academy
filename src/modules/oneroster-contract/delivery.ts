@@ -37,6 +37,7 @@ export async function deliverOneRosterPackage(input: {
   fetcher?: typeof fetch;
   now?: Date;
   deliveryId?: string;
+  onConfirmed?: () => Promise<void>;
 }): Promise<{ status: "disabled" | "awaiting_review" | "duplicate" }> {
   const { configuration: config } = input;
   if (!config.enabled) return { status: "disabled" };
@@ -71,6 +72,7 @@ export async function deliverOneRosterPackage(input: {
     if (!response.ok) throw new Error();
     const result = await response.json();
     if (result.valid !== true || !["validated", "duplicate"].includes(result.status)) throw new Error();
+    await input.onConfirmed?.();
     return { status: result.status === "duplicate" ? "duplicate" : "awaiting_review" };
   } catch {
     // Neither network errors nor receiver payloads are safe to log or return.

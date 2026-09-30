@@ -58,12 +58,7 @@ Completed:
 - Core Academic Loop step 11 is automated in `e2e/journeys/core-academic-loop.spec.ts`.
   The journey now posts the official grade, completes the registration, creates an immutable transcript entry, and proves student/cross-tenant denial behavior.
 
-Remaining:
-
-1. Resolve public portal trusted institution selection before live use.
-   - Track as GitHub issue `#162`.
-   - The portal must not depend on ambiguous `?tenant=` or environment-default behavior for real applicants.
-   - This can be built before deployment, but live activation remains deferred.
+Remaining: none. Trusted public institution resolution shipped in PR `#201`; live route activation remains deployment-gated.
 
 ### P1: Competitive Wedge For First Customer
 
@@ -94,10 +89,7 @@ Remaining:
    - Add an i18n layer only when there is a selected pilot/customer language need.
    - Start with navigational and high-frequency workflow text.
 
-9. OneRoster deletion reconciliation.
-   - Track as GitHub issue `#164`.
-   - Preserve Academy as the academic record source of truth.
-   - Do not change the LMS boundary.
+9. OneRoster deletion reconciliation. Implemented in the `#164` delivery-state slice; merge and external LMS validation remain before issue closeout.
 
 ### P2: Title IV And Mature-Market Parity
 

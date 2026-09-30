@@ -6,7 +6,7 @@ This slice restores Academy's roster-provider boundary under the owner's explici
 
 Open **System → LMS Providers → ChurchCore LMS roster exchange**, select a section, and choose **Download OneRoster ZIP**. The selected section makes the academic scope explicit. Only an institution administrator may export. The authenticated route reads persisted records in the actor's tenant context and returns a private, non-cacheable ZIP. Phone numbers, guardians, demographics and credentials are excluded. LMS still requires explicit identity links and human review before applying changes.
 
-The first slice exports delta packages for scheduled/open/in-progress/completed sections. Bulk snapshots, complete deletion reconciliation for archived academic structure, v1.1 export and REST are not implemented by this slice. A withdrawal emits a deleted enrollment. Exporting a section does not assert that omitted sections have been deleted.
+Exports remain delta-only. Academy records the active users, roles, classes, and enrollments issued for each tenant, destination, and selected section. A later package emits `tobedeleted` only when that same destination previously received the record and Academy now reports the section archived/cancelled, the student inactive/withdrawn, the staff member inactive, or the registration withdrawn. Successfully issued tombstones are removed from active delivery state, so records never delivered are never deleted and tombstones are not generated indefinitely. Bulk snapshots, v1.1 export, and REST pull remain out of scope.
 
 ## Scheduled delivery (disabled until configured)
 
@@ -19,6 +19,8 @@ After sandbox verification and operator approval, configure these server-side de
 - `CRON_SECRET`: the existing scheduler credential.
 
 This initial configuration binds one selected section in one Academy tenant to one LMS connection per deployment. `externalSubject` must resolve to an active, persisted Academy account with the institution-admin role in that exact tenant. Every execution checks current account/role state and tenant lifecycle. It does not trust roles or tenant identifiers from request headers. Expansion to multiple tenant schedules requires a later scoped change.
+
+Delivery state advances only after the LMS confirms a signed scheduled delivery. Network or receiver failures leave the previous state intact so the next confirmed delivery still contains required tombstones. Administrator downloads use a separate `manual-download` destination ledger and advance it only after the ZIP is successfully built for issuance.
 
 `lmsOrigin` must be an HTTPS origin without credentials, paths, queries or fragments. Local development permits loopback HTTP for disposable verification. The exact LMS connection must have signed push enabled, the matching key identifier/public key, and the intended Academy source tenant. Set LMS's expected cadence to 1440 minutes. Register a dedicated public/private key pair for each configured connection. Production configuration and activation are not part of this PR.
 
