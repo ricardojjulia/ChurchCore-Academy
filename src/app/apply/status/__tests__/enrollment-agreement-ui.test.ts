@@ -38,8 +38,8 @@ test("public status page fetches agreement status from correct endpoint", async 
   assert.match(page, /fetchAgreementStatus/);
   assert.match(
     page,
-    /\/api\/public\/apply\/agreement\/status\?token=/,
-    "must fetch from public agreement status endpoint with token query param"
+    /withTokenQuery\("\/api\/public\/apply\/agreement\/status", lookupToken, trustedInstitutionQuery\)/,
+    "must fetch from public agreement status endpoint with token plus trusted institution query params"
   );
   assert.match(
     page,
@@ -54,7 +54,7 @@ test("public status page calls sign endpoint when user clicks sign button", asyn
   assert.match(page, /handleSignAgreement/);
   assert.match(
     page,
-    /\/api\/public\/apply\/agreement\/sign\?token=/,
+    /withTokenQuery\("\/api\/public\/apply\/agreement\/sign", activeToken, trustedInstitutionQuery\)/,
     "must POST to public agreement sign endpoint"
   );
   assert.match(

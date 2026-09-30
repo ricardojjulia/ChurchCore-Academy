@@ -1,18 +1,13 @@
 import { getDatabasePool } from "@/lib/database";
+import {
+  PublicInstitutionNotFoundError,
+  resolvePublicInstitutionTenant,
+} from "@/app/api/public/apply/institution-resolver";
 import { NextResponse } from "next/server";
-
-function resolveTenantId(request: Request): string {
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get("tenant");
-  if (fromQuery) return fromQuery;
-  const defaultTenant = process.env.ACADEMY_DEFAULT_TENANT_ID;
-  if (defaultTenant) return defaultTenant;
-  throw new Error("Unable to resolve institution. Tenant context is required.");
-}
 
 export async function GET(request: Request) {
   try {
-    const tenantId = resolveTenantId(request);
+    const tenantId = await resolvePublicInstitutionTenant(request);
     const pool = getDatabasePool();
 
     const result = await pool.query(
@@ -38,6 +33,9 @@ export async function GET(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected error.";
+    if (error instanceof PublicInstitutionNotFoundError) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
+    }
     console.error("[public/apply/programs GET] Unexpected error:", message);
     return NextResponse.json({ error: "Unexpected error." }, { status: 500 });
   }

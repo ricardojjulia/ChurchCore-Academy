@@ -1,21 +1,16 @@
 import { getDatabasePool } from "@/lib/database";
 import { getStripeClient } from "@/lib/stripe";
 import {
+  PublicInstitutionNotFoundError,
+  resolvePublicInstitutionTenant,
+} from "@/app/api/public/apply/institution-resolver";
+import {
   PublicApplicationService,
   PublicApplicationNotFoundError,
 } from "@/modules/admissions/public-application-service";
 import { PostgresApplicationFeeRepository } from "@/modules/admissions/application-fee-repository";
 import { ApplicationFeeCharge } from "@/modules/admissions/application-fee-types";
 import { NextResponse } from "next/server";
-
-function resolveTenantId(request: Request): string {
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get("tenant");
-  if (fromQuery) return fromQuery;
-  const defaultTenant = process.env.ACADEMY_DEFAULT_TENANT_ID;
-  if (defaultTenant) return defaultTenant;
-  throw new Error("Unable to resolve institution. Tenant context is required.");
-}
 
 export type FeePayResponse =
   | { required: false; status?: ApplicationFeeCharge["status"] }
@@ -28,6 +23,7 @@ interface StripeCheckoutSessionResult {
 }
 
 interface PayFeeDependencies {
+  resolveTenantId?(request: Request): Promise<string>;
   resolveApplicationByToken(
     tenantId: string,
     statusToken: string,
@@ -43,6 +39,7 @@ interface PayFeeDependencies {
     applicationId: string;
     origin: string;
     statusToken: string;
+    trustedInstitutionQuery: string;
   }): Promise<StripeCheckoutSessionResult>;
   storeCheckoutSession(
     tenantId: string,
@@ -52,6 +49,7 @@ interface PayFeeDependencies {
 }
 
 const defaultDependencies: PayFeeDependencies = {
+  resolveTenantId: resolvePublicInstitutionTenant,
   resolveApplicationByToken: async (tenantId, statusToken) => {
     const pool = getDatabasePool();
     return new PublicApplicationService(pool).resolveApplicationByToken(
@@ -68,7 +66,14 @@ const defaultDependencies: PayFeeDependencies = {
     );
   },
   isStripeConfigured: () => Boolean(process.env.STRIPE_SECRET_KEY),
-  createCheckoutSession: async ({ feeCharge, tenantId, applicationId, origin, statusToken }) => {
+  createCheckoutSession: async ({
+    feeCharge,
+    tenantId,
+    applicationId,
+    origin,
+    statusToken,
+    trustedInstitutionQuery,
+  }) => {
     const stripe = getStripeClient(process.env.STRIPE_SECRET_KEY as string);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -91,8 +96,18 @@ const defaultDependencies: PayFeeDependencies = {
         applicationId,
         feeChargeId: feeCharge.id,
       },
-      success_url: `${origin}/apply/status?token=${statusToken}&payment=success`,
-      cancel_url: `${origin}/apply/status?token=${statusToken}&payment=cancelled`,
+      success_url: buildPublicApplyStatusUrl(
+        origin,
+        statusToken,
+        "success",
+        trustedInstitutionQuery,
+      ),
+      cancel_url: buildPublicApplyStatusUrl(
+        origin,
+        statusToken,
+        "cancelled",
+        trustedInstitutionQuery,
+      ),
     });
     return { id: session.id, url: session.url };
   },
@@ -117,6 +132,7 @@ export async function payApplicationFeeRequest(
   try {
     const url = new URL(request.url);
     const statusToken = url.searchParams.get("token")?.trim();
+    const trustedInstitutionQuery = trustedPublicInstitutionQuery(url.searchParams);
 
     if (!statusToken) {
       return NextResponse.json(
@@ -125,7 +141,8 @@ export async function payApplicationFeeRequest(
       );
     }
 
-    const tenantId = resolveTenantId(request);
+    const tenantId = await (dependencies.resolveTenantId ??
+      resolvePublicInstitutionTenant)(request);
 
     // Resolve application by token — this is the ONLY access control on this public,
     // unauthenticated route. There is no separate applicationId input anywhere below;
@@ -170,6 +187,7 @@ export async function payApplicationFeeRequest(
       applicationId,
       origin: url.origin,
       statusToken,
+      trustedInstitutionQuery,
     });
 
     await dependencies.storeCheckoutSession(tenantId, feeCharge.id, session.id);
@@ -187,6 +205,9 @@ export async function payApplicationFeeRequest(
     if (error instanceof PublicApplicationNotFoundError) {
       return NextResponse.json({ error: message }, { status: 404 });
     }
+    if (error instanceof PublicInstitutionNotFoundError) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
+    }
 
     if (
       message.includes("not found") ||
@@ -198,4 +219,27 @@ export async function payApplicationFeeRequest(
     console.error("[public/apply/fee/pay POST] Unexpected error:", message);
     return NextResponse.json({ error: "Unexpected error." }, { status: 500 });
   }
+}
+
+export function buildPublicApplyStatusUrl(
+  origin: string,
+  statusToken: string,
+  payment: "success" | "cancelled",
+  trustedInstitutionQuery: string,
+): string {
+  const params = new URLSearchParams(trustedInstitutionQuery);
+  params.set("token", statusToken);
+  params.set("payment", payment);
+  return `${origin}/apply/status?${params.toString()}`;
+}
+
+function trustedPublicInstitutionQuery(searchParams: URLSearchParams): string {
+  const params = new URLSearchParams();
+  for (const key of ["institution", "school"]) {
+    const value = searchParams.get(key)?.trim();
+    if (value) {
+      params.set(key, value);
+    }
+  }
+  return params.toString();
 }

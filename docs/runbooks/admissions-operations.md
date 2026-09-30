@@ -10,6 +10,28 @@ Applicants require:
 
 Reviewers require an active `admissions`, `registrar`, `dean`, or `institution_admin` role.
 
+## Public application portal routes
+
+Signed-out public application endpoints resolve their tenant from published records in `academy_public_institution_routes`.
+
+Supported route types:
+
+- `host`: a lowercase host without a port, such as `apply.example.edu`.
+- `slug`: a lowercase public slug, such as `churchcore-academy`, passed as `?institution=churchcore-academy` or `?school=churchcore-academy`.
+
+Do not use `?tenant=` for public application links. Public routes intentionally ignore it.
+
+Before enabling a public application portal for an institution:
+
+1. Confirm the target `tenant_id` exists in `academy_institution_profiles`.
+2. Confirm the host or slug is lowercase, trimmed, and has no port.
+3. Insert or update the mapping with `published_at = now()` only after the admissions owner approves the public link.
+4. Verify `/apply` or `/apply?institution=<slug>` loads programs without authentication.
+5. Submit a test application, check `/apply/status`, and confirm admissions staff can see the application while another tenant cannot.
+6. Record the mapping, approval, verification command or browser evidence, and rollback instruction in the PR or run record.
+
+To disable a public route, set `published_at = null` rather than deleting the row. Deleting is reserved for mappings created in error.
+
 ## Application lifecycle
 
 1. Create a draft through `POST /api/academy/admissions/applications` with an `Idempotency-Key`.

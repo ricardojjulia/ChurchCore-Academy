@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface Program {
   id: string;
@@ -13,7 +14,34 @@ interface SubmitResult {
   statusToken: string;
 }
 
-export default function ApplyPage() {
+const TRUSTED_PUBLIC_INSTITUTION_KEYS = ["institution", "school"] as const;
+
+function trustedPublicInstitutionQuery(searchParams: {
+  get(name: string): string | null;
+}): string {
+  const trusted = new URLSearchParams();
+  for (const key of TRUSTED_PUBLIC_INSTITUTION_KEYS) {
+    const value = searchParams.get(key)?.trim();
+    if (value) {
+      trusted.set(key, value);
+    }
+  }
+  return trusted.toString();
+}
+
+function withTrustedInstitutionQuery(path: string, trustedInstitutionQuery: string): string {
+  return trustedInstitutionQuery ? `${path}?${trustedInstitutionQuery}` : path;
+}
+
+function statusHref(statusToken: string, trustedInstitutionQuery: string): string {
+  const params = new URLSearchParams(trustedInstitutionQuery);
+  params.set("token", statusToken);
+  return `/apply/status?${params.toString()}`;
+}
+
+function ApplyContent() {
+  const searchParams = useSearchParams();
+  const trustedInstitutionQuery = trustedPublicInstitutionQuery(searchParams);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [programsError, setProgramsError] = useState<string | null>(null);
 
@@ -30,7 +58,7 @@ export default function ApplyPage() {
   const [result, setResult] = useState<SubmitResult | null>(null);
 
   useEffect(() => {
-    fetch("/api/public/apply/programs")
+    fetch(withTrustedInstitutionQuery("/api/public/apply/programs", trustedInstitutionQuery))
       .then((res) => res.json())
       .then((data) => {
         if (data.programs) {
@@ -40,7 +68,7 @@ export default function ApplyPage() {
         }
       })
       .catch(() => setProgramsError("Unable to load programs."));
-  }, []);
+  }, [trustedInstitutionQuery]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,19 +76,22 @@ export default function ApplyPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/public/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          legalName,
-          preferredName: preferredName || undefined,
-          email,
-          phone: phone || undefined,
-          programId,
-          personalStatement,
-          website, // honeypot
-        }),
-      });
+      const res = await fetch(
+        withTrustedInstitutionQuery("/api/public/apply", trustedInstitutionQuery),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            legalName,
+            preferredName: preferredName || undefined,
+            email,
+            phone: phone || undefined,
+            programId,
+            personalStatement,
+            website, // honeypot
+          }),
+        },
+      );
 
       const data = await res.json();
 
@@ -89,7 +120,7 @@ export default function ApplyPage() {
         </p>
         <p className="apply-portal-token">{result.statusToken}</p>
         <a
-          href={`/apply/status?token=${encodeURIComponent(result.statusToken)}`}
+          href={statusHref(result.statusToken, trustedInstitutionQuery)}
           className="apply-portal-link"
         >
           Check application status
@@ -236,5 +267,13 @@ export default function ApplyPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+export default function ApplyPage() {
+  return (
+    <Suspense fallback={<main className="apply-portal-main"><p>Loading...</p></main>}>
+      <ApplyContent />
+    </Suspense>
   );
 }

@@ -20,15 +20,39 @@ test("public status page includes application fee section", async () => {
   assert.match(page, /\/api\/public\/apply\/fee\/pay/);
 });
 
-test("public status page calls fee endpoint with token and tenant", async () => {
+test("public status page calls fee endpoint with token and trusted institution query only", async () => {
   const page = await source("src/app/apply/status/page.tsx");
 
-  // Token and tenant params
-  assert.match(page, /token=.*encodeURIComponent.*lookupToken/);
-  assert.match(page, /tenant=.*encodeURIComponent/);
+  // Token is the applicant proof; institution is resolved from the trusted host/slug mapping.
+  assert.match(page, /TRUSTED_PUBLIC_INSTITUTION_KEYS = \["institution", "school"\]/);
+  assert.match(page, /withTokenQuery\("\/api\/public\/apply\/fee\/pay", lookupToken, trustedInstitutionQuery\)/);
+  assert.match(page, /params\.set\("token", token\)/);
+  assert.doesNotMatch(page, /tenant=.*encodeURIComponent/);
+  assert.doesNotMatch(page, /TRUSTED_PUBLIC_INSTITUTION_KEYS[^\n]*tenant/);
 
   // POST method
   assert.match(page, /method: "POST"/);
+});
+
+test("public status page forwards trusted institution query to every public apply subrequest", async () => {
+  const page = await source("src/app/apply/status/page.tsx");
+
+  for (const endpoint of [
+    "/api/public/apply/documents",
+    "/api/public/apply/fee/pay",
+    "/api/public/apply/agreement/status",
+    "/api/public/apply/status",
+    "/api/public/apply/agreement/sign",
+  ]) {
+    assert.match(
+      page,
+      new RegExp(`withTokenQuery\\("${endpoint.replaceAll("/", "\\/")}", [^,]+, trustedInstitutionQuery\\)`),
+    );
+  }
+
+  assert.match(page, /`\/api\/public\/apply\/documents\/\$\{itemId\}\/upload-url`/);
+  assert.match(page, /`\/api\/public\/apply\/documents\/\$\{itemId\}\/confirm`/);
+  assert.match(page, /href=\{applyHref\(trustedInstitutionQuery\)\}/);
 });
 
 test("public status page displays fee amount for pending fees", async () => {
