@@ -52,7 +52,10 @@ test("alumni staff manage donor campaigns with campaign-linked giving and studen
   await page.goto("/admin/alumni/campaigns", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Donor Campaigns" })).toBeVisible();
   await expect(page.getByText(`E2E Scholarship Campaign ${tag}`)).toBeVisible();
-  await expect(page.getByRole("cell", { name: "$125.00" })).toBeVisible();
+  const campaignRow = page
+    .getByRole("row")
+    .filter({ hasText: `E2E Scholarship Campaign ${tag}` });
+  await expect(campaignRow.getByRole("cell", { name: "$125.00" })).toBeVisible();
   await context.close();
   await alumni.dispose();
 

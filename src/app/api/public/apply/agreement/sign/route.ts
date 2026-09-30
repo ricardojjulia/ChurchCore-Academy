@@ -1,6 +1,10 @@
 import { getDatabasePool } from "@/lib/database";
 import { redactIpAddress } from "@/lib/ip-redaction";
 import {
+  PublicInstitutionNotFoundError,
+  resolvePublicInstitutionTenant,
+} from "@/app/api/public/apply/institution-resolver";
+import {
   PublicApplicationService,
   PublicApplicationNotFoundError,
 } from "@/modules/admissions/public-application-service";
@@ -9,15 +13,6 @@ import { EnrollmentAgreementService } from "@/modules/admissions/enrollment-agre
 import { PostgresAcademyAuditRepository } from "@/modules/audit/postgres-repository";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-
-function resolveTenantId(request: Request): string {
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get("tenant");
-  if (fromQuery) return fromQuery;
-  const defaultTenant = process.env.ACADEMY_DEFAULT_TENANT_ID;
-  if (defaultTenant) return defaultTenant;
-  throw new Error("Unable to resolve institution. Tenant context is required.");
-}
 
 function extractClientIp(request: Request): string | undefined {
   // Best-effort IP extraction from common headers
@@ -35,6 +30,7 @@ function extractClientIp(request: Request): string | undefined {
 }
 
 interface SignAgreementDependencies {
+  resolveTenantId?(request: Request): Promise<string>;
   resolveApplicationByToken(
     tenantId: string,
     statusToken: string,
@@ -53,6 +49,7 @@ interface SignAgreementDependencies {
 }
 
 const defaultDependencies: SignAgreementDependencies = {
+  resolveTenantId: resolvePublicInstitutionTenant,
   resolveApplicationByToken: async (tenantId, statusToken) => {
     const pool = getDatabasePool();
     return new PublicApplicationService(pool).resolveApplicationByToken(
@@ -108,7 +105,8 @@ export async function signEnrollmentAgreementRequest(
       );
     }
 
-    const tenantId = resolveTenantId(request);
+    const tenantId = await (dependencies.resolveTenantId ??
+      resolvePublicInstitutionTenant)(request);
 
     // Resolve application by token — this is the ONLY access control on this public,
     // unauthenticated route. There is no separate applicationId input anywhere below;
@@ -162,6 +160,9 @@ export async function signEnrollmentAgreementRequest(
 
     if (error instanceof PublicApplicationNotFoundError) {
       return NextResponse.json({ error: message }, { status: 404 });
+    }
+    if (error instanceof PublicInstitutionNotFoundError) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 
     if (

@@ -43,9 +43,39 @@ interface EnrollmentAgreementStatus {
   signedAt?: string | null;
 }
 
+const TRUSTED_PUBLIC_INSTITUTION_KEYS = ["institution", "school"] as const;
+
+function trustedPublicInstitutionQuery(searchParams: {
+  get(name: string): string | null;
+}): string {
+  const trusted = new URLSearchParams();
+  for (const key of TRUSTED_PUBLIC_INSTITUTION_KEYS) {
+    const value = searchParams.get(key)?.trim();
+    if (value) {
+      trusted.set(key, value);
+    }
+  }
+  return trusted.toString();
+}
+
+function withTokenQuery(
+  path: string,
+  token: string,
+  trustedInstitutionQuery: string,
+): string {
+  const params = new URLSearchParams(trustedInstitutionQuery);
+  params.set("token", token);
+  return `${path}?${params.toString()}`;
+}
+
+function applyHref(trustedInstitutionQuery: string): string {
+  return trustedInstitutionQuery ? `/apply?${trustedInstitutionQuery}` : "/apply";
+}
+
 function StatusContent() {
   const searchParams = useSearchParams();
   const tokenFromUrl = searchParams.get("token") ?? "";
+  const trustedInstitutionQuery = trustedPublicInstitutionQuery(searchParams);
 
   const [input, setInput] = useState(tokenFromUrl);
   const [statusData, setStatusData] = useState<ApplicationStatus | null>(null);
@@ -86,7 +116,7 @@ function StatusContent() {
     setChecklistLoading(true);
     try {
       const res = await fetch(
-        `/api/public/apply/documents?token=${encodeURIComponent(lookupToken)}`,
+        withTokenQuery("/api/public/apply/documents", lookupToken, trustedInstitutionQuery),
       );
       if (res.ok) {
         const data = await res.json();
@@ -97,17 +127,13 @@ function StatusContent() {
     } finally {
       setChecklistLoading(false);
     }
-  }, []);
+  }, [trustedInstitutionQuery]);
 
   const fetchFeeStatus = useCallback(async (lookupToken: string) => {
     setFeeLoading(true);
     try {
-      // Extract tenant from URL if available
-      const params = new URLSearchParams(window.location.search);
-      const tenant = params.get("tenant") ?? "";
-
       const res = await fetch(
-        `/api/public/apply/fee/pay?token=${encodeURIComponent(lookupToken)}&tenant=${encodeURIComponent(tenant)}`,
+        withTokenQuery("/api/public/apply/fee/pay", lookupToken, trustedInstitutionQuery),
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
       );
       if (res.ok) {
@@ -119,13 +145,13 @@ function StatusContent() {
     } finally {
       setFeeLoading(false);
     }
-  }, []);
+  }, [trustedInstitutionQuery]);
 
   const fetchAgreementStatus = useCallback(async (lookupToken: string) => {
     setAgreementLoading(true);
     try {
       const res = await fetch(
-        `/api/public/apply/agreement/status?token=${encodeURIComponent(lookupToken)}`,
+        withTokenQuery("/api/public/apply/agreement/status", lookupToken, trustedInstitutionQuery),
       );
       if (res.ok) {
         const data = await res.json() as EnrollmentAgreementStatus;
@@ -136,7 +162,7 @@ function StatusContent() {
     } finally {
       setAgreementLoading(false);
     }
-  }, []);
+  }, [trustedInstitutionQuery]);
 
   // fetchStatus is a plain async function (not setState inside an effect body)
   const fetchStatus = useCallback(async (lookupToken: string) => {
@@ -151,7 +177,7 @@ function StatusContent() {
 
     try {
       const res = await fetch(
-        `/api/public/apply/status?token=${encodeURIComponent(lookupToken.trim())}`,
+        withTokenQuery("/api/public/apply/status", lookupToken.trim(), trustedInstitutionQuery),
       );
       const data = await res.json();
 
@@ -187,7 +213,7 @@ function StatusContent() {
     } finally {
       setLoading(false);
     }
-  }, [fetchChecklist, fetchFeeStatus, fetchAgreementStatus]);
+  }, [fetchChecklist, fetchFeeStatus, fetchAgreementStatus, trustedInstitutionQuery]);
 
   const handleSignAgreement = async () => {
     setAgreementSigning(true);
@@ -195,7 +221,7 @@ function StatusContent() {
 
     try {
       const res = await fetch(
-        `/api/public/apply/agreement/sign?token=${encodeURIComponent(activeToken)}`,
+        withTokenQuery("/api/public/apply/agreement/sign", activeToken, trustedInstitutionQuery),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -239,7 +265,11 @@ function StatusContent() {
     try {
       // Step 1: Get signed upload URL
       const urlRes = await fetch(
-        `/api/public/apply/documents/${itemId}/upload-url?token=${encodeURIComponent(lookupToken)}`,
+        withTokenQuery(
+          `/api/public/apply/documents/${itemId}/upload-url`,
+          lookupToken,
+          trustedInstitutionQuery,
+        ),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -272,7 +302,11 @@ function StatusContent() {
 
       // Step 3: Confirm upload
       const confirmRes = await fetch(
-        `/api/public/apply/documents/${itemId}/confirm?token=${encodeURIComponent(lookupToken)}`,
+        withTokenQuery(
+          `/api/public/apply/documents/${itemId}/confirm`,
+          lookupToken,
+          trustedInstitutionQuery,
+        ),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -614,7 +648,7 @@ function StatusContent() {
       )}
 
       <p className="apply-portal-body">
-        <a href="/apply" className="apply-portal-link">
+        <a href={applyHref(trustedInstitutionQuery)} className="apply-portal-link">
           Start a new application
         </a>
       </p>

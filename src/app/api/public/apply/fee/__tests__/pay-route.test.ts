@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { payApplicationFeeRequest } from "@/app/api/public/apply/fee/pay/route";
+import {
+  buildPublicApplyStatusUrl,
+  payApplicationFeeRequest,
+} from "@/app/api/public/apply/fee/pay/route";
+import { PublicInstitutionNotFoundError } from "@/app/api/public/apply/institution-resolver";
 import { PublicApplicationNotFoundError } from "@/modules/admissions/public-application-service";
 import { ApplicationFeeCharge } from "@/modules/admissions/application-fee-types";
 
@@ -25,8 +29,13 @@ function request(query: string) {
   });
 }
 
+const trustedInstitution = {
+  resolveTenantId: async () => "tenant-a",
+};
+
 test("public fee/pay - 400 when token query param is missing", async () => {
-  const response = await payApplicationFeeRequest(request("?tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(request(""), {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     findFeeCharge: async () => feeCharge(),
     isStripeConfigured: () => true,
@@ -37,7 +46,8 @@ test("public fee/pay - 400 when token query param is missing", async () => {
 });
 
 test("public fee/pay - 404 for an unresolvable token, without exposing whether an application exists", async () => {
-  const response = await payApplicationFeeRequest(request("?token=bad-token&tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(request("?token=bad-token"), {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => undefined,
     findFeeCharge: async () => feeCharge(),
     isStripeConfigured: () => true,
@@ -51,7 +61,8 @@ test("public fee/pay - 404 for an unresolvable token, without exposing whether a
 
 test("public fee/pay - no fee configured returns required: false without touching Stripe", async () => {
   let checkoutSessionCreated = false;
-  const response = await payApplicationFeeRequest(request("?token=tok-1&tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(request("?token=tok-1"), {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     findFeeCharge: async () => undefined,
     isStripeConfigured: () => true,
@@ -69,7 +80,8 @@ test("public fee/pay - no fee configured returns required: false without touchin
 
 test("public fee/pay - already-paid fee is idempotent, returns status without creating a new checkout session", async () => {
   let checkoutSessionCreated = false;
-  const response = await payApplicationFeeRequest(request("?token=tok-1&tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(request("?token=tok-1"), {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     findFeeCharge: async () => feeCharge({ status: "paid" }),
     isStripeConfigured: () => true,
@@ -87,7 +99,8 @@ test("public fee/pay - already-paid fee is idempotent, returns status without cr
 });
 
 test("public fee/pay - already-waived fee is idempotent", async () => {
-  const response = await payApplicationFeeRequest(request("?token=tok-1&tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(request("?token=tok-1"), {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     findFeeCharge: async () => feeCharge({ status: "waived" }),
     isStripeConfigured: () => true,
@@ -100,7 +113,8 @@ test("public fee/pay - already-waived fee is idempotent", async () => {
 });
 
 test("public fee/pay - pending fee with no Stripe configured returns the friendly fallback message, not a checkout URL", async () => {
-  const response = await payApplicationFeeRequest(request("?token=tok-1&tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(request("?token=tok-1"), {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     findFeeCharge: async () => feeCharge(),
     isStripeConfigured: () => false,
@@ -119,21 +133,27 @@ test("public fee/pay - pending fee with no Stripe configured returns the friendl
 });
 
 test("public fee/pay - pending fee with Stripe configured creates a checkout session scoped to the token-resolved application", async () => {
-  let sessionInput: { applicationId: string; tenantId: string } | undefined;
+  let sessionInput:
+    | { applicationId: string; tenantId: string; trustedInstitutionQuery: string }
+    | undefined;
   let storedSessionId: string | undefined;
 
-  const response = await payApplicationFeeRequest(request("?token=tok-1&tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(
+    request("?token=tok-1&institution=ChurchCore-Academy&tenant=attacker"),
+    {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     findFeeCharge: async () => feeCharge(),
     isStripeConfigured: () => true,
-    createCheckoutSession: async ({ applicationId, tenantId }) => {
-      sessionInput = { applicationId, tenantId };
+    createCheckoutSession: async ({ applicationId, tenantId, trustedInstitutionQuery }) => {
+      sessionInput = { applicationId, tenantId, trustedInstitutionQuery };
       return { id: "sess-1", url: "https://checkout.stripe.com/sess-1" };
     },
     storeCheckoutSession: async (_tenantId, _feeChargeId, stripeCheckoutSessionId) => {
       storedSessionId = stripeCheckoutSessionId;
     },
-  });
+    },
+  );
 
   const body = (await response.json()) as { required: boolean; checkoutUrl: string };
   assert.equal(response.status, 200);
@@ -142,8 +162,55 @@ test("public fee/pay - pending fee with Stripe configured creates a checkout ses
   // The checkout session must be scoped to the application the TOKEN resolved to —
   // there is no other applicationId input on this route, so this is the whole of the
   // cross-applicant isolation guarantee on this endpoint.
-  assert.deepEqual(sessionInput, { applicationId: "app-1", tenantId: "tenant-a" });
+  assert.deepEqual(sessionInput, {
+    applicationId: "app-1",
+    tenantId: "tenant-a",
+    trustedInstitutionQuery: "institution=ChurchCore-Academy",
+  });
   assert.equal(storedSessionId, "sess-1");
+});
+
+test("public fee/pay - institution miss fails closed before downstream application or fee lookup", async () => {
+  let downstreamTouched = false;
+  const response = await payApplicationFeeRequest(request("?token=tok-1"), {
+    resolveTenantId: async () => {
+      throw new PublicInstitutionNotFoundError();
+    },
+    resolveApplicationByToken: async () => {
+      downstreamTouched = true;
+      return { applicationId: "app-1" };
+    },
+    findFeeCharge: async () => {
+      downstreamTouched = true;
+      return feeCharge();
+    },
+    isStripeConfigured: () => true,
+    createCheckoutSession: async () => {
+      downstreamTouched = true;
+      return { id: "sess-1", url: "https://checkout.stripe.com/sess-1" };
+    },
+    storeCheckoutSession: async () => {
+      downstreamTouched = true;
+    },
+  });
+
+  assert.equal(response.status, 404);
+  assert.equal(downstreamTouched, false);
+});
+
+test("buildPublicApplyStatusUrl preserves trusted institution slug and never adds tenant", () => {
+  const url = buildPublicApplyStatusUrl(
+    "https://academy.example",
+    "tok 1",
+    "success",
+    "institution=churchcore-academy",
+  );
+
+  assert.equal(
+    url,
+    "https://academy.example/apply/status?institution=churchcore-academy&token=tok+1&payment=success",
+  );
+  assert.doesNotMatch(url, /tenant=/);
 });
 
 test("public fee/pay - cross-applicant isolation: two different tokens can only ever resolve to their own application, never each other's", async () => {
@@ -157,6 +224,7 @@ test("public fee/pay - cross-applicant isolation: two different tokens can only 
   };
 
   const dependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async (_tenantId: string, statusToken: string) => {
       const applicationId = tokenToApplication[statusToken];
       return applicationId ? { applicationId } : undefined;
@@ -169,11 +237,11 @@ test("public fee/pay - cross-applicant isolation: two different tokens can only 
   };
 
   const responseForApp1 = await payApplicationFeeRequest(
-    request("?token=token-for-app-1&tenant=tenant-a"),
+    request("?token=token-for-app-1"),
     dependencies,
   );
   const responseForApp2 = await payApplicationFeeRequest(
-    request("?token=token-for-app-2&tenant=tenant-a"),
+    request("?token=token-for-app-2"),
     dependencies,
   );
 
@@ -185,7 +253,8 @@ test("public fee/pay - cross-applicant isolation: two different tokens can only 
 });
 
 test("public fee/pay - PublicApplicationNotFoundError maps to 404", async () => {
-  const response = await payApplicationFeeRequest(request("?token=tok-1&tenant=tenant-a"), {
+  const response = await payApplicationFeeRequest(request("?token=tok-1"), {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => {
       throw new PublicApplicationNotFoundError("Application status token was not found.");
     },

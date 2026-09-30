@@ -1,5 +1,9 @@
 import { getDatabasePool } from "@/lib/database";
 import {
+  PublicInstitutionNotFoundError,
+  resolvePublicInstitutionTenant,
+} from "@/app/api/public/apply/institution-resolver";
+import {
   PublicApplicationService,
   PublicApplicationNotFoundError,
 } from "@/modules/admissions/public-application-service";
@@ -7,15 +11,6 @@ import { PostgresDocumentChecklistRepository } from "@/modules/admissions/docume
 import { createStorageClient } from "@/lib/supabase/storage-client";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-
-function resolveTenantId(request: Request): string {
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get("tenant");
-  if (fromQuery) return fromQuery;
-  const defaultTenant = process.env.ACADEMY_DEFAULT_TENANT_ID;
-  if (defaultTenant) return defaultTenant;
-  throw new Error("Unable to resolve institution. Tenant context is required.");
-}
 
 type RouteContext = { params: Promise<{ itemId: string }> };
 
@@ -31,7 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const tenantId = resolveTenantId(request);
+    const tenantId = await resolvePublicInstitutionTenant(request);
     const db = getDatabasePool();
     const service = new PublicApplicationService(db);
     const resolved = await service.resolveApplicationByToken(
@@ -111,6 +106,9 @@ export async function POST(request: Request, context: RouteContext) {
 
     if (error instanceof PublicApplicationNotFoundError) {
       return NextResponse.json({ error: message }, { status: 404 });
+    }
+    if (error instanceof PublicInstitutionNotFoundError) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 
     console.error(

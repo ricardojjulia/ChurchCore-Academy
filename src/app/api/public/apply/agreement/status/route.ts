@@ -1,21 +1,17 @@
 import { getDatabasePool } from "@/lib/database";
 import {
+  PublicInstitutionNotFoundError,
+  resolvePublicInstitutionTenant,
+} from "@/app/api/public/apply/institution-resolver";
+import {
   PublicApplicationService,
   PublicApplicationNotFoundError,
 } from "@/modules/admissions/public-application-service";
 import { PostgresEnrollmentAgreementRepository } from "@/modules/admissions/enrollment-agreement-repository";
 import { NextResponse } from "next/server";
 
-function resolveTenantId(request: Request): string {
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get("tenant");
-  if (fromQuery) return fromQuery;
-  const defaultTenant = process.env.ACADEMY_DEFAULT_TENANT_ID;
-  if (defaultTenant) return defaultTenant;
-  throw new Error("Unable to resolve institution. Tenant context is required.");
-}
-
 interface GetAgreementStatusDependencies {
+  resolveTenantId?(request: Request): Promise<string>;
   resolveApplicationByToken(
     tenantId: string,
     statusToken: string,
@@ -27,6 +23,7 @@ interface GetAgreementStatusDependencies {
 }
 
 const defaultDependencies: GetAgreementStatusDependencies = {
+  resolveTenantId: resolvePublicInstitutionTenant,
   resolveApplicationByToken: async (tenantId, statusToken) => {
     const pool = getDatabasePool();
     return new PublicApplicationService(pool).resolveApplicationByToken(
@@ -63,7 +60,8 @@ export async function getEnrollmentAgreementStatusRequest(
       );
     }
 
-    const tenantId = resolveTenantId(request);
+    const tenantId = await (dependencies.resolveTenantId ??
+      resolvePublicInstitutionTenant)(request);
 
     // Resolve application by token — this is the ONLY access control
     const resolved = await dependencies.resolveApplicationByToken(
@@ -100,6 +98,9 @@ export async function getEnrollmentAgreementStatusRequest(
 
     if (error instanceof PublicApplicationNotFoundError) {
       return NextResponse.json({ error: message }, { status: 404 });
+    }
+    if (error instanceof PublicInstitutionNotFoundError) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 
     if (

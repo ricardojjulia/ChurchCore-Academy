@@ -1,19 +1,14 @@
 import { getDatabasePool } from "@/lib/database";
 import {
+  PublicInstitutionNotFoundError,
+  resolvePublicInstitutionTenant,
+} from "@/app/api/public/apply/institution-resolver";
+import {
   PublicApplicationService,
   PublicApplicationNotFoundError,
   PublicApplicationRateLimitError,
 } from "@/modules/admissions/public-application-service";
 import { NextResponse } from "next/server";
-
-function resolveTenantId(request: Request): string {
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get("tenant");
-  if (fromQuery) return fromQuery;
-  const defaultTenant = process.env.ACADEMY_DEFAULT_TENANT_ID;
-  if (defaultTenant) return defaultTenant;
-  throw new Error("Unable to resolve institution. Tenant context is required.");
-}
 
 function getClientIp(request: Request): string {
   return (
@@ -35,7 +30,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const tenantId = resolveTenantId(request);
+    const tenantId = await resolvePublicInstitutionTenant(request);
     const service = new PublicApplicationService(getDatabasePool());
     const result = await service.checkApplicationStatus(tenantId, statusToken, getClientIp(request));
 
@@ -49,6 +44,9 @@ export async function GET(request: Request) {
     }
     if (error instanceof PublicApplicationRateLimitError) {
       return NextResponse.json({ error: message }, { status: 429 });
+    }
+    if (error instanceof PublicInstitutionNotFoundError) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 
     console.error("[public/apply/status GET] Unexpected error:", message);

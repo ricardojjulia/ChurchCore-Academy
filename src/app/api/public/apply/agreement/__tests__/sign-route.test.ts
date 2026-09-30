@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { signEnrollmentAgreementRequest } from "@/app/api/public/apply/agreement/sign/route";
+import { PublicInstitutionNotFoundError } from "@/app/api/public/apply/institution-resolver";
 
 interface MockDependencies {
+  resolveTenantId: (request: Request) => Promise<string>;
   resolveApplicationByToken: (
     tenantId: string,
     statusToken: string,
@@ -20,6 +22,10 @@ interface MockDependencies {
   ) => Promise<{ signedAt?: string }>;
 }
 
+const trustedInstitution = {
+  resolveTenantId: async () => "tenant-a",
+};
+
 function createMockRequest(token: string, tenant?: string): Request {
   const url = new URL("http://localhost/api/public/apply/agreement/sign");
   url.searchParams.set("token", token);
@@ -31,13 +37,13 @@ function createMockRequest(token: string, tenant?: string): Request {
 
 test("POST /api/public/apply/agreement/sign - success", async () => {
   const deps: MockDependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     getApplication: async () => ({ status: "accepted", applicantPersonId: "person-1" }),
     signAgreement: async () => ({ signedAt: "2026-01-02T10:00:00Z" }),
   };
 
   const request = createMockRequest("token-abc123");
-  process.env.ACADEMY_DEFAULT_TENANT_ID = "tenant-a";
 
   const response = await signEnrollmentAgreementRequest(request, deps);
   const json = await response.json();
@@ -45,12 +51,11 @@ test("POST /api/public/apply/agreement/sign - success", async () => {
   assert.equal(response.status, 200);
   assert.ok(json.success);
   assert.equal(json.signedAt, "2026-01-02T10:00:00Z");
-
-  delete process.env.ACADEMY_DEFAULT_TENANT_ID;
 });
 
 test("POST /api/public/apply/agreement/sign - missing token", async () => {
   const deps: MockDependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => undefined,
     getApplication: async () => undefined,
     signAgreement: async () => ({}),
@@ -70,32 +75,30 @@ test("POST /api/public/apply/agreement/sign - missing token", async () => {
 
 test("POST /api/public/apply/agreement/sign - invalid token", async () => {
   const deps: MockDependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => undefined,
     getApplication: async () => undefined,
     signAgreement: async () => ({}),
   };
 
   const request = createMockRequest("invalid-token");
-  process.env.ACADEMY_DEFAULT_TENANT_ID = "tenant-a";
 
   const response = await signEnrollmentAgreementRequest(request, deps);
   const json = await response.json();
 
   assert.equal(response.status, 404);
   assert.ok(json.error);
-
-  delete process.env.ACADEMY_DEFAULT_TENANT_ID;
 });
 
 test("POST /api/public/apply/agreement/sign - application not accepted", async () => {
   const deps: MockDependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     getApplication: async () => ({ status: "submitted", applicantPersonId: "person-1" }),
     signAgreement: async () => ({}),
   };
 
   const request = createMockRequest("token-abc123");
-  process.env.ACADEMY_DEFAULT_TENANT_ID = "tenant-a";
 
   const response = await signEnrollmentAgreementRequest(request, deps);
   const json = await response.json();
@@ -103,13 +106,12 @@ test("POST /api/public/apply/agreement/sign - application not accepted", async (
   assert.equal(response.status, 403);
   assert.ok(json.error);
   assert.ok(json.error.includes("accepted"));
-
-  delete process.env.ACADEMY_DEFAULT_TENANT_ID;
 });
 
 test("POST /api/public/apply/agreement/sign - cross-applicant isolation", async () => {
   // Token for app-1 should never affect app-2
   const deps: MockDependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async (tenantId, token) => {
       if (token === "token-app-1") return { applicationId: "app-1" };
       if (token === "token-app-2") return { applicationId: "app-2" };
@@ -136,8 +138,6 @@ test("POST /api/public/apply/agreement/sign - cross-applicant isolation", async 
     },
   };
 
-  process.env.ACADEMY_DEFAULT_TENANT_ID = "tenant-a";
-
   // Token for app-1 signs app-1
   const request1 = createMockRequest("token-app-1");
   const response1 = await signEnrollmentAgreementRequest(request1, deps);
@@ -147,19 +147,44 @@ test("POST /api/public/apply/agreement/sign - cross-applicant isolation", async 
   const request2 = createMockRequest("token-app-2");
   const response2 = await signEnrollmentAgreementRequest(request2, deps);
   assert.equal(response2.status, 200);
+});
 
-  delete process.env.ACADEMY_DEFAULT_TENANT_ID;
+test("POST /api/public/apply/agreement/sign - institution miss fails closed before downstream lookup", async () => {
+  let downstreamTouched = false;
+  const response = await signEnrollmentAgreementRequest(
+    createMockRequest("token-app-1"),
+    {
+      resolveTenantId: async () => {
+        throw new PublicInstitutionNotFoundError();
+      },
+      resolveApplicationByToken: async () => {
+        downstreamTouched = true;
+        return { applicationId: "app-1" };
+      },
+      getApplication: async () => {
+        downstreamTouched = true;
+        return { status: "accepted", applicantPersonId: "person-applicant" };
+      },
+      signAgreement: async () => {
+        downstreamTouched = true;
+        return { status: "signed", signedAt: "2026-01-01T00:00:00Z" };
+      },
+    },
+  );
+
+  assert.equal(response.status, 404);
+  assert.equal(downstreamTouched, false);
 });
 
 test("POST /api/public/apply/agreement/sign - idempotent when already signed", async () => {
   const deps: MockDependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     getApplication: async () => ({ status: "accepted", applicantPersonId: "person-1" }),
     signAgreement: async () => ({ signedAt: "2026-01-01T12:00:00Z" }), // Original sign time
   };
 
   const request = createMockRequest("token-abc123");
-  process.env.ACADEMY_DEFAULT_TENANT_ID = "tenant-a";
 
   // First sign
   const response1 = await signEnrollmentAgreementRequest(request, deps);
@@ -173,19 +198,17 @@ test("POST /api/public/apply/agreement/sign - idempotent when already signed", a
   assert.equal(response2.status, 200);
   assert.ok(json2.success);
   assert.equal(json2.signedAt, "2026-01-01T12:00:00Z"); // Same timestamp
-
-  delete process.env.ACADEMY_DEFAULT_TENANT_ID;
 });
 
 test("POST /api/public/apply/agreement/sign - no raw IP in response", async () => {
   const deps: MockDependencies = {
+    ...trustedInstitution,
     resolveApplicationByToken: async () => ({ applicationId: "app-1" }),
     getApplication: async () => ({ status: "accepted", applicantPersonId: "person-1" }),
     signAgreement: async () => ({ signedAt: "2026-01-02T10:00:00Z" }),
   };
 
   const request = createMockRequest("token-abc123");
-  process.env.ACADEMY_DEFAULT_TENANT_ID = "tenant-a";
 
   const response = await signEnrollmentAgreementRequest(request, deps);
   const json = await response.json();
@@ -196,6 +219,4 @@ test("POST /api/public/apply/agreement/sign - no raw IP in response", async () =
   const responseText = JSON.stringify(json);
   assert.doesNotMatch(responseText, /\d+\.\d+\.\d+\.\d+/, "Response must not contain IP addresses");
   assert.doesNotMatch(responseText, /redacted.*ip/i, "Response must not mention IP");
-
-  delete process.env.ACADEMY_DEFAULT_TENANT_ID;
 });
