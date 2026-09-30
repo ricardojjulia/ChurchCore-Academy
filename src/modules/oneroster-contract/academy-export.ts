@@ -3,7 +3,7 @@ import { assertInstitutionConfigAccess } from "@/modules/academy-auth/policy";
 import { AcademyCourseCatalogRepository, type CourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import type { CourseCatalogConfiguration, CourseSection } from "@/modules/course-catalog/types";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
-import type { PeopleConfiguration, Person, PersonRoleAssignment, StudentProfile } from "@/modules/people/types";
+import type { PeopleConfiguration, Person, StudentProfile } from "@/modules/people/types";
 import { buildOneRosterCsvPackage } from "./exporter";
 import { PostgresOneRosterRegistrationRepository } from "./postgres-registration-repository";
 import type {
@@ -23,6 +23,10 @@ import type {
   OneRosterSectionRegistrationSource,
 } from "./postgres-registration-repository";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
+import {
+  reconcileOneRosterDeliveryState,
+  type OneRosterDeliveryStateRepository,
+} from "./delivery-state";
 
 export interface OneRosterPeopleRepository {
   fetchPeopleConfiguration(tenantId: string): Promise<PeopleConfiguration>;
@@ -37,9 +41,11 @@ export interface BuildAcademyOneRosterExportInput {
   peopleRepository?: OneRosterPeopleRepository;
   courseCatalogRepository?: Pick<CourseCatalogRepository, "fetchCourseCatalogConfiguration">;
   registrationRepository?: OneRosterRegistrationRepository;
+  deliveryStateRepository?: OneRosterDeliveryStateRepository;
+  destinationKey?: string;
 }
 
-const exportableSectionStatuses = new Set(["scheduled", "open", "in_progress", "completed"]);
+const exportableSectionStatuses = new Set(["scheduled", "open", "in_progress", "completed", "cancelled", "archived"]);
 const activeStudentStatuses = new Set(["admitted", "active"]);
 const activePersonStatuses = new Set(["active", "invited"]);
 const activeStaffStatuses = new Set(["active", "adjunct", "volunteer"]);
@@ -49,15 +55,33 @@ const activeEnrollmentStatuses = new Set(["registered", "pending_confirmation", 
 export async function buildAcademyOneRosterExportPackage(
   input: BuildAcademyOneRosterExportInput,
 ): Promise<OneRosterExportPackage> {
+  return (await prepareAcademyOneRosterExportPackage(input)).package;
+}
+
+export async function prepareAcademyOneRosterExportPackage(
+  input: BuildAcademyOneRosterExportInput,
+): Promise<{ package: OneRosterExportPackage; dataset: OneRosterExportDataset }> {
   const tenantId = input.tenantId ?? input.actor.tenantId;
-  const dataset = await buildAcademyOneRosterExportDataset(input);
+  const generatedAt = input.generatedAt ?? new Date().toISOString();
+  let dataset = await buildAcademyOneRosterExportDataset(input);
   const options: OneRosterExportOptions = {
-    generatedAt: input.generatedAt ?? new Date().toISOString(),
+    generatedAt,
     mode: input.mode ?? "delta",
   };
 
   assertInstitutionConfigAccess(input.actor, tenantId, "admin");
-  return buildOneRosterCsvPackage(dataset, options);
+  if (input.deliveryStateRepository) {
+    if (!input.sectionId?.trim() || !input.destinationKey?.trim()) {
+      throw new Error("OneRoster delivery reconciliation requires a section and destination.");
+    }
+    const previous = await input.deliveryStateRepository.list({
+      tenantId,
+      destinationKey: input.destinationKey,
+      scopeId: input.sectionId,
+    });
+    dataset = reconcileOneRosterDeliveryState(dataset, previous, generatedAt);
+  }
+  return { package: buildOneRosterCsvPackage(dataset, options), dataset };
 }
 
 export async function buildAcademyOneRosterExportDataset(
@@ -125,6 +149,15 @@ export function mapAcademyOneRosterDataset(
     .filter((person) => exportedPersonIds.has(person.id))
     .sort(compareBy((person) => person.displayName));
   const studentProfilesByPersonId = new Map(people.studentProfiles.map((profile) => [profile.personId, profile]));
+  const staffProfilesByPersonId = new Map(people.staffProfiles.map((profile) => [profile.personId, profile]));
+  const activeExportedPersonIds = new Set(
+    exportedPeople
+      .filter((person) => isActiveExportedPerson(person, studentProfilesByPersonId.get(person.id), staffProfilesByPersonId.get(person.id)))
+      .map((person) => person.id),
+  );
+  const activeSectionIds = new Set(
+    sections.filter((section) => section.status !== "archived" && section.status !== "cancelled").map((section) => section.id),
+  );
 
   return {
     orgs: [
@@ -136,7 +169,9 @@ export function mapAcademyOneRosterDataset(
         dateLastModified: people.institutionProfile.updatedAt,
       },
     ],
-    users: exportedPeople.map((person) => mapUser(person, generatedOrgSourcedId, studentProfilesByPersonId.get(person.id))),
+    users: exportedPeople.map((person) =>
+      mapUser(person, generatedOrgSourcedId, studentProfilesByPersonId.get(person.id), staffProfilesByPersonId.get(person.id)),
+    ),
     roles: mapRoles(people, exportedPersonIds, generatedOrgSourcedId),
     academicSessions: [
       ...catalog.academicYears
@@ -200,7 +235,14 @@ export function mapAcademyOneRosterDataset(
         periods: section.schedulePattern,
       };
     }),
-    enrollments: mapEnrollments(sections, registrationsBySection, generatedOrgSourcedId, exportedPersonIds),
+    enrollments: mapEnrollments(
+      sections,
+      registrationsBySection,
+      generatedOrgSourcedId,
+      exportedPersonIds,
+      activeExportedPersonIds,
+      activeSectionIds,
+    ),
   };
 }
 
@@ -210,28 +252,22 @@ function collectExportedPersonIds(
   registrationsBySection: Map<string, OneRosterSectionRegistrationSource[]>,
 ) {
   const ids = new Set<string>();
-  const activeStudents = new Set(
-    people.studentProfiles
-      .filter((profile) => activeStudentStatuses.has(profile.enrollmentStatus))
-      .map((profile) => profile.personId),
-  );
-  const activeTeachers = new Set(
-    people.staffProfiles
-      .filter((profile) => activeStaffStatuses.has(profile.employmentStatus) && instructorRoles.has(profile.primaryRole))
-      .map((profile) => profile.personId),
+  const studentIds = new Set(people.studentProfiles.map((profile) => profile.personId));
+  const teacherIds = new Set(
+    people.staffProfiles.filter((profile) => instructorRoles.has(profile.primaryRole)).map((profile) => profile.personId),
   );
 
   for (const section of sections) {
-    if (section.primaryInstructorId && activeTeachers.has(section.primaryInstructorId)) {
+    if (section.primaryInstructorId && teacherIds.has(section.primaryInstructorId)) {
       ids.add(section.primaryInstructorId);
     }
     for (const assistantId of section.assistantInstructorIds) {
-      if (activeTeachers.has(assistantId)) {
+      if (teacherIds.has(assistantId)) {
         ids.add(assistantId);
       }
     }
     for (const registration of registrationsBySection.get(section.id) ?? []) {
-      if (activeStudents.has(registration.studentPersonId)) {
+      if (studentIds.has(registration.studentPersonId)) {
         ids.add(registration.studentPersonId);
       }
     }
@@ -240,13 +276,19 @@ function collectExportedPersonIds(
   return ids;
 }
 
-function mapUser(person: Person, orgSourcedId: string, studentProfile?: StudentProfile): OneRosterUserExport {
+function mapUser(
+  person: Person,
+  orgSourcedId: string,
+  studentProfile?: StudentProfile,
+  staffProfile?: PeopleConfiguration["staffProfiles"][number],
+): OneRosterUserExport {
   const { givenName, familyName } = nameParts(person);
+  const active = isActiveExportedPerson(person, studentProfile, staffProfile);
   return {
     sourcedId: sourcedId("person", person.id),
-    status: activePersonStatuses.has(person.personStatus) ? "active" : "tobedeleted",
+    status: active ? "active" : "tobedeleted",
     dateLastModified: person.updatedAt,
-    enabledUser: activePersonStatuses.has(person.personStatus),
+    enabledUser: active,
     username: person.email,
     userIds: studentProfile?.studentNumber,
     givenName,
@@ -266,10 +308,11 @@ function mapRoles(
   const pushed = new Set<string>();
 
   for (const profile of people.studentProfiles) {
-    if (!exportedPersonIds.has(profile.personId) || !activeStudentStatuses.has(profile.enrollmentStatus)) continue;
+    if (!exportedPersonIds.has(profile.personId)) continue;
     pushRole(roles, pushed, {
       sourcedId: sourcedId("role", `${profile.personId}:student`),
       dateLastModified: profile.updatedAt,
+      status: activeStudentStatuses.has(profile.enrollmentStatus) ? "active" : "tobedeleted",
       userSourcedId: sourcedId("person", profile.personId),
       role: "student",
       orgSourcedId,
@@ -278,10 +321,11 @@ function mapRoles(
 
   for (const profile of people.staffProfiles) {
     if (!exportedPersonIds.has(profile.personId)) continue;
-    if (!activeStaffStatuses.has(profile.employmentStatus) || !instructorRoles.has(profile.primaryRole)) continue;
+    if (!instructorRoles.has(profile.primaryRole)) continue;
     pushRole(roles, pushed, {
       sourcedId: sourcedId("role", `${profile.personId}:teacher`),
       dateLastModified: profile.updatedAt,
+      status: activeStaffStatuses.has(profile.employmentStatus) ? "active" : "tobedeleted",
       userSourcedId: sourcedId("person", profile.personId),
       role: "teacher",
       orgSourcedId,
@@ -290,10 +334,11 @@ function mapRoles(
 
   for (const assignment of people.roleAssignments) {
     if (!exportedPersonIds.has(assignment.personId)) continue;
-    if (!isTeacherRoleAssignment(assignment)) continue;
+    if (!instructorRoles.has(assignment.role)) continue;
     pushRole(roles, pushed, {
       sourcedId: sourcedId("role", `${assignment.personId}:teacher`),
       dateLastModified: assignment.updatedAt,
+      status: assignment.status === "active" ? "active" : "tobedeleted",
       userSourcedId: sourcedId("person", assignment.personId),
       role: "teacher",
       beginDate: assignment.startsOn,
@@ -310,6 +355,8 @@ function mapEnrollments(
   registrationsBySection: Map<string, OneRosterSectionRegistrationSource[]>,
   orgSourcedId: string,
   exportedPersonIds: Set<string>,
+  activeExportedPersonIds: Set<string>,
+  activeSectionIds: Set<string>,
 ): OneRosterEnrollmentExport[] {
   const enrollments: OneRosterEnrollmentExport[] = [];
 
@@ -318,6 +365,9 @@ function mapEnrollments(
       enrollments.push({
         sourcedId: sourcedId("enrollment", `${section.id}:teacher:${section.primaryInstructorId}`),
         dateLastModified: section.updatedAt,
+        status: activeSectionIds.has(section.id) && activeExportedPersonIds.has(section.primaryInstructorId)
+          ? "active"
+          : "tobedeleted",
         classSourcedId: sourcedId("class", section.id),
         schoolSourcedId: orgSourcedId,
         userSourcedId: sourcedId("person", section.primaryInstructorId),
@@ -330,6 +380,7 @@ function mapEnrollments(
       enrollments.push({
         sourcedId: sourcedId("enrollment", `${section.id}:teacher:${assistantId}`),
         dateLastModified: section.updatedAt,
+        status: activeSectionIds.has(section.id) && activeExportedPersonIds.has(assistantId) ? "active" : "tobedeleted",
         classSourcedId: sourcedId("class", section.id),
         schoolSourcedId: orgSourcedId,
         userSourcedId: sourcedId("person", assistantId),
@@ -341,7 +392,11 @@ function mapEnrollments(
       if (!exportedPersonIds.has(registration.studentPersonId)) continue;
       enrollments.push({
         sourcedId: sourcedId("enrollment", registration.id),
-        status: activeEnrollmentStatuses.has(registration.status) ? "active" : "tobedeleted",
+        status: activeSectionIds.has(section.id)
+          && activeExportedPersonIds.has(registration.studentPersonId)
+          && activeEnrollmentStatuses.has(registration.status)
+          ? "active"
+          : "tobedeleted",
         dateLastModified: registration.updatedAt,
         classSourcedId: sourcedId("class", registration.courseSectionId),
         schoolSourcedId: orgSourcedId,
@@ -361,8 +416,17 @@ function pushRole(roles: OneRosterRoleExport[], pushed: Set<string>, role: OneRo
   roles.push(role);
 }
 
-function isTeacherRoleAssignment(assignment: PersonRoleAssignment) {
-  return assignment.status === "active" && instructorRoles.has(assignment.role);
+function isActiveExportedPerson(
+  person: Person,
+  studentProfile?: StudentProfile,
+  staffProfile?: PeopleConfiguration["staffProfiles"][number],
+) {
+  if (!activePersonStatuses.has(person.personStatus)) return false;
+  if (studentProfile || staffProfile) {
+    return (studentProfile ? activeStudentStatuses.has(studentProfile.enrollmentStatus) : false)
+      || (staffProfile ? activeStaffStatuses.has(staffProfile.employmentStatus) : false);
+  }
+  return true;
 }
 
 function mapAcademicSessionType(periodType: string): OneRosterAcademicSessionExport["type"] {

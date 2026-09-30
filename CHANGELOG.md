@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- OneRoster deletion reconciliation with tenant-, destination-, and section-scoped delivered state; archived/cancelled classes, departed users, roles, and enrollments now emit `tobedeleted` only when previously delivered.
 - P1 donor campaign management for Alumni & Giving: tenant-scoped campaign records, campaign-linked gifts, legacy fund-designation matching, campaign progress summaries, admin campaign page, API surface, migration, and e2e coverage.
 - Canonical Academy development guide at `docs/development-guide.md`, consolidating the active MVP/competitive objective, implementation backlog, Council, Testing Council, software factory, verification gates, and deferred deployment posture into one source of truth.
 - Auditable Academy SDLC discipline: root `AGENTS.md`, `docs/sdlc/academy-sdlc.md`, Council/pr-review Claude skills, a Documenter agent, factory/deployment record templates, and `npm run verify:governance` wired into CI and the PR template.

@@ -6,7 +6,13 @@ import { asAcademyDatabase } from "@/lib/academy-database-context";
 import { PostgresAcademyIdentityRepository } from "@/modules/academy-auth/postgres-identity-repository";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import { AcademyPeopleRepository } from "@/modules/people/postgres-repository";
-import { buildAcademyOneRosterExportPackage, buildOneRosterZipPackage, PostgresOneRosterRegistrationRepository } from "@/modules/oneroster-contract";
+import {
+  buildOneRosterZipPackage,
+  PostgresOneRosterDeliveryStateRepository,
+  PostgresOneRosterRegistrationRepository,
+  prepareAcademyOneRosterExportPackage,
+  type OneRosterExportDataset,
+} from "@/modules/oneroster-contract";
 import { deliverOneRosterPackage, parseDeliveryConfiguration } from "@/modules/oneroster-contract/delivery";
 
 export const runtime = "nodejs";
@@ -28,19 +34,44 @@ export async function GET(request: Request) {
     const identity = identities.find(item => item.tenantId === configuration.tenantId);
     if (!identity) throw new Error();
     const actor = { tenantId: identity.tenantId, userId: identity.personId, roles: identity.roles };
+    let deliveredDataset: OneRosterExportDataset | undefined;
     const result = await deliverOneRosterPackage({
       actor, configuration, privateKeyPem: process.env.ONEROSTER_SIGNING_PRIVATE_KEY ?? "",
       buildPackage: async () => {
         const csv = await withCapabilityContext(actor, async (client, capabilities) => {
           assertCapability(capabilities, "lmsRosterSync");
-          return buildAcademyOneRosterExportPackage({
-          actor, sectionId: configuration.sectionId,
-          peopleRepository: new AcademyPeopleRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyPeopleRepository>[0]>(client)),
-          courseCatalogRepository: new AcademyCourseCatalogRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyCourseCatalogRepository>[0]>(client)),
-          registrationRepository: new PostgresOneRosterRegistrationRepository(asAcademyDatabase<ConstructorParameters<typeof PostgresOneRosterRegistrationRepository>[0]>(client)),
+          const stateRepository = new PostgresOneRosterDeliveryStateRepository(
+            asAcademyDatabase<ConstructorParameters<typeof PostgresOneRosterDeliveryStateRepository>[0]>(client),
+          );
+          return prepareAcademyOneRosterExportPackage({
+            actor,
+            sectionId: configuration.sectionId,
+            destinationKey: configuration.connectionId,
+            peopleRepository: new AcademyPeopleRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyPeopleRepository>[0]>(client)),
+            courseCatalogRepository: new AcademyCourseCatalogRepository(asAcademyDatabase<ConstructorParameters<typeof AcademyCourseCatalogRepository>[0]>(client)),
+            registrationRepository: new PostgresOneRosterRegistrationRepository(asAcademyDatabase<ConstructorParameters<typeof PostgresOneRosterRegistrationRepository>[0]>(client)),
+            deliveryStateRepository: stateRepository,
           });
         });
-        return buildOneRosterZipPackage(csv);
+        deliveredDataset = csv.dataset;
+        return buildOneRosterZipPackage(csv.package);
+      },
+      onConfirmed: async () => {
+        if (!deliveredDataset) throw new Error();
+        const confirmedDataset = deliveredDataset;
+        await withCapabilityContext(actor, async (client, capabilities) => {
+          assertCapability(capabilities, "lmsRosterSync");
+          const stateRepository = new PostgresOneRosterDeliveryStateRepository(
+            asAcademyDatabase<ConstructorParameters<typeof PostgresOneRosterDeliveryStateRepository>[0]>(client),
+          );
+          await stateRepository.replace({
+            tenantId: actor.tenantId,
+            destinationKey: configuration.connectionId,
+            scopeId: configuration.sectionId,
+            deliveredAt: new Date().toISOString(),
+            dataset: confirmedDataset,
+          });
+        });
       },
     });
     return Response.json(result, { headers: { "cache-control": "no-store" } });

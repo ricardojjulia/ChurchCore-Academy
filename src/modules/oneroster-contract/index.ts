@@ -4,3 +4,4 @@ export * from "./exporter";
 export * from "./zip";
 export * from "./academy-export";
 export * from "./postgres-registration-repository";
+export * from "./delivery-state";

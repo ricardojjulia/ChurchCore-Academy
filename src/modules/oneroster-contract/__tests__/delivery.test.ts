@@ -59,6 +59,29 @@ test("receiver failures are redacted and duplicate receipts remain awaiting oper
   assert.deepEqual(result, { status: "duplicate" });
 });
 
+test("delivery advances state only after the receiver confirms the package", async () => {
+  let confirmations = 0;
+  const input = {
+    actor,
+    configuration,
+    privateKeyPem,
+    buildPackage: async () => new Uint8Array([1]),
+    onConfirmed: async () => { confirmations += 1; },
+  };
+
+  await assert.rejects(
+    deliverOneRosterPackage({ ...input, fetcher: async () => new Response(null, { status: 503 }) }),
+    /could not be confirmed/,
+  );
+  assert.equal(confirmations, 0);
+
+  await deliverOneRosterPackage({
+    ...input,
+    fetcher: async () => Response.json({ valid: true, status: "validated" }, { status: 202 }),
+  });
+  assert.equal(confirmations, 1);
+});
+
  test("configuration accepts Academy text section IDs and rejects empty IDs", () => {
   assert.equal(parseDeliveryConfiguration(JSON.stringify({ ...configuration, sectionId: "section-acts-ministry" }))?.sectionId, "section-acts-ministry");
   for (const sectionId of ["", "  ", null, 123]) assert.throws(() => parseDeliveryConfiguration(JSON.stringify({ ...configuration, sectionId })));
