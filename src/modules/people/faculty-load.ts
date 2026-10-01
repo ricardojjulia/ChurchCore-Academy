@@ -69,6 +69,7 @@ export async function fetchFacultyLoadWorkspace(
        from academy_staff_profiles staff
        join academy_people person
          on person.tenant_id = staff.tenant_id and person.id = staff.person_id
+        and person.person_status = 'active'
        left join academy_course_sections section
          on section.tenant_id = staff.tenant_id
         and section.primary_instructor_id = staff.person_id
@@ -97,6 +98,8 @@ export async function fetchFacultyLoadWorkspace(
           select 1 from academy_person_role_assignments role
            where role.tenant_id = staff.tenant_id and role.person_id = staff.person_id
              and role.status = 'active' and role.role = any($3::text[])
+             and (role.starts_on is null or role.starts_on <= current_date)
+             and (role.ends_on is null or role.ends_on >= current_date)
         )
       order by person.display_name, section.section_code`,
     [actor.tenantId, periodId, facultyRoles],

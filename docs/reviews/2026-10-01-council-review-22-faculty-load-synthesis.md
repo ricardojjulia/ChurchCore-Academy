@@ -24,6 +24,10 @@ One tenant-and-period-bound query reads active staff, active faculty-capable rol
 
 The existing ShepherdAI faculty-alert panels remain available to actors with ShepherdAI read access. The normalized workspace is additive and does not remove the established alert/workflow surface.
 
+### PR Review Follow-Up
+
+Copilot identified two important gaps: denied roles still saw the Faculty dashboard quick action, and active role status was evaluated without effective start/end dates. The dashboard and sidebar now share the oversight-role boundary, and the faculty eligibility query applies the same role date rules as Academy identity resolution. Focused regression coverage protects both fixes.
+
 ### Security And Privacy
 
 Access is restricted to institution administrators, deans, and academic administrators before repository access. Query parameters bind both tenant and selected period. The page exposes staffing aggregates and section identifiers, not grades, notes, student identities, compensation, or private evaluation records.

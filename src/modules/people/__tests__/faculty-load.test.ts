@@ -12,6 +12,8 @@ test("faculty load aggregates normalized period-scoped teaching evidence", async
       calls.push(values);
       assert.match(sql, /section\.academic_period_id = \$2/);
       assert.match(sql, /staff\.tenant_id = \$1/);
+      assert.match(sql, /role\.starts_on is null or role\.starts_on <= current_date/);
+      assert.match(sql, /role\.ends_on is null or role\.ends_on >= current_date/);
       return { rowCount: 2, rows: [
         { person_id: "faculty-a", faculty_name: "A Faculty", title: "Professor", load_policy: "standard", section_id: "section-1", section_code: "BIB-101-A", course_title: "Bible Survey", credits: "3", clock_hours: "45", capacity: 20, enrolled_seats: 18, advisee_count: 4 },
         { person_id: "faculty-a", faculty_name: "A Faculty", title: "Professor", load_policy: "standard", section_id: "section-2", section_code: "THE-201-A", course_title: "Theology", credits: "3", clock_hours: "45", capacity: 10, enrolled_seats: 12, advisee_count: 4 },

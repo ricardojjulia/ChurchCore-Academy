@@ -37,7 +37,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function getQuickActionGroups(canReadShepherdAi: boolean) {
+function getQuickActionGroups(canReadShepherdAi: boolean, canReadFacultyLoad: boolean) {
   return [
     {
       label: "Student records",
@@ -55,7 +55,9 @@ function getQuickActionGroups(canReadShepherdAi: boolean) {
       actions: [
         { label: "Course Catalog", detail: "Courses, sections, and scheduling", href: "/admin/courses", Icon: BookOpen },
         { label: "Gradebook", detail: "Grade progress and posting queue", href: "/admin/gradebook", Icon: School },
-        { label: "Faculty", detail: "Staffing, load, and section setup", href: "/admin/faculty", Icon: BookOpenCheck },
+        ...(canReadFacultyLoad
+          ? [{ label: "Faculty", detail: "Staffing, load, and section setup", href: "/admin/faculty", Icon: BookOpenCheck }]
+          : []),
       ],
     },
     {
@@ -96,6 +98,7 @@ export default async function AdminDashboard() {
   const user = await getCurrentUser();
   const institution = await getInstitutionProfile(actor.tenantId);
   const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
+  const canReadFacultyLoad = actor.roles.some((role) => ["institution_admin", "dean", "academic_admin"].includes(role));
 
   async function signOutAction() {
     "use server";
@@ -141,7 +144,7 @@ export default async function AdminDashboard() {
     faculty: suggestions.filter((s) => s.workflowCode === "faculty_or_course_assignment_imbalance_review").length,
   };
 
-  const quickActionGroups = getQuickActionGroups(canReadShepherdAi);
+  const quickActionGroups = getQuickActionGroups(canReadShepherdAi, canReadFacultyLoad);
 
   const rawName = user?.email?.split("@")[0] ?? "there";
   const firstName = rawName.charAt(0).toUpperCase() + rawName.slice(1);

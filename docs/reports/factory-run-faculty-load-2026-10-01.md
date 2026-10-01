@@ -31,6 +31,7 @@ Deliver the approved faculty-load slice as a period-scoped administrative worksp
 - `npm run test:full -- --reset-db`: passed, 408 passed and 330 skipped in 7.6 minutes on the final code.
 - Council and Testing Council: revise -> fixed locally. Cross-tenant surface expectations and incomplete capacity/credit/hour evidence were corrected and covered.
 - Local `pr-review`: passed with 0 critical and 0 important findings after the corrections.
+- Copilot review: two important findings, both fixed locally. Dashboard and sidebar Faculty links now share the oversight-role boundary, and faculty eligibility honors role assignment effective dates.
 - `npm run verify:governance`: passed.
 - `git diff --check`: passed.
 - Remaining gates: protected PR checks and Copilot review.
