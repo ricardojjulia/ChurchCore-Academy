@@ -11,6 +11,7 @@ interface AdminCapabilityContextValue {
   canReadInquiryPipeline: boolean;
   canReadInstitutionConfig: boolean;
   canReadLmsProviderReadiness: boolean;
+  canReadAdvising: boolean;
 }
 
 // Default matters: AdminShell is also used by pages outside src/app/admin/* (e.g.
@@ -28,6 +29,7 @@ const defaultAdminCapabilities: AdminCapabilityContextValue = {
   canReadInquiryPipeline: false,
   canReadInstitutionConfig: false,
   canReadLmsProviderReadiness: false,
+  canReadAdvising: false,
 };
 
 const AdminCapabilityContext = createContext<AdminCapabilityContextValue>(defaultAdminCapabilities);
@@ -42,6 +44,7 @@ export function AdminCapabilityProvider({
   canReadInquiryPipeline,
   canReadInstitutionConfig,
   canReadLmsProviderReadiness,
+  canReadAdvising,
 }: {
   children: React.ReactNode;
   ministryFormationEnabled: boolean;
@@ -52,6 +55,7 @@ export function AdminCapabilityProvider({
   canReadInquiryPipeline: boolean;
   canReadInstitutionConfig: boolean;
   canReadLmsProviderReadiness: boolean;
+  canReadAdvising: boolean;
 }) {
   return (
     <AdminCapabilityContext.Provider
@@ -64,6 +68,7 @@ export function AdminCapabilityProvider({
         canReadInquiryPipeline,
         canReadInstitutionConfig,
         canReadLmsProviderReadiness,
+        canReadAdvising,
       }}
     >
       {children}

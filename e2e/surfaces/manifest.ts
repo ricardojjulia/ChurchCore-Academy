@@ -40,6 +40,7 @@ export const PAGE_MANIFEST: PageEntry[] = [
   { path: "/admin/admissions/inquiries", access: ["institutionAdmin", "institutionAdmin2", "admissions", "otherTenantAdmin"] },
   { path: "/admin/admissions/inquiries/[id]", access: ["institutionAdmin", "institutionAdmin2", "admissions", "otherTenantAdmin"] },
   { path: "/admin/admissions/matriculation", access: ["institutionAdmin", "institutionAdmin2", "registrar", "admissions", "dean", "otherTenantAdmin"] },
+  { path: "/admin/advising", access: ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "dean", "advisor", "otherTenantAdmin"] },
   { path: "/admin/alumni", access: ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "alumniRelations", "otherTenantAdmin"] },
   { path: "/admin/alumni/campaigns", access: ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "alumniRelations", "otherTenantAdmin"] },
   { path: "/admin/alumni/[personId]", access: ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "alumniRelations"] },

@@ -154,6 +154,51 @@ test("repository returns undefined when no active catalog membership has curricu
   assert.equal(await repo.getProgress("tenant-1", "student-profile-1"), undefined);
 });
 
+test("repository loads caseload progress in one batch query", async () => {
+  let queryCount = 0;
+  const repo = new PostgresStudentProgramProgressRepository({
+    async query(sql, values) {
+      queryCount += 1;
+      assert.match(sql, /student_profile_id = any\(\$2::text\[\]\)/);
+      assert.match(sql, /membership\.id = summary\.enrollment_id/);
+      assert.deepEqual(values, ["tenant-1", ["student-profile-1", "student-profile-2"]]);
+      return {
+        rowCount: 2,
+        rows: [
+          {
+            active_program_membership_id: "membership-1",
+            student_profile_id: "student-profile-1",
+            academic_program_id: "program-1",
+            catalog_academic_year_id: "year-1",
+            required_credits: "90",
+            completed_credits: "30",
+            in_progress_credits: "6",
+          },
+          {
+            active_program_membership_id: "membership-2",
+            student_profile_id: "student-profile-2",
+            academic_program_id: "program-2",
+            catalog_academic_year_id: "year-1",
+            required_credits: "60",
+            completed_credits: "60",
+            in_progress_credits: "0",
+          },
+        ],
+      };
+    },
+  });
+
+  const saved = await repo.getProgressForStudents(
+    "tenant-1",
+    ["student-profile-1", "student-profile-2"],
+  );
+
+  assert.equal(queryCount, 1);
+  assert.equal(saved.get("student-profile-1")?.percentComplete, 33);
+  assert.equal(saved.get("student-profile-1")?.remainingCredits, 60);
+  assert.equal(saved.get("student-profile-2")?.percentComplete, 100);
+});
+
 test("student program progress API route uses request-scoped database context", async () => {
   const route = await readFile(
     path.join(process.cwd(), "src/app/api/academy/students/[id]/program-progress/route.ts"),

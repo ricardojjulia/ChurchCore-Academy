@@ -66,6 +66,7 @@ const NAV_SECTIONS: NavSection[] = [
     Icon: FolderOpen,
     items: [
       { label: "Student Center", href: "/admin/students" },
+      { label: "Advising", href: "/admin/advising" },
       { label: "Transcripts", href: "/admin/transcripts" },
       { label: "Graduation", href: "/admin/graduation" },
       { label: "Ministry Formation", href: "/admin/formation" },
@@ -183,6 +184,7 @@ function AdminShellInner({
     canReadInquiryPipeline,
     canReadInstitutionConfig,
     canReadLmsProviderReadiness,
+    canReadAdvising,
   } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
@@ -212,6 +214,9 @@ function AdminShellInner({
         return false;
       }
       if (item.href === "/admin/workflows" && !canReadShepherdAi) {
+        return false;
+      }
+      if (item.href === "/admin/advising" && !canReadAdvising) {
         return false;
       }
       if (item.href === "/admin/admissions/drip-sequences" && !canManageDripSequences) {

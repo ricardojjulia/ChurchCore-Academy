@@ -36,3 +36,10 @@ export interface StudentProgramProgressSummary {
 export interface StudentProgramProgressRepository {
   getProgress(tenantId: string, studentProfileId: string): Promise<StudentProgramProgressSummary | undefined>;
 }
+
+export interface StudentProgramProgressBulkRepository extends StudentProgramProgressRepository {
+  getProgressForStudents(
+    tenantId: string,
+    studentProfileIds: string[],
+  ): Promise<Map<string, StudentProgramProgressSummary>>;
+}

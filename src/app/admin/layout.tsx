@@ -96,6 +96,7 @@ interface AdminCapabilityData {
   canReadInquiryPipeline: boolean;
   canReadInstitutionConfig: boolean;
   canReadLmsProviderReadiness: boolean;
+  canReadAdvising: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -135,6 +136,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // on PR #120; same bug class as canReadShepherdAi/canManageDripSequences above.
   const canReadInstitutionConfig = canAccessInstitutionConfig(actor, actor.tenantId, "read");
   const canReadLmsProviderReadiness = canAccessLmsProviderReadiness(actor, actor.tenantId, "read");
+  const canReadAdvising = hasRole(["institution_admin", "dean", "academic_admin", "registrar", "advisor"]);
 
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
@@ -148,6 +150,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         canReadInquiryPipeline,
         canReadInstitutionConfig,
         canReadLmsProviderReadiness,
+        canReadAdvising,
       };
     });
   } catch {
@@ -160,6 +163,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       canReadInquiryPipeline,
       canReadInstitutionConfig,
       canReadLmsProviderReadiness,
+      canReadAdvising,
     };
   }
 }
@@ -194,6 +198,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         canReadInquiryPipeline={capabilityData.canReadInquiryPipeline}
         canReadInstitutionConfig={capabilityData.canReadInstitutionConfig}
         canReadLmsProviderReadiness={capabilityData.canReadLmsProviderReadiness}
+        canReadAdvising={capabilityData.canReadAdvising}
       >
         {children}
       </AdminCapabilityProvider>

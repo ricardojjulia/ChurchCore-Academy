@@ -1,6 +1,7 @@
 import { getDatabasePool } from "@/lib/database";
 import type {
   StudentProgramProgressRepository,
+  StudentProgramProgressBulkRepository,
   StudentProgramProgressRequirement,
   StudentProgramProgressSummary,
 } from "./types";
@@ -50,7 +51,7 @@ function mapRequirement(row: Record<string, unknown>): StudentProgramProgressReq
   };
 }
 
-export class PostgresStudentProgramProgressRepository implements StudentProgramProgressRepository {
+export class PostgresStudentProgramProgressRepository implements StudentProgramProgressRepository, StudentProgramProgressBulkRepository {
   constructor(
     private readonly database: StudentProgramProgressDatabase = getDatabasePool() as StudentProgramProgressDatabase,
   ) {}
@@ -182,5 +183,100 @@ export class PostgresStudentProgramProgressRepository implements StudentProgramP
       percentComplete: requiredCredits > 0 ? Math.round((completedCredits / requiredCredits) * 100) : 0,
       requirements,
     };
+  }
+
+  async getProgressForStudents(
+    tenantId: string,
+    studentProfileIds: string[],
+  ): Promise<Map<string, StudentProgramProgressSummary>> {
+    if (studentProfileIds.length === 0) return new Map();
+    const result = await this.database.query(
+      `with active_memberships as (
+          select distinct on (m.student_profile_id)
+                 m.id, m.student_profile_id, m.academic_program_id,
+                 p.program_code, p.title as program_title,
+                 m.catalog_academic_year_id, y.name as catalog_academic_year_name
+            from academy_program_enrollments m
+            left join academy_academic_programs p
+              on p.tenant_id = m.tenant_id and p.id = m.academic_program_id
+            left join academy_academic_years y
+              on y.tenant_id = m.tenant_id and y.id = m.catalog_academic_year_id
+           where m.tenant_id = $1 and m.student_profile_id = any($2::text[])
+             and m.status = 'active' and m.academic_program_id is not null
+             and m.catalog_academic_year_id is not null
+           order by m.student_profile_id, m.started_on desc, m.created_at desc
+        ), attempts as (
+          select r.student_profile_id, s.course_id,
+                 bool_or(r.status = 'completed') as completed,
+                 bool_or(r.status in ('pending_confirmation', 'registered', 'waitlisted')) as in_progress
+            from academy_course_section_registrations r
+            join academy_course_sections s on s.tenant_id = r.tenant_id and s.id = r.course_section_id
+           where r.tenant_id = $1 and r.student_profile_id = any($2::text[])
+             and r.status in ('pending_confirmation', 'registered', 'waitlisted', 'completed')
+           group by r.student_profile_id, s.course_id
+        ), latest_grades as (
+          select membership.student_profile_id, summary.course_id, summary.is_passing,
+                 row_number() over (
+                   partition by membership.student_profile_id, summary.course_id
+                   order by summary.calculated_at desc, summary.id desc
+                 ) as summary_rank
+            from academy_gradebook_course_summaries summary
+            join active_memberships membership on membership.id = summary.enrollment_id
+           where summary.tenant_id = $1
+        )
+        select membership.id as active_program_membership_id,
+               membership.student_profile_id, membership.academic_program_id,
+               membership.program_code, membership.program_title,
+               membership.catalog_academic_year_id, membership.catalog_academic_year_name,
+               coalesce(sum(requirement.credits), 0) as required_credits,
+               coalesce(sum(requirement.credits) filter (
+                 where attempts.completed and coalesce(latest_grades.is_passing, true)
+               ), 0) as completed_credits,
+               coalesce(sum(requirement.credits) filter (
+                 where not (attempts.completed and coalesce(latest_grades.is_passing, true))
+                   and attempts.in_progress
+               ), 0) as in_progress_credits
+          from active_memberships membership
+          join academy_program_curriculum_requirements requirement
+            on requirement.tenant_id = $1
+           and requirement.academic_program_id = membership.academic_program_id
+           and requirement.academic_year_id = membership.catalog_academic_year_id
+           and requirement.status = 'active'
+          left join attempts
+            on attempts.student_profile_id = membership.student_profile_id
+           and attempts.course_id = requirement.course_id
+          left join latest_grades
+            on latest_grades.student_profile_id = membership.student_profile_id
+           and latest_grades.course_id = requirement.course_id
+           and latest_grades.summary_rank = 1
+         group by membership.id, membership.student_profile_id, membership.academic_program_id,
+                  membership.program_code, membership.program_title,
+                  membership.catalog_academic_year_id, membership.catalog_academic_year_name`,
+      [tenantId, studentProfileIds],
+    );
+
+    return new Map(result.rows.map((row) => {
+      const requiredCredits = numberValue(row.required_credits);
+      const completedCredits = numberValue(row.completed_credits);
+      const inProgressCredits = numberValue(row.in_progress_credits);
+      const summary: StudentProgramProgressSummary = {
+        studentProfileId: String(row.student_profile_id),
+        activeProgramMembershipId: String(row.active_program_membership_id),
+        academicProgramId: String(row.academic_program_id),
+        programCode: row.program_code != null ? String(row.program_code) : undefined,
+        programTitle: row.program_title != null ? String(row.program_title) : undefined,
+        catalogAcademicYearId: String(row.catalog_academic_year_id),
+        catalogAcademicYearName: row.catalog_academic_year_name != null
+          ? String(row.catalog_academic_year_name)
+          : undefined,
+        requiredCredits,
+        completedCredits,
+        inProgressCredits,
+        remainingCredits: Math.max(0, requiredCredits - completedCredits),
+        percentComplete: requiredCredits > 0 ? Math.round((completedCredits / requiredCredits) * 100) : 0,
+        requirements: [],
+      };
+      return [summary.studentProfileId, summary];
+    }));
   }
 }
