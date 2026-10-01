@@ -34,6 +34,7 @@ const requireActorPages: Array<{ path: string; roles: string[] }> = [
   { path: "src/app/admin/denomination/page.tsx", roles: ["institution_admin", "registrar"] },
   { path: "src/app/admin/denomination/[personId]/page.tsx", roles: ["institution_admin", "registrar"] },
   { path: "src/app/admin/financial-aid/page.tsx", roles: ["institution_admin", "finance", "registrar"] },
+  { path: "src/app/admin/faculty/page.tsx", roles: ["institution_admin", "dean", "academic_admin"] },
   { path: "src/app/admin/gradebook/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/graduation/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
   { path: "src/app/admin/groups/page.tsx", roles: ["institution_admin", "dean", "registrar", "academic_admin"] },
@@ -60,7 +61,6 @@ const requireActorPages: Array<{ path: string; roles: string[] }> = [
 ];
 
 const shepherdAiPages: string[] = [
-  "src/app/admin/faculty/page.tsx",
   "src/app/admin/workflows/page.tsx",
 ];
 

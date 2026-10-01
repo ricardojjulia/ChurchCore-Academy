@@ -97,6 +97,7 @@ interface AdminCapabilityData {
   canReadInstitutionConfig: boolean;
   canReadLmsProviderReadiness: boolean;
   canReadAdvising: boolean;
+  canReadFacultyLoad: boolean;
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -137,6 +138,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   const canReadInstitutionConfig = canAccessInstitutionConfig(actor, actor.tenantId, "read");
   const canReadLmsProviderReadiness = canAccessLmsProviderReadiness(actor, actor.tenantId, "read");
   const canReadAdvising = hasRole(["institution_admin", "dean", "academic_admin", "registrar", "advisor"]);
+  const canReadFacultyLoad = hasRole(["institution_admin", "dean", "academic_admin"]);
 
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
@@ -151,6 +153,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         canReadInstitutionConfig,
         canReadLmsProviderReadiness,
         canReadAdvising,
+        canReadFacultyLoad,
       };
     });
   } catch {
@@ -164,6 +167,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       canReadInstitutionConfig,
       canReadLmsProviderReadiness,
       canReadAdvising,
+      canReadFacultyLoad,
     };
   }
 }
@@ -199,6 +203,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         canReadInstitutionConfig={capabilityData.canReadInstitutionConfig}
         canReadLmsProviderReadiness={capabilityData.canReadLmsProviderReadiness}
         canReadAdvising={capabilityData.canReadAdvising}
+        canReadFacultyLoad={capabilityData.canReadFacultyLoad}
       >
         {children}
       </AdminCapabilityProvider>

@@ -81,8 +81,9 @@ Remaining: none. Trusted public institution resolution shipped in PR `#201`; liv
    - Add opt-in alumni directory with privacy controls.
 
 7. Advising and faculty-load intelligence.
-   - Advising workflow intelligence and caseload support implemented in the `#203` slice; merge and external workflow validation remain before closeout.
-   - Add faculty load intelligence.
+   - Advisor caseload intelligence is complete with assignment-scoped advisor access and authorized oversight.
+   - Initial faculty-load intelligence is complete with period-scoped teaching, enrollment, capacity, advising, and explainable review evidence.
+   - Expand either workflow only with pilot evidence; do not introduce autonomous academic or employment decisions.
    - Keep outputs explainable and human-reviewed.
 
 8. Multilingual UI.
