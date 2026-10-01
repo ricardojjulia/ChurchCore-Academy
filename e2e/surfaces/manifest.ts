@@ -50,7 +50,7 @@ export const PAGE_MANIFEST: PageEntry[] = [
   { path: "/admin/courses", access: ["institutionAdmin", "institutionAdmin2", "registrar", "academicAdmin", "dean", "otherTenantAdmin"] },
   { path: "/admin/denomination", access: ["institutionAdmin", "institutionAdmin2", "registrar", "otherTenantAdmin"] },
   { path: "/admin/denomination/[personId]", access: ["institutionAdmin", "institutionAdmin2", "registrar"] },
-  { path: "/admin/faculty", access: ["academicAdmin"] },
+  { path: "/admin/faculty", access: ["institutionAdmin", "institutionAdmin2", "academicAdmin", "dean", "otherTenantAdmin"] },
   { path: "/admin/financial-aid", access: ["institutionAdmin", "institutionAdmin2", "registrar", "finance", "otherTenantAdmin"] },
   { path: "/admin/formation", access: ["institutionAdmin", "institutionAdmin2", "registrar", "faculty", "advisor", "formationReviewer", "otherTenantAdmin"] },
   { path: "/admin/formation/[studentId]", access: ["institutionAdmin", "institutionAdmin2", "registrar", "formationReviewer"] },

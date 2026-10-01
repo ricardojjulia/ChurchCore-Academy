@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Faculty teaching-load intelligence with period-scoped sections, instructional credits and clock hours, enrolled-seat and capacity evidence, advising counts, and explainable administrative review flags.
 - Advisor caseload intelligence with assignment-scoped self-service, authorized oversight selection, and explainable program, GPA, risk, hold, signal, and advising-activity summaries.
 - OneRoster deletion reconciliation with tenant-, destination-, and section-scoped delivered state; archived/cancelled classes, departed users, roles, and enrollments now emit `tobedeleted` only when previously delivered.
 - P1 donor campaign management for Alumni & Giving: tenant-scoped campaign records, campaign-linked gifts, legacy fund-designation matching, campaign progress summaries, admin campaign page, API surface, migration, and e2e coverage.

@@ -185,6 +185,7 @@ function AdminShellInner({
     canReadInstitutionConfig,
     canReadLmsProviderReadiness,
     canReadAdvising,
+    canReadFacultyLoad,
   } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
@@ -217,6 +218,9 @@ function AdminShellInner({
         return false;
       }
       if (item.href === "/admin/advising" && !canReadAdvising) {
+        return false;
+      }
+      if (item.href === "/admin/faculty" && !canReadFacultyLoad) {
         return false;
       }
       if (item.href === "/admin/admissions/drip-sequences" && !canManageDripSequences) {
