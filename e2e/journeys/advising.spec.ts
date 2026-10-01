@@ -8,6 +8,7 @@ test("an advisor sees only their assigned caseload and can open existing signal 
 
   await expect(page.getByRole("heading", { name: "Advisor Caseload" })).toBeVisible();
   await expect(page.getByText("E2E Learner", { exact: true })).toBeVisible();
+  await expect(page.getByText("No degree plan", { exact: true })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Advisor" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open signals" })).toBeVisible();
   await context.close();

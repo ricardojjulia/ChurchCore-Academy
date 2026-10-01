@@ -29,6 +29,7 @@ Deliver an assignment-scoped advising workspace that turns existing Academy stud
 - `npm run test:full -- --reset-db`: passed, 406 passed and 330 skipped in 7.8 minutes; both advising journeys and the page sweep passed.
 - Council and Testing Council: revise -> fixed locally. The role-blind navigation finding was fixed and covered.
 - Local `pr-review`: passed with 0 critical and 0 important findings after the navigation fix.
+- Copilot PR review: three important findings, all fixed; the final verification and reset-backed full suite passed after the fixes.
 - `npm run verify:governance`: passed.
 - `git diff --check`: passed.
 

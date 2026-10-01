@@ -5,9 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
+import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { requireActor } from "@/lib/require-actor";
 import { fetchAdvisingWorkspace } from "@/modules/people/advising";
+import {
+  PostgresStudentProgramProgressRepository,
+  type StudentProgramProgressDatabase,
+} from "@/modules/student-program-progress/postgres-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +24,7 @@ export default async function AdvisingPage({ searchParams }: { searchParams: Pro
       async query(sql, values) {
         return await client.query(sql, values) as { rows: Record<string, unknown>[] };
       },
-    }),
+    }, new PostgresStudentProgramProgressRepository(asAcademyDatabase<StudentProgramProgressDatabase>(client))),
   );
   const urgent = workspace.advisees.filter((student) => student.riskTier === "critical" || student.riskTier === "high").length;
   const held = workspace.advisees.filter((student) => student.activeHoldCount > 0).length;
@@ -55,7 +59,7 @@ export default async function AdvisingPage({ searchParams }: { searchParams: Pro
               <TableBody>{workspace.advisees.map((student) => (
                 <TableRow key={student.studentPersonId}>
                   <TableCell><div className="font-medium">{student.studentName}</div><div className="text-sm text-muted-foreground">{student.studentNumber} · {label(student.enrollmentStatus)}</div></TableCell>
-                  <TableCell>{student.programName}</TableCell>
+                  <TableCell><div>{student.programName}</div><div className="text-sm text-muted-foreground">{student.percentComplete == null ? "No degree plan" : `${student.percentComplete}% · ${student.completedCredits} completed · ${student.inProgressCredits} in progress · ${student.remainingCredits} remaining`}</div></TableCell>
                   <TableCell>{student.gpa == null ? "No GPA" : `${student.gpa.toFixed(2)} GPA`}</TableCell>
                   <TableCell><div className="flex flex-wrap gap-1">{student.riskTier && <Badge variant={student.riskTier === "critical" || student.riskTier === "high" ? "destructive" : "outline"}>{label(student.riskTier)}{student.riskScore == null ? "" : ` ${student.riskScore}`}</Badge>}{student.activeHoldCount > 0 && <Badge variant="outline">{student.activeHoldCount} hold{student.activeHoldCount === 1 ? "" : "s"}</Badge>}{student.openSignalCount > 0 && <Badge variant="secondary">{student.openSignalCount} signal{student.openSignalCount === 1 ? "" : "s"}</Badge>}</div></TableCell>
                   <TableCell>{student.lastAdvisorNoteAt ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(student.lastAdvisorNoteAt)) : "No notes"}</TableCell>

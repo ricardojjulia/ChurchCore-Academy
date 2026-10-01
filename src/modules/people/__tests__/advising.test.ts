@@ -11,13 +11,21 @@ test("advisor receives only the caseload bound to their verified person id", asy
     async query(_sql, values = []) {
       calls.push(values);
       if (calls.length === 1) return { rows: [{ person_id: "advisor-a", display_name: "A. Advisor", advisee_count: 1 }] };
-      return { rows: [{ student_person_id: "student-a", student_name: "Student A", student_number: "S-1", enrollment_status: "active", program_name: "MDiv", gpa: "3.2", risk_tier: "high", composite_score: 78, active_hold_count: 1, open_signal_count: 2, last_advisor_note_at: "2026-09-30T12:00:00Z" }] };
+      return { rows: [{ student_profile_id: "profile-a", student_person_id: "student-a", student_name: "Student A", student_number: "S-1", enrollment_status: "active", program_name: "MDiv", gpa: "3.2", risk_tier: "high", composite_score: 78, active_hold_count: 1, open_signal_count: 2, last_advisor_note_at: "2026-09-30T12:00:00Z" }] };
+    },
+  }, {
+    async getProgress(tenantId, studentProfileId) {
+      assert.deepEqual([tenantId, studentProfileId], ["tenant-a", "profile-a"]);
+      return { studentProfileId, activeProgramMembershipId: "membership-a", academicProgramId: "program-a", catalogAcademicYearId: "year-a", requiredCredits: 90, completedCredits: 30, inProgressCredits: 6, remainingCredits: 60, percentComplete: 33, requirements: [] };
     },
   });
   assert.equal(result.selectedAdvisor?.personId, "advisor-a");
   assert.deepEqual(calls[1], ["tenant-a", "advisor-a"]);
   assert.equal(result.advisees[0].riskTier, "high");
   assert.equal(result.advisees[0].activeHoldCount, 1);
+  assert.equal(result.advisees[0].percentComplete, 33);
+  assert.equal(result.advisees[0].inProgressCredits, 6);
+  assert.deepEqual(calls[0], ["tenant-a", ["advisor", "faculty", "professor", "dean", "academic_admin"], "advisor-a"]);
 });
 
 test("advisor cannot request another advisor's caseload", async () => {
@@ -31,7 +39,7 @@ test("oversight role can select an active advisor in the same tenant", async () 
   const actor: AcademyActor = { tenantId: "tenant-a", userId: "registrar-a", roles: ["registrar"] };
   const result = await fetchAdvisingWorkspace(actor, "advisor-b", {
     async query(_sql, values = []) {
-      if (values.length === 2 && Array.isArray(values[1])) {
+      if (Array.isArray(values[1])) {
         return { rows: [{ person_id: "advisor-b", display_name: "B. Advisor", advisee_count: 0 }] };
       }
       assert.deepEqual(values, ["tenant-a", "advisor-b"]);

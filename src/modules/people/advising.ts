@@ -1,5 +1,6 @@
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import type { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
+import type { StudentProgramProgressRepository } from "@/modules/student-program-progress/types";
 
 const oversightRoles = new Set<AcademyRole>(["institution_admin", "dean", "academic_admin", "registrar"]);
 const advisorCapableRoles = ["advisor", "faculty", "professor", "dean", "academic_admin"] as const;
@@ -20,6 +21,10 @@ export interface AdviseeSummary {
   studentNumber: string;
   enrollmentStatus: string;
   programName: string;
+  completedCredits: number;
+  inProgressCredits: number;
+  remainingCredits: number;
+  percentComplete: number | null;
   gpa: number | null;
   riskTier: "low" | "moderate" | "high" | "critical" | null;
   riskScore: number | null;
@@ -39,6 +44,7 @@ export async function fetchAdvisingWorkspace(
   actor: AcademyActor,
   requestedAdvisorPersonId: string | undefined,
   database: AdvisingDatabase,
+  progressRepository?: StudentProgramProgressRepository,
 ): Promise<AdvisingWorkspace> {
   const oversight = actor.roles.some((role) => oversightRoles.has(role));
   const isAdvisor = actor.roles.includes("advisor");
@@ -60,9 +66,10 @@ export async function fetchAdvisingWorkspace(
          on sp.tenant_id = p.tenant_id and sp.advisor_person_id = p.id
       where p.tenant_id = $1 and p.person_status = 'active'
         and pra.status = 'active' and pra.role = any($2::text[])
+        and ($3::text is null or p.id = $3)
       group by p.id, p.display_name
       order by p.display_name`,
-    [actor.tenantId, advisorCapableRoles],
+    [actor.tenantId, advisorCapableRoles, oversight ? null : actor.userId],
   );
   const advisors = advisorsResult.rows.map(mapAdvisor);
   const selectedAdvisorId = oversight ? requestedAdvisorPersonId : actor.userId;
@@ -76,7 +83,8 @@ export async function fetchAdvisingWorkspace(
   if (!selectedAdvisor) return { advisors, selectedAdvisor: null, advisees: [], oversight };
 
   const caseloadResult = await database.query(
-    `select sp.person_id as student_person_id,
+    `select sp.id as student_profile_id,
+            sp.person_id as student_person_id,
             p.display_name as student_name,
             sp.student_number,
             sp.enrollment_status,
@@ -109,7 +117,7 @@ export async function fetchAdvisingWorkspace(
        ) signals on true
        left join lateral (
          select max(n.created_at) as last_advisor_note_at
-           from academy_student_advisor_notes n
+           from academy_advisor_notes n
           where n.tenant_id = sp.tenant_id and n.student_person_id = sp.person_id
        ) notes on true
       where sp.tenant_id = $1 and sp.advisor_person_id = $2
@@ -119,14 +127,23 @@ export async function fetchAdvisingWorkspace(
     [actor.tenantId, selectedAdvisor.personId],
   );
 
-  return { advisors, selectedAdvisor, advisees: caseloadResult.rows.map(mapAdvisee), oversight };
+  const advisees = await Promise.all(caseloadResult.rows.map(async (row) => {
+    const progress = progressRepository
+      ? await progressRepository.getProgress(actor.tenantId, String(row.student_profile_id))
+      : undefined;
+    return mapAdvisee(row, progress);
+  }));
+  return { advisors, selectedAdvisor, advisees, oversight };
 }
 
 function mapAdvisor(row: Record<string, unknown>): AdvisorOption {
   return { personId: String(row.person_id), name: String(row.display_name), adviseeCount: Number(row.advisee_count) };
 }
 
-function mapAdvisee(row: Record<string, unknown>): AdviseeSummary {
+function mapAdvisee(
+  row: Record<string, unknown>,
+  progress?: Awaited<ReturnType<StudentProgramProgressRepository["getProgress"]>>,
+): AdviseeSummary {
   const riskTier = row.risk_tier == null ? null : String(row.risk_tier) as AdviseeSummary["riskTier"];
   return {
     studentPersonId: String(row.student_person_id),
@@ -134,6 +151,10 @@ function mapAdvisee(row: Record<string, unknown>): AdviseeSummary {
     studentNumber: String(row.student_number),
     enrollmentStatus: String(row.enrollment_status),
     programName: String(row.program_name),
+    completedCredits: progress?.completedCredits ?? 0,
+    inProgressCredits: progress?.inProgressCredits ?? 0,
+    remainingCredits: progress?.remainingCredits ?? 0,
+    percentComplete: progress?.percentComplete ?? null,
     gpa: row.gpa == null ? null : Number(row.gpa),
     riskTier,
     riskScore: row.composite_score == null ? null : Number(row.composite_score),
