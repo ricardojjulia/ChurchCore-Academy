@@ -14,9 +14,12 @@ test("advisor receives only the caseload bound to their verified person id", asy
       return { rows: [{ student_profile_id: "profile-a", student_person_id: "student-a", student_name: "Student A", student_number: "S-1", enrollment_status: "active", program_name: "MDiv", gpa: "3.2", risk_tier: "high", composite_score: 78, active_hold_count: 1, open_signal_count: 2, last_advisor_note_at: "2026-09-30T12:00:00Z" }] };
     },
   }, {
-    async getProgress(tenantId, studentProfileId) {
-      assert.deepEqual([tenantId, studentProfileId], ["tenant-a", "profile-a"]);
-      return { studentProfileId, activeProgramMembershipId: "membership-a", academicProgramId: "program-a", catalogAcademicYearId: "year-a", requiredCredits: 90, completedCredits: 30, inProgressCredits: 6, remainingCredits: 60, percentComplete: 33, requirements: [] };
+    async getProgress() {
+      throw new Error("single-student progress lookup must not be used");
+    },
+    async getProgressForStudents(tenantId, studentProfileIds) {
+      assert.deepEqual([tenantId, studentProfileIds], ["tenant-a", ["profile-a"]]);
+      return new Map([["profile-a", { studentProfileId: "profile-a", activeProgramMembershipId: "membership-a", academicProgramId: "program-a", catalogAcademicYearId: "year-a", requiredCredits: 90, completedCredits: 30, inProgressCredits: 6, remainingCredits: 60, percentComplete: 33, requirements: [] }]]);
     },
   });
   assert.equal(result.selectedAdvisor?.personId, "advisor-a");

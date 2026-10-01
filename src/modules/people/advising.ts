@@ -1,6 +1,6 @@
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import type { AcademyActor, AcademyRole } from "@/modules/academy-auth/policy";
-import type { StudentProgramProgressRepository } from "@/modules/student-program-progress/types";
+import type { StudentProgramProgressBulkRepository } from "@/modules/student-program-progress/types";
 
 const oversightRoles = new Set<AcademyRole>(["institution_admin", "dean", "academic_admin", "registrar"]);
 const advisorCapableRoles = ["advisor", "faculty", "professor", "dean", "academic_admin"] as const;
@@ -44,7 +44,7 @@ export async function fetchAdvisingWorkspace(
   actor: AcademyActor,
   requestedAdvisorPersonId: string | undefined,
   database: AdvisingDatabase,
-  progressRepository?: StudentProgramProgressRepository,
+  progressRepository?: StudentProgramProgressBulkRepository,
 ): Promise<AdvisingWorkspace> {
   const oversight = actor.roles.some((role) => oversightRoles.has(role));
   const isAdvisor = actor.roles.includes("advisor");
@@ -127,12 +127,15 @@ export async function fetchAdvisingWorkspace(
     [actor.tenantId, selectedAdvisor.personId],
   );
 
-  const advisees = await Promise.all(caseloadResult.rows.map(async (row) => {
-    const progress = progressRepository
-      ? await progressRepository.getProgress(actor.tenantId, String(row.student_profile_id))
-      : undefined;
-    return mapAdvisee(row, progress);
-  }));
+  const progressByStudent = progressRepository
+    ? await progressRepository.getProgressForStudents(
+      actor.tenantId,
+      caseloadResult.rows.map((row) => String(row.student_profile_id)),
+    )
+    : new Map();
+  const advisees = caseloadResult.rows.map((row) => (
+    mapAdvisee(row, progressByStudent.get(String(row.student_profile_id)))
+  ));
   return { advisors, selectedAdvisor, advisees, oversight };
 }
 
@@ -142,7 +145,7 @@ function mapAdvisor(row: Record<string, unknown>): AdvisorOption {
 
 function mapAdvisee(
   row: Record<string, unknown>,
-  progress?: Awaited<ReturnType<StudentProgramProgressRepository["getProgress"]>>,
+  progress?: Awaited<ReturnType<StudentProgramProgressBulkRepository["getProgress"]>>,
 ): AdviseeSummary {
   const riskTier = row.risk_tier == null ? null : String(row.risk_tier) as AdviseeSummary["riskTier"];
   return {
