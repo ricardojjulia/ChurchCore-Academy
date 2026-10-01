@@ -166,6 +166,12 @@ async function main() {
       const authUserId = await ensureAuthUser(admin, persona.email.toLowerCase());
       await ensurePersona(pool, persona, authUserId);
     }
+    await pool.query(
+      `update academy_student_profiles
+          set advisor_person_id = $1, updated_at = now()
+        where tenant_id = $2 and id = $3`,
+      [PERSONAS.advisor.personId, PRIMARY_TENANT_ID, FIXTURE_IDS.learnerProfileId],
+    );
     const { rows } = await pool.query("select count(*)::int as n from academy_account_links where status = 'active'");
     console.log(`[e2e seed] ok — ${rows[0].n} active account links, tenants ${PRIMARY_TENANT_ID} + ${OTHER_TENANT_ID}`);
   } finally {
