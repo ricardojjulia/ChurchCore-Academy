@@ -215,15 +215,14 @@ export class PostgresStudentProgramProgressRepository implements StudentProgramP
              and r.status in ('pending_confirmation', 'registered', 'waitlisted', 'completed')
            group by r.student_profile_id, s.course_id
         ), latest_grades as (
-          select sp.id as student_profile_id, summary.course_id, summary.is_passing,
+          select membership.student_profile_id, summary.course_id, summary.is_passing,
                  row_number() over (
-                   partition by sp.id, summary.course_id
+                   partition by membership.student_profile_id, summary.course_id
                    order by summary.calculated_at desc, summary.id desc
                  ) as summary_rank
             from academy_gradebook_course_summaries summary
-            join academy_student_profiles sp
-              on sp.tenant_id = summary.tenant_id and sp.person_id = summary.learner_person_id
-           where summary.tenant_id = $1 and sp.id = any($2::text[])
+            join active_memberships membership on membership.id = summary.enrollment_id
+           where summary.tenant_id = $1
         )
         select membership.id as active_program_membership_id,
                membership.student_profile_id, membership.academic_program_id,

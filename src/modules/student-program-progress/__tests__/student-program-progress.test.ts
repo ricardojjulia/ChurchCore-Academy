@@ -160,6 +160,7 @@ test("repository loads caseload progress in one batch query", async () => {
     async query(sql, values) {
       queryCount += 1;
       assert.match(sql, /student_profile_id = any\(\$2::text\[\]\)/);
+      assert.match(sql, /membership\.id = summary\.enrollment_id/);
       assert.deepEqual(values, ["tenant-1", ["student-profile-1", "student-profile-2"]]);
       return {
         rowCount: 2,

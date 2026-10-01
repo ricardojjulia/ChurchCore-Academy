@@ -49,12 +49,14 @@ Copilot identified three important gaps after the initial PR opened: advisor-onl
 
 The follow-up review identified an N+1 progress lookup and an incomplete negative E2E assertion. The progress repository now provides a single-query bulk summary for the whole caseload, with repository coverage proving one round trip for multiple profiles. The advisor journey now also proves that the known same-tenant learner assigned elsewhere is absent.
 
+A second follow-up identified that the bulk grade summary could read a historical program enrollment. The query now binds grade summaries to the selected active membership ID, matching the canonical detail query, with a focused SQL-shape regression assertion.
+
 ## Verification
 
 - Focused advising and navigation suite - passed, 6 tests.
 - TypeScript `--noEmit` and focused ESLint - passed.
 - `npm run verify` on the final code - passed, 2,065 tests, lint, and build.
-- `npm run test:full -- --reset-db` - passed, 406 passed and 330 skipped in 7.6 minutes on the final code; advising journeys and page sweep passed.
+- `npm run test:full -- --reset-db` - passed, 406 passed and 330 skipped in 7.5 minutes on the final code; advising journeys and page sweep passed.
 - `npm run verify:governance` and `git diff --check` - passed after the Copilot follow-up fixes.
 - Local `pr-review` - passed with 0 critical and 0 important findings after the navigation fix.
 
