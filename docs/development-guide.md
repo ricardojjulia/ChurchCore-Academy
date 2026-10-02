@@ -1,6 +1,6 @@
 # ChurchCore Academy Development Guide
 
-Date: 2026-09-27
+Date: 2026-10-02
 Status: Canonical
 
 This is the single operating guide for ChurchCore Academy development. It combines the product objective, MVP and competitive status, Council process, Testing Council, software factory, implementation backlog, verification gates, and release discipline into one source of truth.
@@ -26,14 +26,15 @@ Deployment to Vercel and creation of hosted Supabase resources are explicitly de
 
 Academy is a controlled-pilot candidate, not a GA production system.
 
-The latest MVP and competitive evaluation is `docs/reports/mvp-and-competitive-status-2026-09-25.md`. Its bottom line is:
+The latest MVP and competitive evaluation is `docs/reports/mvp-and-competitive-status-2026-10-02.md`. Its bottom line is:
 
 - The MVP is functionally built.
 - The Core Academic Loop works end to end against a real migration-built database.
 - Steps 1-11 are automated in CI, including progress against requirements and immutable transcript entry coverage added in PR #196.
 - Academy is not live.
 - No Vercel project or hosted Academy Supabase project should be created until deployment is approved.
-- The remaining first-customer blockers are trusted institution resolution for the public portal and a product decision about which customer profile drives the next competitive gap work.
+- The approved repository-owned P0 and initial P1 slices are complete.
+- The next evidence gate is an uncoached, authenticated pilot/design-partner session; deployment still requires explicit owner approval.
 
 ## First Target Customer Profile
 
@@ -90,7 +91,17 @@ Remaining: none. Trusted public institution resolution shipped in PR `#201`; liv
    - Add an i18n layer only when there is a selected pilot/customer language need.
    - Start with navigational and high-frequency workflow text.
 
-9. OneRoster deletion reconciliation. Implemented in the `#164` delivery-state slice; merge and external LMS validation remain before issue closeout.
+9. OneRoster deletion reconciliation.
+   - Repository implementation is complete in PR `#202`; issue `#164` is closed.
+   - External LMS validation remains a provider-activation gate, not an open implementation story.
+
+### Next Evidence Gate
+
+The current ungated implementation backlog is complete. Run an uncoached,
+authenticated pilot/design-partner session and turn only observed workflow failures
+or adoption blockers into new stories. If that session requires a hosted Academy
+environment, obtain explicit owner approval for the deployment runbook and resources
+before creating them.
 
 ### P2: Title IV And Mature-Market Parity
 
@@ -210,7 +221,7 @@ Current deployment posture:
 
 External gates that remain before production or broad pilot:
 
-- Trusted institution selection for public portal.
+- Hosted validation of trusted institution selection for the public portal.
 - Moodle sandbox or tenant evidence.
 - Canvas sandbox or tenant evidence.
 - Tenant owner and provider owner signoff.
@@ -249,7 +260,7 @@ Use these as supporting evidence, not competing operating guides:
 
 - `CLAUDE.md`: stack, architecture rules, and agent reference.
 - `AGENTS.md`: short cross-agent entrypoint.
-- `docs/reports/mvp-and-competitive-status-2026-09-25.md`: latest MVP/competitive evaluation.
+- `docs/reports/mvp-and-competitive-status-2026-10-02.md`: latest MVP/competitive evaluation.
 - `docs/project-status.md`: current product status snapshot.
 - `docs/testing/e2e-suite.md`: e2e suite details.
 - `docs/adr/`: durable architecture decisions.

@@ -55,7 +55,7 @@ This directory contains the durable product, architecture, delivery, operations,
 
 ## Delivery Artifacts
 
-- [MVP and Competitive Status](reports/mvp-and-competitive-status-2026-09-25.md) — latest MVP and competitive evaluation
+- [MVP and Competitive Status](reports/mvp-and-competitive-status-2026-10-02.md) — latest MVP and competitive evaluation
 - [Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — historical code-verified completeness reference
 - [0.9.0 Release Notes — Capability Enforcement](releases/2026-06-30-capability-enforcement-release-notes.md)
 - [0.8.0 Release Notes — Full LMS Integration](releases/2026-06-26-full-lms-integration-readiness.md)

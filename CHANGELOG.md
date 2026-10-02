@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- 2026-10-02 code- and CI-backed MVP and competitive status refresh, reconciling the completed P0/P1 slices and making an uncoached pilot/design-partner session the next evidence gate without authorizing deployment.
 - Faculty teaching-load intelligence with period-scoped sections, instructional credits and clock hours, enrolled-seat and capacity evidence, advising counts, and explainable administrative review flags.
 - Advisor caseload intelligence with assignment-scoped self-service, authorized oversight selection, and explainable program, GPA, risk, hold, signal, and advising-activity summaries.
 - OneRoster deletion reconciliation with tenant-, destination-, and section-scoped delivered state; archived/cancelled classes, departed users, roles, and enrollments now emit `tobedeleted` only when previously delivered.
