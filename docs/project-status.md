@@ -2,13 +2,13 @@
 
 - Version: `0.10.0`
 - Stage: controlled-pilot candidate
-- Updated: 2026-09-12
+- Updated: 2026-10-02
 
 ## Current Assessment
 
-**The canonical current development guide is [`docs/development-guide.md`](development-guide.md).** The latest code-verified MVP and competitive evaluation is [`docs/reports/mvp-and-competitive-status-2026-09-25.md`](reports/mvp-and-competitive-status-2026-09-25.md). Older status docs remain useful history, but code and current CI evidence are the tiebreaker when documents drift.
+**The canonical current development guide is [`docs/development-guide.md`](development-guide.md).** The latest code-verified MVP and competitive evaluation is [`docs/reports/mvp-and-competitive-status-2026-10-02.md`](reports/mvp-and-competitive-status-2026-10-02.md). Older status docs remain useful history, but code and current CI evidence are the tiebreaker when documents drift.
 
-The 2026-09-25 evaluation confirms the MVP is functionally built, the Core Academic Loop works end to end, and the next repo work is to automate steps 9 and 11, resolve trusted institution selection for the public portal, and close competitive gaps for the first target customer profile. Vercel and hosted Supabase deployment are deferred until owner approval.
+The 2026-10-02 evaluation confirms the Core Academic Loop is automated end to end and the approved repository-owned P0/P1 slices have shipped, including trusted public institution resolution, OneRoster deletion reconciliation, custom reports, bulk email, donor campaigns, advisor caseload, and faculty teaching-load intelligence. Faculty-load incomplete-value accuracy and primary-path E2E coverage remain open in issue `#216`; after that closeout, the next evidence gate is an uncoached pilot/design-partner session. Vercel and hosted Supabase deployment remain deferred until owner approval.
 
 ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, the ADR-0059 full Moodle/Canvas LMS implementation closeout, and the ADR-0061 institution capability enforcement closeout.
 
@@ -63,6 +63,10 @@ Current posture:
 - README, HOWTO, CHANGELOG, and VERSIONING documentation refresh.
 - Full Core Academic Loop: program curriculum (versioned by entry year), student program membership, section enrollment, student progress tracking, grade entry/gradebook, and immutable transcript entries — all code-verified 2026-09-12 after `docs/product/product-context.md` had gone stale claiming these did not exist. See the feature inventory audit.
 - Nocturne dark design system adopted app-wide, replacing the light SIS palette across shared UI primitives, all four shells (admin/student/faculty/guardian), and the login/error pages.
+- Automated Core Academic Loop coverage through program progress and immutable transcript creation.
+- Trusted public institution routing that fails closed to published host/slug mappings.
+- Initial P1 custom reports, manual bulk email, donor campaigns, advisor caseload intelligence, and faculty teaching-load intelligence.
+- OneRoster delivered-state deletion reconciliation for classes, users, roles, and enrollments.
 
 ## External Release Gates
 
@@ -97,6 +101,7 @@ These are not open implementation tasks in the repository. They are live-environ
 - [Versioning](../VERSIONING.md)
 - [Factory Roadmap](product/factory-roadmap.md)
 - [2026-09-12 Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current authoritative feature-completeness reference
+- [2026-10-02 MVP and Competitive Status](reports/mvp-and-competitive-status-2026-10-02.md) — current planning and competitive evaluation
 - [ADR-0060 Concrete Institution Modes And Mode Packs](adr/0060-concrete-institution-modes-and-mode-packs.md)
 - [ADR-0061 Institution Capability Enforcement](adr/0061-institution-capability-enforcement.md)
 - [Council Review XV Institution Mode Pack Closeout](reviews/2026-07-21-council-review-15-institution-mode-pack-closeout.md)
