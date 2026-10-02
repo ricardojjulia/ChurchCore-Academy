@@ -11,7 +11,8 @@ seminaries, ministry institutes, and similar small institutions that do not need
 U.S. Title IV automation on day one. It is not deployed and is not approved for
 general availability or unrestricted production official-record use.
 
-The repository-owned MVP and the approved first-customer P1 slices are complete:
+The repository-owned MVP is complete and the approved first-customer P1 slices
+have shipped:
 
 - All 11 Core Academic Loop steps are automated in the production-build e2e gate.
 - Trusted public institution resolution is implemented and fails closed.
@@ -20,9 +21,11 @@ The repository-owned MVP and the approved first-customer P1 slices are complete:
 - OneRoster deletion reconciliation is implemented with delivered-state
   provenance; external LMS validation remains an activation gate.
 
-No ungated implementation item remains in the current backlog. The next useful
-evidence is an uncoached, authenticated pilot or design-partner walkthrough.
-Deployment or hosted-resource creation still requires explicit owner approval.
+One ungated correctness item remains: issue `#216` must preserve unknown
+faculty-load aggregates and exercise the primary aggregate path in E2E. After that
+closeout, the next useful evidence is an uncoached, authenticated pilot or
+design-partner walkthrough. Deployment or hosted-resource creation still requires
+explicit owner approval.
 
 ## Evidence Since The 2026-09-25 Evaluation
 
@@ -35,7 +38,7 @@ Deployment or hosted-resource creation still requires explicit owner approval.
 | Trusted public tenant resolution | PR `#201`; issue `#162` closed |
 | OneRoster deletion reconciliation | PR `#202`; issue `#164` closed |
 | Advisor caseload intelligence | PR `#204`; issue `#203` closed |
-| Faculty teaching-load intelligence | PR `#206`; issue `#205` closed |
+| Faculty teaching-load intelligence | Initial slice in PR `#206`; issue `#216` tracks incomplete-value accuracy and primary-path E2E follow-up |
 
 The final PR in this sequence passed the required hosted CI, CodeQL, and
 production-build E2E checks. Its local final verification recorded 2,071 tests,
@@ -54,6 +57,7 @@ combinations intentionally skipped by access expectations.
 | Public institution selection | Trusted published host/slug mapping; unknown routes fail closed |
 | Academy-to-LMS roster delivery | OneRoster CSV Binding 1.2.1 export, signed delivery, and deletion reconciliation implemented |
 | Live deployment | Not started; owner approval required |
+| Faculty-load closeout | Issue `#216` open before pilot observation |
 | Real-institution pilot evidence | Not yet recorded |
 
 ## Competitive Position
@@ -88,7 +92,8 @@ combinations intentionally skipped by access expectations.
 
 ## Recommended Next Move
 
-Run one uncoached, authenticated pilot/design-partner session against a
+Close faculty-load correctness and primary-path E2E issue `#216`. Then run one
+uncoached, authenticated pilot/design-partner session against a
 representative institution profile and record observed completion, confusion,
 dead ends, authorization failures, and requested capabilities. Turn only observed
 failures or adoption blockers into the next repository stories.
@@ -106,6 +111,8 @@ Title IV work should begin only when its existing customer/compliance gate is me
   observability evidence exists for Academy.
 - Institution-specific policy configuration may expose gaps not represented in
   the acceptance data.
+- The shipped faculty-load slice can present incomplete instructional or capacity
+  configuration as misleading partial numeric totals until issue `#216` closes.
 - Competitive claims remain bounded to controlled-pilot and design-partner use.
 
 ## Method

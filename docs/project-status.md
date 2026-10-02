@@ -8,7 +8,7 @@
 
 **The canonical current development guide is [`docs/development-guide.md`](development-guide.md).** The latest code-verified MVP and competitive evaluation is [`docs/reports/mvp-and-competitive-status-2026-10-02.md`](reports/mvp-and-competitive-status-2026-10-02.md). Older status docs remain useful history, but code and current CI evidence are the tiebreaker when documents drift.
 
-The 2026-10-02 evaluation confirms the Core Academic Loop is automated end to end and the approved repository-owned P0/P1 slices are complete, including trusted public institution resolution, OneRoster deletion reconciliation, custom reports, bulk email, donor campaigns, advisor caseload, and faculty teaching-load intelligence. The next evidence gate is an uncoached pilot/design-partner session. Vercel and hosted Supabase deployment remain deferred until owner approval.
+The 2026-10-02 evaluation confirms the Core Academic Loop is automated end to end and the approved repository-owned P0/P1 slices have shipped, including trusted public institution resolution, OneRoster deletion reconciliation, custom reports, bulk email, donor campaigns, advisor caseload, and faculty teaching-load intelligence. Faculty-load incomplete-value accuracy and primary-path E2E coverage remain open in issue `#216`; after that closeout, the next evidence gate is an uncoached pilot/design-partner session. Vercel and hosted Supabase deployment remain deferred until owner approval.
 
 ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, the ADR-0059 full Moodle/Canvas LMS implementation closeout, and the ADR-0061 institution capability enforcement closeout.
 

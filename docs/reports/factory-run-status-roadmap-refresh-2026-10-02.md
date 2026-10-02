@@ -6,7 +6,7 @@ Issue: `#214`
 
 ## Intent
 
-Reconcile the canonical roadmap and status artifacts after completion of the
+Reconcile the canonical roadmap and status artifacts after shipment of the
 approved P0 and P1 slices, then identify the next evidence-backed action.
 
 ## Boundaries
@@ -21,8 +21,11 @@ approved P0 and P1 slices, then identify the next evidence-backed action.
 - Verified merged PR and issue state for PRs `#196`-`#206`.
 - Verified that recent PR `#206` received Copilot reviews, satisfying issue
   `#165`'s acceptance criterion.
-- Council Review 23 accepted an uncoached pilot/design-partner session as the next
-  evidence source and found no ADR trigger.
+- The PR review identified three late PR `#206` faculty-load findings that remain
+  in merged code despite its run record describing them as fixed. Issue `#216`
+  owns incomplete-value accuracy and primary-path E2E closeout.
+- Council Review 23 accepted issue `#216` as the final repository closeout before
+  an uncoached pilot/design-partner session and found no ADR trigger.
 
 ## Changes
 
@@ -37,6 +40,8 @@ approved P0 and P1 slices, then identify the next evidence-backed action.
   tests, lint, and production build.
 - `git diff --check`: passed.
 - `pr-review`: passed with 0 critical and 0 important findings.
+- Copilot review: six related low-severity status findings corrected by qualifying
+  P1 closeout and assigning the merged faculty-load gaps to issue `#216`.
 - `npm run test:full`: not rerun because this is documentation-only with no
   page, API, auth, role, schema, or runtime change; current hosted E2E evidence is
   cited in the evaluation.
@@ -46,4 +51,5 @@ approved P0 and P1 slices, then identify the next evidence-backed action.
 
 This refresh relies on repository and CI evidence. It does not replace external
 pilot observation, live provider validation, deployment proof, or compliance
-approval.
+approval. Faculty-load partial aggregate presentation and primary-path browser
+coverage remain explicitly open in issue `#216`.

@@ -10,14 +10,16 @@ Decision requested: accept / revise / defer / reject
 Decision: **accept**
 
 The prior status snapshot is materially stale after PRs `#196`-`#206`. The
-repository-owned MVP and approved first-customer P1 slices are complete. Further
-speculative feature work would bypass the guide's evidence-first rule.
+repository-owned MVP is complete and the approved first-customer P1 slices have
+shipped, but faculty-load correctness and primary-path E2E issue `#216` remains a
+required closeout. Further speculative feature work would bypass the guide's
+evidence-first rule.
 
 ## Council Findings
 
 ### Product And SIS
 
-The first-customer wedge is credible for non-Title-IV faith-based institutions,
+After issue `#216`, the first-customer wedge is credible for non-Title-IV faith-based institutions,
 subject to controlled-pilot boundaries. The next product question is no longer
 which planned feature to build; it is where an uncoached institution user fails,
 hesitates, or requests missing capability.
@@ -44,8 +46,10 @@ language, navigation misses, and accessibility friction recorded as observations
 
 Custom reports, bulk email, donor campaigns, advising, faculty load, trusted
 public routing, and OneRoster deletion reconciliation have moved from gaps to
-implemented initial slices. Multilingual expansion remains customer-language
-gated. Title IV parity remains compliance-gated and is not an implied roadmap item.
+shipped initial slices. Faculty-load incomplete-value accuracy and primary-path
+E2E remain tracked in issue `#216`. Multilingual expansion remains
+customer-language gated. Title IV parity remains compliance-gated and is not an
+implied roadmap item.
 
 ### Testing Council
 
@@ -56,6 +60,7 @@ the current hosted CI/E2E evidence is cited rather than rerun as product proof.
 
 ## Decision
 
-Accept the refreshed status and make pilot observation the next evidence gate.
+Accept the refreshed status, close issue `#216`, and then make pilot observation
+the next evidence gate.
 Do not deploy, activate providers, begin multilingual work, or begin regulated-aid
 work without the approvals already required by the canonical guide.
