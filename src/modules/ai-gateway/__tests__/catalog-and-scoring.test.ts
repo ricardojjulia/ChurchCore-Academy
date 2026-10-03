@@ -3,6 +3,7 @@ import test from "node:test";
 import { eligibleCandidates, estimateRequestCostUsd, normalizeOpenRouterCatalog } from "@/modules/ai-gateway/catalog";
 import {
   aggregateEvaluations,
+  belowFloorModelIds,
   chooseSelection,
   COLD_START_MODEL,
   parseJudgeVerdict,
@@ -186,6 +187,36 @@ test("with no challenger, an eligible incumbent stays but an ineligible one fall
   assert.deepEqual(retired.fallbackModelIds, []);
   assert.equal(retired.fitScore, null);
   assert.match(retired.reason, /no longer eligible/);
+});
+
+test("an incumbent judged below the floor on complete evidence stops serving; incomplete evidence does not", () => {
+  const [first] = reasoningCaseIds;
+  const aggregates = aggregateEvaluations([
+    ...reasoningCaseIds.map((caseId) => evaluation({ modelId: "anthropic/incumbent", caseId, qualityScore: 0.3 })),
+    // Below the floor so far, but only one case: not yet a verdict.
+    evaluation({ modelId: "openai/partial", caseId: first, qualityScore: 0.3 }),
+  ]);
+  const belowFloor = belowFloorModelIds(reasoning, aggregates);
+  assert.deepEqual([...belowFloor], ["anthropic/incumbent"]);
+
+  const current = {
+    taskKind: "hq_reasoning" as const,
+    modelId: "anthropic/incumbent",
+    fallbackModelIds: [],
+    fitScore: 0.8,
+    reason: "",
+    runId: "old",
+    selectedAt: "2026-09-01T00:00:00.000Z",
+  };
+  const eligibleModelIds = new Set(["anthropic/incumbent", "openai/partial"]);
+
+  const dropped = chooseSelection(reasoning, [], current, { runId: "run-2", now: NOW.toISOString(), eligibleModelIds, belowFloorModelIds: belowFloor });
+  assert.equal(dropped.modelId, COLD_START_MODEL);
+  assert.match(dropped.reason, /below the quality floor/);
+
+  const partialIncumbent = { ...current, modelId: "openai/partial" };
+  const kept = chooseSelection(reasoning, [], partialIncumbent, { runId: "run-2", now: NOW.toISOString(), eligibleModelIds, belowFloorModelIds: belowFloor });
+  assert.equal(kept.modelId, "openai/partial", "incomplete evidence is not a below-floor verdict");
 });
 
 test("eligibility requires the ask's full output ceiling, not a fixed minimum", () => {

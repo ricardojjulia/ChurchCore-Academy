@@ -110,6 +110,22 @@ export function aggregateEvaluations(records: AiModelEvaluationRecord[]): AiMode
   });
 }
 
+function coversEveryCase(profile: AiTaskProfile, aggregate: AiModelAggregate) {
+  return profile.evaluationCases.every((evaluationCase) => aggregate.coveredCaseIds.includes(evaluationCase.id));
+}
+
+/**
+ * Models with complete evidence that scored below the ask's quality floor. Unlike a model whose
+ * evidence is merely incomplete, these have been judged unfit and must stop serving.
+ */
+export function belowFloorModelIds(profile: AiTaskProfile, aggregates: AiModelAggregate[]): Set<string> {
+  return new Set(
+    aggregates
+      .filter((aggregate) => coversEveryCase(profile, aggregate) && aggregate.meanQuality < profile.qualityFloor)
+      .map((aggregate) => aggregate.modelId),
+  );
+}
+
 /**
  * Ranks models for an ask using live catalog pricing. Quality comes from evaluations; cost is
  * recomputed from today's prices, so a price change re-ranks models without re-evaluating them.
@@ -120,7 +136,6 @@ export function rankModels(
   eligible: AiModelCandidate[],
 ): AiRankedModel[] {
   const candidates = new Map(eligible.map((candidate) => [candidate.id, candidate]));
-  const requiredCaseIds = profile.evaluationCases.map((evaluationCase) => evaluationCase.id);
   const { weights } = profile;
   const weightTotal = weights.quality + weights.cost + weights.latency;
 
@@ -130,7 +145,7 @@ export function rankModels(
       if (!candidate) return [];
       // Qualify only on evidence from every case: repeated samples of one case must not stand in
       // for a case the grader kept failing on.
-      if (!requiredCaseIds.every((caseId) => aggregate.coveredCaseIds.includes(caseId))) return [];
+      if (!coversEveryCase(profile, aggregate)) return [];
       if (aggregate.meanQuality < profile.qualityFloor) return [];
 
       const estimatedRequestCostUsd = estimateRequestCostUsd(candidate, profile);
@@ -159,21 +174,28 @@ export function rankModels(
  * Picks the primary model and fallbacks. Keeps the incumbent unless a challenger beats it by
  * SELECTION_SWITCH_MARGIN, so selections don't flap between near-identical models. When nothing
  * qualifies, the incumbent survives only while it is still eligible to serve (in the catalog,
- * unexpired, within budget); otherwise the ask falls back to the cold-start router.
+ * unexpired, within budget) and has not been judged below the quality floor on complete
+ * evidence; otherwise the ask falls back to the cold-start router.
  */
 export function chooseSelection(
   profile: AiTaskProfile,
   ranked: AiRankedModel[],
   current: AiModelSelection | undefined,
-  context: { runId: string; now: string; eligibleModelIds: ReadonlySet<string> },
+  context: {
+    runId: string;
+    now: string;
+    eligibleModelIds: ReadonlySet<string>;
+    /** From belowFloorModelIds: never kept as the incumbent or a fallback. */
+    belowFloorModelIds?: ReadonlySet<string>;
+  },
 ): AiModelSelection {
   if (ranked.length === 0) {
-    const incumbentEligible = current !== undefined && context.eligibleModelIds.has(current.modelId);
-    if (current && incumbentEligible) {
+    const retainable = (id: string) => context.eligibleModelIds.has(id) && !context.belowFloorModelIds?.has(id);
+    if (current && retainable(current.modelId)) {
       return {
         taskKind: profile.kind,
         modelId: current.modelId,
-        fallbackModelIds: current.fallbackModelIds.filter((id) => context.eligibleModelIds.has(id)),
+        fallbackModelIds: current.fallbackModelIds.filter(retainable),
         fitScore: current.fitScore,
         reason: "No challenger qualified for this task; keeping the existing route.",
         runId: context.runId,
@@ -186,7 +208,9 @@ export function chooseSelection(
       fallbackModelIds: [],
       fitScore: null,
       reason: current && current.modelId !== COLD_START_MODEL
-        ? `${current.modelId} is no longer eligible and no model has qualified; routing to ${COLD_START_MODEL}.`
+        ? context.belowFloorModelIds?.has(current.modelId)
+          ? `${current.modelId} scored below the quality floor and no model has qualified; routing to ${COLD_START_MODEL}.`
+          : `${current.modelId} is no longer eligible and no model has qualified; routing to ${COLD_START_MODEL}.`
         : "No model has qualified for this task yet; using the auto-router.",
       runId: context.runId,
       selectedAt: context.now,

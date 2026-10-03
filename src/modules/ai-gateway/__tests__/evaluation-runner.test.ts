@@ -332,3 +332,29 @@ test("failed and usage-less calls are charged at their worst case, so timeouts c
   assert.ok(quietSummary.spentUsd > answers, "the usage-less grader calls were charged, not counted as zero");
   assert.ok(quietSummary.spentUsd <= worstCaseJobCostUsd(strong, grader, profile) + 1e-6);
 });
+
+test("a re-evaluated incumbent that falls below the quality floor is replaced by the auto-router", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  repository.selections.push({
+    taskKind: "hq_reasoning",
+    modelId: "anthropic/strong",
+    fallbackModelIds: [],
+    fitScore: 0.8,
+    reason: "Best fit",
+    runId: "old",
+    selectedAt: "2026-08-01T00:00:00.000Z",
+  });
+  // No history in the window, so the incumbent is stale and re-checked; the grader now scores it 0.
+  const { client } = fakeClient({ judgeScores: {} });
+
+  const summary = await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    { ...options, providerPrefixes: ["anthropic/strong"] },
+  );
+
+  assert.ok(repository.evaluations.some((record) => record.modelId === "anthropic/strong"), "the incumbent was re-evaluated");
+  const [selection] = await repository.listCurrentSelections();
+  assert.equal(selection.modelId, COLD_START_MODEL);
+  assert.match(selection.reason, /below the quality floor/);
+  assert.deepEqual(summary.selectionChanges, [{ taskKind: "hq_reasoning", from: "anthropic/strong", to: COLD_START_MODEL }]);
+});

@@ -2,6 +2,7 @@ import { eligibleCandidates, normalizeOpenRouterCatalog } from "@/modules/ai-gat
 import type { OpenRouterClient } from "@/modules/ai-gateway/openrouter-client";
 import {
   aggregateEvaluations,
+  belowFloorModelIds,
   buildJudgeMessages,
   chooseSelection,
   COLD_START_MODEL,
@@ -429,10 +430,16 @@ async function evaluateUnderLease(
   for (const kind of kinds) {
     const profile = AI_TASK_PROFILES[kind];
     const history = [...(historyByKind.get(kind) ?? []), ...newRecords.filter((record) => record.taskKind === kind)];
-    const ranked = rankModels(profile, aggregateEvaluations(history), eligibleByKind.get(kind) ?? []);
+    const aggregates = aggregateEvaluations(history);
+    const ranked = rankModels(profile, aggregates, eligibleByKind.get(kind) ?? []);
     const current = currentSelections.get(kind);
     const eligibleModelIds = new Set((eligibleByKind.get(kind) ?? []).map((candidate) => candidate.id));
-    const next = chooseSelection(profile, ranked, current, { runId, now: selectedAt, eligibleModelIds });
+    const next = chooseSelection(profile, ranked, current, {
+      runId,
+      now: selectedAt,
+      eligibleModelIds,
+      belowFloorModelIds: belowFloorModelIds(profile, aggregates),
+    });
 
     // Nothing qualified and nothing was selected before: the gateway already cold-starts on
     // COLD_START_MODEL, so there is no selection to record.
