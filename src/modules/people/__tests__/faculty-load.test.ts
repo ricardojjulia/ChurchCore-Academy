@@ -45,12 +45,32 @@ test("faculty load does not imply complete utilization when section configuratio
       return { rowCount: 1, rows: [{ person_id: "faculty-c", faculty_name: "C Faculty", title: "Teacher", load_policy: "standard", section_id: "section-3", section_code: "MIN-301-A", course_title: "Ministry", credits: null, clock_hours: null, capacity: null, enrolled_seats: 8, advisee_count: 0 }] };
     },
   });
+  assert.equal(result.faculty[0].instructionalCredits, null);
+  assert.equal(result.faculty[0].instructionalClockHours, null);
+  assert.equal(result.faculty[0].capacity, null);
   assert.equal(result.faculty[0].utilizationPercent, null);
   assert.deepEqual(result.faculty[0].reviewFlags, [
     "Credits not configured for every section",
     "Clock hours not configured for every section",
     "Capacity not configured for every section",
   ]);
+});
+
+test("faculty load suppresses partial aggregate totals when only some sections are configured", async () => {
+  const result = await fetchFacultyLoadWorkspace(admin, "period-a", {
+    async query() {
+      return { rowCount: 2, rows: [
+        { person_id: "faculty-d", faculty_name: "D Faculty", title: "Professor", load_policy: "standard", section_id: "section-4", section_code: "BIB-401-A", course_title: "Configured", credits: 3, clock_hours: 30, capacity: 20, enrolled_seats: 18, advisee_count: 1 },
+        { person_id: "faculty-d", faculty_name: "D Faculty", title: "Professor", load_policy: "standard", section_id: "section-5", section_code: "BIB-402-A", course_title: "Incomplete", credits: null, clock_hours: null, capacity: null, enrolled_seats: 8, advisee_count: 1 },
+      ] };
+    },
+  });
+
+  assert.equal(result.faculty[0].instructionalCredits, null);
+  assert.equal(result.faculty[0].instructionalClockHours, null);
+  assert.equal(result.faculty[0].enrolledSeats, 26);
+  assert.equal(result.faculty[0].capacity, null);
+  assert.equal(result.faculty[0].utilizationPercent, null);
 });
 
 test("faculty load returns an empty workspace when no academic period is selected", async () => {

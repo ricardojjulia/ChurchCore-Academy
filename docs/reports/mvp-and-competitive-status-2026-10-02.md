@@ -21,9 +21,9 @@ have shipped:
 - OneRoster deletion reconciliation is implemented with delivered-state
   provenance; external LMS validation remains an activation gate.
 
-One ungated correctness item remains: issue `#216` must preserve unknown
-faculty-load aggregates and exercise the primary aggregate path in E2E. After that
-closeout, the next useful evidence is an uncoached, authenticated pilot or
+One ungated correctness closeout is pending protected delivery: issue `#216`
+preserves unknown faculty-load aggregates and exercises the primary aggregate path
+in E2E. After that delivery, the next useful evidence is an uncoached, authenticated pilot or
 design-partner walkthrough. Deployment or hosted-resource creation still requires
 explicit owner approval.
 
@@ -57,7 +57,7 @@ combinations intentionally skipped by access expectations.
 | Public institution selection | Trusted published host/slug mapping; unknown routes fail closed |
 | Academy-to-LMS roster delivery | OneRoster CSV Binding 1.2.1 export, signed delivery, and deletion reconciliation implemented |
 | Live deployment | Not started; owner approval required |
-| Faculty-load closeout | Issue `#216` open before pilot observation |
+| Faculty-load closeout | Issue `#216` implemented; protected PR delivery pending before pilot observation |
 | Real-institution pilot evidence | Not yet recorded |
 
 ## Competitive Position
@@ -92,7 +92,7 @@ combinations intentionally skipped by access expectations.
 
 ## Recommended Next Move
 
-Close faculty-load correctness and primary-path E2E issue `#216`. Then run one
+Deliver faculty-load correctness and primary-path E2E issue `#216`. Then run one
 uncoached, authenticated pilot/design-partner session against a
 representative institution profile and record observed completion, confusion,
 dead ends, authorization failures, and requested capabilities. Turn only observed
@@ -112,7 +112,7 @@ Title IV work should begin only when its existing customer/compliance gate is me
 - Institution-specific policy configuration may expose gaps not represented in
   the acceptance data.
 - The shipped faculty-load slice can present incomplete instructional or capacity
-  configuration as misleading partial numeric totals until issue `#216` closes.
+  configuration as misleading partial numeric totals until issue `#216` reaches main.
 - Competitive claims remain bounded to controlled-pilot and design-partner use.
 
 ## Method
