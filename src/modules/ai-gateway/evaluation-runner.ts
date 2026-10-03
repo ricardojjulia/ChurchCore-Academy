@@ -279,12 +279,31 @@ async function evaluateUnderLease(
 
   const catalog = normalizeOpenRouterCatalog(await client.listModels());
   const grader = catalog.find((candidate) => candidate.id === options.graderModel);
-  if (!grader) {
-    return finish("failed", [], [], []);
-  }
-
   const kinds = options.taskKinds ?? [...aiTaskKinds];
   const currentSelections = new Map((await repository.listCurrentSelections()).map((selection) => [selection.taskKind, selection]));
+
+  if (!grader) {
+    // Nothing can be graded, but a route the catalog no longer supports (delisted, expiring, over
+    // the price ceiling) must still fall back to the auto-router rather than keep serving.
+    const selectedAt = now().toISOString();
+    const invalidated: AiModelSelection[] = [];
+    const changes: AiEvaluationRunSummary["selectionChanges"] = [];
+    for (const kind of kinds) {
+      const current = currentSelections.get(kind);
+      if (!current || current.modelId === COLD_START_MODEL) continue;
+      const profile = AI_TASK_PROFILES[kind];
+      const eligibleModelIds = new Set(eligibleCandidates(catalog, profile, {
+        now: startedAt,
+        providerPrefixes: options.providerPrefixes,
+        maxAgeDays: options.maxModelAgeDays,
+      }).map((candidate) => candidate.id));
+      if (eligibleModelIds.has(current.modelId)) continue;
+      const next = chooseSelection(profile, [], current, { runId, now: selectedAt, eligibleModelIds });
+      invalidated.push(next);
+      changes.push({ taskKind: kind, from: current.modelId, to: next.modelId });
+    }
+    return finish("failed", [], invalidated, changes);
+  }
   const windowStart = new Date(startedAt.getTime() - options.windowDays * DAY_MS).toISOString();
 
   const eligibleByKind = new Map<AiTaskKind, AiModelCandidate[]>();
@@ -499,9 +518,11 @@ async function evaluateUnderLease(
     // COLD_START_MODEL, so there is no selection to record.
     if (!current && ranked.length === 0) continue;
 
+    // A changed rationale is a new snapshot too, so the report never shows a stale explanation.
     const changed = !current ||
       current.modelId !== next.modelId ||
-      current.fallbackModelIds.join(",") !== next.fallbackModelIds.join(",");
+      current.fallbackModelIds.join(",") !== next.fallbackModelIds.join(",") ||
+      current.reason !== next.reason;
     if (!changed) continue;
 
     selections.push(next);

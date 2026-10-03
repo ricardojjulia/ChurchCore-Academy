@@ -318,6 +318,14 @@ function getErrorMessage(error: unknown, fallback: string) {
     return error.message;
   }
 
+  // Academy API routes reply with { error: "<message>" } (jsonError).
+  if (error && typeof error === "object" && "error" in error) {
+    const message = (error as { error?: unknown }).error;
+    if (typeof message === "string" && message) {
+      return message;
+    }
+  }
+
   if (error && typeof error === "object" && "message" in error) {
     const message = (error as { message?: unknown }).message;
     if (typeof message === "string") {

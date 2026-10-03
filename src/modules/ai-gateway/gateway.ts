@@ -64,10 +64,28 @@ export interface AiGatewayDependencies {
   /** Delay before each retry of a failed usage write; defaults to USAGE_RETRY_DELAYS_MS. */
   usageRetryDelaysMs?: number[];
   randomId?: () => string;
+  /** Defaults to DATABASE_CALL_TIMEOUT_MS. */
+  databaseTimeoutMs?: number;
 }
 
-/** Bounded so a database outage adds at most ~0.6s to a request. */
+/** Bounded so a database outage adds at most ~0.6s of backoff to a request. */
 export const USAGE_RETRY_DELAYS_MS = [100, 500];
+/**
+ * Per-attempt ceiling on the gateway's database calls. The pool sets no query timeout, so a
+ * stalled connection would otherwise hold an AI request open until the function is killed.
+ */
+export const DATABASE_CALL_TIMEOUT_MS = 2_000;
+
+class DatabaseCallTimeoutError extends Error {}
+
+/** Rejects if `work` hasn't settled in time. The abandoned call may still finish later. */
+function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new DatabaseCallTimeoutError("Database call timed out.")), timeoutMs);
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
 
 let selectionCache: { loadedAt: number; selections: Map<AiTaskKind, AiModelSelection> } | undefined;
 
@@ -90,7 +108,10 @@ export class AiGateway {
     const nowMs = this.now().getTime();
     if (!selectionCache || nowMs - selectionCache.loadedAt > SELECTION_CACHE_MS) {
       try {
-        const selections = await this.dependencies.repository.listCurrentSelections();
+        const selections = await withTimeout(
+          this.dependencies.repository.listCurrentSelections(),
+          this.dependencies.databaseTimeoutMs ?? DATABASE_CALL_TIMEOUT_MS,
+        );
         selectionCache = {
           loadedAt: nowMs,
           selections: new Map(selections.map((selection) => [selection.taskKind, selection])),
@@ -123,7 +144,11 @@ export class AiGateway {
     const delays = this.dependencies.usageRetryDelaysMs ?? USAGE_RETRY_DELAYS_MS;
     for (let attempt = 0; ; attempt += 1) {
       try {
-        await this.dependencies.repository.recordUsage(record);
+        // Safe to retry after a timeout: the write is idempotent on record.id.
+        await withTimeout(
+          this.dependencies.repository.recordUsage(record),
+          this.dependencies.databaseTimeoutMs ?? DATABASE_CALL_TIMEOUT_MS,
+        );
         return;
       } catch (error) {
         if (attempt >= delays.length) {

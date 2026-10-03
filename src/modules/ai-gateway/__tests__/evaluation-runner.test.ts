@@ -480,3 +480,42 @@ test("models too expensive for any run are left out of planning so affordable on
   assert.ok(!calls.some((call) => call.model === "anthropic/strong"));
   assert.equal(summary.status, "budget_exhausted", "the run still reports that the budget kept a due model out");
 });
+
+test("a run that can't grade still retires an incumbent the catalog no longer supports", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  const selection = (taskKind: "hq_reasoning" | "hq_writing", modelId: string) => ({
+    taskKind, modelId, fallbackModelIds: [], fitScore: 0.8, reason: "Best fit", runId: "old", selectedAt: "2026-09-01T00:00:00.000Z",
+  });
+  repository.selections.push(selection("hq_reasoning", "anthropic/retired"), selection("hq_writing", "openai/cheap"));
+  const { client, calls } = fakeClient({ judgeScores: {} });
+
+  const summary = await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    { ...options, graderModel: "anthropic/missing", taskKinds: ["hq_reasoning", "hq_writing"] },
+  );
+
+  assert.equal(summary.status, "failed");
+  assert.equal(calls.length, 0, "nothing is evaluated without a grader");
+  const current = new Map((await repository.listCurrentSelections()).map((entry) => [entry.taskKind, entry.modelId]));
+  assert.equal(current.get("hq_reasoning"), COLD_START_MODEL, "the delisted incumbent stops serving");
+  assert.equal(current.get("hq_writing"), "openai/cheap", "a still-eligible incumbent is left alone");
+  assert.deepEqual(summary.selectionChanges, [{ taskKind: "hq_reasoning", from: "anthropic/retired", to: COLD_START_MODEL }]);
+});
+
+test("a changed rationale is recorded as a new selection snapshot even when the models don't change", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  const { client } = fakeClient({ judgeScores: { "anthropic/strong": 9, "openai/cheap": 8 } });
+  await runModelEvaluation({ client, repository, now: () => NOW, randomId: () => "run-1" }, options);
+  const [first] = await repository.listCurrentSelections();
+
+  // Same routing, different explanation (e.g. a challenger now sits within the switch margin).
+  repository.selections.push({ ...first, reason: "An older explanation.", selectedAt: new Date(NOW.getTime() + 1).toISOString() });
+  const later = new Date(NOW.getTime() + 2);
+  const summary = await runModelEvaluation({ client, repository, now: () => later, randomId: () => "run-2" }, options);
+
+  const [latest] = await repository.listCurrentSelections();
+  assert.equal(latest.modelId, first.modelId);
+  assert.equal(latest.reason, first.reason, "the current rationale replaced the stale one");
+  assert.equal(latest.runId, "run-2");
+  assert.deepEqual(summary.selectionChanges, [], "a rationale-only snapshot is not a routing change");
+});

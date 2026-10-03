@@ -88,7 +88,10 @@ test("a held evaluation lease blocks a second run with a visible 409, and an exp
     );
     await run.click();
     expect((await blocked).status()).toBe(409);
-    await expect(page.getByRole("alert")).toContainText("Another model evaluation run is in progress");
+    // The HQ error box (Next.js also renders its own role="alert" route announcer).
+    const alert = page.locator(".hq-error");
+    await expect(alert).toHaveAttribute("role", "alert");
+    await expect(alert).toContainText("Another model evaluation run is in progress");
     const holder = await pool.query("select holder_id from academy_ai_evaluation_lease");
     expect(holder.rows[0].holder_id).toBe("e2e-cron-run");
 

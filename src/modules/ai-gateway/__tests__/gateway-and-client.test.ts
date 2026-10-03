@@ -453,6 +453,40 @@ test("the graded answer is cut by UTF-8 bytes, never mid-character", () => {
   assert.doesNotMatch(truncateUtf8(`a${"é".repeat(10)}`, 4), /\uFFFD/);
 });
 
+test("a stalled database can't hold an AI request: route reads and usage writes are bounded", async () => {
+  clearAiRouteCache();
+  const repository = new InMemoryAiGatewayRepository();
+  const never = new Promise<never>(() => undefined);
+  repository.listCurrentSelections = () => never;
+  let writes = 0;
+  repository.recordUsage = () => {
+    writes += 1;
+    return never;
+  };
+  const handedOff: unknown[] = [];
+  const gateway = new AiGateway({
+    repository,
+    now: () => NOW,
+    databaseTimeoutMs: 5,
+    usageRetryDelaysMs: [0, 0],
+    onUsageError: (_error, record) => handedOff.push(record),
+    client: {
+      async complete(request) {
+        return { text: "ok", model: request.model, usage: { promptTokens: 1, completionTokens: 1 }, latencyMs: 1 };
+      },
+      async stream(): Promise<Response> {
+        throw new Error("unused");
+      },
+    },
+  });
+
+  const result = await gateway.complete({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+  assert.equal(result.text, "ok");
+  assert.equal(result.model, COLD_START_MODEL, "an unreadable selection table falls back to the auto-router");
+  assert.equal(writes, 3, "each hung write attempt timed out and was retried");
+  assert.equal(handedOff.length, 1, "then the record was handed off instead of hanging the request");
+});
+
 test("the catalog request is bounded so a stall can't consume the run deadline", async () => {
   let signal: AbortSignal | null | undefined;
   const client = new OpenRouterClient({

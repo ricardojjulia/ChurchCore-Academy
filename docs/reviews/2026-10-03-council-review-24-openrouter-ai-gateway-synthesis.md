@@ -53,11 +53,12 @@ The Routes/API voice reported the e2e manifest as listing the wrong persona for 
 The fixes are a `role="status"` loading line, `role="alert"` on the error box, `aria-current` on the selected row, and an agent-specific `aria-label`.
 
 **Rejected:**
-- "Undifferentiated" 403/409/413/503 errors: `readResponseError` already shows the server's specific message.
 - A color-only warning: the warning text states the condition.
 - Mixed cost precision: totals use 2 decimals and per-request costs use 4, on purpose.
 
 **Out of scope:** the decorative search and notification controls predate this PR.
+
+**Reclassified after verification.** The UX voice reported "undifferentiated" 403/409/503 errors. Synthesis first rejected that finding: `readResponseError` displays the `x-ai-error-message` header, and the chat route sets it. The new real-Postgres lease journey then failed in CI. It showed a 409 rendered as "AI request failed." The platform routes return `{ error }` through `jsonError` without that header, and the page's `getErrorMessage` read only `.message`. Every platform-route error in HQ had been shown as a generic message. The finding was correct. The page now reads `error`, and the journey asserts the specific 409 message in the HQ error box.
 
 ### Product And Competitive
 

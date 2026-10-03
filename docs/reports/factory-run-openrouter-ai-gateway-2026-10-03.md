@@ -42,11 +42,17 @@ Route every LLM call in Academy through one OpenRouter gateway. Each ask is serv
 - Live check against the real OpenRouter API before the review rounds: two runs, $0.56. Grading, cost reporting, selection, and streaming worked.
 - Automated PR review: seven Copilot rounds. 22 threaded findings and 13 summary-level findings were fixed, or triaged with a reply or comment. Every thread is resolved.
 - Council Review 24 (`docs/reviews/2026-10-03-council-review-24-openrouter-ai-gateway-synthesis.md`): revise -> fixed locally.
-- `npm run verify` on the final code: passed (2,149 tests, lint, and build).
+- `npm run verify` on the Council code: passed (2,149 tests, lint, and build).
+- Final code: `npm test` (2,152 tests), lint, `tsc --noEmit`, `verify:governance`, and `git diff --check` pass locally. The local `next build` can't run on this shared volume: Turbopack can't sync its cache files there (os error 25). The CI "Test, lint, and build" job is the build of record for the final head.
 - `npm run test:full` (CI E2E job) on the pre-Council head `1e15e27`: passed in 22m50s. The final head, which adds the real-Postgres lease journey, is verified by the protected PR checks.
 - `npm run verify:governance`: passed.
 - `git diff --check`: passed.
-- Local `pr-review` on the final diff: PASS, with 0 critical, 0 important, and 0 minor findings.
+- Local `pr-review` on the Council diff: PASS, with 0 critical, 0 important, and 0 minor findings.
+- CI E2E on Council head `cbe14fd` failed on the new lease journey. That journey caught a real defect: HQ showed every platform-route error (`{ error }` bodies) as "AI request failed." The defect is fixed, the journey asserts the specific 409 message, and the Council synthesis is corrected.
+- Copilot review of `cbe14fd`: four summary-level findings, all fixed with tests:
+  - a run that can't grade still retires ineligible incumbents
+  - rationale-only changes are recorded as new selection snapshots
+  - route reads and usage writes have per-attempt database timeouts
 - Remaining gates: protected PR checks on the final head, and Copilot review.
 
 ## Residual Risk
