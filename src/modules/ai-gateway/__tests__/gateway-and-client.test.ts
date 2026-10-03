@@ -359,6 +359,63 @@ test("the client applies the timeout to streaming requests too", async () => {
   assert.ok(signal instanceof AbortSignal, "a stalled stream is aborted instead of hanging the function");
 });
 
+test("a failed usage write is retried, then handed off with its record instead of dropped", async () => {
+  clearAiRouteCache();
+  const ok = { text: "ok", model: "openai/served", usage: { promptTokens: 3, completionTokens: 4, costUsd: 0.01 }, latencyMs: 5 };
+  const client = {
+    async complete() {
+      return ok;
+    },
+    async stream(): Promise<Response> {
+      throw new Error("unused");
+    },
+  };
+
+  // Transient outage: two failures, then the write lands.
+  const flaky = new InMemoryAiGatewayRepository();
+  let attempts = 0;
+  const write = flaky.recordUsage.bind(flaky);
+  flaky.recordUsage = async (record) => {
+    attempts += 1;
+    if (attempts <= 2) throw new Error("db unavailable");
+    await write(record);
+  };
+  const handedOff: unknown[] = [];
+  await new AiGateway({ repository: flaky, client, now: () => NOW, usageRetryDelaysMs: [0, 0], onUsageError: (_e, record) => handedOff.push(record) })
+    .complete({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+  assert.equal(attempts, 3);
+  assert.equal(flaky.usage.length, 1);
+  assert.equal(handedOff.length, 0);
+
+  // Sustained outage: the request still succeeds and the record reaches onUsageError.
+  clearAiRouteCache();
+  const down = new InMemoryAiGatewayRepository();
+  down.recordUsage = async () => {
+    throw new Error("db unavailable");
+  };
+  const result = await new AiGateway({ repository: down, client, now: () => NOW, usageRetryDelaysMs: [0, 0], onUsageError: (_e, record) => handedOff.push(record) })
+    .complete({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+  assert.equal(result.text, "ok");
+  assert.equal(handedOff.length, 1);
+  assert.deepEqual(
+    { ...(handedOff[0] as Record<string, unknown>), createdAt: undefined },
+    { taskKind: "hq_reasoning", modelId: "openai/served", promptTokens: 3, completionTokens: 4, costUsd: 0.01, latencyMs: 5, status: "completed", createdAt: undefined },
+  );
+});
+
+test("the catalog request is bounded so a stall can't consume the run deadline", async () => {
+  let signal: AbortSignal | null | undefined;
+  const client = new OpenRouterClient({
+    apiKey: "stub-key",
+    fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return Response.json({ data: [] });
+    }) as typeof fetch,
+  });
+  await client.listModels();
+  assert.ok(signal instanceof AbortSignal);
+});
+
 // "Everything uses OpenRouter": no code outside the gateway may call a model provider directly.
 const DIRECT_PROVIDER_PATTERN =
   /api\.anthropic\.com|api\.openai\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.deepseek\.com|api\.x\.ai|openrouter\.ai\/api|@anthropic-ai\/sdk|from ["']openai["']/;

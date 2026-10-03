@@ -28,9 +28,10 @@ export function createAiGatewayFromEnv(env: NodeJS.ProcessEnv = process.env) {
   return new AiGateway({
     client: createOpenRouterClientFromEnv(env),
     repository: new PostgresAiGatewayRepository(),
-    onUsageError: () => {
-      // Metering is best-effort per request; never log prompt or completion content here.
-      console.warn("[ai-gateway] usage record write failed");
+    onUsageError: (_error, record) => {
+      // Emitted after retries so spend can be reconciled from logs. The record holds counts and
+      // cost only, never prompt or completion content; the database error itself is not logged.
+      console.error(JSON.stringify({ source: "churchcore-academy", event: "ai_gateway_usage_unrecorded", record }));
     },
   });
 }

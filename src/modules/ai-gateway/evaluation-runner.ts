@@ -289,6 +289,7 @@ async function evaluateUnderLease(
   const eligibleByKind = new Map<AiTaskKind, AiModelCandidate[]>();
   const historyByKind = new Map<AiTaskKind, AiModelEvaluationRecord[]>();
   const jobs: EvaluationJob[] = [];
+  let budgetExcludedTargets = false;
 
   for (const kind of kinds) {
     const profile = AI_TASK_PROFILES[kind];
@@ -302,12 +303,22 @@ async function evaluateUnderLease(
     eligibleByKind.set(kind, eligible);
     historyByKind.set(kind, history);
 
-    const targets = planEvaluationTargets(eligible, history, currentSelections.get(kind), {
+    // A model whose worst case can never fit one run's budget is left out of planning entirely;
+    // planning it would take a slot every run and starve affordable models (it still ranks on any
+    // evidence it already has).
+    const affordable = eligible.filter((candidate) => worstCaseJobCostUsd(candidate, grader, profile) <= options.budgetUsd);
+    const planOptions = {
       now: startedAt,
       staleAfterDays: options.staleAfterDays,
       modelsPerTask: options.modelsPerTask,
       requiredCaseIds: profile.evaluationCases.map((evaluationCase) => evaluationCase.id),
-    });
+    };
+    const targets = planEvaluationTargets(affordable, history, currentSelections.get(kind), planOptions);
+    // Still report that the budget limited this run when it kept out a model that was due.
+    if (planEvaluationTargets(eligible, history, currentSelections.get(kind), planOptions)
+      .some((candidate) => !affordable.includes(candidate))) {
+      budgetExcludedTargets = true;
+    }
     for (const candidate of targets) jobs.push({ profile, candidate });
   }
   // Longest-running asks first, so they start while the most wall-clock time remains.
@@ -401,7 +412,7 @@ async function evaluateUnderLease(
   const pending = [...jobs];
   let inFlight = 0;
   let deadlineHit = false;
-  let budgetHit = false;
+  let budgetHit = budgetExcludedTargets;
   let releaseWaiters: Array<() => void> = [];
   const waitForRelease = () => new Promise<void>((resolve) => releaseWaiters.push(resolve));
 
@@ -425,6 +436,9 @@ async function evaluateUnderLease(
         const reservation = worstCaseJobCostUsd(job.candidate, grader, job.profile);
         if (spentUsd + reservedUsd + reservation <= options.budgetUsd) {
           pending.splice(index, 1);
+          // Commit the reservation before yielding, so the next worker's check already sees it.
+          inFlight += 1;
+          reservedUsd += reservation;
           return { job, reservation };
         }
         if (spentUsd + reservation <= options.budgetUsd) blockedByInFlight = true;
@@ -442,8 +456,6 @@ async function evaluateUnderLease(
   const worker = async () => {
     for (let next = await takeJob(); next; next = await takeJob()) {
       const { job, reservation } = next;
-      inFlight += 1;
-      reservedUsd += reservation;
       try {
         const records = await Promise.all(job.profile.evaluationCases.map((evaluationCase) => evaluateCase(job, evaluationCase)));
         newRecords.push(...records.filter((record): record is AiModelEvaluationRecord => record !== undefined));

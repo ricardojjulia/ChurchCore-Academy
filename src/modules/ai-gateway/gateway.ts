@@ -50,8 +50,17 @@ export interface AiGatewayDependencies {
   repository: Pick<AiGatewayRepository, "listCurrentSelections" | "recordUsage">;
   now?: () => Date;
   /** Usage writes must never fail a user request; this receives the error instead. */
-  onUsageError?: (error: unknown) => void;
+  /**
+   * Receives the usage record (counts and cost only, never content) when it could not be persisted
+   * after retries, so the route layer can emit it to logs for reconciliation.
+   */
+  onUsageError?: (error: unknown, record: AiGatewayUsageRecord) => void;
+  /** Delay before each retry of a failed usage write; defaults to USAGE_RETRY_DELAYS_MS. */
+  usageRetryDelaysMs?: number[];
 }
+
+/** Bounded so a database outage adds at most ~0.6s to a request. */
+export const USAGE_RETRY_DELAYS_MS = [100, 500];
 
 let selectionCache: { loadedAt: number; selections: Map<AiTaskKind, AiModelSelection> } | undefined;
 
@@ -96,11 +105,23 @@ export class AiGateway {
     return Math.max(1, Math.min(request.maxTokens ?? ceiling, ceiling));
   }
 
+  /**
+   * Usage writes must never fail a user request, so a write that still fails after bounded retries
+   * hands the record to onUsageError instead of being dropped silently.
+   */
   private async recordUsage(record: AiGatewayUsageRecord) {
-    try {
-      await this.dependencies.repository.recordUsage(record);
-    } catch (error) {
-      this.dependencies.onUsageError?.(error);
+    const delays = this.dependencies.usageRetryDelaysMs ?? USAGE_RETRY_DELAYS_MS;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.dependencies.repository.recordUsage(record);
+        return;
+      } catch (error) {
+        if (attempt >= delays.length) {
+          this.dependencies.onUsageError?.(error, record);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      }
     }
   }
 

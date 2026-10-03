@@ -6,6 +6,8 @@ import {
 } from "@/modules/ai-gateway/types";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+/** The catalog is one small GET; a stall must not eat the evaluation run's deadline. */
+export const CATALOG_TIMEOUT_MS = 30_000;
 
 export interface OpenRouterClientOptions {
   /** Resolved at the route layer; never read from process.env in this module. */
@@ -105,6 +107,7 @@ export class OpenRouterClient {
   async listModels(): Promise<unknown[]> {
     const response = await this.fetchImpl(`${this.baseUrl}/models`, {
       headers: this.headers(),
+      signal: AbortSignal.timeout(CATALOG_TIMEOUT_MS),
     });
     const data = (await response.json().catch(() => null)) as OpenRouterCatalogResponse | null;
     if (!response.ok || !data || !Array.isArray(data.data)) {

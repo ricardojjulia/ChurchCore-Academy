@@ -419,3 +419,63 @@ test("a run's evaluations, selections, and summary are written together or not a
   assert.equal(repository.selections.length, 0, "no live selection without the run that explains it");
   assert.equal(repository.lease, undefined, "the lease is still released");
 });
+
+test("concurrent workers commit reservations before yielding, so two jobs can't both slip under the cap", async () => {
+  const catalog = normalizeOpenRouterCatalog(catalogRaw);
+  const grader = catalog.find((candidate) => candidate.id === GRADER)!;
+  const cheap = catalog.find((candidate) => candidate.id === "openai/cheap")!;
+  const profile = AI_TASK_PROFILES.hq_reasoning;
+  const repository = new InMemoryAiGatewayRepository();
+  const { client: inner } = fakeClient({ judgeScores: { "openai/cheap": 8 } });
+
+  // Track how many distinct candidate models are being answered at once.
+  const active = new Map<string, number>();
+  let maxConcurrentModels = 0;
+  const client = {
+    listModels: inner.listModels,
+    async complete(request: OpenRouterCompletionRequest): Promise<AiCompletionResult> {
+      if (request.model === GRADER) return inner.complete(request);
+      active.set(request.model, (active.get(request.model) ?? 0) + 1);
+      maxConcurrentModels = Math.max(maxConcurrentModels, active.size);
+      await new Promise((resolve) => setImmediate(resolve));
+      try {
+        return await inner.complete(request);
+      } finally {
+        const left = (active.get(request.model) ?? 1) - 1;
+        if (left === 0) active.delete(request.model);
+        else active.set(request.model, left);
+      }
+    },
+  };
+
+  // openai/broken and openai/cheap have identical prices: the budget holds one reservation, not two.
+  const budgetUsd = worstCaseJobCostUsd(cheap, grader, profile) * 1.5;
+  await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    { ...options, providerPrefixes: ["openai/"], budgetUsd, concurrency: 2 },
+  );
+
+  assert.equal(maxConcurrentModels, 1, "the second job waited for the first reservation to be released");
+});
+
+test("models too expensive for any run are left out of planning so affordable ones aren't starved", async () => {
+  const catalog = normalizeOpenRouterCatalog(catalogRaw);
+  const grader = catalog.find((candidate) => candidate.id === GRADER)!;
+  const cheap = catalog.find((candidate) => candidate.id === "openai/cheap")!;
+  const strong = catalog.find((candidate) => candidate.id === "anthropic/strong")!;
+  const profile = AI_TASK_PROFILES.hq_reasoning;
+  const repository = new InMemoryAiGatewayRepository();
+  const { client, calls } = fakeClient({ judgeScores: { "openai/cheap": 8 } });
+
+  // anthropic/strong is newer, so it would take the only slot every run and never fit the budget.
+  const budgetUsd = worstCaseJobCostUsd(cheap, grader, profile) * 1.5;
+  assert.ok(worstCaseJobCostUsd(strong, grader, profile) > budgetUsd);
+  const summary = await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    { ...options, providerPrefixes: ["anthropic/strong", "openai/cheap"], modelsPerTask: 1, budgetUsd },
+  );
+
+  assert.ok(repository.evaluations.some((record) => record.modelId === "openai/cheap"), "the affordable model got the slot");
+  assert.ok(!calls.some((call) => call.model === "anthropic/strong"));
+  assert.equal(summary.status, "budget_exhausted", "the run still reports that the budget kept a due model out");
+});
