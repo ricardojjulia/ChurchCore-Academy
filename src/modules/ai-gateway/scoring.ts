@@ -84,7 +84,13 @@ export function parseJudgeVerdict(text: string): { score: number; rationale: str
   if (!match) return undefined;
   try {
     const parsed = JSON.parse(match[0]) as { score?: unknown; rationale?: unknown };
-    const raw = typeof parsed.score === "number" ? parsed.score : Number(parsed.score);
+    // Only a number or a non-empty numeric string is a score; Number(null), Number(true), and
+    // Number("") would otherwise turn a malformed verdict into a real (penalizing) score.
+    const raw = typeof parsed.score === "number"
+      ? parsed.score
+      : typeof parsed.score === "string" && parsed.score.trim() !== ""
+        ? Number(parsed.score)
+        : NaN;
     if (!Number.isFinite(raw) || raw < 0 || raw > 10) return undefined;
     return {
       score: raw / 10,

@@ -70,6 +70,10 @@ test("judge verdict parsing rejects out-of-range or malformed output", () => {
   assert.equal(parseJudgeVerdict('{"score": 14}'), undefined);
   assert.equal(parseJudgeVerdict("no json"), undefined);
   assert.equal(parseJudgeVerdict("{not json}"), undefined);
+  // Malformed scores are grader failures (dropped samples), never coerced into a 0 or 1.
+  for (const score of ["null", "true", "false", '""', '" "', "[]", '"seven"']) {
+    assert.equal(parseJudgeVerdict(`{"score": ${score}, "rationale": "x"}`), undefined, `score ${score}`);
+  }
 });
 
 test("aggregation counts failed attempts as zero quality", () => {

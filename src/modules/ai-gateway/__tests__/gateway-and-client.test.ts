@@ -321,6 +321,10 @@ test("requests are admitted only if they fit the ask's guaranteed context with i
   assert.throws(() => assertFitsContext("hq_writing", [{ role: "user", content: `${fits}xxxx` }]), AiRequestTooLargeError);
   // Larger asks have room for it.
   assert.doesNotThrow(() => assertFitsContext("hq_council_review", [{ role: "user", content: `${fits}xxxx` }]));
+  // Multibyte text is counted by UTF-8 bytes: the same number of CJK characters (3 bytes each)
+  // is three times the estimate and no longer fits.
+  const cjk = "字".repeat(fits.length / 2);
+  assert.throws(() => assertFitsContext("hq_writing", [{ role: "user", content: cjk }]), AiRequestTooLargeError);
 });
 
 test("the gateway bounds every provider call with the ask's timeout", async () => {

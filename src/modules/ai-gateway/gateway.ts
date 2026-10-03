@@ -13,19 +13,25 @@ import {
 } from "@/modules/ai-gateway/types";
 
 const SELECTION_CACHE_MS = 5 * 60 * 1000;
-/** Admission estimate only (not a spend bound): ~3 chars per token is conservative for prose. */
-const CHARS_PER_TOKEN_ESTIMATE = 3;
+/**
+ * Admission estimate, not a spend bound: ~3 UTF-8 bytes per token. Counting bytes rather than
+ * characters keeps CJK (3 bytes/char) and emoji (4) from slipping past a character count. A strict
+ * one-token-per-byte bound would reject ordinary long English conversations, roughly 4x too early.
+ */
+const BYTES_PER_TOKEN_ESTIMATE = 3;
 const MESSAGE_OVERHEAD_TOKENS = 16;
+const utf8 = new TextEncoder();
 
 /**
  * Rejects a request whose estimated prompt plus the ask's output ceiling would overflow the
  * smallest context window any model eligible for the ask is guaranteed to have, so it fails
- * fast with a clear message instead of upstream after routing.
+ * fast with a clear message instead of upstream after routing. It is an estimate: a borderline
+ * request that passes and still overflows surfaces as the provider's error.
  */
 export function assertFitsContext(taskKind: AiTaskKind, messages: AiChatMessage[]) {
   const profile = AI_TASK_PROFILES[taskKind];
   const promptTokens = messages.reduce(
-    (total, message) => total + Math.ceil(message.content.length / CHARS_PER_TOKEN_ESTIMATE) + MESSAGE_OVERHEAD_TOKENS,
+    (total, message) => total + Math.ceil(utf8.encode(message.content).length / BYTES_PER_TOKEN_ESTIMATE) + MESSAGE_OVERHEAD_TOKENS,
     0,
   );
   if (promptTokens + profile.maxOutputTokens > profile.minContextTokens) {
