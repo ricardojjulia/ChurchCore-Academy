@@ -30,5 +30,5 @@ Academy will provide `/admin/faculty` as the faculty teaching-load intelligence 
 ## Verification
 
 - Focused tests must prove period and tenant query binding, aggregation, zero-section visibility, empty context behavior, and unrelated-role denial.
-- E2E must use an actively program-enrolled student and create the academic year, period, course, section, registration, advising assignment, and saved context through Academy APIs, then prove an authorized academic administrator sees the expected primary teaching and advising aggregates and can reach section assignment management.
+- E2E must create the academic year, period, program, student through admissions conversion, courses, sections, registration, advising assignment, and saved context through Academy APIs, then prove an authorized academic administrator sees both complete aggregates and incomplete-value labels and can reach section assignment management.
 - Navigation visibility and the surface manifest must match the route role boundary.

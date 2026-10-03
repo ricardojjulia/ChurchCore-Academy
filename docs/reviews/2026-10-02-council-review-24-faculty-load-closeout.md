@@ -43,10 +43,11 @@ table structure, review flags, and assignment-management handoff remain unchange
 
 Unit coverage now proves fully configured totals, all-missing values, mixed
 configured/unconfigured sections, zero sections, no context, and denied access.
-The journey uses a seeded actively enrolled student, creates its year, period,
-course, section, registration, advisor assignment, and saved context through real
-APIs, then asserts credits, hours, seats/capacity, utilization, advisee count, and
-cross-tenant denial.
+The journey creates its year, period, program, student through public application
+and enrollment conversion, complete and incomplete courses/sections, registration,
+advisor assignment, and saved context through real APIs. It asserts complete
+credits, hours, seats/capacity, utilization, and advisee count as well as incomplete
+credits, hours, and capacity labels and cross-tenant denial.
 
 ## Residual Risk
 

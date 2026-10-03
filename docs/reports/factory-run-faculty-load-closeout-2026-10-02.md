@@ -41,11 +41,17 @@ partial aggregates and browser coverage that did not exercise the primary path.
   access sweeps: passed, 331 tests.
 - Final exact `npm run test:full -- --reset-db` on the corrected tree: passed,
   408 tests with 330 probe-only combinations intentionally skipped.
+- Copilot review identified shared seeded-student mutation and missing browser proof
+  for incomplete labels. The journey now creates its student through application,
+  acceptance, agreement signing, and enrollment conversion, and verifies complete
+  and incomplete faculty rows. Focused reset-database rerun: passed, 2 tests.
+- Final exact reset-database suite after the Copilot fixes: passed, 408 tests with
+  330 probe-only combinations intentionally skipped.
 - `npm run verify:governance`: passed.
 - `git diff --check`: passed.
 - Council Review 24: ship through protected delivery.
-- Local `pr-review`: passed with 0 critical, 0 important, and 0 minor findings.
-- Hosted checks and Copilot review: pending.
+- Local `pr-review` rerun: passed with 0 critical, 0 important, and 0 minor findings.
+- Hosted checks and Copilot rereview: pending after follow-up delivery.
 
 ## Residual Risk
 
