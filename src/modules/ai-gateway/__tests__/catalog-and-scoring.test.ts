@@ -86,6 +86,18 @@ test("aggregation counts failed attempts as zero quality", () => {
   assert.equal(aggregate.medianLatencyMs, 4_000);
 });
 
+test("quality weighs each case equally, so repeated easy-case samples can't outweigh a weak case", () => {
+  const [easy, hard] = reasoningCaseIds;
+  const [aggregate] = aggregateEvaluations([
+    // Five retries piled up clean grades on the easy case; the hard case was answered badly once.
+    ...Array.from({ length: 5 }, (_, index) => evaluation({ caseId: easy, runId: `run-${index}`, qualityScore: 1 })),
+    evaluation({ caseId: hard, qualityScore: 0.2 }),
+  ]);
+  assert.equal(aggregate.sampleCount, 6);
+  assert.equal(aggregate.meanQuality, 0.6, "per-case mean, not the raw-row mean of ~0.87");
+  assert.ok(aggregate.meanQuality < reasoning.qualityFloor, "so the model does not qualify on padding");
+});
+
 test("ranking trades quality against live price and drops models below the quality floor", () => {
   const catalog = normalizeOpenRouterCatalog([
     rawModel("anthropic/premium", { prompt: "0.000005", completion: "0.000025" }),

@@ -69,6 +69,52 @@ test("finalizeRun writes the run, evaluations, and selections in one transaction
   assert.equal(released(), 1);
 });
 
+test("request-path queries run under a server-side statement timeout that frees the connection", async () => {
+  const { pool, log, released } = fakePool();
+  const repository = new PostgresAiGatewayRepository(pool);
+  await repository.recordUsage({
+    id: "00000000-0000-4000-8000-0000000000aa",
+    taskKind: "hq_reasoning",
+    modelId: "openai/a",
+    promptTokens: 1,
+    completionTokens: 1,
+    costUsd: null,
+    latencyMs: 1,
+    status: "completed",
+    createdAt: summary.finishedAt,
+  });
+  await repository.listCurrentSelections();
+
+  assert.deepEqual(log, [
+    "begin",
+    "set local statement_timeout",
+    "insert into academy_ai_gateway_usage",
+    "commit",
+    "begin",
+    "set local statement_timeout",
+    "select distinct on",
+    "commit",
+  ]);
+  assert.equal(released(), 2);
+});
+
+test("a cancelled request-path statement rolls back and still returns its connection", async () => {
+  const { pool, log, released } = fakePool({ failOn: /academy_ai_gateway_usage/ });
+  await assert.rejects(new PostgresAiGatewayRepository(pool).recordUsage({
+    id: "00000000-0000-4000-8000-0000000000ab",
+    taskKind: "hq_reasoning",
+    modelId: "openai/a",
+    promptTokens: 1,
+    completionTokens: 1,
+    costUsd: null,
+    latencyMs: 1,
+    status: "completed",
+    createdAt: summary.finishedAt,
+  }));
+  assert.equal(log.at(-1), "rollback");
+  assert.equal(released(), 1);
+});
+
 test("finalizeRun rolls back and releases the client when any write fails", async () => {
   const { pool, log, released } = fakePool({ failOn: /academy_ai_model_selections/ });
   await assert.rejects(

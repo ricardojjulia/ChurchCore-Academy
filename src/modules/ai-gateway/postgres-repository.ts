@@ -60,16 +60,41 @@ function mapEvaluation(row: Record<string, unknown>, taskKind: AiTaskKind): AiMo
   };
 }
 
+/**
+ * Server-side limit for the gateway's request-path queries (selection read, usage write). The
+ * gateway also stops waiting after DATABASE_CALL_TIMEOUT_MS, but abandoning a promise doesn't free
+ * the pooled connection. With statement_timeout, Postgres cancels the statement itself, so a
+ * stalled query can't hold one of the shared pool's few connections.
+ */
+export const REQUEST_PATH_STATEMENT_TIMEOUT_MS = 2_000;
+
 /** Platform-level persistence (no tenant data), so it uses the service pool like demo-feedback. */
 export class PostgresAiGatewayRepository implements AiGatewayRepository {
   constructor(private readonly pool: TransactionalPool = getDatabasePool()) {}
 
+  /** Runs `work` on one client inside a transaction whose statements the server cancels on timeout. */
+  private async withStatementTimeout<T>(work: (db: Queryable) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      await client.query(`set local statement_timeout = ${REQUEST_PATH_STATEMENT_TIMEOUT_MS}`);
+      const result = await work(client);
+      await client.query("commit");
+      return result;
+    } catch (error) {
+      await client.query("rollback").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async listCurrentSelections() {
-    const result = await this.pool.query(
+    const result = await this.withStatementTimeout((db) => db.query(
       `select distinct on (task_kind) task_kind, model_id, fallback_model_ids, fit_score, reason, run_id, selected_at
          from academy_ai_model_selections
         order by task_kind, selected_at desc`,
-    );
+    ));
     return result.rows.flatMap((row) => mapSelection(row) ?? []);
   }
 
@@ -211,7 +236,7 @@ export class PostgresAiGatewayRepository implements AiGatewayRepository {
   }
 
   async recordUsage(record: AiGatewayUsageRecord) {
-    await this.pool.query(
+    await this.withStatementTimeout((db) => db.query(
       `insert into academy_ai_gateway_usage
          (id, task_kind, model_id, prompt_tokens, completion_tokens, cost_usd, latency_ms, status, created_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -227,7 +252,7 @@ export class PostgresAiGatewayRepository implements AiGatewayRepository {
         record.status,
         record.createdAt,
       ],
-    );
+    ));
   }
 
   async summarizeUsageSince(since: string) {

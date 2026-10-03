@@ -101,6 +101,17 @@ export function parseJudgeVerdict(text: string): { score: number; rationale: str
   }
 }
 
+function meanOfCaseMeans(records: AiModelEvaluationRecord[]) {
+  const byCase = new Map<string, number[]>();
+  for (const record of records) {
+    const scores = byCase.get(record.caseId) ?? [];
+    scores.push(record.status === "graded" ? record.qualityScore : 0);
+    byCase.set(record.caseId, scores);
+  }
+  const caseMeans = [...byCase.values()].map((scores) => scores.reduce((sum, score) => sum + score, 0) / scores.length);
+  return caseMeans.reduce((sum, mean) => sum + mean, 0) / caseMeans.length;
+}
+
 function median(values: number[]) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -108,7 +119,11 @@ function median(values: number[]) {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-/** Failed attempts count as zero quality, so unreliable models are penalized, not ignored. */
+/**
+ * Failed attempts count as zero quality, so unreliable models are penalized, not ignored. Each
+ * case weighs equally: retries can add many rows for the cases that grade cleanly, and averaging
+ * raw rows would let those repeats outweigh a case the model is weak on.
+ */
 export function aggregateEvaluations(records: AiModelEvaluationRecord[]): AiModelAggregate[] {
   const byModel = new Map<string, AiModelEvaluationRecord[]>();
   for (const record of records) {
@@ -123,7 +138,7 @@ export function aggregateEvaluations(records: AiModelEvaluationRecord[]): AiMode
       modelId,
       sampleCount: list.length,
       coveredCaseIds: [...new Set(list.map((record) => record.caseId))].sort(),
-      meanQuality: list.reduce((sum, record) => sum + (record.status === "graded" ? record.qualityScore : 0), 0) / list.length,
+      meanQuality: meanOfCaseMeans(list),
       medianLatencyMs: median(graded.map((record) => record.latencyMs)),
       lastEvaluatedAt: list.map((record) => record.evaluatedAt).sort().at(-1) ?? "",
     };
