@@ -94,3 +94,14 @@ test("an admin-triggered run while another run holds the lease is a 409, not a s
   assert.match((await response.json()).error, /in progress/);
   assert.equal(repository.runs.length, 0);
 });
+
+test("a run that cannot grade returns an explanatory error the HQ page can show", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  const response = await runAiModelEvaluationNow({
+    ...dependencies(["platform_admin"], repository),
+    env: { NODE_ENV: "test", OPENROUTER_API_KEY: "test-key", AI_EVAL_GRADER_MODEL: "anthropic/not-listed" } as NodeJS.ProcessEnv,
+  });
+  assert.equal(response.status, 500);
+  assert.match((await response.json()).error, /grader model is not in the OpenRouter catalog/);
+  assert.equal(repository.runs[0].status, "failed", "the failed run is still recorded");
+});

@@ -71,7 +71,11 @@ export async function runAiModelEvaluationNow(dependencies: AiModelsRouteDepende
       resolveEvaluationOptionsFromEnv(dependencies.env),
     );
     clearAiRouteCache();
-    return jsonOk({ summary }, { status: summary.status === "failed" ? 500 : 200 });
+    if (summary.status === "failed") {
+      // A run fails only when it can't grade at all (the grader model is missing from the catalog).
+      return jsonError("Model evaluation could not run: the configured grader model is not in the OpenRouter catalog.", 500);
+    }
+    return jsonOk({ summary });
   } catch (error) {
     if (error instanceof AiGatewayUnavailableError) {
       return jsonError("OPENROUTER_API_KEY is not configured.", 503);

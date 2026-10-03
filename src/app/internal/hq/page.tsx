@@ -824,7 +824,7 @@ export default function HQPage() {
           </div>
         </header>
 
-        {error ? <div className="hq-error">{error}</div> : null}
+        {error ? <div className="hq-error" role="alert">{error}</div> : null}
 
         {view === "dashboard" ? (
           <section className="hq-dashboard-grid">
@@ -929,6 +929,7 @@ export default function HQPage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask this agent…"
+                  aria-label={`Message ${currentAgent.name}`}
                 />
                 <button type="button" onClick={() => void sendMessage()} disabled={loading || !input.trim()}>
                   {loading ? "Streaming…" : "Send"}
@@ -973,6 +974,10 @@ export default function HQPage() {
               </div>
             </header>
 
+            {modelReportLoading && !modelReport ? (
+              <p className="hq-panel models-note" role="status">Loading model report…</p>
+            ) : null}
+
             {modelReport?.tasks.map((task) => (
               <article key={task.taskKind} className="hq-panel model-task">
                 <div className="model-task-head">
@@ -1013,7 +1018,11 @@ export default function HQPage() {
                     </thead>
                     <tbody>
                       {task.leaderboard.map((row) => (
-                        <tr key={row.modelId} className={row.modelId === task.selection.modelId ? "is-selected" : ""}>
+                        <tr
+                          key={row.modelId}
+                          className={row.modelId === task.selection.modelId ? "is-selected" : ""}
+                          aria-current={row.modelId === task.selection.modelId ? "true" : undefined}
+                        >
                           <td>{row.modelId}</td>
                           <td className={row.meanQuality < task.qualityFloor ? "below-floor" : ""}>
                             {(row.meanQuality * 100).toFixed(0)}

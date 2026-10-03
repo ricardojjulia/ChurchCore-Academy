@@ -68,6 +68,50 @@ test("a platform admin runs a model evaluation and the chosen routing is persist
   }
 });
 
+test("a held evaluation lease blocks a second run with a visible 409, and an expired one is taken over", async ({ browser }) => {
+  // Real Postgres lease semantics: the conditional upsert must refuse a live holder and take over an
+  // expired one. Tests in this file run sequentially, so the held lease can't leak into another.
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const context = await browser.newContext({ storageState: storageStateFor("institutionAdmin") });
+  try {
+    await pool.query(
+      `insert into academy_ai_evaluation_lease (lease_key, holder_id, acquired_at, expires_at)
+       values ('model_evaluation', 'e2e-cron-run', now(), now() + interval '10 minutes')
+       on conflict (lease_key) do update set holder_id = excluded.holder_id, acquired_at = excluded.acquired_at, expires_at = excluded.expires_at`,
+    );
+
+    const page = await context.newPage();
+    await openModelsView(page);
+    const run = page.getByRole("button", { name: "Run evaluation now" });
+    const blocked = page.waitForResponse(
+      (response) => response.url().endsWith("/api/academy/platform/ai-models") && response.request().method() === "POST",
+    );
+    await run.click();
+    expect((await blocked).status()).toBe(409);
+    await expect(page.getByRole("alert")).toContainText("Another model evaluation run is in progress");
+    const holder = await pool.query("select holder_id from academy_ai_evaluation_lease");
+    expect(holder.rows[0].holder_id).toBe("e2e-cron-run");
+
+    // The holder crashed: its lease expired without being released.
+    await pool.query(
+      `update academy_ai_evaluation_lease
+          set acquired_at = now() - interval '20 minutes', expires_at = now() - interval '10 minutes'`,
+    );
+    const resumed = page.waitForResponse(
+      (response) => response.url().endsWith("/api/academy/platform/ai-models") && response.request().method() === "POST",
+    );
+    await run.click();
+    expect((await resumed).status()).toBe(200);
+    await expect(page.getByText(/Last manual run: completed/)).toBeVisible();
+    const leases = await pool.query("select count(*)::int as count from academy_ai_evaluation_lease");
+    expect(leases.rows[0].count).toBe(0);
+  } finally {
+    await pool.query("delete from academy_ai_evaluation_lease where holder_id = 'e2e-cron-run'");
+    await pool.end();
+    await context.close();
+  }
+});
+
 test("a signed-in user without platform admin is never offered the evaluation run", async ({ browser }) => {
   const context = await browser.newContext({ storageState: storageStateFor("registrar") });
   const page = await context.newPage();
