@@ -11,7 +11,7 @@ import {
 import type { OpenRouterCompletionRequest } from "@/modules/ai-gateway/openrouter-client";
 import { COLD_START_MODEL } from "@/modules/ai-gateway/scoring";
 import { AI_TASK_PROFILES } from "@/modules/ai-gateway/task-profiles";
-import { AiEvaluationInProgressError } from "@/modules/ai-gateway/types";
+import { AiCompletionResult, AiEvaluationInProgressError } from "@/modules/ai-gateway/types";
 import { evaluation, InMemoryAiGatewayRepository, NOW, rawModel } from "@/modules/ai-gateway/__tests__/fixtures";
 
 const GRADER = "anthropic/grader";
@@ -292,4 +292,43 @@ test("an incumbent that left the catalog is replaced by the auto-router when not
   assert.equal(selection.modelId, COLD_START_MODEL);
   assert.deepEqual(selection.fallbackModelIds, []);
   assert.deepEqual(summary.selectionChanges, [{ taskKind: "hq_reasoning", from: "anthropic/retired", to: COLD_START_MODEL }]);
+});
+
+test("failed and usage-less calls are charged at their worst case, so timeouts cannot free budget", async () => {
+  const catalog = normalizeOpenRouterCatalog(catalogRaw);
+  const grader = catalog.find((candidate) => candidate.id === GRADER)!;
+  const broken = catalog.find((candidate) => candidate.id === "openai/broken")!;
+  const profile = AI_TASK_PROFILES.hq_reasoning;
+  const repository = new InMemoryAiGatewayRepository();
+  const { client } = fakeClient({ judgeScores: {} });
+
+  // openai/broken fails every answer; it is the only candidate.
+  const summary = await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    { ...options, providerPrefixes: ["openai/broken"] },
+  );
+
+  // Charged the answers' worst case, but not the grading that never happened.
+  assert.ok(summary.spentUsd > 0, "a failed request is not free");
+  assert.ok(summary.spentUsd < worstCaseJobCostUsd(broken, grader, profile));
+  assert.ok(repository.evaluations.every((record) => record.status === "failed" && record.costUsd === 0));
+
+  // A grader that answers without usage is charged its worst case too.
+  const quiet = new InMemoryAiGatewayRepository();
+  const noUsage = fakeClient({ judgeScores: { "anthropic/strong": 9 } });
+  const quietClient = {
+    listModels: noUsage.client.listModels,
+    async complete(request: OpenRouterCompletionRequest): Promise<AiCompletionResult> {
+      const result = await noUsage.client.complete(request);
+      return request.model === GRADER ? { ...result, usage: { promptTokens: 0, completionTokens: 0 } } : result;
+    },
+  };
+  const quietSummary = await runModelEvaluation(
+    { client: quietClient, repository: quiet, now: () => NOW },
+    { ...options, providerPrefixes: ["anthropic/strong"] },
+  );
+  const strong = catalog.find((candidate) => candidate.id === "anthropic/strong")!;
+  const answers = 0.002 * profile.evaluationCases.length;
+  assert.ok(quietSummary.spentUsd > answers, "the usage-less grader calls were charged, not counted as zero");
+  assert.ok(quietSummary.spentUsd <= worstCaseJobCostUsd(strong, grader, profile) + 1e-6);
 });

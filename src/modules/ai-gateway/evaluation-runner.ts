@@ -172,16 +172,39 @@ function evaluationOutputTokens(profile: AiTaskProfile) {
  * run reserves this before dispatch, so the budget is a hard cap rather than a typical-case guess.
  */
 export function worstCaseJobCostUsd(candidate: AiModelCandidate, grader: AiModelCandidate, profile: AiTaskProfile) {
-  const answerTokens = evaluationOutputTokens(profile);
-  return profile.evaluationCases.reduce((total, evaluationCase) => {
-    const candidatePromptTokens = maxTokensForChars(evaluationCase.system.length + evaluationCase.prompt.length);
-    const judgeFrameChars = buildJudgeMessages(evaluationCase, "")
-      .reduce((chars, message) => chars + message.content.length, 0);
-    const graderPromptTokens = maxTokensForChars(judgeFrameChars) + answerTokens;
-    return total +
-      callCost(candidate, candidatePromptTokens, answerTokens) +
-      callCost(grader, graderPromptTokens, GRADER_MAX_OUTPUT_TOKENS);
-  }, 0);
+  return profile.evaluationCases.reduce((total, evaluationCase) =>
+    total +
+    worstCaseAnswerCostUsd(candidate, profile, evaluationCase) +
+    worstCaseGradeCostUsd(grader, profile, evaluationCase), 0);
+}
+
+function worstCaseAnswerCostUsd(candidate: AiModelCandidate, profile: AiTaskProfile, evaluationCase: AiEvaluationCase) {
+  const promptTokens = maxTokensForChars(evaluationCase.system.length + evaluationCase.prompt.length);
+  return callCost(candidate, promptTokens, evaluationOutputTokens(profile));
+}
+
+function worstCaseGradeCostUsd(grader: AiModelCandidate, profile: AiTaskProfile, evaluationCase: AiEvaluationCase) {
+  const judgeFrameChars = buildJudgeMessages(evaluationCase, "")
+    .reduce((chars, message) => chars + message.content.length, 0);
+  const promptTokens = maxTokensForChars(judgeFrameChars) + evaluationOutputTokens(profile);
+  return callCost(grader, promptTokens, GRADER_MAX_OUTPUT_TOKENS);
+}
+
+/**
+ * What a call counts against the budget. A failed or timed-out request may still be billed, and a
+ * response without usage tells us nothing, so both are charged at the worst case rather than zero;
+ * otherwise repeated failures would free budget that later jobs could overspend.
+ */
+function chargedCostUsd(
+  model: AiModelCandidate,
+  usage: { promptTokens: number; completionTokens: number; costUsd?: number } | undefined,
+  worstCaseUsd: number,
+) {
+  if (usage?.costUsd !== undefined) return usage.costUsd;
+  if (usage && (usage.promptTokens > 0 || usage.completionTokens > 0)) {
+    return callCost(model, usage.promptTokens, usage.completionTokens);
+  }
+  return worstCaseUsd;
 }
 
 /**
@@ -303,6 +326,7 @@ async function evaluateUnderLease(
         timeoutMs: job.profile.evaluationTimeoutMs,
       });
     } catch {
+      spentUsd += worstCaseAnswerCostUsd(job.candidate, job.profile, evaluationCase);
       return {
         ...base,
         status: "failed",
@@ -319,9 +343,14 @@ async function evaluateUnderLease(
       };
     }
 
+    // The record keeps the known cost (what the report averages); the budget is charged conservatively.
     const answerCost = answer.usage.costUsd ??
       callCost(job.candidate, answer.usage.promptTokens, answer.usage.completionTokens);
-    spentUsd += answerCost;
+    spentUsd += chargedCostUsd(
+      job.candidate,
+      answer.usage,
+      worstCaseAnswerCostUsd(job.candidate, job.profile, evaluationCase),
+    );
 
     let verdict;
     try {
@@ -333,9 +362,10 @@ async function evaluateUnderLease(
         jsonResponse: true,
         timeoutMs: options.graderTimeoutMs,
       });
-      spentUsd += judged.usage.costUsd ?? callCost(grader, judged.usage.promptTokens, judged.usage.completionTokens);
+      spentUsd += chargedCostUsd(grader, judged.usage, worstCaseGradeCostUsd(grader, job.profile, evaluationCase));
       verdict = parseJudgeVerdict(judged.text);
     } catch {
+      spentUsd += worstCaseGradeCostUsd(grader, job.profile, evaluationCase);
       verdict = undefined;
     }
 

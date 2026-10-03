@@ -19,9 +19,10 @@ ADR 0070 (proposed) already commits Academy to a shared OpenRouter subscription 
    - For each kind, it filters to recent, text-capable models from allow-listed providers under the cost ceiling whose completion limit covers the kind's full output ceiling.
    - It evaluates a few targets per run: a stale or incompletely covered incumbent first, then models missing a required case (a dropped grader sample is retried at once instead of waiting to go stale), then never-tested models (newest first), then the stalest results.
    - A configurable grader model scores each answer blind against a rubric. The grader score is combined with deterministic checks (required terms, length).
+   - A model qualifies only with a sample (graded or failed) for every case of the kind; repeated samples of one case don't substitute for another.
    - It ranks models by `fit = wq·quality + wc·cost + wl·latency`. Cost is recomputed from *today's* prices, so a price change re-ranks models without re-testing them.
    - A challenger replaces the incumbent only when it wins by a 0.02 margin, which prevents flapping. The next two models become OpenRouter fallbacks.
-   - Runs stop at a USD budget (`AI_EVAL_RUN_BUDGET_USD`, default $0.50) and a time deadline sized to a 300-second function. The budget is a hard cap: before a job starts, the run reserves its worst case (every answer at the full output limit, graded with that full answer in the grader prompt).
+   - Runs stop at a USD budget (`AI_EVAL_RUN_BUDGET_USD`, default $0.50) and a time deadline sized to a 300-second function. The budget is a hard cap: before a job starts, the run reserves its worst case (every answer at the full output limit, graded with that full answer in the grader prompt). A call that fails, times out, or reports no usage is charged at its worst case, never zero.
    - If nothing qualifies, an incumbent that is still eligible keeps serving. One that left the catalog, is expiring, or is now over the price ceiling is replaced by the cold-start route.
    - Only one run happens at a time. The cron and the admin trigger share a single-row lease (`academy_ai_evaluation_lease`) that expires on its own if a run dies. A blocked admin trigger gets a 409, and a blocked cron tick reports `skipped`.
 5. **Cold start.** Until a model qualifies for a kind, requests go to `openrouter/auto`.

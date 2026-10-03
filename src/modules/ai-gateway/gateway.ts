@@ -207,9 +207,10 @@ export class AiGateway {
         lines.forEach(scanLine);
       },
       async cancel(reason) {
-        // The client went away mid-answer: tokens were still spent, so meter what we know.
-        await finish(true);
-        await reader.cancel(reason).catch(() => undefined);
+        // The client went away mid-answer. Stop the provider first (it bills until cancelled), and
+        // meter what we know concurrently so a slow usage write can't keep generation running.
+        const stopping = reader.cancel(reason).catch(() => undefined);
+        await Promise.all([stopping, finish(true)]);
       },
     });
 

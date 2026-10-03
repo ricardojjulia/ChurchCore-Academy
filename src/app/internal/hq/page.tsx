@@ -471,7 +471,7 @@ export default function HQPage() {
     return row;
   }
 
-  async function sendMessage(promptText?: string, mode?: "council_review") {
+  async function sendMessage(promptText?: string, mode?: "council_review", targetAgent = currentAgent) {
     if (loading) return;
 
     const content = (promptText ?? input).trim();
@@ -480,7 +480,9 @@ export default function HQPage() {
     setLoading(true);
     setError(null);
 
-    const agent = currentAgent;
+    // Callers that switch agents pass the target explicitly: a just-queued setActiveAgent has not
+    // re-rendered yet, so currentAgent would still be the previous agent.
+    const agent = targetAgent;
     const prior = messages[agent.id] ?? [];
 
     const userMessage: ChatMessage = { role: "user", content, ts: new Date().toISOString() };
@@ -647,7 +649,7 @@ export default function HQPage() {
     setActiveAgent("product");
 
     await Promise.all([
-      sendMessage(prompt, "council_review"),
+      sendMessage(prompt, "council_review", AGENTS.product),
       supabase.from("hq_decisions").insert({
         title: `Council review: ${feature}`,
         owner: "Product Manager",

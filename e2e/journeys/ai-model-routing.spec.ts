@@ -8,9 +8,13 @@ import { storageStateFor } from "../helpers";
 // evaluations, runs, and selections, and the report shows the new routing. Routing history must
 // be append-only in the database itself.
 
-async function openModelsView(page: Page) {
+async function openHqView(page: Page, label: "AI Models" | "Agents") {
   await page.goto("/internal/hq", { waitUntil: "networkidle" });
-  await page.getByRole("navigation", { name: "Academy HQ navigation" }).getByRole("button", { name: "AI Models" }).click();
+  await page.getByRole("navigation", { name: "Academy HQ navigation" }).getByRole("button", { name: label }).click();
+}
+
+async function openModelsView(page: Page) {
+  await openHqView(page, "AI Models");
   await expect(page.getByRole("heading", { name: "AI model routing" })).toBeVisible();
 }
 
@@ -74,5 +78,53 @@ test("a signed-in user without platform admin is never offered the evaluation ru
   expect(report.status()).toBe(403);
   const run = await page.request.post("/api/academy/platform/ai-models");
   expect(run.status()).toBe(403);
+  await context.close();
+});
+
+test("platform staff chat with an HQ agent through the gateway and see which model answered", async ({ browser }) => {
+  const context = await browser.newContext({ storageState: storageStateFor("institutionAdmin") });
+  const page = await context.newPage();
+  await openHqView(page, "Agents");
+
+  await page.getByPlaceholder("Ask this agent…").fill("Outline a tenant-isolation test plan for enrollment.");
+  const reply = page.waitForResponse(
+    (response) => response.url().endsWith("/api/ai") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Send" }).click();
+  const response = await reply;
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/event-stream");
+  expect(response.headers()["x-ai-route"]).toBeTruthy();
+
+  // The SSE parser renders the streamed text and labels the model named in the chunks.
+  await expect(page.locator(".chat-thread .msg.assistant").last()).toHaveText("Stub answer from the e2e OpenRouter stand-in.");
+  await expect(page.getByText("Answered by openai/e2e-strong")).toBeVisible();
+  await context.close();
+
+  // The call was metered: one usage row for the model that answered, with the stub's reported cost.
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const usage = await pool.query(
+      `select count(*)::int as count from academy_ai_gateway_usage
+        where model_id = 'openai/e2e-strong' and status = 'completed' and cost_usd > 0`,
+    );
+    expect(usage.rows[0].count).toBeGreaterThan(0);
+  } finally {
+    await pool.end();
+  }
+});
+
+test("a signed-in user without a platform role cannot reach the HQ agents", async ({ browser }) => {
+  const context = await browser.newContext({ storageState: storageStateFor("registrar") });
+  const page = await context.newPage();
+  await openHqView(page, "Agents");
+
+  await page.getByPlaceholder("Ask this agent…").fill("Summarize enrollment risks.");
+  const reply = page.waitForResponse(
+    (response) => response.url().endsWith("/api/ai") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Send" }).click();
+  expect((await reply).status()).toBe(403);
+  await expect(page.getByText(/Answered by/)).toHaveCount(0);
   await context.close();
 });

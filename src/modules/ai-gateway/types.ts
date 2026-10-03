@@ -107,6 +107,8 @@ export interface AiModelEvaluationRecord {
 export interface AiModelAggregate {
   modelId: string;
   sampleCount: number;
+  /** Distinct evaluation cases this model has a sample for (graded or failed). */
+  coveredCaseIds: string[];
   meanQuality: number;
   medianLatencyMs: number;
   lastEvaluatedAt: string;

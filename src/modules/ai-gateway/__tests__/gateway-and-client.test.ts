@@ -223,6 +223,41 @@ test("a client that disconnects mid-stream still produces exactly one failed usa
   assert.equal(repository.usage[0].modelId, "anthropic/served");
 });
 
+test("a disconnect cancels the upstream without waiting for a slow usage write", async () => {
+  clearAiRouteCache();
+  const repository = new InMemoryAiGatewayRepository();
+  let releaseUsage: () => void = () => undefined;
+  repository.recordUsage = (record) => new Promise<void>((resolve) => {
+    releaseUsage = () => {
+      repository.usage.push(record);
+      resolve();
+    };
+  });
+  const encoder = new TextEncoder();
+  let upstreamCancelled = false;
+  const gateway = streamingGateway(repository, () => new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"model":"anthropic/served","choices":[{"delta":{"content":"Hel"}}]}\n\n'));
+    },
+    cancel() {
+      upstreamCancelled = true;
+    },
+  }));
+
+  const { body } = await gateway.stream({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+  const reader = body.getReader();
+  await reader.read();
+  const cancelled = reader.cancel("client went away");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(upstreamCancelled, true, "the provider is stopped while metering is still pending");
+  assert.equal(repository.usage.length, 0);
+  releaseUsage();
+  await cancelled;
+  assert.equal(repository.usage.length, 1);
+  assert.equal(repository.usage[0].status, "failed");
+});
+
 test("an upstream stream error produces exactly one failed usage record and surfaces the error", async () => {
   clearAiRouteCache();
   const repository = new InMemoryAiGatewayRepository();

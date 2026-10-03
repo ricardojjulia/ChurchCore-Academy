@@ -102,6 +102,7 @@ export function aggregateEvaluations(records: AiModelEvaluationRecord[]): AiMode
     return {
       modelId,
       sampleCount: list.length,
+      coveredCaseIds: [...new Set(list.map((record) => record.caseId))].sort(),
       meanQuality: list.reduce((sum, record) => sum + (record.status === "graded" ? record.qualityScore : 0), 0) / list.length,
       medianLatencyMs: median(graded.map((record) => record.latencyMs)),
       lastEvaluatedAt: list.map((record) => record.evaluatedAt).sort().at(-1) ?? "",
@@ -119,7 +120,7 @@ export function rankModels(
   eligible: AiModelCandidate[],
 ): AiRankedModel[] {
   const candidates = new Map(eligible.map((candidate) => [candidate.id, candidate]));
-  const minSamples = Math.min(2, profile.evaluationCases.length);
+  const requiredCaseIds = profile.evaluationCases.map((evaluationCase) => evaluationCase.id);
   const { weights } = profile;
   const weightTotal = weights.quality + weights.cost + weights.latency;
 
@@ -127,7 +128,10 @@ export function rankModels(
     .flatMap((aggregate): AiRankedModel[] => {
       const candidate = candidates.get(aggregate.modelId);
       if (!candidate) return [];
-      if (aggregate.sampleCount < minSamples || aggregate.meanQuality < profile.qualityFloor) return [];
+      // Qualify only on evidence from every case: repeated samples of one case must not stand in
+      // for a case the grader kept failing on.
+      if (!requiredCaseIds.every((caseId) => aggregate.coveredCaseIds.includes(caseId))) return [];
+      if (aggregate.meanQuality < profile.qualityFloor) return [];
 
       const estimatedRequestCostUsd = estimateRequestCostUsd(candidate, profile);
       const costScore = profile.referenceCostUsd / (profile.referenceCostUsd + estimatedRequestCostUsd);

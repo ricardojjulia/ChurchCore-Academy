@@ -15,6 +15,7 @@ import { evaluation, NOW, rawModel } from "@/modules/ai-gateway/__tests__/fixtur
 
 const reasoning = AI_TASK_PROFILES.hq_reasoning;
 const filterOptions = { now: NOW, providerPrefixes: ["anthropic/", "openai/"], maxAgeDays: 365 };
+const reasoningCaseIds = reasoning.evaluationCases.map((evaluationCase) => evaluationCase.id);
 
 test("normalizes priced text models and drops routers, variants, and non-text output", () => {
   const catalog = normalizeOpenRouterCatalog([
@@ -88,9 +89,9 @@ test("ranking trades quality against live price and drops models below the quali
   ]);
   const eligible = eligibleCandidates(catalog, reasoning, filterOptions);
   const records = [
-    ...["case-a", "case-b"].map((caseId) => evaluation({ modelId: "anthropic/premium", caseId, qualityScore: 0.95 })),
-    ...["case-a", "case-b"].map((caseId) => evaluation({ modelId: "openai/budget", caseId, qualityScore: 0.86 })),
-    ...["case-a", "case-b"].map((caseId) => evaluation({ modelId: "openai/weak", caseId, qualityScore: 0.5 })),
+    ...reasoningCaseIds.map((caseId) => evaluation({ modelId: "anthropic/premium", caseId, qualityScore: 0.95 })),
+    ...reasoningCaseIds.map((caseId) => evaluation({ modelId: "openai/budget", caseId, qualityScore: 0.86 })),
+    ...reasoningCaseIds.map((caseId) => evaluation({ modelId: "openai/weak", caseId, qualityScore: 0.5 })),
   ];
 
   const ranked = rankModels(reasoning, aggregateEvaluations(records), eligible);
@@ -102,10 +103,31 @@ test("ranking needs enough samples and a model still present in the catalog", ()
   const eligible = eligibleCandidates(normalizeOpenRouterCatalog([rawModel("anthropic/a")]), reasoning, filterOptions);
   const ranked = rankModels(
     reasoning,
-    aggregateEvaluations([evaluation({ modelId: "anthropic/a" }), evaluation({ modelId: "anthropic/retired" }), evaluation({ modelId: "anthropic/retired", caseId: "case-b" })]),
+    aggregateEvaluations([
+      evaluation({ modelId: "anthropic/a", caseId: reasoningCaseIds[0] }),
+      ...reasoningCaseIds.map((caseId) => evaluation({ modelId: "anthropic/retired", caseId })),
+    ]),
     eligible,
   );
   assert.deepEqual(ranked, []);
+});
+
+test("a model qualifies only with a sample for every case, not repeated samples of one", () => {
+  const eligible = eligibleCandidates(normalizeOpenRouterCatalog([rawModel("anthropic/a"), rawModel("openai/b")]), reasoning, filterOptions);
+  const [first, second] = reasoningCaseIds;
+  const records = [
+    // Two strong samples of the first case; the grader kept failing on the second.
+    evaluation({ modelId: "anthropic/a", caseId: first, runId: "run-1" }),
+    evaluation({ modelId: "anthropic/a", caseId: first, runId: "run-2" }),
+    // Covers both cases; a failed answer still counts as evidence.
+    evaluation({ modelId: "openai/b", caseId: first, qualityScore: 1 }),
+    evaluation({ modelId: "openai/b", caseId: second, qualityScore: 0.8 }),
+  ];
+  const aggregates = aggregateEvaluations(records);
+  assert.deepEqual(aggregates.find((aggregate) => aggregate.modelId === "anthropic/a")?.coveredCaseIds, [first]);
+
+  const ranked = rankModels(reasoning, aggregates, eligible);
+  assert.deepEqual(ranked.map((model) => model.modelId), ["openai/b"]);
 });
 
 test("selection keeps the incumbent unless a challenger clears the switch margin", () => {
