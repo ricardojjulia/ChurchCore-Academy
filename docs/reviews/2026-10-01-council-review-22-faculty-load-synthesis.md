@@ -59,3 +59,10 @@ Focused coverage proves aggregation, tenant/period parameters, zero-section hand
 ## Decision
 
 Council decision is **revise -> fixed locally**. Proceed through protected PR delivery; no deployment or automated faculty decision is authorized.
+
+## 2026-10-02 Correction
+
+The final PR `#206` review identified that partial credit/hour and capacity totals
+still appeared complete and that E2E did not exercise real aggregates. Those
+findings were not fixed before merge. Issue `#216` and Council Review 24 supersede
+the affected verification claim while preserving this review as historical evidence.

@@ -24,10 +24,10 @@ export interface FacultyLoadSummary {
   title: string;
   loadPolicy: string | null;
   sectionCount: number;
-  instructionalCredits: number;
-  instructionalClockHours: number;
+  instructionalCredits: number | null;
+  instructionalClockHours: number | null;
   enrolledSeats: number;
-  capacity: number;
+  capacity: number | null;
   utilizationPercent: number | null;
   adviseeCount: number;
   sections: FacultySectionLoad[];
@@ -140,23 +140,27 @@ export async function fetchFacultyLoadWorkspace(
     };
     summary.sections.push(section);
     summary.sectionCount += 1;
-    summary.instructionalCredits += section.credits ?? 0;
-    summary.instructionalClockHours += section.clockHours ?? 0;
+    summary.instructionalCredits = (summary.instructionalCredits ?? 0) + (section.credits ?? 0);
+    summary.instructionalClockHours = (summary.instructionalClockHours ?? 0) + (section.clockHours ?? 0);
     summary.enrolledSeats += section.enrolledSeats;
-    summary.capacity += capacity ?? 0;
+    summary.capacity = (summary.capacity ?? 0) + (capacity ?? 0);
   }
 
   for (const summary of byFaculty.values()) {
-    const completeCapacity = summary.sections.length > 0
-      && summary.sections.every((section) => section.capacity != null);
-    summary.utilizationPercent = completeCapacity && summary.capacity > 0
+    const incompleteCredits = summary.sections.some((section) => section.credits == null);
+    const incompleteClockHours = summary.sections.some((section) => section.clockHours == null);
+    const incompleteCapacity = summary.sections.some((section) => section.capacity == null);
+    if (incompleteCredits) summary.instructionalCredits = null;
+    if (incompleteClockHours) summary.instructionalClockHours = null;
+    if (incompleteCapacity) summary.capacity = null;
+    summary.utilizationPercent = summary.sections.length > 0 && summary.capacity != null && summary.capacity > 0
       ? Math.round((summary.enrolledSeats / summary.capacity) * 100)
       : null;
     if (summary.sectionCount === 0) summary.reviewFlags.push("No sections in selected period");
     if (!summary.loadPolicy) summary.reviewFlags.push("Load policy not configured");
-    if (summary.sections.some((section) => section.credits == null)) summary.reviewFlags.push("Credits not configured for every section");
-    if (summary.sections.some((section) => section.clockHours == null)) summary.reviewFlags.push("Clock hours not configured for every section");
-    if (summary.sections.some((section) => section.capacity == null)) summary.reviewFlags.push("Capacity not configured for every section");
+    if (incompleteCredits) summary.reviewFlags.push("Credits not configured for every section");
+    if (incompleteClockHours) summary.reviewFlags.push("Clock hours not configured for every section");
+    if (incompleteCapacity) summary.reviewFlags.push("Capacity not configured for every section");
     if (summary.sectionCount >= 10) summary.reviewFlags.push("10 or more active sections");
     if (summary.sections.some((section) => section.capacity != null && section.enrolledSeats > section.capacity)) {
       summary.reviewFlags.push("Section enrollment exceeds capacity");
