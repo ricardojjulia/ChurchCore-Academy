@@ -35,7 +35,7 @@ test("platform staff get routing, leaderboards, and spend per ask", async () => 
     evaluation({ modelId: "anthropic/b", qualityScore: 0.9, costUsd: 0.01, evaluatedAt: recent }),
   );
   repository.selections.push({ taskKind: "hq_reasoning", modelId: "openai/a", fallbackModelIds: ["anthropic/b"], fitScore: 0.8, reason: "Best fit", runId: "run-1", selectedAt: recent });
-  repository.usage.push({ taskKind: "hq_reasoning", modelId: "openai/a", promptTokens: 1, completionTokens: 1, costUsd: 0.5, latencyMs: 10, status: "completed", createdAt: recent });
+  repository.usage.push({ id: "usage-1", taskKind: "hq_reasoning", modelId: "openai/a", promptTokens: 1, completionTokens: 1, costUsd: 0.5, latencyMs: 10, status: "completed", createdAt: recent });
 
   const response = await getAiModelsReport(dependencies(["platform_staff"], repository));
   assert.equal(response.status, 200);

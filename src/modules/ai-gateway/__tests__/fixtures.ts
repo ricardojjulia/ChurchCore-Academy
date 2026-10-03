@@ -91,6 +91,8 @@ export class InMemoryAiGatewayRepository implements AiGatewayRepository {
     return this.runs.slice(-limit).reverse();
   }
   async recordUsage(record: Parameters<AiGatewayRepository["recordUsage"]>[0]) {
+    // Same idempotency as the Postgres primary key + on conflict do nothing.
+    if (this.usage.some((existing) => existing.id === record.id)) return;
     this.usage.push(record);
   }
   async summarizeUsageSince(since: string) {

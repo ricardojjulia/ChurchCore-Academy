@@ -7,6 +7,7 @@ import {
   chooseSelection,
   COLD_START_MODEL,
   combineQuality,
+  MAX_GRADED_ANSWER_BYTES,
   parseJudgeVerdict,
   rankModels,
   scoreDeterministic,
@@ -181,7 +182,7 @@ export function worstCaseJobCostUsd(candidate: AiModelCandidate, grader: AiModel
   return profile.evaluationCases.reduce((total, evaluationCase) =>
     total +
     worstCaseAnswerCostUsd(candidate, profile, evaluationCase) +
-    worstCaseGradeCostUsd(grader, profile, evaluationCase), 0);
+    worstCaseGradeCostUsd(grader, evaluationCase), 0);
 }
 
 function worstCaseAnswerCostUsd(candidate: AiModelCandidate, profile: AiTaskProfile, evaluationCase: AiEvaluationCase) {
@@ -189,10 +190,10 @@ function worstCaseAnswerCostUsd(candidate: AiModelCandidate, profile: AiTaskProf
   return callCost(candidate, promptTokens, evaluationOutputTokens(profile));
 }
 
-function worstCaseGradeCostUsd(grader: AiModelCandidate, profile: AiTaskProfile, evaluationCase: AiEvaluationCase) {
+function worstCaseGradeCostUsd(grader: AiModelCandidate, evaluationCase: AiEvaluationCase) {
   const judgeFrame = buildJudgeMessages(evaluationCase, "").map((message) => message.content);
-  // The graded answer is at most the candidate's output limit, in tokens.
-  const promptTokens = maxPromptTokens(judgeFrame) + evaluationOutputTokens(profile);
+  // The graded answer is cut to MAX_GRADED_ANSWER_BYTES, so it adds at most that many grader tokens.
+  const promptTokens = maxPromptTokens(judgeFrame) + MAX_GRADED_ANSWER_BYTES;
   return callCost(grader, promptTokens, GRADER_MAX_OUTPUT_TOKENS);
 }
 
@@ -381,10 +382,10 @@ async function evaluateUnderLease(
         jsonResponse: true,
         timeoutMs: options.graderTimeoutMs,
       });
-      spentUsd += chargedCostUsd(grader, judged.usage, worstCaseGradeCostUsd(grader, job.profile, evaluationCase));
+      spentUsd += chargedCostUsd(grader, judged.usage, worstCaseGradeCostUsd(grader, evaluationCase));
       verdict = parseJudgeVerdict(judged.text);
     } catch {
-      spentUsd += worstCaseGradeCostUsd(grader, job.profile, evaluationCase);
+      spentUsd += worstCaseGradeCostUsd(grader, evaluationCase);
       verdict = undefined;
     }
 

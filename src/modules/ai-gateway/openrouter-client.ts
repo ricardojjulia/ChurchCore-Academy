@@ -86,8 +86,10 @@ export class OpenRouterClient {
   }
 
   /**
-   * Request body shared by streaming and non-streaming calls. `data_collection: "deny"` keeps
-   * OpenRouter from routing to any provider that retains or trains on prompts.
+   * Request body shared by streaming and non-streaming calls. Two separate OpenRouter controls:
+   * `data_collection: "deny"` excludes providers that may store or train on prompts, and
+   * `zdr: true` restricts routing to Zero Data Retention endpoints. A model with no ZDR endpoint
+   * fails its requests, so it fails evaluation and is never selected.
    */
   buildRequestBody(request: OpenRouterCompletionRequest, stream: boolean) {
     const fallbacks = (request.fallbackModels ?? []).filter((model) => model !== request.model);
@@ -100,7 +102,7 @@ export class OpenRouterClient {
       ...(request.jsonResponse ? { response_format: { type: "json_object" } } : {}),
       stream,
       usage: { include: true },
-      provider: { data_collection: "deny" },
+      provider: { data_collection: "deny", zdr: true },
     };
   }
 

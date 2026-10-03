@@ -44,6 +44,20 @@ export function combineQuality(judgeScore: number, deterministicScore: number) {
   return clamp01(JUDGE_WEIGHT * judgeScore + (1 - JUDGE_WEIGHT) * deterministicScore);
 }
 
+/**
+ * The graded answer is cut to this many UTF-8 bytes. A byte-level tokenizer emits at most one
+ * token per byte, so this bounds the grader's prompt cost no matter how the candidate tokenized
+ * its answer (a 4,000-token answer can be far more than 4,000 grader tokens).
+ */
+export const MAX_GRADED_ANSWER_BYTES = 16_000;
+
+/** Truncates to at most `maxBytes` of UTF-8 without splitting a character. */
+export function truncateUtf8(text: string, maxBytes: number) {
+  const encoded = new TextEncoder().encode(text);
+  if (encoded.length <= maxBytes) return text;
+  return new TextDecoder("utf-8", { fatal: false }).decode(encoded.subarray(0, maxBytes)).replace(/\uFFFD$/, "");
+}
+
 /** Blind grading prompt: the grader never sees which model wrote the answer. */
 export function buildJudgeMessages(evaluationCase: AiEvaluationCase, output: string) {
   return [
@@ -59,7 +73,7 @@ export function buildJudgeMessages(evaluationCase: AiEvaluationCase, output: str
       content:
         `TASK GIVEN TO THE MODEL:\n${evaluationCase.prompt}\n\n` +
         `RUBRIC:\n${evaluationCase.rubric}\n\n` +
-        `ANSWER TO GRADE:\n<<<\n${output.slice(0, 24_000)}\n>>>`,
+        `ANSWER TO GRADE:\n<<<\n${truncateUtf8(output, MAX_GRADED_ANSWER_BYTES)}\n>>>`,
     },
   ];
 }

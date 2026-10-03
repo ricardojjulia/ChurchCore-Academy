@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { AiGateway, assertFitsContext, clearAiRouteCache } from "@/modules/ai-gateway/gateway";
 import { OpenRouterClient, type OpenRouterCompletionRequest } from "@/modules/ai-gateway/openrouter-client";
+import * as scoringModule from "@/modules/ai-gateway/scoring";
 import { COLD_START_MODEL } from "@/modules/ai-gateway/scoring";
 import { AI_TASK_PROFILES } from "@/modules/ai-gateway/task-profiles";
 import { AiProviderError, AiRequestTooLargeError } from "@/modules/ai-gateway/types";
@@ -51,7 +52,8 @@ test("the client sends OpenRouter requests with fallbacks, usage accounting, and
   assert.equal(headers["http-referer"], "https://academy.example");
   const body = JSON.parse(String(captured?.init.body));
   assert.deepEqual(body.models, ["openai/primary", "anthropic/backup"]);
-  assert.deepEqual(body.provider, { data_collection: "deny" });
+  // Two separate controls: no providers that store or train on prompts, and only ZDR endpoints.
+  assert.deepEqual(body.provider, { data_collection: "deny", zdr: true });
   assert.deepEqual(body.usage, { include: true });
   assert.equal(body.stream, false);
   assert.deepEqual(result.usage, { promptTokens: 12, completionTokens: 3, costUsd: 0.0004 });
@@ -170,7 +172,8 @@ test("streaming passes chunks through unchanged and records usage from the final
   const { body, requestedModel } = await gateway.stream({ taskKind: "hq_council_review", messages: [{ role: "user", content: "Review" }] });
   assert.equal(requestedModel, COLD_START_MODEL, "the route asked for; the chunks name the model that answered");
   assert.equal(await readAll(body), lines.join(""));
-  assert.deepEqual(repository.usage.map((record) => ({ ...record, createdAt: undefined, latencyMs: undefined })), [{
+  assert.deepEqual(repository.usage.map((record) => ({ ...record, id: undefined, createdAt: undefined, latencyMs: undefined })), [{
+    id: undefined,
     taskKind: "hq_council_review",
     modelId: "anthropic/served",
     promptTokens: 40,
@@ -398,9 +401,52 @@ test("a failed usage write is retried, then handed off with its record instead o
   assert.equal(result.text, "ok");
   assert.equal(handedOff.length, 1);
   assert.deepEqual(
-    { ...(handedOff[0] as Record<string, unknown>), createdAt: undefined },
-    { taskKind: "hq_reasoning", modelId: "openai/served", promptTokens: 3, completionTokens: 4, costUsd: 0.01, latencyMs: 5, status: "completed", createdAt: undefined },
+    { ...(handedOff[0] as Record<string, unknown>), id: undefined, createdAt: undefined },
+    { id: undefined, taskKind: "hq_reasoning", modelId: "openai/served", promptTokens: 3, completionTokens: 4, costUsd: 0.01, latencyMs: 5, status: "completed", createdAt: undefined },
   );
+});
+
+test("usage retries reuse the call's id, so a commit whose acknowledgement was lost isn't double-counted", async () => {
+  clearAiRouteCache();
+  const repository = new InMemoryAiGatewayRepository();
+  const write = repository.recordUsage.bind(repository);
+  const ids: string[] = [];
+  let attempts = 0;
+  repository.recordUsage = async (record) => {
+    attempts += 1;
+    ids.push(record.id);
+    await write(record);
+    // The insert committed, then the connection dropped before the client saw the result.
+    if (attempts === 1) throw new Error("connection reset");
+  };
+  let next = 0;
+  await new AiGateway({
+    repository,
+    now: () => NOW,
+    usageRetryDelaysMs: [0, 0],
+    randomId: () => `usage-${++next}`,
+    client: {
+      async complete() {
+        return { text: "ok", model: "openai/served", usage: { promptTokens: 1, completionTokens: 1, costUsd: 0.01 }, latencyMs: 1 };
+      },
+      async stream(): Promise<Response> {
+        throw new Error("unused");
+      },
+    },
+  }).complete({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+
+  assert.deepEqual(ids, ["usage-1", "usage-1"], "the retry carries the same id");
+  assert.equal(repository.usage.length, 1);
+});
+
+test("the graded answer is cut by UTF-8 bytes, never mid-character", () => {
+  const { truncateUtf8, MAX_GRADED_ANSWER_BYTES: limit } = scoringModule;
+  const emoji = "😀".repeat(limit); // 4 bytes each: far more bytes than characters
+  const cut = truncateUtf8(emoji, limit);
+  assert.ok(new TextEncoder().encode(cut).length <= limit);
+  assert.equal(cut, "😀".repeat(limit / 4));
+  assert.equal(truncateUtf8("short", limit), "short");
+  assert.doesNotMatch(truncateUtf8(`a${"é".repeat(10)}`, 4), /\uFFFD/);
 });
 
 test("the catalog request is bounded so a stall can't consume the run deadline", async () => {

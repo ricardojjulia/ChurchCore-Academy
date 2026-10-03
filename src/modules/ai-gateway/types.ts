@@ -137,6 +137,8 @@ export interface AiModelSelection {
 }
 
 export interface AiGatewayUsageRecord {
+  /** One per gateway call, assigned before the first write so retries are idempotent. */
+  id: string;
   taskKind: AiTaskKind;
   modelId: string;
   promptTokens: number;

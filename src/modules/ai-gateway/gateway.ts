@@ -57,6 +57,7 @@ export interface AiGatewayDependencies {
   onUsageError?: (error: unknown, record: AiGatewayUsageRecord) => void;
   /** Delay before each retry of a failed usage write; defaults to USAGE_RETRY_DELAYS_MS. */
   usageRetryDelaysMs?: number[];
+  randomId?: () => string;
 }
 
 /** Bounded so a database outage adds at most ~0.6s to a request. */
@@ -107,9 +108,12 @@ export class AiGateway {
 
   /**
    * Usage writes must never fail a user request, so a write that still fails after bounded retries
-   * hands the record to onUsageError instead of being dropped silently.
+   * hands the record to onUsageError instead of being dropped silently. Retries are idempotent.
    */
-  private async recordUsage(record: AiGatewayUsageRecord) {
+  private async recordUsage(fields: Omit<AiGatewayUsageRecord, "id">) {
+    // The id is fixed before the first attempt: a write that committed but lost its
+    // acknowledgement is retried with the same id and ignored as a duplicate.
+    const record: AiGatewayUsageRecord = { id: (this.dependencies.randomId ?? (() => crypto.randomUUID()))(), ...fields };
     const delays = this.dependencies.usageRetryDelaysMs ?? USAGE_RETRY_DELAYS_MS;
     for (let attempt = 0; ; attempt += 1) {
       try {
@@ -159,7 +163,7 @@ export class AiGateway {
     }
   }
 
-  private failedUsage(taskKind: AiTaskKind, model: string, started: number): AiGatewayUsageRecord {
+  private failedUsage(taskKind: AiTaskKind, model: string, started: number): Omit<AiGatewayUsageRecord, "id"> {
     return {
       taskKind,
       modelId: model,

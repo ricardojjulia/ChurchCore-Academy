@@ -9,7 +9,7 @@ import {
   worstCaseJobCostUsd,
 } from "@/modules/ai-gateway/evaluation-runner";
 import type { OpenRouterCompletionRequest } from "@/modules/ai-gateway/openrouter-client";
-import { COLD_START_MODEL } from "@/modules/ai-gateway/scoring";
+import { COLD_START_MODEL, MAX_GRADED_ANSWER_BYTES } from "@/modules/ai-gateway/scoring";
 import { AI_TASK_PROFILES } from "@/modules/ai-gateway/task-profiles";
 import { AiCompletionResult, AiEvaluationInProgressError } from "@/modules/ai-gateway/types";
 import { evaluation, InMemoryAiGatewayRepository, NOW, rawModel } from "@/modules/ai-gateway/__tests__/fixtures";
@@ -224,7 +224,8 @@ test("a run reserves each job's worst-case spend, so the budget is a hard cap", 
     return total + (
       strong.promptUsdPerMillion * promptBytes +
       strong.completionUsdPerMillion * answerTokens +
-      grader.promptUsdPerMillion * answerTokens +
+      // The graded answer is re-tokenized by the grader: bounded in bytes, not candidate tokens.
+      grader.promptUsdPerMillion * MAX_GRADED_ANSWER_BYTES +
       grader.completionUsdPerMillion * 400
     ) / 1_000_000;
   }, 0);
@@ -395,7 +396,7 @@ test("a job too expensive even on its own is dropped without stopping cheaper on
   const { client, calls } = fakeClient({ judgeScores: { "openai/cheap": 8 } });
 
   // Planned order is openai/broken, anthropic/strong, openai/cheap; strong can never fit.
-  const budgetUsd = worstCaseJobCostUsd(cheap, grader, profile) * 2.5;
+  const budgetUsd = (worstCaseJobCostUsd(cheap, grader, profile) + worstCaseJobCostUsd(strong, grader, profile)) / 2;
   assert.ok(worstCaseJobCostUsd(strong, grader, profile) > budgetUsd);
   const summary = await runModelEvaluation(
     { client, repository, now: () => NOW },
@@ -468,7 +469,7 @@ test("models too expensive for any run are left out of planning so affordable on
   const { client, calls } = fakeClient({ judgeScores: { "openai/cheap": 8 } });
 
   // anthropic/strong is newer, so it would take the only slot every run and never fit the budget.
-  const budgetUsd = worstCaseJobCostUsd(cheap, grader, profile) * 1.5;
+  const budgetUsd = (worstCaseJobCostUsd(cheap, grader, profile) + worstCaseJobCostUsd(strong, grader, profile)) / 2;
   assert.ok(worstCaseJobCostUsd(strong, grader, profile) > budgetUsd);
   const summary = await runModelEvaluation(
     { client, repository, now: () => NOW },

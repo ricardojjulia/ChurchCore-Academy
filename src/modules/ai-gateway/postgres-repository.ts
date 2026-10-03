@@ -213,9 +213,11 @@ export class PostgresAiGatewayRepository implements AiGatewayRepository {
   async recordUsage(record: AiGatewayUsageRecord) {
     await this.pool.query(
       `insert into academy_ai_gateway_usage
-         (task_kind, model_id, prompt_tokens, completion_tokens, cost_usd, latency_ms, status, created_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         (id, task_kind, model_id, prompt_tokens, completion_tokens, cost_usd, latency_ms, status, created_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       on conflict (id) do nothing`,
       [
+        record.id,
         record.taskKind,
         record.modelId,
         record.promptTokens,
