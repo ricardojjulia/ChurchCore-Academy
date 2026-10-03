@@ -379,6 +379,7 @@ export default function HQPage() {
   const [servedModels, setServedModels] = useState<Record<string, string>>({});
   const [modelReport, setModelReport] = useState<AiModelReport | null>(null);
   const [modelReportConfigured, setModelReportConfigured] = useState(true);
+  const [canRunEvaluation, setCanRunEvaluation] = useState(false);
   const [modelReportLoading, setModelReportLoading] = useState(false);
   const [evaluationRunning, setEvaluationRunning] = useState(false);
   const [lastEvaluation, setLastEvaluation] = useState<AiEvaluationRunSummary | null>(null);
@@ -510,10 +511,9 @@ export default function HQPage() {
         throw new Error(await readResponseError(response));
       }
 
-      const servedBy = response.headers.get("x-ai-model");
-      if (servedBy) {
-        setServedModels((prev) => ({ ...prev, [agent.id]: servedBy }));
-      }
+      // Show the model that actually answered (from the chunks), not the requested route, which
+      // may be the auto-router or a primary that fell back.
+      let servedBy: string | null = null;
 
       streamingRef.current = "";
       const reader = response.body.getReader();
@@ -534,6 +534,7 @@ export default function HQPage() {
           if (!raw || raw === "[DONE]") continue;
 
           let event: {
+            model?: unknown;
             choices?: Array<{ delta?: { content?: unknown } }>;
             error?: { message?: unknown };
           };
@@ -545,6 +546,12 @@ export default function HQPage() {
 
           if (event.error) {
             throw new Error(typeof event.error.message === "string" ? event.error.message : "AI request failed.");
+          }
+
+          if (typeof event.model === "string" && event.model !== servedBy) {
+            const answeredBy: string = event.model;
+            servedBy = answeredBy;
+            setServedModels((prev) => ({ ...prev, [agent.id]: answeredBy }));
           }
 
           const delta = event.choices?.[0]?.delta?.content;
@@ -697,9 +704,10 @@ export default function HQPage() {
       if (!response.ok) {
         throw new Error(await readResponseError(response));
       }
-      const data = (await response.json()) as { report: AiModelReport; configured: boolean };
+      const data = (await response.json()) as { report: AiModelReport; configured: boolean; canRunEvaluation: boolean };
       setModelReport(data.report);
       setModelReportConfigured(data.configured);
+      setCanRunEvaluation(data.canRunEvaluation === true);
     } catch (reportError) {
       setError(reportError instanceof Error ? reportError.message : "Failed to load AI model report.");
     } finally {
@@ -890,7 +898,7 @@ export default function HQPage() {
                   <h3>{currentAgent.emoji} {currentAgent.name}</h3>
                   <p>{currentAgent.role}</p>
                   {servedModels[currentAgent.id] ? (
-                    <small className="served-by">Routed to {servedModels[currentAgent.id]}</small>
+                    <small className="served-by">Answered by {servedModels[currentAgent.id]}</small>
                   ) : null}
                 </div>
                 {currentAgent.id === "architect" ? (
@@ -955,9 +963,11 @@ export default function HQPage() {
                 <button type="button" onClick={() => void loadModelReport()} disabled={modelReportLoading}>
                   {modelReportLoading ? "Loading…" : "Refresh"}
                 </button>
-                <button type="button" className="primary" onClick={() => void runEvaluationNow()} disabled={evaluationRunning}>
-                  {evaluationRunning ? "Evaluating…" : "Run evaluation now"}
-                </button>
+                {canRunEvaluation ? (
+                  <button type="button" className="primary" onClick={() => void runEvaluationNow()} disabled={evaluationRunning}>
+                    {evaluationRunning ? "Evaluating…" : "Run evaluation now"}
+                  </button>
+                ) : null}
               </div>
             </header>
 

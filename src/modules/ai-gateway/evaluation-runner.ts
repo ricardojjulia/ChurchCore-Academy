@@ -1,4 +1,4 @@
-import { eligibleCandidates, estimateRequestCostUsd, normalizeOpenRouterCatalog } from "@/modules/ai-gateway/catalog";
+import { eligibleCandidates, normalizeOpenRouterCatalog } from "@/modules/ai-gateway/catalog";
 import type { OpenRouterClient } from "@/modules/ai-gateway/openrouter-client";
 import {
   aggregateEvaluations,
@@ -17,6 +17,7 @@ import {
   AiGatewayRepository,
   AiModelCandidate,
   AiModelEvaluationRecord,
+  AiEvaluationInProgressError,
   AiModelSelection,
   AiTaskKind,
   AiTaskProfile,
@@ -25,7 +26,13 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EVALUATION_MAX_OUTPUT_TOKENS = 4_000;
+const GRADER_MAX_OUTPUT_TOKENS = 400;
 const EXCERPT_LENGTH = 2_000;
+/** The lease outlives the run's deadline by this much, covering catalog load and persistence. */
+const LEASE_HEADROOM_MS = 60_000;
+/** Conservative token estimate for budget reservations: real tokenizers average ~4 chars/token. */
+const CHARS_PER_TOKEN_FLOOR = 3;
+const MESSAGE_OVERHEAD_TOKENS = 16;
 
 export interface EvaluationRunnerDependencies {
   client: Pick<OpenRouterClient, "listModels" | "complete">;
@@ -97,27 +104,40 @@ interface EvaluationJob {
 }
 
 /**
- * Which models to try for one ask this run: the incumbent when its evidence is stale, then
- * never-evaluated models (newest releases first), then the stalest evaluated models.
+ * Which models to try for one ask this run: the incumbent when its evidence is stale or
+ * incomplete, then models missing coverage of a required case (a dropped grader sample must not
+ * strand a model for weeks), then never-evaluated models (newest releases first), then the
+ * stalest evaluated models.
  */
 export function planEvaluationTargets(
   eligible: AiModelCandidate[],
   history: AiModelEvaluationRecord[],
   current: AiModelSelection | undefined,
-  options: { now: Date; staleAfterDays: number; modelsPerTask: number },
+  options: { now: Date; staleAfterDays: number; modelsPerTask: number; requiredCaseIds: string[] },
 ): AiModelCandidate[] {
   const lastEvaluated = new Map<string, number>();
+  const coveredCases = new Map<string, Set<string>>();
   for (const record of history) {
     const at = Date.parse(record.evaluatedAt);
     if (at > (lastEvaluated.get(record.modelId) ?? 0)) lastEvaluated.set(record.modelId, at);
+    const covered = coveredCases.get(record.modelId) ?? new Set<string>();
+    covered.add(record.caseId);
+    coveredCases.set(record.modelId, covered);
   }
   const staleBefore = options.now.getTime() - options.staleAfterDays * DAY_MS;
   const isStale = (id: string) => (lastEvaluated.get(id) ?? 0) < staleBefore;
+  const isIncomplete = (id: string) => {
+    const covered = coveredCases.get(id);
+    return covered !== undefined && options.requiredCaseIds.some((caseId) => !covered.has(caseId));
+  };
 
   const targets: AiModelCandidate[] = [];
   const incumbent = current ? eligible.find((candidate) => candidate.id === current.modelId) : undefined;
-  if (incumbent && isStale(incumbent.id)) targets.push(incumbent);
+  if (incumbent && (isStale(incumbent.id) || isIncomplete(incumbent.id))) targets.push(incumbent);
 
+  const incomplete = eligible
+    .filter((candidate) => candidate.id !== incumbent?.id && isIncomplete(candidate.id) && !isStale(candidate.id))
+    .sort((a, b) => (lastEvaluated.get(a.id) ?? 0) - (lastEvaluated.get(b.id) ?? 0));
   const unseen = interleaveProviders(
     eligible
       .filter((candidate) => !lastEvaluated.has(candidate.id) && candidate.id !== incumbent?.id)
@@ -127,7 +147,7 @@ export function planEvaluationTargets(
     .filter((candidate) => lastEvaluated.has(candidate.id) && isStale(candidate.id) && candidate.id !== incumbent?.id)
     .sort((a, b) => (lastEvaluated.get(a.id) ?? 0) - (lastEvaluated.get(b.id) ?? 0));
 
-  for (const candidate of [...unseen, ...stale]) {
+  for (const candidate of [...incomplete, ...unseen, ...stale]) {
     if (targets.length >= options.modelsPerTask) break;
     targets.push(candidate);
   }
@@ -138,20 +158,70 @@ function callCost(candidate: AiModelCandidate, promptTokens: number, completionT
   return (candidate.promptUsdPerMillion * promptTokens + candidate.completionUsdPerMillion * completionTokens) / 1_000_000;
 }
 
-function estimateGraderCostUsd(grader: AiModelCandidate, profile: AiTaskProfile) {
-  return callCost(grader, profile.typicalCompletionTokens + 800, 250);
+function maxTokensForChars(chars: number) {
+  return Math.ceil(chars / CHARS_PER_TOKEN_FLOOR) + MESSAGE_OVERHEAD_TOKENS * 2;
 }
 
+function evaluationOutputTokens(profile: AiTaskProfile) {
+  return Math.min(profile.maxOutputTokens, EVALUATION_MAX_OUTPUT_TOKENS);
+}
+
+/**
+ * Worst-case spend for one model on one ask: every case answered at the full output-token limit,
+ * then graded with that full answer in the grader prompt and the grader's full output limit. The
+ * run reserves this before dispatch, so the budget is a hard cap rather than a typical-case guess.
+ */
+export function worstCaseJobCostUsd(candidate: AiModelCandidate, grader: AiModelCandidate, profile: AiTaskProfile) {
+  const answerTokens = evaluationOutputTokens(profile);
+  return profile.evaluationCases.reduce((total, evaluationCase) => {
+    const candidatePromptTokens = maxTokensForChars(evaluationCase.system.length + evaluationCase.prompt.length);
+    const judgeFrameChars = buildJudgeMessages(evaluationCase, "")
+      .reduce((chars, message) => chars + message.content.length, 0);
+    const graderPromptTokens = maxTokensForChars(judgeFrameChars) + answerTokens;
+    return total +
+      callCost(candidate, candidatePromptTokens, answerTokens) +
+      callCost(grader, graderPromptTokens, GRADER_MAX_OUTPUT_TOKENS);
+  }, 0);
+}
+
+/**
+ * Runs one evaluation cycle under the global evaluation lease. Throws AiEvaluationInProgressError
+ * when another run (cron or admin-triggered) holds it, so overlapping runs never read the same
+ * incumbent, spend separate budgets, or append conflicting selections.
+ */
 export async function runModelEvaluation(
   dependencies: EvaluationRunnerDependencies,
   options: EvaluationRunOptions,
 ): Promise<AiEvaluationRunSummary> {
   const now = dependencies.now ?? (() => new Date());
-  const randomId = dependencies.randomId ?? (() => crypto.randomUUID());
-  const { client, repository } = dependencies;
-
-  const runId = randomId();
+  const runId = (dependencies.randomId ?? (() => crypto.randomUUID()))();
   const startedAt = now();
+  const leaseExpiresAt = new Date(startedAt.getTime() + options.deadlineMs + LEASE_HEADROOM_MS);
+
+  const acquired = await dependencies.repository.acquireEvaluationLease(
+    runId,
+    startedAt.toISOString(),
+    leaseExpiresAt.toISOString(),
+  );
+  if (!acquired) throw new AiEvaluationInProgressError();
+
+  try {
+    return await evaluateUnderLease(dependencies, options, runId, startedAt, now);
+  } finally {
+    await dependencies.repository.releaseEvaluationLease(runId).catch(() => {
+      // An unreleased lease expires on its own; never mask the run's own outcome.
+    });
+  }
+}
+
+async function evaluateUnderLease(
+  dependencies: EvaluationRunnerDependencies,
+  options: EvaluationRunOptions,
+  runId: string,
+  startedAt: Date,
+  now: () => Date,
+): Promise<AiEvaluationRunSummary> {
+  const { client, repository } = dependencies;
   const deadline = startedAt.getTime() + options.deadlineMs;
   let spentUsd = 0;
   let reservedUsd = 0;
@@ -205,6 +275,7 @@ export async function runModelEvaluation(
       now: startedAt,
       staleAfterDays: options.staleAfterDays,
       modelsPerTask: options.modelsPerTask,
+      requiredCaseIds: profile.evaluationCases.map((evaluationCase) => evaluationCase.id),
     });
     for (const candidate of targets) jobs.push({ profile, candidate });
   }
@@ -228,7 +299,7 @@ export async function runModelEvaluation(
           { role: "system", content: evaluationCase.system },
           { role: "user", content: evaluationCase.prompt },
         ],
-        maxTokens: Math.min(job.profile.maxOutputTokens, EVALUATION_MAX_OUTPUT_TOKENS),
+        maxTokens: evaluationOutputTokens(job.profile),
         timeoutMs: job.profile.evaluationTimeoutMs,
       });
     } catch {
@@ -257,7 +328,7 @@ export async function runModelEvaluation(
       const judged = await client.complete({
         model: grader.id,
         messages: buildJudgeMessages(evaluationCase, answer.text),
-        maxTokens: 400,
+        maxTokens: GRADER_MAX_OUTPUT_TOKENS,
         temperature: 0,
         jsonResponse: true,
         timeoutMs: options.graderTimeoutMs,
@@ -299,8 +370,7 @@ export async function runModelEvaluation(
         stopReason = "deadline_reached";
         return;
       }
-      const reservation = job.profile.evaluationCases.length *
-        (estimateRequestCostUsd(job.candidate, job.profile) + estimateGraderCostUsd(grader, job.profile));
+      const reservation = worstCaseJobCostUsd(job.candidate, grader, job.profile);
       if (spentUsd + reservedUsd + reservation > options.budgetUsd) {
         stopReason = "budget_exhausted";
         return;
@@ -331,7 +401,8 @@ export async function runModelEvaluation(
     const history = [...(historyByKind.get(kind) ?? []), ...newRecords.filter((record) => record.taskKind === kind)];
     const ranked = rankModels(profile, aggregateEvaluations(history), eligibleByKind.get(kind) ?? []);
     const current = currentSelections.get(kind);
-    const next = chooseSelection(profile, ranked, current, { runId, now: selectedAt });
+    const eligibleModelIds = new Set((eligibleByKind.get(kind) ?? []).map((candidate) => candidate.id));
+    const next = chooseSelection(profile, ranked, current, { runId, now: selectedAt, eligibleModelIds });
 
     // Nothing qualified and nothing was selected before: the gateway already cold-starts on
     // COLD_START_MODEL, so there is no selection to record.

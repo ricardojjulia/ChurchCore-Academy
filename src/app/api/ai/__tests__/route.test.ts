@@ -25,7 +25,7 @@ function dependencies(overrides: Partial<AiRouteDependencies> & { requests?: AiG
     gatewayFactory: () => ({
       async stream(request) {
         overrides.requests?.push(request);
-        return { body: new Response("data: [DONE]\n\n").body!, model: "openai/coder" };
+        return { body: new Response("data: [DONE]\n\n").body!, requestedModel: "openai/coder" };
       },
     }),
     ...overrides,
@@ -46,7 +46,9 @@ test("streams through the gateway with the ask resolved from the agent, not a cl
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "text/event-stream");
-  assert.equal(response.headers.get("x-ai-model"), "openai/coder");
+  // The header names the requested route only; the answering model arrives in the SSE chunks.
+  assert.equal(response.headers.get("x-ai-route"), "openai/coder");
+  assert.equal(response.headers.get("x-ai-model"), null);
   assert.equal(requests[0].taskKind, "hq_engineering");
   assert.equal(requests[0].maxTokens, undefined);
   assert.deepEqual(requests[0].messages, [

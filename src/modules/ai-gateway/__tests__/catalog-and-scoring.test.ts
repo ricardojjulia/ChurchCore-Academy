@@ -111,7 +111,7 @@ test("ranking needs enough samples and a model still present in the catalog", ()
 test("selection keeps the incumbent unless a challenger clears the switch margin", () => {
   const base = { meanQuality: 0.9, qualityScore: 0.9, costScore: 0.5, latencyScore: 0.5, estimatedRequestCostUsd: 0.01, medianLatencyMs: 5_000, sampleCount: 2 };
   const current = { taskKind: "hq_reasoning" as const, modelId: "anthropic/incumbent", fallbackModelIds: [], fitScore: 0.8, reason: "", runId: "old", selectedAt: "2026-09-01T00:00:00.000Z" };
-  const context = { runId: "run-2", now: NOW.toISOString() };
+  const context = { runId: "run-2", now: NOW.toISOString(), eligibleModelIds: new Set(["anthropic/incumbent", "openai/challenger"]) };
 
   const close = chooseSelection(reasoning, [
     { ...base, modelId: "openai/challenger", fitScore: 0.81 },
@@ -129,9 +129,65 @@ test("selection keeps the incumbent unless a challenger clears the switch margin
 });
 
 test("selection falls back to the cold-start auto-router when nothing has qualified", () => {
-  const selection = chooseSelection(reasoning, [], undefined, { runId: "run-1", now: NOW.toISOString() });
+  const selection = chooseSelection(reasoning, [], undefined, { runId: "run-1", now: NOW.toISOString(), eligibleModelIds: new Set() });
   assert.equal(selection.modelId, COLD_START_MODEL);
   assert.equal(selection.fitScore, null);
+});
+
+test("with no challenger, an eligible incumbent stays but an ineligible one falls back to the auto-router", () => {
+  const current = {
+    taskKind: "hq_reasoning" as const,
+    modelId: "anthropic/incumbent",
+    fallbackModelIds: ["openai/still-listed", "openai/delisted"],
+    fitScore: 0.8,
+    reason: "",
+    runId: "old",
+    selectedAt: "2026-09-01T00:00:00.000Z",
+  };
+
+  const kept = chooseSelection(reasoning, [], current, {
+    runId: "run-2",
+    now: NOW.toISOString(),
+    eligibleModelIds: new Set(["anthropic/incumbent", "openai/still-listed"]),
+  });
+  assert.equal(kept.modelId, "anthropic/incumbent");
+  assert.deepEqual(kept.fallbackModelIds, ["openai/still-listed"], "ineligible fallbacks are dropped too");
+  assert.equal(kept.fitScore, 0.8);
+
+  // Delisted, expiring, or now over the price cap: the known-ineligible model must not keep serving.
+  const retired = chooseSelection(reasoning, [], current, {
+    runId: "run-2",
+    now: NOW.toISOString(),
+    eligibleModelIds: new Set(["openai/still-listed"]),
+  });
+  assert.equal(retired.modelId, COLD_START_MODEL);
+  assert.deepEqual(retired.fallbackModelIds, []);
+  assert.equal(retired.fitScore, null);
+  assert.match(retired.reason, /no longer eligible/);
+});
+
+test("eligibility requires the ask's full output ceiling, not a fixed minimum", () => {
+  const withCompletionLimit = (id: string, maxCompletionTokens: number) => ({
+    ...rawModel(id),
+    top_provider: { context_length: 200_000, max_completion_tokens: maxCompletionTokens },
+  });
+  const catalog = normalizeOpenRouterCatalog([
+    withCompletionLimit("openai/short-output", 4_096),
+    withCompletionLimit("anthropic/long-output", 16_000),
+    // No published completion limit: not excluded on a limit we cannot see.
+    { ...rawModel("anthropic/unknown-limit"), top_provider: { context_length: 200_000 } },
+  ]);
+  const writing = AI_TASK_PROFILES.hq_writing;
+  assert.ok(reasoning.maxOutputTokens > 4_096 && writing.maxOutputTokens <= 4_096);
+
+  assert.deepEqual(
+    eligibleCandidates(catalog, reasoning, filterOptions).map((candidate) => candidate.id),
+    ["anthropic/long-output", "anthropic/unknown-limit"],
+  );
+  assert.deepEqual(
+    eligibleCandidates(catalog, writing, filterOptions).map((candidate) => candidate.id),
+    ["openai/short-output", "anthropic/long-output", "anthropic/unknown-limit"],
+  );
 });
 
 test("HQ agents map to asks, and council review overrides the agent", () => {

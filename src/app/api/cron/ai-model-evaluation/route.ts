@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createOpenRouterClientFromEnv, resolveEvaluationOptionsFromEnv } from "@/lib/ai-gateway";
 import { runModelEvaluation, type EvaluationRunnerDependencies } from "@/modules/ai-gateway/evaluation-runner";
 import { PostgresAiGatewayRepository } from "@/modules/ai-gateway/postgres-repository";
-import { AiGatewayUnavailableError } from "@/modules/ai-gateway/types";
+import { AiEvaluationInProgressError, AiGatewayUnavailableError } from "@/modules/ai-gateway/types";
 
 // Vercel Cron: re-scores OpenRouter models against each Academy ask on a rolling basis and
 // updates which model serves each one. Each run is capped by AI_EVAL_RUN_BUDGET_USD.
@@ -36,6 +36,10 @@ export async function handleModelEvaluationCron(
   } catch (error) {
     if (error instanceof AiGatewayUnavailableError) {
       return Response.json({ status: "disabled" });
+    }
+    if (error instanceof AiEvaluationInProgressError) {
+      // An admin-triggered run holds the lease; this tick has nothing to add.
+      return Response.json({ status: "skipped", reason: "evaluation_in_progress" });
     }
     return Response.json({ error: "Model evaluation failed." }, { status: 500 });
   }

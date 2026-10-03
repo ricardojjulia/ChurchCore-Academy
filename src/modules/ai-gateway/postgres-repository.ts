@@ -146,6 +146,28 @@ export class PostgresAiGatewayRepository implements AiGatewayRepository {
     );
   }
 
+  async acquireEvaluationLease(holderId: string, now: string, expiresAt: string) {
+    // One row is the lease. A holder takes it when it is absent or expired; the conditional upsert
+    // is atomic, so two concurrent runs can never both win.
+    const result = await this.pool.query(
+      `insert into academy_ai_evaluation_lease (lease_key, holder_id, acquired_at, expires_at)
+       values ('model_evaluation', $1, $2, $3)
+       on conflict (lease_key) do update
+         set holder_id = excluded.holder_id, acquired_at = excluded.acquired_at, expires_at = excluded.expires_at
+         where academy_ai_evaluation_lease.expires_at <= excluded.acquired_at
+       returning holder_id`,
+      [holderId, now, expiresAt],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async releaseEvaluationLease(holderId: string) {
+    await this.pool.query(
+      `delete from academy_ai_evaluation_lease where lease_key = 'model_evaluation' and holder_id = $1`,
+      [holderId],
+    );
+  }
+
   async listRecentRuns(limit: number) {
     const result = await this.pool.query(
       `select run_id, started_at, finished_at, status, spent_usd, evaluated_model_count, selection_changes

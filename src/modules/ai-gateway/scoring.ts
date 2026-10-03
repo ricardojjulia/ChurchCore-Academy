@@ -153,21 +153,37 @@ export function rankModels(
 
 /**
  * Picks the primary model and fallbacks. Keeps the incumbent unless a challenger beats it by
- * SELECTION_SWITCH_MARGIN, so selections don't flap between near-identical models.
+ * SELECTION_SWITCH_MARGIN, so selections don't flap between near-identical models. When nothing
+ * qualifies, the incumbent survives only while it is still eligible to serve (in the catalog,
+ * unexpired, within budget); otherwise the ask falls back to the cold-start router.
  */
 export function chooseSelection(
   profile: AiTaskProfile,
   ranked: AiRankedModel[],
   current: AiModelSelection | undefined,
-  context: { runId: string; now: string },
+  context: { runId: string; now: string; eligibleModelIds: ReadonlySet<string> },
 ): AiModelSelection {
   if (ranked.length === 0) {
+    const incumbentEligible = current !== undefined && context.eligibleModelIds.has(current.modelId);
+    if (current && incumbentEligible) {
+      return {
+        taskKind: profile.kind,
+        modelId: current.modelId,
+        fallbackModelIds: current.fallbackModelIds.filter((id) => context.eligibleModelIds.has(id)),
+        fitScore: current.fitScore,
+        reason: "No challenger qualified for this task; keeping the existing route.",
+        runId: context.runId,
+        selectedAt: context.now,
+      };
+    }
     return {
       taskKind: profile.kind,
-      modelId: current?.modelId ?? COLD_START_MODEL,
-      fallbackModelIds: current?.fallbackModelIds ?? [],
-      fitScore: current?.fitScore ?? null,
-      reason: "No model has qualified for this task yet; keeping the existing route.",
+      modelId: COLD_START_MODEL,
+      fallbackModelIds: [],
+      fitScore: null,
+      reason: current && current.modelId !== COLD_START_MODEL
+        ? `${current.modelId} is no longer eligible and no model has qualified; routing to ${COLD_START_MODEL}.`
+        : "No model has qualified for this task yet; using the auto-router.",
       runId: context.runId,
       selectedAt: context.now,
     };

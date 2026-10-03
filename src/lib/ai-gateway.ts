@@ -19,6 +19,8 @@ export function createOpenRouterClientFromEnv(env: NodeJS.ProcessEnv = process.e
     apiKey,
     appUrl: env.OPENROUTER_APP_URL || env.NEXT_PUBLIC_SITE_URL || undefined,
     appTitle: "ChurchCore Academy",
+    // Only the e2e suite overrides this, to point at its local deterministic OpenRouter stub.
+    baseUrl: env.OPENROUTER_BASE_URL || undefined,
   });
 }
 
@@ -38,6 +40,12 @@ function positiveNumber(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+/** Counts must be whole and at least 1; anything else (e.g. "0.5") falls back to the default. */
+function positiveInteger(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallback;
+}
+
 export function resolveEvaluationOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): EvaluationRunOptions {
   const prefixes = (env.AI_EVAL_PROVIDER_PREFIXES ?? "")
     .split(",")
@@ -49,7 +57,7 @@ export function resolveEvaluationOptionsFromEnv(env: NodeJS.ProcessEnv = process
     ...DEFAULT_EVALUATION_OPTIONS,
     graderModel: env.AI_EVAL_GRADER_MODEL || DEFAULT_GRADER_MODEL,
     budgetUsd: positiveNumber(env.AI_EVAL_RUN_BUDGET_USD, DEFAULT_EVALUATION_OPTIONS.budgetUsd),
-    modelsPerTask: Math.floor(positiveNumber(env.AI_EVAL_MODELS_PER_TASK, DEFAULT_EVALUATION_OPTIONS.modelsPerTask)),
+    modelsPerTask: positiveInteger(env.AI_EVAL_MODELS_PER_TASK, DEFAULT_EVALUATION_OPTIONS.modelsPerTask),
     providerPrefixes: prefixes.length > 0 ? prefixes : DEFAULT_PROVIDER_PREFIXES,
   };
 }

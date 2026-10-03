@@ -6,7 +6,7 @@ import { clearAiRouteCache } from "@/modules/ai-gateway/gateway";
 import { runModelEvaluation, type EvaluationRunnerDependencies } from "@/modules/ai-gateway/evaluation-runner";
 import { PostgresAiGatewayRepository } from "@/modules/ai-gateway/postgres-repository";
 import { buildAiModelReport } from "@/modules/ai-gateway/report";
-import { AiGatewayRepository, AiGatewayUnavailableError } from "@/modules/ai-gateway/types";
+import { AiEvaluationInProgressError, AiGatewayRepository, AiGatewayUnavailableError } from "@/modules/ai-gateway/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,8 +30,10 @@ const defaultDependencies: AiModelsRouteDependencies = {
 
 /** Platform staff: current routing, leaderboards, spend, and recent evaluation runs. */
 export async function getAiModelsReport(dependencies: AiModelsRouteDependencies = defaultDependencies) {
+  let roles: string[];
   try {
-    assertPlatformStaffWorkspaceAccess(await dependencies.roleResolver());
+    roles = await dependencies.roleResolver();
+    assertPlatformStaffWorkspaceAccess(roles);
   } catch {
     return jsonError("Forbidden platform staff access.", 403);
   }
@@ -41,16 +43,25 @@ export async function getAiModelsReport(dependencies: AiModelsRouteDependencies 
       now: new Date(),
       windowDays: REPORT_WINDOW_DAYS,
     });
-    return jsonOk({ report, configured: Boolean(dependencies.env.OPENROUTER_API_KEY) });
+    return jsonOk({
+      report,
+      configured: Boolean(dependencies.env.OPENROUTER_API_KEY),
+      // The UI hides the run action unless the POST below would accept this caller.
+      canRunEvaluation: canRunEvaluation(roles),
+    });
   } catch {
     return jsonError("Unable to load AI model report.", 500);
   }
 }
 
+function canRunEvaluation(roles: string[]) {
+  return roles.includes("platform_admin");
+}
+
 /** Platform admins: run one evaluation cycle now instead of waiting for the cron. */
 export async function runAiModelEvaluationNow(dependencies: AiModelsRouteDependencies = defaultDependencies) {
   const roles = await dependencies.roleResolver();
-  if (!roles.includes("platform_admin")) {
+  if (!canRunEvaluation(roles)) {
     return jsonError("Forbidden platform admin access.", 403);
   }
 
@@ -64,6 +75,9 @@ export async function runAiModelEvaluationNow(dependencies: AiModelsRouteDepende
   } catch (error) {
     if (error instanceof AiGatewayUnavailableError) {
       return jsonError("OPENROUTER_API_KEY is not configured.", 503);
+    }
+    if (error instanceof AiEvaluationInProgressError) {
+      return jsonError("Another model evaluation run is in progress. Try again when it finishes.", 409);
     }
     return jsonError("Model evaluation failed.", 500);
   }

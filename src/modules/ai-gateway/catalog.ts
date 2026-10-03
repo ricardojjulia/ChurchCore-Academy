@@ -96,7 +96,8 @@ export function eligibleCandidates(
   return catalog.filter((candidate) => {
     if (!options.providerPrefixes.some((prefix) => candidate.id.startsWith(prefix))) return false;
     if (candidate.contextLength < profile.minContextTokens) return false;
-    if (candidate.maxCompletionTokens !== undefined && candidate.maxCompletionTokens < 1024) return false;
+    // The gateway requests up to the profile's output ceiling, so a model must be able to honor it.
+    if (candidate.maxCompletionTokens !== undefined && candidate.maxCompletionTokens < profile.maxOutputTokens) return false;
     if (Date.parse(candidate.createdAt) < oldest) return false;
     if (candidate.expiresAt && Date.parse(candidate.expiresAt) < expiryCutoff) return false;
     return estimateRequestCostUsd(candidate, profile) <= profile.maxRequestCostUsd;

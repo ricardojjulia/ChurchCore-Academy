@@ -125,10 +125,14 @@ export class AiGateway {
   }
 
   /**
-   * Streams OpenAI-format SSE chunks through unchanged and records usage from the final chunk
-   * (OpenRouter sends `usage` there when `usage.include` is set).
+   * Streams OpenAI-format SSE chunks through unchanged and records usage exactly once: from the
+   * final chunk on a clean finish (OpenRouter sends `usage` there when `usage.include` is set), or
+   * as a failed call when the client disconnects or the upstream stream errors.
+   *
+   * `requestedModel` is the route asked for (it may be the auto-router or a primary that fell
+   * back). The model that actually answered is in each chunk's `model` field.
    */
-  async stream(request: AiGatewayRequest): Promise<{ body: ReadableStream<Uint8Array>; model: string }> {
+  async stream(request: AiGatewayRequest): Promise<{ body: ReadableStream<Uint8Array>; requestedModel: string }> {
     const route = await this.resolveRoute(request.taskKind);
     const started = this.now().getTime();
 
@@ -149,6 +153,7 @@ export class AiGateway {
     let buffer = "";
     let servedModel = route.model;
     let usage: ReturnType<typeof readOpenRouterUsage>;
+    let recorded = false;
 
     const scanLine = (line: string) => {
       if (!line.startsWith("data:")) return;
@@ -163,34 +168,51 @@ export class AiGateway {
       }
     };
 
-    const finish = () =>
-      this.recordUsage({
+    const finish = async (interrupted: boolean) => {
+      if (recorded) return;
+      recorded = true;
+      await this.recordUsage({
         taskKind: request.taskKind,
         modelId: servedModel,
         promptTokens: usage?.promptTokens ?? 0,
         completionTokens: usage?.completionTokens ?? 0,
         costUsd: usage?.costUsd ?? null,
         latencyMs: this.now().getTime() - started,
-        status: usage ? "completed" : "failed",
+        status: usage && !interrupted ? "completed" : "failed",
         createdAt: this.now().toISOString(),
       });
+    };
 
-    const body = upstream.body!.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-          buffer += decoder.decode(chunk, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          lines.forEach(scanLine);
-        },
-        async flush() {
+    const reader = upstream.body!.getReader();
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        let next: ReadableStreamReadResult<Uint8Array>;
+        try {
+          next = await reader.read();
+        } catch (error) {
+          await finish(true);
+          controller.error(error);
+          return;
+        }
+        if (next.done) {
           scanLine(buffer);
-          await finish();
-        },
-      }),
-    );
+          await finish(false);
+          controller.close();
+          return;
+        }
+        controller.enqueue(next.value);
+        buffer += decoder.decode(next.value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        lines.forEach(scanLine);
+      },
+      async cancel(reason) {
+        // The client went away mid-answer: tokens were still spent, so meter what we know.
+        await finish(true);
+        await reader.cancel(reason).catch(() => undefined);
+      },
+    });
 
-    return { body, model: route.model };
+    return { body, requestedModel: route.model };
   }
 }

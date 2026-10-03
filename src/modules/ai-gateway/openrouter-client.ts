@@ -13,6 +13,8 @@ export interface OpenRouterClientOptions {
   fetch?: typeof fetch;
   appUrl?: string;
   appTitle?: string;
+  /** Defaults to OpenRouter's public API. */
+  baseUrl?: string;
 }
 
 export interface OpenRouterCompletionRequest {
@@ -59,12 +61,14 @@ export function readOpenRouterUsage(value: unknown): AiUsage | undefined {
 
 export class OpenRouterClient {
   private readonly fetchImpl: typeof fetch;
+  private readonly baseUrl: string;
 
   constructor(private readonly options: OpenRouterClientOptions) {
     if (!options.apiKey) {
       throw new Error("OpenRouter API key is required.");
     }
     this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.baseUrl = (options.baseUrl ?? OPENROUTER_BASE_URL).replace(/\/+$/, "");
   }
 
   private headers() {
@@ -99,7 +103,7 @@ export class OpenRouterClient {
   }
 
   async listModels(): Promise<unknown[]> {
-    const response = await this.fetchImpl(`${OPENROUTER_BASE_URL}/models`, {
+    const response = await this.fetchImpl(`${this.baseUrl}/models`, {
       headers: this.headers(),
     });
     const data = (await response.json().catch(() => null)) as OpenRouterCatalogResponse | null;
@@ -111,7 +115,7 @@ export class OpenRouterClient {
 
   async complete(request: OpenRouterCompletionRequest): Promise<AiCompletionResult> {
     const started = Date.now();
-    const response = await this.fetchImpl(`${OPENROUTER_BASE_URL}/chat/completions`, {
+    const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify(this.buildRequestBody(request, false)),
@@ -139,7 +143,7 @@ export class OpenRouterClient {
 
   /** Returns the upstream SSE response (OpenAI chat-completions chunk format). */
   async stream(request: OpenRouterCompletionRequest): Promise<Response> {
-    const response = await this.fetchImpl(`${OPENROUTER_BASE_URL}/chat/completions`, {
+    const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify(this.buildRequestBody(request, true)),

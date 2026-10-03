@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeOpenRouterCatalog } from "@/modules/ai-gateway/catalog";
-import { DEFAULT_EVALUATION_OPTIONS, interleaveProviders, planEvaluationTargets, runModelEvaluation } from "@/modules/ai-gateway/evaluation-runner";
+import {
+  DEFAULT_EVALUATION_OPTIONS,
+  interleaveProviders,
+  planEvaluationTargets,
+  runModelEvaluation,
+  worstCaseJobCostUsd,
+} from "@/modules/ai-gateway/evaluation-runner";
 import type { OpenRouterCompletionRequest } from "@/modules/ai-gateway/openrouter-client";
+import { COLD_START_MODEL } from "@/modules/ai-gateway/scoring";
 import { AI_TASK_PROFILES } from "@/modules/ai-gateway/task-profiles";
+import { AiEvaluationInProgressError } from "@/modules/ai-gateway/types";
 import { evaluation, InMemoryAiGatewayRepository, NOW, rawModel } from "@/modules/ai-gateway/__tests__/fixtures";
 
 const GRADER = "anthropic/grader";
@@ -126,11 +134,13 @@ test("planning re-checks a stale incumbent first, then unseen models newest firs
   const current = { taskKind: "hq_reasoning" as const, modelId: "openai/cheap", fallbackModelIds: [], fitScore: 0.8, reason: "", runId: "r", selectedAt: "2026-08-01T00:00:00.000Z" };
   const history = [evaluation({ modelId: "openai/cheap", evaluatedAt: "2026-08-01T00:00:00.000Z" })];
 
-  const targets = planEvaluationTargets(eligible, history, current, { now: NOW, staleAfterDays: 21, modelsPerTask: 2 });
+  const plan = { now: NOW, staleAfterDays: 21, requiredCaseIds: ["case-a", "case-b"] };
+  const targets = planEvaluationTargets(eligible, history, current, { ...plan, modelsPerTask: 2 });
   assert.deepEqual(targets.map((candidate) => candidate.id), ["openai/cheap", "openai/broken"]);
 
-  const fresh = [evaluation({ modelId: "openai/cheap", evaluatedAt: "2026-10-02T00:00:00.000Z" })];
-  const skipFresh = planEvaluationTargets(eligible, fresh, current, { now: NOW, staleAfterDays: 21, modelsPerTask: 5 });
+  const fresh = ["case-a", "case-b"].map((caseId) =>
+    evaluation({ modelId: "openai/cheap", caseId, evaluatedAt: "2026-10-02T00:00:00.000Z" }));
+  const skipFresh = planEvaluationTargets(eligible, fresh, current, { ...plan, modelsPerTask: 5 });
   assert.deepEqual(skipFresh.map((candidate) => candidate.id), ["openai/broken", "anthropic/strong"]);
 });
 
@@ -171,4 +181,115 @@ test("a job only starts if its worst-case answer and grading time fit before the
 
   assert.equal(summary.status, "deadline_reached");
   assert.equal(calls.length, 0);
+});
+
+test("a fresh model missing a required case is retried immediately instead of waiting to go stale", () => {
+  const eligible = normalizeOpenRouterCatalog(catalogRaw.slice(1));
+  // A dropped grader sample left anthropic/strong with only case-a: it can't meet minSamples yet.
+  const history = [
+    evaluation({ modelId: "anthropic/strong", caseId: "case-a", evaluatedAt: "2026-10-02T00:00:00.000Z" }),
+    ...["case-a", "case-b"].map((caseId) =>
+      evaluation({ modelId: "openai/cheap", caseId, evaluatedAt: "2026-10-02T00:00:00.000Z" })),
+  ];
+
+  const targets = planEvaluationTargets(eligible, history, undefined, {
+    now: NOW,
+    staleAfterDays: 21,
+    modelsPerTask: 1,
+    requiredCaseIds: ["case-a", "case-b"],
+  });
+  assert.deepEqual(targets.map((candidate) => candidate.id), ["anthropic/strong"], "incomplete coverage outranks unseen models");
+
+  const complete = planEvaluationTargets(eligible, history.slice(1), undefined, {
+    now: NOW,
+    staleAfterDays: 21,
+    modelsPerTask: 5,
+    requiredCaseIds: ["case-a", "case-b"],
+  });
+  assert.deepEqual(complete.map((candidate) => candidate.id), ["openai/broken", "anthropic/strong"]);
+});
+
+test("a run reserves each job's worst-case spend, so the budget is a hard cap", async () => {
+  const catalog = normalizeOpenRouterCatalog(catalogRaw);
+  const grader = catalog.find((candidate) => candidate.id === GRADER)!;
+  const strong = catalog.find((candidate) => candidate.id === "anthropic/strong")!;
+  const profile = AI_TASK_PROFILES.hq_reasoning;
+
+  // Each case: up to 4,000 answer tokens, then a grader call carrying that full answer and up to
+  // 400 grader tokens. The reservation must cover at least that much.
+  const answerTokens = Math.min(profile.maxOutputTokens, 4_000);
+  const floor = profile.evaluationCases.length * (
+    (strong.completionUsdPerMillion * answerTokens +
+      grader.promptUsdPerMillion * answerTokens +
+      grader.completionUsdPerMillion * 400) / 1_000_000
+  );
+  const worstCase = worstCaseJobCostUsd(strong, grader, profile);
+  assert.ok(worstCase > floor, `${worstCase} must exceed the output-only floor ${floor}`);
+
+  // A budget that covers the output tokens alone but not the full worst case: nothing may start.
+  const repository = new InMemoryAiGatewayRepository();
+  const { client, calls } = fakeClient({ judgeScores: {} });
+  const summary = await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    // anthropic/strong is then the only candidate (the grader never competes).
+    { ...options, providerPrefixes: ["anthropic/"], budgetUsd: floor },
+  );
+  assert.equal(summary.status, "budget_exhausted");
+  assert.equal(calls.length, 0);
+});
+
+test("a run refuses to start while another run holds the evaluation lease, and releases its own", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  const { client, calls } = fakeClient({ judgeScores: { "anthropic/strong": 9, "openai/cheap": 8 } });
+
+  repository.lease = { holderId: "cron-run", expiresAt: new Date(NOW.getTime() + 60_000).toISOString() };
+  await assert.rejects(
+    runModelEvaluation({ client, repository, now: () => NOW }, options),
+    AiEvaluationInProgressError,
+  );
+  assert.equal(calls.length, 0, "a blocked run spends nothing");
+  assert.equal(repository.runs.length, 0);
+  assert.equal(repository.lease?.holderId, "cron-run", "the blocked run leaves the holder's lease alone");
+
+  // An expired lease (a crashed run) does not block forever.
+  repository.lease = { holderId: "crashed-run", expiresAt: new Date(NOW.getTime() - 1).toISOString() };
+  const summary = await runModelEvaluation({ client, repository, now: () => NOW, randomId: () => "run-after" }, options);
+  assert.equal(summary.status, "completed");
+  assert.equal(repository.lease, undefined, "the lease is released when the run finishes");
+});
+
+test("the lease is released even when the run throws", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  const client = {
+    async listModels(): Promise<unknown[]> {
+      throw new Error("catalog down");
+    },
+    async complete(): Promise<never> {
+      throw new Error("unused");
+    },
+  };
+  await assert.rejects(runModelEvaluation({ client, repository, now: () => NOW }, options), /catalog down/);
+  assert.equal(repository.lease, undefined);
+});
+
+test("an incumbent that left the catalog is replaced by the auto-router when nothing qualifies", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  repository.selections.push({
+    taskKind: "hq_reasoning",
+    modelId: "anthropic/retired",
+    fallbackModelIds: ["openai/cheap"],
+    fitScore: 0.8,
+    reason: "Best fit",
+    runId: "old",
+    selectedAt: "2026-09-01T00:00:00.000Z",
+  });
+  // Every candidate scores 0, so none clears the quality floor.
+  const { client } = fakeClient({ judgeScores: {} });
+
+  const summary = await runModelEvaluation({ client, repository, now: () => NOW }, options);
+
+  const [selection] = await repository.listCurrentSelections();
+  assert.equal(selection.modelId, COLD_START_MODEL);
+  assert.deepEqual(selection.fallbackModelIds, []);
+  assert.deepEqual(summary.selectionChanges, [{ taskKind: "hq_reasoning", from: "anthropic/retired", to: COLD_START_MODEL }]);
 });

@@ -74,6 +74,15 @@ export class InMemoryAiGatewayRepository implements AiGatewayRepository {
   async recordRun(summary: Parameters<AiGatewayRepository["recordRun"]>[0]) {
     this.runs.push(summary);
   }
+  lease: { holderId: string; expiresAt: string } | undefined;
+  async acquireEvaluationLease(holderId: string, now: string, expiresAt: string) {
+    if (this.lease && this.lease.expiresAt > now) return false;
+    this.lease = { holderId, expiresAt };
+    return true;
+  }
+  async releaseEvaluationLease(holderId: string) {
+    if (this.lease?.holderId === holderId) this.lease = undefined;
+  }
   async listRecentRuns(limit: number) {
     return this.runs.slice(-limit).reverse();
   }

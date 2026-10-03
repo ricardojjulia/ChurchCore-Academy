@@ -161,6 +161,12 @@ export interface AiGatewayRepository {
   listEvaluationsSince(taskKind: AiTaskKind, since: string): Promise<AiModelEvaluationRecord[]>;
   recordEvaluations(records: AiModelEvaluationRecord[]): Promise<void>;
   recordRun(summary: AiEvaluationRunSummary): Promise<void>;
+  /**
+   * Takes the single global evaluation lease for `holderId` until `expiresAt`. Returns false when
+   * another holder's unexpired lease exists, so the cron and an admin-triggered run never overlap.
+   */
+  acquireEvaluationLease(holderId: string, now: string, expiresAt: string): Promise<boolean>;
+  releaseEvaluationLease(holderId: string): Promise<void>;
   listRecentRuns(limit: number): Promise<AiEvaluationRunSummary[]>;
   recordUsage(record: AiGatewayUsageRecord): Promise<void>;
   summarizeUsageSince(since: string): Promise<Array<{
@@ -175,6 +181,13 @@ export class AiGatewayUnavailableError extends Error {
   constructor(message = "AI is unavailable in this environment.") {
     super(message);
     this.name = "AiGatewayUnavailableError";
+  }
+}
+
+export class AiEvaluationInProgressError extends Error {
+  constructor(message = "Another model evaluation run is in progress.") {
+    super(message);
+    this.name = "AiEvaluationInProgressError";
   }
 }
 

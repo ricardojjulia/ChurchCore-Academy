@@ -92,7 +92,7 @@ export async function handleAiRequest(request: Request, dependencies: AiRouteDep
 
   try {
     const gateway = dependencies.gatewayFactory();
-    const { body, model } = await gateway.stream({
+    const { body, requestedModel } = await gateway.stream({
       taskKind: resolveHqTaskKind(parsed.agentId, parsed.mode),
       messages: parsed.messages,
     });
@@ -102,7 +102,8 @@ export async function handleAiRequest(request: Request, dependencies: AiRouteDep
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
         "x-accel-buffering": "no",
-        "x-ai-model": model,
+        // The route asked for; the model that answered arrives in each SSE chunk's `model` field.
+        "x-ai-route": requestedModel,
       },
     });
   } catch (error) {

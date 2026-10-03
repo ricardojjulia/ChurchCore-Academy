@@ -39,8 +39,9 @@ test("platform staff get routing, leaderboards, and spend per ask", async () => 
 
   const response = await getAiModelsReport(dependencies(["platform_staff"], repository));
   assert.equal(response.status, 200);
-  const { report, configured } = await response.json();
+  const { report, configured, canRunEvaluation } = await response.json();
   assert.equal(configured, true);
+  assert.equal(canRunEvaluation, false, "staff can read the report but the UI must not offer the admin-only run");
 
   const reasoning = report.tasks.find((task: { taskKind: string }) => task.taskKind === "hq_reasoning");
   assert.equal(reasoning.selection.modelId, "openai/a");
@@ -76,4 +77,20 @@ test("an evaluation run without OpenRouter configured is a clear 503", async () 
     },
   });
   assert.equal(response.status, 503);
+});
+
+test("the report tells platform admins they may run an evaluation", async () => {
+  const response = await getAiModelsReport(dependencies(["platform_staff", "platform_admin"]));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).canRunEvaluation, true);
+});
+
+test("an admin-triggered run while another run holds the lease is a 409, not a second run", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  repository.lease = { holderId: "cron-run", expiresAt: new Date(Date.now() + 600_000).toISOString() };
+
+  const response = await runAiModelEvaluationNow(dependencies(["platform_admin"], repository));
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /in progress/);
+  assert.equal(repository.runs.length, 0);
 });

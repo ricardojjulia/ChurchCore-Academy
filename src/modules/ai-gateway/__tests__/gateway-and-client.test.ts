@@ -166,8 +166,8 @@ test("streaming passes chunks through unchanged and records usage from the final
     },
   });
 
-  const { body, model } = await gateway.stream({ taskKind: "hq_council_review", messages: [{ role: "user", content: "Review" }] });
-  assert.equal(model, COLD_START_MODEL);
+  const { body, requestedModel } = await gateway.stream({ taskKind: "hq_council_review", messages: [{ role: "user", content: "Review" }] });
+  assert.equal(requestedModel, COLD_START_MODEL, "the route asked for; the chunks name the model that answered");
   assert.equal(await readAll(body), lines.join(""));
   assert.deepEqual(repository.usage.map((record) => ({ ...record, createdAt: undefined, latencyMs: undefined })), [{
     taskKind: "hq_council_review",
@@ -179,6 +179,98 @@ test("streaming passes chunks through unchanged and records usage from the final
     createdAt: undefined,
     latencyMs: undefined,
   }]);
+});
+
+function streamingGateway(repository: InMemoryAiGatewayRepository, upstream: () => ReadableStream<Uint8Array>) {
+  return new AiGateway({
+    repository,
+    now: () => NOW,
+    client: {
+      async complete() {
+        throw new Error("unused");
+      },
+      async stream() {
+        return new Response(upstream(), { status: 200, headers: { "content-type": "text/event-stream" } });
+      },
+    },
+  });
+}
+
+test("a client that disconnects mid-stream still produces exactly one failed usage record", async () => {
+  clearAiRouteCache();
+  const repository = new InMemoryAiGatewayRepository();
+  const encoder = new TextEncoder();
+  let upstreamCancelled = false;
+  const gateway = streamingGateway(repository, () => new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"model":"anthropic/served","choices":[{"delta":{"content":"Hel"}}]}\n\n'));
+      // Never closes: the answer is still being generated when the client leaves.
+    },
+    cancel() {
+      upstreamCancelled = true;
+    },
+  }));
+
+  const { body } = await gateway.stream({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+  const reader = body.getReader();
+  await reader.read();
+  await reader.cancel("client went away");
+  await reader.cancel("again").catch(() => undefined);
+
+  assert.equal(upstreamCancelled, true, "the upstream request is cancelled too, so it stops spending");
+  assert.equal(repository.usage.length, 1);
+  assert.equal(repository.usage[0].status, "failed");
+  assert.equal(repository.usage[0].modelId, "anthropic/served");
+});
+
+test("an upstream stream error produces exactly one failed usage record and surfaces the error", async () => {
+  clearAiRouteCache();
+  const repository = new InMemoryAiGatewayRepository();
+  const encoder = new TextEncoder();
+  let pulls = 0;
+  const gateway = streamingGateway(repository, () => new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulls += 1;
+      if (pulls === 1) {
+        controller.enqueue(encoder.encode('data: {"model":"openai/served","choices":[{"delta":{"content":"Hi"}}]}\n\n'));
+        return;
+      }
+      controller.error(new Error("upstream reset"));
+    },
+  }));
+
+  const { body } = await gateway.stream({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+  await assert.rejects(readAll(body), /upstream reset/);
+
+  assert.equal(repository.usage.length, 1);
+  assert.equal(repository.usage[0].status, "failed");
+  assert.equal(repository.usage[0].modelId, "openai/served");
+});
+
+test("a stream that ends without a usage chunk is metered once as failed", async () => {
+  clearAiRouteCache();
+  const repository = new InMemoryAiGatewayRepository();
+  const gateway = streamingGateway(repository, () => sseResponse(['data: {"choices":[{"delta":{"content":"cut"}}]}\n\n']).body!);
+
+  const { body } = await gateway.stream({ taskKind: "hq_reasoning", messages: [{ role: "user", content: "x" }] });
+  await readAll(body);
+
+  assert.equal(repository.usage.length, 1);
+  assert.equal(repository.usage[0].status, "failed");
+});
+
+test("the client honors a base URL override (used only by the e2e OpenRouter stub)", async () => {
+  const urls: string[] = [];
+  const client = new OpenRouterClient({
+    apiKey: "stub-key",
+    baseUrl: "http://127.0.0.1:9999/api/v1/",
+    fetch: (async (url: string | URL | Request) => {
+      urls.push(String(url));
+      return Response.json({ data: [] });
+    }) as typeof fetch,
+  });
+  await client.listModels();
+  assert.deepEqual(urls, ["http://127.0.0.1:9999/api/v1/models"]);
 });
 
 // "Everything uses OpenRouter": no code outside the gateway may call a model provider directly.

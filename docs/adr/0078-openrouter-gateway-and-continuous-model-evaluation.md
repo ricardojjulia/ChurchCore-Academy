@@ -16,16 +16,19 @@ ADR 0070 (proposed) already commits Academy to a shared OpenRouter subscription 
 3. **Task kinds ("asks"), not models.** Callers name a task kind, such as `hq_council_review`, `hq_reasoning`, `hq_engineering` or `hq_writing`, and the gateway resolves the model. Each kind has a profile in `task-profiles.ts` with quality/cost/latency weights, a quality floor, a per-request cost ceiling, typical token mix, and at least two synthetic evaluation cases. HQ agents map to kinds on the server, and the client can no longer choose a model or a token budget.
 4. **Continuous evaluation.** The `/api/cron/ai-model-evaluation` cron runs every 6 hours and works as follows:
    - It loads OpenRouter's live catalog.
-   - For each kind, it filters to recent, text-capable models from allow-listed providers under the cost ceiling.
-   - It evaluates a few targets per run: a stale incumbent first, then never-tested models (newest first), then the stalest results.
+   - For each kind, it filters to recent, text-capable models from allow-listed providers under the cost ceiling whose completion limit covers the kind's full output ceiling.
+   - It evaluates a few targets per run: a stale or incompletely covered incumbent first, then models missing a required case (a dropped grader sample is retried at once instead of waiting to go stale), then never-tested models (newest first), then the stalest results.
    - A configurable grader model scores each answer blind against a rubric. The grader score is combined with deterministic checks (required terms, length).
    - It ranks models by `fit = wq·quality + wc·cost + wl·latency`. Cost is recomputed from *today's* prices, so a price change re-ranks models without re-testing them.
    - A challenger replaces the incumbent only when it wins by a 0.02 margin, which prevents flapping. The next two models become OpenRouter fallbacks.
-   - Runs stop at a USD budget (`AI_EVAL_RUN_BUDGET_USD`, default $0.50) and a time deadline sized to a 300-second function.
+   - Runs stop at a USD budget (`AI_EVAL_RUN_BUDGET_USD`, default $0.50) and a time deadline sized to a 300-second function. The budget is a hard cap: before a job starts, the run reserves its worst case (every answer at the full output limit, graded with that full answer in the grader prompt).
+   - If nothing qualifies, an incumbent that is still eligible keeps serving. One that left the catalog, is expiring, or is now over the price ceiling is replaced by the cold-start route.
+   - Only one run happens at a time. The cron and the admin trigger share a single-row lease (`academy_ai_evaluation_lease`) that expires on its own if a run dies. A blocked admin trigger gets a 409, and a blocked cron tick reports `skipped`.
 5. **Cold start.** Until a model qualifies for a kind, requests go to `openrouter/auto`.
-6. **Metering.** Every gateway call writes one usage row: kind, served model, tokens, OpenRouter-reported cost, latency and status. Prompts and completions are never stored. Evaluation rows keep only a 2,000-character excerpt of answers to *synthetic* prompts, for human spot-checks.
-7. **Visibility.** HQ → AI Models shows each kind's routed model, fallbacks, reason, leaderboard, 60-day spend, and recent runs. Platform admins can trigger a run.
-8. **Access.** `/api/ai` and the AI Models report require platform staff. Triggering an evaluation requires platform admin.
+6. **Metering.** Every gateway call writes exactly one usage row: kind, served model, tokens, OpenRouter-reported cost, latency and status. A stream that the client abandons or that errors upstream is recorded as `failed`. Prompts and completions are never stored. Evaluation rows keep only a 2,000-character excerpt of answers to *synthetic* prompts, for human spot-checks.
+7. **Visibility.** HQ → AI Models shows each kind's routed model, fallbacks, reason, leaderboard, 60-day spend, and recent runs. Platform admins can trigger a run; the button is shown only to them. In the agent chat, HQ shows the model that actually answered, read from the SSE chunks. The `x-ai-route` response header names only the requested route, which may be the auto-router or a primary that fell back.
+8. **Append-only history.** Evaluation runs, evaluations, and selections reject `UPDATE` and `DELETE` at the database through triggers, so routing history cannot be rewritten.
+9. **Access.** `/api/ai` and the AI Models report require platform staff. Triggering an evaluation requires platform admin.
 
 ## Consequences
 
@@ -44,7 +47,7 @@ ADR 0070 (proposed) already commits Academy to a shared OpenRouter subscription 
 
 ## Configuration
 
-`OPENROUTER_API_KEY` (required), `OPENROUTER_APP_URL`, `AI_EVAL_GRADER_MODEL` (default `anthropic/claude-sonnet-5.5`), `AI_EVAL_RUN_BUDGET_USD`, `AI_EVAL_MODELS_PER_TASK`, `AI_EVAL_PROVIDER_PREFIXES`, `CRON_SECRET`.
+`OPENROUTER_API_KEY` (required), `OPENROUTER_APP_URL`, `OPENROUTER_BASE_URL` (e2e stub only; never set it in a deployed environment), `AI_EVAL_GRADER_MODEL` (default `anthropic/claude-sonnet-5.5`), `AI_EVAL_RUN_BUDGET_USD`, `AI_EVAL_MODELS_PER_TASK` (a whole number of at least 1; anything else falls back to the default), `AI_EVAL_PROVIDER_PREFIXES`, `CRON_SECRET`.
 
 ## Rollback
 

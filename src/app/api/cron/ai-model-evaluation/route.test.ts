@@ -58,3 +58,27 @@ test("returns 500 when the configured grader is missing so the failure is visibl
   }));
   assert.equal(response.status, 500);
 });
+
+test("a cron tick while an admin-triggered run holds the lease skips instead of overlapping", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  repository.lease = { holderId: "admin-run", expiresAt: new Date(Date.now() + 600_000).toISOString() };
+  let catalogLoads = 0;
+
+  const response = await handleModelEvaluationCron(cronRequest("Bearer cron-secret"), env, () => ({
+    repository,
+    client: {
+      async listModels() {
+        catalogLoads += 1;
+        return [rawModel("anthropic/grader")];
+      },
+      async complete() {
+        throw new Error("unused");
+      },
+    },
+  }));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: "skipped", reason: "evaluation_in_progress" });
+  assert.equal(catalogLoads, 0);
+  assert.equal(repository.runs.length, 0);
+});
