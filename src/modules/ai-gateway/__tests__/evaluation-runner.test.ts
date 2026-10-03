@@ -218,11 +218,16 @@ test("a run reserves each job's worst-case spend, so the budget is a hard cap", 
   // Each case: up to 4,000 answer tokens, then a grader call carrying that full answer and up to
   // 400 grader tokens. The reservation must cover at least that much.
   const answerTokens = Math.min(profile.maxOutputTokens, 4_000);
-  const floor = profile.evaluationCases.length * (
-    (strong.completionUsdPerMillion * answerTokens +
+  const floor = profile.evaluationCases.reduce((total, evaluationCase) => {
+    // A byte-level tokenizer can emit one token per UTF-8 byte; the bound must cover that.
+    const promptBytes = new TextEncoder().encode(evaluationCase.system + evaluationCase.prompt).length;
+    return total + (
+      strong.promptUsdPerMillion * promptBytes +
+      strong.completionUsdPerMillion * answerTokens +
       grader.promptUsdPerMillion * answerTokens +
-      grader.completionUsdPerMillion * 400) / 1_000_000
-  );
+      grader.completionUsdPerMillion * 400
+    ) / 1_000_000;
+  }, 0);
   const worstCase = worstCaseJobCostUsd(strong, grader, profile);
   assert.ok(worstCase > floor, `${worstCase} must exceed the output-only floor ${floor}`);
 
@@ -357,4 +362,60 @@ test("a re-evaluated incumbent that falls below the quality floor is replaced by
   assert.equal(selection.modelId, COLD_START_MODEL);
   assert.match(selection.reason, /below the quality floor/);
   assert.deepEqual(summary.selectionChanges, [{ taskKind: "hq_reasoning", from: "anthropic/strong", to: COLD_START_MODEL }]);
+});
+
+test("a job blocked only by in-flight reservations waits for them instead of ending the run", async () => {
+  const catalog = normalizeOpenRouterCatalog(catalogRaw);
+  const grader = catalog.find((candidate) => candidate.id === GRADER)!;
+  const byId = (id: string) => catalog.find((candidate) => candidate.id === id)!;
+  const profile = AI_TASK_PROFILES.hq_reasoning;
+  const cost = (id: string) => worstCaseJobCostUsd(byId(id), grader, profile);
+  const repository = new InMemoryAiGatewayRepository();
+  const { client } = fakeClient({ judgeScores: { "anthropic/strong": 9, "openai/cheap": 8 } });
+
+  // Room for the two jobs that start together, but not for a third while they are in flight.
+  const budgetUsd = cost("openai/broken") + cost("anthropic/strong") + cost("openai/cheap") * 0.5;
+  const summary = await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    { ...options, budgetUsd, concurrency: 2 },
+  );
+
+  const evaluated = new Set(repository.evaluations.map((record) => record.modelId));
+  assert.ok(evaluated.has("openai/cheap"), "the third job ran once a reservation was released");
+  assert.equal(summary.status, "completed");
+});
+
+test("a job too expensive even on its own is dropped without stopping cheaper ones behind it", async () => {
+  const catalog = normalizeOpenRouterCatalog(catalogRaw);
+  const grader = catalog.find((candidate) => candidate.id === GRADER)!;
+  const cheap = catalog.find((candidate) => candidate.id === "openai/cheap")!;
+  const strong = catalog.find((candidate) => candidate.id === "anthropic/strong")!;
+  const profile = AI_TASK_PROFILES.hq_reasoning;
+  const repository = new InMemoryAiGatewayRepository();
+  const { client, calls } = fakeClient({ judgeScores: { "openai/cheap": 8 } });
+
+  // Planned order is openai/broken, anthropic/strong, openai/cheap; strong can never fit.
+  const budgetUsd = worstCaseJobCostUsd(cheap, grader, profile) * 2.5;
+  assert.ok(worstCaseJobCostUsd(strong, grader, profile) > budgetUsd);
+  const summary = await runModelEvaluation(
+    { client, repository, now: () => NOW },
+    { ...options, budgetUsd, concurrency: 1 },
+  );
+
+  assert.equal(summary.status, "budget_exhausted");
+  assert.ok(!calls.some((call) => call.model === "anthropic/strong"));
+  assert.ok(repository.evaluations.some((record) => record.modelId === "openai/cheap"));
+});
+
+test("a run's evaluations, selections, and summary are written together or not at all", async () => {
+  const repository = new InMemoryAiGatewayRepository();
+  repository.failFinalize = true;
+  const { client } = fakeClient({ judgeScores: { "anthropic/strong": 9, "openai/cheap": 8 } });
+
+  await assert.rejects(runModelEvaluation({ client, repository, now: () => NOW }, options), /finalize failed/);
+
+  assert.equal(repository.runs.length, 0);
+  assert.equal(repository.evaluations.length, 0, "no evaluation rows without their run");
+  assert.equal(repository.selections.length, 0, "no live selection without the run that explains it");
+  assert.equal(repository.lease, undefined, "the lease is still released");
 });

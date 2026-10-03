@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { handleAiRequest, parseAiRequestBody, type AiRouteDependencies } from "@/app/api/ai/route";
-import type { AiGatewayRequest } from "@/modules/ai-gateway/gateway";
+import { AiGateway, clearAiRouteCache, type AiGatewayRequest } from "@/modules/ai-gateway/gateway";
+import { InMemoryAiGatewayRepository } from "@/modules/ai-gateway/__tests__/fixtures";
 import { AiGatewayUnavailableError, AiProviderError } from "@/modules/ai-gateway/types";
 
 function aiRequest(body: unknown) {
@@ -129,4 +130,45 @@ test("hides unexpected internal errors", async () => {
 
   assert.equal(response.status, 502);
   assert.doesNotMatch(await response.text(), /ECONNREFUSED|password/);
+});
+
+test("a conversation too long for the ask's guaranteed context is a 413 before any provider call", async () => {
+  clearAiRouteCache();
+  let providerCalls = 0;
+  const repository = new InMemoryAiGatewayRepository();
+  const gateway = new AiGateway({
+    repository,
+    client: {
+      async complete() {
+        providerCalls += 1;
+        throw new Error("unused");
+      },
+      async stream() {
+        providerCalls += 1;
+        return new Response("data: [DONE]\n\n");
+      },
+    },
+  });
+
+  // The writer ask guarantees a 32k-token context with 4k reserved for output; ~90k chars won't fit.
+  const response = await handleAiRequest(aiRequest({
+    agentId: "writer",
+    messages: [
+      { role: "user", content: "a".repeat(50_000) },
+      { role: "assistant", content: "b".repeat(10_000) },
+      { role: "user", content: "c".repeat(30_000) },
+    ],
+  }), dependencies({ gatewayFactory: () => gateway }));
+
+  assert.equal(response.status, 413);
+  assert.match((await response.json()).error, /too long/);
+  assert.equal(providerCalls, 0);
+  assert.equal(repository.usage.length, 0, "a request rejected before routing spends nothing");
+});
+
+test("the AI route's function limit outlasts the longest ask's stream timeout", async () => {
+  const { maxDuration } = await import("@/app/api/ai/route");
+  const { AI_TASK_PROFILES } = await import("@/modules/ai-gateway/task-profiles");
+  const longest = Math.max(...Object.values(AI_TASK_PROFILES).map((profile) => profile.evaluationTimeoutMs));
+  assert.ok(maxDuration * 1000 > longest);
 });

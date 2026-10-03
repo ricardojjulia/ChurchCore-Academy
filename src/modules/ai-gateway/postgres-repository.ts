@@ -13,6 +13,11 @@ interface Queryable {
   query(sql: string, params?: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
 }
 
+/** A pg Pool: a transaction must run on one checked-out client, not across pooled queries. */
+interface TransactionalPool extends Queryable {
+  connect(): Promise<Queryable & { release(): void }>;
+}
+
 function asIso(value: unknown) {
   return value instanceof Date ? value.toISOString() : String(value);
 }
@@ -57,7 +62,7 @@ function mapEvaluation(row: Record<string, unknown>, taskKind: AiTaskKind): AiMo
 
 /** Platform-level persistence (no tenant data), so it uses the service pool like demo-feedback. */
 export class PostgresAiGatewayRepository implements AiGatewayRepository {
-  constructor(private readonly pool: Queryable = getDatabasePool()) {}
+  constructor(private readonly pool: TransactionalPool = getDatabasePool()) {}
 
   async listCurrentSelections() {
     const result = await this.pool.query(
@@ -68,8 +73,8 @@ export class PostgresAiGatewayRepository implements AiGatewayRepository {
     return result.rows.flatMap((row) => mapSelection(row) ?? []);
   }
 
-  async recordSelection(selection: AiModelSelection) {
-    await this.pool.query(
+  private async insertSelection(db: Queryable, selection: AiModelSelection) {
+    await db.query(
       `insert into academy_ai_model_selections
          (task_kind, model_id, fallback_model_ids, fit_score, reason, run_id, selected_at)
        values ($1, $2, $3, $4, $5, $6, $7)`,
@@ -98,9 +103,9 @@ export class PostgresAiGatewayRepository implements AiGatewayRepository {
     return result.rows.map((row) => mapEvaluation(row, taskKind));
   }
 
-  async recordEvaluations(records: AiModelEvaluationRecord[]) {
+  private async insertEvaluations(db: Queryable, records: AiModelEvaluationRecord[]) {
     for (const record of records) {
-      await this.pool.query(
+      await db.query(
         `insert into academy_ai_model_evaluations
            (run_id, task_kind, case_id, model_id, status, quality_score, judge_score, deterministic_score,
             latency_ms, prompt_tokens, completion_tokens, cost_usd, grader_model_id, grader_rationale,
@@ -129,8 +134,24 @@ export class PostgresAiGatewayRepository implements AiGatewayRepository {
     }
   }
 
-  async recordRun(summary: AiEvaluationRunSummary) {
-    await this.pool.query(
+  async finalizeRun(summary: AiEvaluationRunSummary, evaluations: AiModelEvaluationRecord[], selections: AiModelSelection[]) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      await this.insertRun(client, summary);
+      await this.insertEvaluations(client, evaluations);
+      for (const selection of selections) await this.insertSelection(client, selection);
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async insertRun(db: Queryable, summary: AiEvaluationRunSummary) {
+    await db.query(
       `insert into academy_ai_evaluation_runs
          (run_id, started_at, finished_at, status, spent_usd, evaluated_model_count, selection_changes)
        values ($1, $2, $3, $4, $5, $6, $7::jsonb)`,

@@ -31,9 +31,8 @@ const GRADER_MAX_OUTPUT_TOKENS = 400;
 const EXCERPT_LENGTH = 2_000;
 /** The lease outlives the run's deadline by this much, covering catalog load and persistence. */
 const LEASE_HEADROOM_MS = 60_000;
-/** Conservative token estimate for budget reservations: real tokenizers average ~4 chars/token. */
-const CHARS_PER_TOKEN_FLOOR = 3;
 const MESSAGE_OVERHEAD_TOKENS = 16;
+const utf8 = new TextEncoder();
 
 export interface EvaluationRunnerDependencies {
   client: Pick<OpenRouterClient, "listModels" | "complete">;
@@ -159,8 +158,14 @@ function callCost(candidate: AiModelCandidate, promptTokens: number, completionT
   return (candidate.promptUsdPerMillion * promptTokens + candidate.completionUsdPerMillion * completionTokens) / 1_000_000;
 }
 
-function maxTokensForChars(chars: number) {
-  return Math.ceil(chars / CHARS_PER_TOKEN_FLOOR) + MESSAGE_OVERHEAD_TOKENS * 2;
+/**
+ * Upper bound on prompt tokens for budget reservations. Byte-level BPE tokenizers (every model
+ * family the evaluator considers) never emit more than one token per UTF-8 byte, so this holds for
+ * code, punctuation, and non-Latin text, unlike an average chars-per-token estimate.
+ */
+function maxPromptTokens(texts: string[]) {
+  const bytes = texts.reduce((total, text) => total + utf8.encode(text).length, 0);
+  return bytes + MESSAGE_OVERHEAD_TOKENS * texts.length;
 }
 
 function evaluationOutputTokens(profile: AiTaskProfile) {
@@ -180,14 +185,14 @@ export function worstCaseJobCostUsd(candidate: AiModelCandidate, grader: AiModel
 }
 
 function worstCaseAnswerCostUsd(candidate: AiModelCandidate, profile: AiTaskProfile, evaluationCase: AiEvaluationCase) {
-  const promptTokens = maxTokensForChars(evaluationCase.system.length + evaluationCase.prompt.length);
+  const promptTokens = maxPromptTokens([evaluationCase.system, evaluationCase.prompt]);
   return callCost(candidate, promptTokens, evaluationOutputTokens(profile));
 }
 
 function worstCaseGradeCostUsd(grader: AiModelCandidate, profile: AiTaskProfile, evaluationCase: AiEvaluationCase) {
-  const judgeFrameChars = buildJudgeMessages(evaluationCase, "")
-    .reduce((chars, message) => chars + message.content.length, 0);
-  const promptTokens = maxTokensForChars(judgeFrameChars) + evaluationOutputTokens(profile);
+  const judgeFrame = buildJudgeMessages(evaluationCase, "").map((message) => message.content);
+  // The graded answer is at most the candidate's output limit, in tokens.
+  const promptTokens = maxPromptTokens(judgeFrame) + evaluationOutputTokens(profile);
   return callCost(grader, promptTokens, GRADER_MAX_OUTPUT_TOKENS);
 }
 
@@ -249,11 +254,13 @@ async function evaluateUnderLease(
   const deadline = startedAt.getTime() + options.deadlineMs;
   let spentUsd = 0;
   let reservedUsd = 0;
-  let stopReason: AiEvaluationRunSummary["status"] = "completed";
 
+  // The run, its evaluations, and its selections are written together in one transaction, so a
+  // failure part-way never leaves evaluations or a live selection without the run that explains it.
   const finish = async (
     status: AiEvaluationRunSummary["status"],
-    evaluatedModelCount: number,
+    evaluations: AiModelEvaluationRecord[],
+    selections: AiModelSelection[],
     selectionChanges: AiEvaluationRunSummary["selectionChanges"],
   ) => {
     const summary: AiEvaluationRunSummary = {
@@ -262,17 +269,17 @@ async function evaluateUnderLease(
       finishedAt: now().toISOString(),
       status,
       spentUsd: Number(spentUsd.toFixed(6)),
-      evaluatedModelCount,
+      evaluatedModelCount: new Set(evaluations.map((record) => `${record.taskKind}:${record.modelId}`)).size,
       selectionChanges,
     };
-    await repository.recordRun(summary);
+    await repository.finalizeRun(summary, evaluations, selections);
     return summary;
   };
 
   const catalog = normalizeOpenRouterCatalog(await client.listModels());
   const grader = catalog.find((candidate) => candidate.id === options.graderModel);
   if (!grader) {
-    return finish("failed", 0, []);
+    return finish("failed", [], [], []);
   }
 
   const kinds = options.taskKinds ?? [...aiTaskKinds];
@@ -391,40 +398,74 @@ async function evaluateUnderLease(
   };
 
   const newRecords: AiModelEvaluationRecord[] = [];
-  const evaluatedModels = new Set<string>();
-  let nextJob = 0;
+  const pending = [...jobs];
+  let inFlight = 0;
+  let deadlineHit = false;
+  let budgetHit = false;
+  let releaseWaiters: Array<() => void> = [];
+  const waitForRelease = () => new Promise<void>((resolve) => releaseWaiters.push(resolve));
+
+  /**
+   * Takes the next job that fits both the deadline and the remaining budget. A job that only
+   * fails to fit because of other jobs' in-flight reservations is not given up on: the worker waits
+   * for a reservation to be released and looks again. Only work that can't fit even with nothing
+   * else running is dropped, so a big job never stops cheaper ones behind it.
+   */
+  const takeJob = async (): Promise<{ job: EvaluationJob; reservation: number } | undefined> => {
+    while (pending.length > 0) {
+      for (let index = pending.length - 1; index >= 0; index -= 1) {
+        if (now().getTime() + pending[index].profile.evaluationTimeoutMs + options.graderTimeoutMs > deadline) {
+          pending.splice(index, 1);
+          deadlineHit = true;
+        }
+      }
+      let blockedByInFlight = false;
+      for (let index = 0; index < pending.length; index += 1) {
+        const job = pending[index];
+        const reservation = worstCaseJobCostUsd(job.candidate, grader, job.profile);
+        if (spentUsd + reservedUsd + reservation <= options.budgetUsd) {
+          pending.splice(index, 1);
+          return { job, reservation };
+        }
+        if (spentUsd + reservation <= options.budgetUsd) blockedByInFlight = true;
+      }
+      if (blockedByInFlight && inFlight > 0) {
+        await waitForRelease();
+        continue;
+      }
+      if (pending.length > 0) budgetHit = true;
+      pending.length = 0;
+    }
+    return undefined;
+  };
 
   const worker = async () => {
-    while (nextJob < jobs.length && stopReason === "completed") {
-      const job = jobs[nextJob];
-      if (now().getTime() + job.profile.evaluationTimeoutMs + options.graderTimeoutMs > deadline) {
-        stopReason = "deadline_reached";
-        return;
-      }
-      const reservation = worstCaseJobCostUsd(job.candidate, grader, job.profile);
-      if (spentUsd + reservedUsd + reservation > options.budgetUsd) {
-        stopReason = "budget_exhausted";
-        return;
-      }
-      nextJob += 1;
+    for (let next = await takeJob(); next; next = await takeJob()) {
+      const { job, reservation } = next;
+      inFlight += 1;
       reservedUsd += reservation;
       try {
         const records = await Promise.all(job.profile.evaluationCases.map((evaluationCase) => evaluateCase(job, evaluationCase)));
-        const kept = records.filter((record): record is AiModelEvaluationRecord => record !== undefined);
-        if (kept.length > 0) {
-          await repository.recordEvaluations(kept);
-          newRecords.push(...kept);
-          evaluatedModels.add(`${job.profile.kind}:${job.candidate.id}`);
-        }
+        newRecords.push(...records.filter((record): record is AiModelEvaluationRecord => record !== undefined));
       } finally {
+        inFlight -= 1;
         reservedUsd -= reservation;
+        const waiters = releaseWaiters;
+        releaseWaiters = [];
+        waiters.forEach((resolve) => resolve());
       }
     }
   };
 
   await Promise.all(Array.from({ length: Math.max(1, options.concurrency) }, () => worker()));
+  const stopReason: AiEvaluationRunSummary["status"] = deadlineHit
+    ? "deadline_reached"
+    : budgetHit
+      ? "budget_exhausted"
+      : "completed";
 
   const selectionChanges: AiEvaluationRunSummary["selectionChanges"] = [];
+  const selections: AiModelSelection[] = [];
   const selectedAt = now().toISOString();
 
   for (const kind of kinds) {
@@ -450,11 +491,11 @@ async function evaluateUnderLease(
       current.fallbackModelIds.join(",") !== next.fallbackModelIds.join(",");
     if (!changed) continue;
 
-    await repository.recordSelection(next);
+    selections.push(next);
     if ((current?.modelId ?? COLD_START_MODEL) !== next.modelId) {
       selectionChanges.push({ taskKind: kind, from: current?.modelId ?? null, to: next.modelId });
     }
   }
 
-  return finish(stopReason, evaluatedModels.size, selectionChanges);
+  return finish(stopReason, newRecords, selections, selectionChanges);
 }

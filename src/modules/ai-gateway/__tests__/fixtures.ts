@@ -51,7 +51,7 @@ export function evaluation(overrides: Partial<AiModelEvaluationRecord> = {}): Ai
 export class InMemoryAiGatewayRepository implements AiGatewayRepository {
   selections: AiModelSelection[] = [];
   evaluations: AiModelEvaluationRecord[] = [];
-  runs: Parameters<AiGatewayRepository["recordRun"]>[0][] = [];
+  runs: Parameters<AiGatewayRepository["finalizeRun"]>[0][] = [];
   usage: Parameters<AiGatewayRepository["recordUsage"]>[0][] = [];
 
   async listCurrentSelections() {
@@ -62,18 +62,22 @@ export class InMemoryAiGatewayRepository implements AiGatewayRepository {
     }
     return [...latest.values()];
   }
-  async recordSelection(selection: AiModelSelection) {
-    this.selections.push(selection);
+  /** Set to make the next finalizeRun fail, to prove nothing is half-written. */
+  failFinalize = false;
+  async finalizeRun(
+    summary: Parameters<AiGatewayRepository["finalizeRun"]>[0],
+    evaluations: AiModelEvaluationRecord[],
+    selections: AiModelSelection[],
+  ) {
+    if (this.failFinalize) throw new Error("finalize failed");
+    this.runs.push(summary);
+    this.evaluations.push(...evaluations);
+    this.selections.push(...selections);
   }
   async listEvaluationsSince(taskKind: string, since: string) {
     return this.evaluations.filter((record) => record.taskKind === taskKind && record.evaluatedAt >= since);
   }
-  async recordEvaluations(records: AiModelEvaluationRecord[]) {
-    this.evaluations.push(...records);
-  }
-  async recordRun(summary: Parameters<AiGatewayRepository["recordRun"]>[0]) {
-    this.runs.push(summary);
-  }
+
   lease: { holderId: string; expiresAt: string } | undefined;
   async acquireEvaluationLease(holderId: string, now: string, expiresAt: string) {
     if (this.lease && this.lease.expiresAt > now) return false;

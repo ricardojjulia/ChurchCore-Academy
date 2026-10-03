@@ -3,11 +3,15 @@ import { resolvePlatformRoles } from "@/modules/academy-auth/platform-request-co
 import { createAiGatewayFromEnv } from "@/lib/ai-gateway";
 import type { AiGateway } from "@/modules/ai-gateway/gateway";
 import { resolveHqTaskKind } from "@/modules/ai-gateway/task-profiles";
-import { AiChatMessage, AiGatewayUnavailableError, AiProviderError } from "@/modules/ai-gateway/types";
+import { AiChatMessage, AiGatewayUnavailableError, AiProviderError, AiRequestTooLargeError } from "@/modules/ai-gateway/types";
 
 // HQ agent council endpoint. The client names the agent; the server decides which model serves
 // it (via the AI gateway's evaluated routing) — the client can no longer pick a model or a
 // token budget.
+
+// Above the longest ask's stream timeout (council review, 150s), so a stalled provider is cut off
+// by the gateway, which records the failed call, before the platform kills the function.
+export const maxDuration = 300;
 
 const MAX_MESSAGES = 80;
 const MAX_MESSAGE_CHARS = 60_000;
@@ -109,6 +113,9 @@ export async function handleAiRequest(request: Request, dependencies: AiRouteDep
   } catch (error) {
     if (error instanceof AiGatewayUnavailableError) {
       return errorResponse("AI council is unavailable in this environment.", 503);
+    }
+    if (error instanceof AiRequestTooLargeError) {
+      return errorResponse(error.message, 413);
     }
     if (error instanceof AiProviderError) {
       const status = error.status >= 400 && error.status < 600 ? error.status : 502;

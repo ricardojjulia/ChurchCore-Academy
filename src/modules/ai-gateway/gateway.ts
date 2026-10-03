@@ -8,10 +8,30 @@ import {
   AiGatewayRepository,
   AiGatewayUsageRecord,
   AiModelSelection,
+  AiRequestTooLargeError,
   AiTaskKind,
 } from "@/modules/ai-gateway/types";
 
 const SELECTION_CACHE_MS = 5 * 60 * 1000;
+/** Admission estimate only (not a spend bound): ~3 chars per token is conservative for prose. */
+const CHARS_PER_TOKEN_ESTIMATE = 3;
+const MESSAGE_OVERHEAD_TOKENS = 16;
+
+/**
+ * Rejects a request whose estimated prompt plus the ask's output ceiling would overflow the
+ * smallest context window any model eligible for the ask is guaranteed to have, so it fails
+ * fast with a clear message instead of upstream after routing.
+ */
+export function assertFitsContext(taskKind: AiTaskKind, messages: AiChatMessage[]) {
+  const profile = AI_TASK_PROFILES[taskKind];
+  const promptTokens = messages.reduce(
+    (total, message) => total + Math.ceil(message.content.length / CHARS_PER_TOKEN_ESTIMATE) + MESSAGE_OVERHEAD_TOKENS,
+    0,
+  );
+  if (promptTokens + profile.maxOutputTokens > profile.minContextTokens) {
+    throw new AiRequestTooLargeError();
+  }
+}
 
 export interface AiRoute {
   model: string;
@@ -84,7 +104,13 @@ export class AiGateway {
     }
   }
 
+  /** The ask's long-form answer budget doubles as its request timeout. */
+  private timeoutMs(taskKind: AiTaskKind) {
+    return AI_TASK_PROFILES[taskKind].evaluationTimeoutMs;
+  }
+
   async complete(request: AiGatewayRequest): Promise<AiCompletionResult> {
+    assertFitsContext(request.taskKind, request.messages);
     const route = await this.resolveRoute(request.taskKind);
     const started = this.now().getTime();
     try {
@@ -93,6 +119,7 @@ export class AiGateway {
         fallbackModels: route.fallbackModels,
         messages: request.messages,
         maxTokens: this.clampTokens(request),
+        timeoutMs: this.timeoutMs(request.taskKind),
       });
       await this.recordUsage({
         taskKind: request.taskKind,
@@ -133,6 +160,7 @@ export class AiGateway {
    * back). The model that actually answered is in each chunk's `model` field.
    */
   async stream(request: AiGatewayRequest): Promise<{ body: ReadableStream<Uint8Array>; requestedModel: string }> {
+    assertFitsContext(request.taskKind, request.messages);
     const route = await this.resolveRoute(request.taskKind);
     const started = this.now().getTime();
 
@@ -143,6 +171,7 @@ export class AiGateway {
         fallbackModels: route.fallbackModels,
         messages: request.messages,
         maxTokens: this.clampTokens(request),
+        timeoutMs: this.timeoutMs(request.taskKind),
       });
     } catch (error) {
       await this.recordUsage(this.failedUsage(request.taskKind, route.model, started));

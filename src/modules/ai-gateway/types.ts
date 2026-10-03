@@ -159,10 +159,13 @@ export interface AiEvaluationRunSummary {
 
 export interface AiGatewayRepository {
   listCurrentSelections(): Promise<AiModelSelection[]>;
-  recordSelection(selection: AiModelSelection): Promise<void>;
   listEvaluationsSince(taskKind: AiTaskKind, since: string): Promise<AiModelEvaluationRecord[]>;
-  recordEvaluations(records: AiModelEvaluationRecord[]): Promise<void>;
-  recordRun(summary: AiEvaluationRunSummary): Promise<void>;
+  /** Writes a run's summary, evaluations, and selections atomically: all of them or none. */
+  finalizeRun(
+    summary: AiEvaluationRunSummary,
+    evaluations: AiModelEvaluationRecord[],
+    selections: AiModelSelection[],
+  ): Promise<void>;
   /**
    * Takes the single global evaluation lease for `holderId` until `expiresAt`. Returns false when
    * another holder's unexpired lease exists, so the cron and an admin-triggered run never overlap.
@@ -183,6 +186,14 @@ export class AiGatewayUnavailableError extends Error {
   constructor(message = "AI is unavailable in this environment.") {
     super(message);
     this.name = "AiGatewayUnavailableError";
+  }
+}
+
+/** The request would not fit the context window every model eligible for its ask guarantees. */
+export class AiRequestTooLargeError extends Error {
+  constructor(message = "This conversation is too long for the AI model. Start a new thread or clear the context.") {
+    super(message);
+    this.name = "AiRequestTooLargeError";
   }
 }
 

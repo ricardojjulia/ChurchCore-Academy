@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { AiGateway, clearAiRouteCache } from "@/modules/ai-gateway/gateway";
+import { AiGateway, assertFitsContext, clearAiRouteCache } from "@/modules/ai-gateway/gateway";
 import { OpenRouterClient, type OpenRouterCompletionRequest } from "@/modules/ai-gateway/openrouter-client";
 import { COLD_START_MODEL } from "@/modules/ai-gateway/scoring";
-import { AiProviderError } from "@/modules/ai-gateway/types";
+import { AI_TASK_PROFILES } from "@/modules/ai-gateway/task-profiles";
+import { AiProviderError, AiRequestTooLargeError } from "@/modules/ai-gateway/types";
 import { InMemoryAiGatewayRepository, NOW } from "@/modules/ai-gateway/__tests__/fixtures";
 
 function sseResponse(lines: string[]) {
@@ -306,6 +307,56 @@ test("the client honors a base URL override (used only by the e2e OpenRouter stu
   });
   await client.listModels();
   assert.deepEqual(urls, ["http://127.0.0.1:9999/api/v1/models"]);
+});
+
+test("requests are admitted only if they fit the ask's guaranteed context with its output ceiling", () => {
+  const writing = AI_TASK_PROFILES.hq_writing;
+  const budgetTokens = writing.minContextTokens - writing.maxOutputTokens;
+  // One message: ~3 chars/token plus 16 tokens of overhead.
+  const fits = "x".repeat((budgetTokens - 16) * 3);
+  assert.doesNotThrow(() => assertFitsContext("hq_writing", [{ role: "user", content: fits }]));
+  assert.throws(() => assertFitsContext("hq_writing", [{ role: "user", content: `${fits}xxxx` }]), AiRequestTooLargeError);
+  // Larger asks have room for it.
+  assert.doesNotThrow(() => assertFitsContext("hq_council_review", [{ role: "user", content: `${fits}xxxx` }]));
+});
+
+test("the gateway bounds every provider call with the ask's timeout", async () => {
+  clearAiRouteCache();
+  const timeouts: Array<number | undefined> = [];
+  const gateway = new AiGateway({
+    repository: new InMemoryAiGatewayRepository(),
+    now: () => NOW,
+    client: {
+      async complete(request) {
+        timeouts.push(request.timeoutMs);
+        return { text: "ok", model: request.model, usage: { promptTokens: 1, completionTokens: 1 }, latencyMs: 1 };
+      },
+      async stream(request) {
+        timeouts.push(request.timeoutMs);
+        return sseResponse(["data: [DONE]\n\n"]);
+      },
+    },
+  });
+
+  await gateway.complete({ taskKind: "hq_writing", messages: [{ role: "user", content: "x" }] });
+  await gateway.stream({ taskKind: "hq_council_review", messages: [{ role: "user", content: "x" }] });
+  assert.deepEqual(timeouts, [
+    AI_TASK_PROFILES.hq_writing.evaluationTimeoutMs,
+    AI_TASK_PROFILES.hq_council_review.evaluationTimeoutMs,
+  ]);
+});
+
+test("the client applies the timeout to streaming requests too", async () => {
+  let signal: AbortSignal | null | undefined;
+  const client = new OpenRouterClient({
+    apiKey: "stub-key",
+    fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return sseResponse(["data: [DONE]\n\n"]);
+    }) as typeof fetch,
+  });
+  await client.stream({ model: "openai/x", messages: [{ role: "user", content: "Hi" }], maxTokens: 10, timeoutMs: 5_000 });
+  assert.ok(signal instanceof AbortSignal, "a stalled stream is aborted instead of hanging the function");
 });
 
 // "Everything uses OpenRouter": no code outside the gateway may call a model provider directly.

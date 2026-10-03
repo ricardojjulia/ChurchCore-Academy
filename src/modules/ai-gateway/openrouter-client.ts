@@ -141,12 +141,17 @@ export class OpenRouterClient {
     };
   }
 
-  /** Returns the upstream SSE response (OpenAI chat-completions chunk format). */
+  /**
+   * Returns the upstream SSE response (OpenAI chat-completions chunk format). `timeoutMs` bounds
+   * the whole exchange, body included: a provider that stalls mid-stream errors the body instead
+   * of holding the request open until the platform kills the function.
+   */
   async stream(request: OpenRouterCompletionRequest): Promise<Response> {
     const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify(this.buildRequestBody(request, true)),
+      signal: request.timeoutMs ? AbortSignal.timeout(request.timeoutMs) : undefined,
     });
 
     if (!response.ok || !response.body) {
