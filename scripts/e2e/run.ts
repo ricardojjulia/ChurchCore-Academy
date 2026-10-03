@@ -2,11 +2,13 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync, openSync, readFileSync } from "node:fs";
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { startOpenRouterStub } from "./openrouter-stub";
 
 // `npm run test:full` — provisions everything the e2e suite needs and runs it:
 //   1. a disposable Supabase stack (own project id and ports, never the dev database)
 //   2. all migrations, then scripts/e2e/seed.ts
 //   3. a production build into .next-e2e (never clobbers the dev .next), served on E2E_PORT
+//      with OpenRouter pointed at a local deterministic stub (scripts/e2e/openrouter-stub.ts)
 //   4. Playwright, with any extra CLI args passed through (e.g. `-- e2e/journeys`)
 // Flags: --skip-build (reuse .next-e2e), --reset-db (reapply migrations from scratch),
 //        --stop (stop the e2e Supabase stack afterwards; CI does this).
@@ -101,7 +103,16 @@ async function main() {
     run("supabase", ["db", "reset", "--workdir", workdir]);
   }
 
-  const env = { ...process.env, ...supabaseEnv() };
+  // Real AI gateway code, fake provider: no network, no key, no spend.
+  const openRouterStub = await startOpenRouterStub();
+  // Never the reason the runner stays alive (e.g. if the seed or build throws before cleanup).
+  openRouterStub.server.unref();
+  const env = {
+    ...process.env,
+    ...supabaseEnv(),
+    OPENROUTER_API_KEY: "e2e-openrouter-stub",
+    OPENROUTER_BASE_URL: openRouterStub.baseUrl,
+  };
   await mkdir(runtimeDir, { recursive: true });
   await writeFile(
     path.join(runtimeDir, "env"),
@@ -166,6 +177,8 @@ async function main() {
   } finally {
     stopping = true;
     server!.kill("SIGTERM");
+    openRouterStub.server.close();
+    openRouterStub.server.closeAllConnections();
     if (flag("--stop")) spawnSync("supabase", ["stop", "--workdir", workdir], { stdio: "inherit" });
   }
   process.exitCode = exitCode;
