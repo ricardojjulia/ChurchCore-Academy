@@ -1,0 +1,153 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { eligibleCandidates, estimateRequestCostUsd, normalizeOpenRouterCatalog } from "@/modules/ai-gateway/catalog";
+import {
+  aggregateEvaluations,
+  chooseSelection,
+  COLD_START_MODEL,
+  parseJudgeVerdict,
+  rankModels,
+  scoreDeterministic,
+  SELECTION_SWITCH_MARGIN,
+} from "@/modules/ai-gateway/scoring";
+import { AI_TASK_PROFILES, resolveHqTaskKind } from "@/modules/ai-gateway/task-profiles";
+import { evaluation, NOW, rawModel } from "@/modules/ai-gateway/__tests__/fixtures";
+
+const reasoning = AI_TASK_PROFILES.hq_reasoning;
+const filterOptions = { now: NOW, providerPrefixes: ["anthropic/", "openai/"], maxAgeDays: 365 };
+
+test("normalizes priced text models and drops routers, variants, and non-text output", () => {
+  const catalog = normalizeOpenRouterCatalog([
+    rawModel("anthropic/model-a", { prompt: "0.000002", completion: "0.00001" }),
+    rawModel("openrouter/auto", { prompt: "-1", completion: "-1" }),
+    rawModel("openai/model-b:free", { prompt: "0", completion: "0" }),
+    rawModel("openai/model-b:batch"),
+    rawModel("openai/image-model", { outputs: ["image", "text"] }),
+    { id: 42 },
+    null,
+  ]);
+
+  assert.deepEqual(catalog.map((candidate) => candidate.id), ["anthropic/model-a"]);
+  assert.equal(catalog[0].promptUsdPerMillion, 2);
+  assert.equal(catalog[0].completionUsdPerMillion, 10);
+  assert.equal(catalog[0].maxCompletionTokens, 32_000);
+});
+
+test("eligibility enforces provider allow-list, context, age, expiry, and the cost ceiling", () => {
+  const catalog = normalizeOpenRouterCatalog([
+    rawModel("anthropic/ok"),
+    rawModel("unknownlab/model"),
+    rawModel("openai/tiny-context", { context: 8_000 }),
+    rawModel("openai/ancient", { createdDaysAgo: 900 }),
+    rawModel("openai/expiring", { expiration: "2026-10-10" }),
+    rawModel("openai/premium", { prompt: "0.00003", completion: "0.00018" }),
+  ]);
+
+  const eligible = eligibleCandidates(catalog, reasoning, filterOptions);
+  assert.deepEqual(eligible.map((candidate) => candidate.id), ["anthropic/ok"]);
+});
+
+test("estimates request cost from the profile's typical token mix", () => {
+  const [candidate] = normalizeOpenRouterCatalog([rawModel("anthropic/a", { prompt: "0.000002", completion: "0.00001" })]);
+  // 3000 prompt tokens * $2/M + 1500 completion tokens * $10/M
+  assert.equal(estimateRequestCostUsd(candidate, reasoning).toFixed(4), "0.0210");
+});
+
+test("deterministic score rewards required terms and penalizes bloat", () => {
+  const evaluationCase = { ...reasoning.evaluationCases[0], requiredTerms: ["tenant", "audit"], maxWords: 10 };
+  assert.equal(scoreDeterministic("", evaluationCase), 0);
+  assert.equal(scoreDeterministic("Check tenant and audit.", evaluationCase), 1);
+  assert.equal(scoreDeterministic("Check tenant only.", evaluationCase), 0.5);
+  const bloated = `tenant audit ${"word ".repeat(13)}`;
+  assert.ok(scoreDeterministic(bloated, evaluationCase) < 1);
+});
+
+test("judge verdict parsing rejects out-of-range or malformed output", () => {
+  assert.deepEqual(parseJudgeVerdict('{"score": 8, "rationale": "good"}'), { score: 0.8, rationale: "good" });
+  assert.deepEqual(parseJudgeVerdict('Here you go: {"score": "7", "rationale": "ok"}'), { score: 0.7, rationale: "ok" });
+  assert.equal(parseJudgeVerdict('{"score": 14}'), undefined);
+  assert.equal(parseJudgeVerdict("no json"), undefined);
+  assert.equal(parseJudgeVerdict("{not json}"), undefined);
+});
+
+test("aggregation counts failed attempts as zero quality", () => {
+  const [aggregate] = aggregateEvaluations([
+    evaluation({ qualityScore: 0.9, latencyMs: 4_000 }),
+    evaluation({ status: "failed", qualityScore: 0, caseId: "case-b" }),
+  ]);
+  assert.equal(aggregate.sampleCount, 2);
+  assert.equal(aggregate.meanQuality, 0.45);
+  assert.equal(aggregate.medianLatencyMs, 4_000);
+});
+
+test("ranking trades quality against live price and drops models below the quality floor", () => {
+  const catalog = normalizeOpenRouterCatalog([
+    rawModel("anthropic/premium", { prompt: "0.000005", completion: "0.000025" }),
+    rawModel("openai/budget", { prompt: "0.0000002", completion: "0.000001" }),
+    rawModel("openai/weak", { prompt: "0.0000001", completion: "0.0000005" }),
+  ]);
+  const eligible = eligibleCandidates(catalog, reasoning, filterOptions);
+  const records = [
+    ...["case-a", "case-b"].map((caseId) => evaluation({ modelId: "anthropic/premium", caseId, qualityScore: 0.95 })),
+    ...["case-a", "case-b"].map((caseId) => evaluation({ modelId: "openai/budget", caseId, qualityScore: 0.86 })),
+    ...["case-a", "case-b"].map((caseId) => evaluation({ modelId: "openai/weak", caseId, qualityScore: 0.5 })),
+  ];
+
+  const ranked = rankModels(reasoning, aggregateEvaluations(records), eligible);
+  assert.deepEqual(ranked.map((model) => model.modelId), ["openai/budget", "anthropic/premium"]);
+  assert.ok(ranked[0].estimatedRequestCostUsd < ranked[1].estimatedRequestCostUsd);
+});
+
+test("ranking needs enough samples and a model still present in the catalog", () => {
+  const eligible = eligibleCandidates(normalizeOpenRouterCatalog([rawModel("anthropic/a")]), reasoning, filterOptions);
+  const ranked = rankModels(
+    reasoning,
+    aggregateEvaluations([evaluation({ modelId: "anthropic/a" }), evaluation({ modelId: "anthropic/retired" }), evaluation({ modelId: "anthropic/retired", caseId: "case-b" })]),
+    eligible,
+  );
+  assert.deepEqual(ranked, []);
+});
+
+test("selection keeps the incumbent unless a challenger clears the switch margin", () => {
+  const base = { meanQuality: 0.9, qualityScore: 0.9, costScore: 0.5, latencyScore: 0.5, estimatedRequestCostUsd: 0.01, medianLatencyMs: 5_000, sampleCount: 2 };
+  const current = { taskKind: "hq_reasoning" as const, modelId: "anthropic/incumbent", fallbackModelIds: [], fitScore: 0.8, reason: "", runId: "old", selectedAt: "2026-09-01T00:00:00.000Z" };
+  const context = { runId: "run-2", now: NOW.toISOString() };
+
+  const close = chooseSelection(reasoning, [
+    { ...base, modelId: "openai/challenger", fitScore: 0.81 },
+    { ...base, modelId: "anthropic/incumbent", fitScore: 0.8 },
+  ], current, context);
+  assert.equal(close.modelId, "anthropic/incumbent");
+  assert.deepEqual(close.fallbackModelIds, ["openai/challenger"]);
+
+  const clear = chooseSelection(reasoning, [
+    { ...base, modelId: "openai/challenger", fitScore: 0.8 + SELECTION_SWITCH_MARGIN + 0.01 },
+    { ...base, modelId: "anthropic/incumbent", fitScore: 0.8 },
+  ], current, context);
+  assert.equal(clear.modelId, "openai/challenger");
+  assert.deepEqual(clear.fallbackModelIds, ["anthropic/incumbent"]);
+});
+
+test("selection falls back to the cold-start auto-router when nothing has qualified", () => {
+  const selection = chooseSelection(reasoning, [], undefined, { runId: "run-1", now: NOW.toISOString() });
+  assert.equal(selection.modelId, COLD_START_MODEL);
+  assert.equal(selection.fitScore, null);
+});
+
+test("HQ agents map to asks, and council review overrides the agent", () => {
+  assert.equal(resolveHqTaskKind("architect"), "hq_reasoning");
+  assert.equal(resolveHqTaskKind("implementer"), "hq_engineering");
+  assert.equal(resolveHqTaskKind("writer"), "hq_writing");
+  assert.equal(resolveHqTaskKind("product", "council_review"), "hq_council_review");
+  assert.equal(resolveHqTaskKind("unknown-agent"), "hq_reasoning");
+});
+
+test("every task profile is internally consistent", () => {
+  for (const profile of Object.values(AI_TASK_PROFILES)) {
+    const { quality, cost, latency } = profile.weights;
+    assert.equal(Number((quality + cost + latency).toFixed(6)), 1, profile.kind);
+    assert.ok(profile.evaluationCases.length >= 2, profile.kind);
+    assert.ok(profile.referenceCostUsd < profile.maxRequestCostUsd, profile.kind);
+    assert.equal(new Set(profile.evaluationCases.map((evaluationCase) => evaluationCase.id)).size, profile.evaluationCases.length);
+  }
+});

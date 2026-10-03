@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { AiModelReport } from "@/modules/ai-gateway/report";
+import type { AiEvaluationRunSummary } from "@/modules/ai-gateway/types";
 
 export const dynamic = "force-dynamic";
 
-type ViewId = "dashboard" | "agents" | "docs" | "history" | "tasks" | "decisions" | "risks" | "release";
+type ViewId = "dashboard" | "agents" | "models" | "docs" | "history" | "tasks" | "decisions" | "risks" | "release";
 type HqTaskStatus = "backlog" | "ready" | "in_progress" | "review" | "blocked" | "done";
 type HqTaskPriority = "P0" | "P1" | "P2" | "P3";
 type HqTaskSource = "manual" | "risk" | "council";
@@ -247,6 +249,7 @@ const DOCS = [
 const NAV = [
   { id: "dashboard", icon: "◈", label: "HQ" },
   { id: "agents", icon: "⚡", label: "Agents" },
+  { id: "models", icon: "🧮", label: "AI Models" },
   { id: "docs", icon: "📄", label: "Docs" },
   { id: "history", icon: "🕒", label: "History" },
   { id: "tasks", icon: "✅", label: "Tasks" },
@@ -373,6 +376,12 @@ export default function HQPage() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [savingRiskId, setSavingRiskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [servedModels, setServedModels] = useState<Record<string, string>>({});
+  const [modelReport, setModelReport] = useState<AiModelReport | null>(null);
+  const [modelReportConfigured, setModelReportConfigured] = useState(true);
+  const [modelReportLoading, setModelReportLoading] = useState(false);
+  const [evaluationRunning, setEvaluationRunning] = useState(false);
+  const [lastEvaluation, setLastEvaluation] = useState<AiEvaluationRunSummary | null>(null);
 
   const groupedAgents = useMemo(() => groupAgents(), []);
   const currentAgent = AGENTS[activeAgent] ?? AGENTS.architect;
@@ -461,7 +470,7 @@ export default function HQPage() {
     return row;
   }
 
-  async function sendMessage(promptText?: string) {
+  async function sendMessage(promptText?: string, mode?: "council_review") {
     if (loading) return;
 
     const content = (promptText ?? input).trim();
@@ -481,10 +490,10 @@ export default function HQPage() {
     setInput("");
 
     try {
+      // The server picks the model for this agent from the AI gateway's evaluated routing.
       const reqBody = {
-        model: "claude-sonnet-4-6",
-        max_tokens: 16000,
-        stream: true,
+        agentId: agent.id,
+        ...(mode ? { mode } : {}),
         system: `${agent.persona}\n\n${PROJECT_CONTEXT}`,
         messages: next
           .filter((m) => m.content.trim().length > 0)
@@ -499,6 +508,11 @@ export default function HQPage() {
 
       if (!response.ok || !response.body) {
         throw new Error(await readResponseError(response));
+      }
+
+      const servedBy = response.headers.get("x-ai-model");
+      if (servedBy) {
+        setServedModels((prev) => ({ ...prev, [agent.id]: servedBy }));
       }
 
       streamingRef.current = "";
@@ -519,26 +533,33 @@ export default function HQPage() {
           const raw = line.slice(5).trim();
           if (!raw || raw === "[DONE]") continue;
 
+          let event: {
+            choices?: Array<{ delta?: { content?: unknown } }>;
+            error?: { message?: unknown };
+          };
           try {
-            const event = JSON.parse(raw) as Record<string, unknown>;
-            if (event.type === "content_block_delta") {
-              const delta = event.delta as { text?: string } | undefined;
-              const chunk = delta?.text ?? "";
-              if (!chunk) continue;
-
-              streamingRef.current += chunk;
-              setMessages((prev) => {
-                const thread = [...(prev[agent.id] ?? [])];
-                const idx = thread.length - 1;
-                if (idx >= 0 && thread[idx].role === "assistant") {
-                  thread[idx] = { ...thread[idx], content: streamingRef.current };
-                }
-                return { ...prev, [agent.id]: thread };
-              });
-            }
+            event = JSON.parse(raw);
           } catch {
-            // ignore malformed SSE lines
+            continue; // ignore malformed SSE lines
           }
+
+          if (event.error) {
+            throw new Error(typeof event.error.message === "string" ? event.error.message : "AI request failed.");
+          }
+
+          const delta = event.choices?.[0]?.delta?.content;
+          const chunk = typeof delta === "string" ? delta : "";
+          if (!chunk) continue;
+
+          streamingRef.current += chunk;
+          setMessages((prev) => {
+            const thread = [...(prev[agent.id] ?? [])];
+            const idx = thread.length - 1;
+            if (idx >= 0 && thread[idx].role === "assistant") {
+              thread[idx] = { ...thread[idx], content: streamingRef.current };
+            }
+            return { ...prev, [agent.id]: thread };
+          });
         }
       }
 
@@ -619,7 +640,7 @@ export default function HQPage() {
     setActiveAgent("product");
 
     await Promise.all([
-      sendMessage(prompt),
+      sendMessage(prompt, "council_review"),
       supabase.from("hq_decisions").insert({
         title: `Council review: ${feature}`,
         owner: "Product Manager",
@@ -669,6 +690,48 @@ export default function HQPage() {
     }
   }
 
+  async function loadModelReport() {
+    setModelReportLoading(true);
+    try {
+      const response = await fetch("/api/academy/platform/ai-models");
+      if (!response.ok) {
+        throw new Error(await readResponseError(response));
+      }
+      const data = (await response.json()) as { report: AiModelReport; configured: boolean };
+      setModelReport(data.report);
+      setModelReportConfigured(data.configured);
+    } catch (reportError) {
+      setError(reportError instanceof Error ? reportError.message : "Failed to load AI model report.");
+    } finally {
+      setModelReportLoading(false);
+    }
+  }
+
+  function openView(id: ViewId) {
+    setView(id);
+    if (id === "models" && !modelReport && !modelReportLoading) {
+      void loadModelReport();
+    }
+  }
+
+  async function runEvaluationNow() {
+    setEvaluationRunning(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/academy/platform/ai-models", { method: "POST" });
+      if (!response.ok) {
+        throw new Error(await readResponseError(response));
+      }
+      const data = (await response.json()) as { summary: AiEvaluationRunSummary };
+      setLastEvaluation(data.summary);
+      await loadModelReport();
+    } catch (runError) {
+      setError(runError instanceof Error ? runError.message : "Model evaluation failed.");
+    } finally {
+      setEvaluationRunning(false);
+    }
+  }
+
   async function signOut() {
     await supabase?.auth.signOut();
     router.push("/login");
@@ -685,13 +748,13 @@ export default function HQPage() {
           <div className="hq-lms-brand">ChurchCore Academy</div>
           <nav className="hq-lms-nav" aria-label="Academy HQ navigation">
             <Link href="/">Dashboard</Link>
-            {NAV.filter((item) => ["dashboard", "agents", "docs", "tasks", "risks", "release"].includes(item.id)).map(
+            {NAV.filter((item) => ["dashboard", "agents", "models", "docs", "tasks", "risks", "release"].includes(item.id)).map(
               (item) => (
                 <button
                   key={item.id}
                   type="button"
                   className={view === item.id ? "is-active" : ""}
-                  onClick={() => setView(item.id as ViewId)}
+                  onClick={() => openView(item.id as ViewId)}
                 >
                   {item.label}
                 </button>
@@ -720,7 +783,7 @@ export default function HQPage() {
                 key={item.id}
                 type="button"
                 className={`hq-nav-item ${view === item.id ? "is-active" : ""}`}
-                onClick={() => setView(item.id as ViewId)}
+                onClick={() => openView(item.id as ViewId)}
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
@@ -826,6 +889,9 @@ export default function HQPage() {
                 <div>
                   <h3>{currentAgent.emoji} {currentAgent.name}</h3>
                   <p>{currentAgent.role}</p>
+                  {servedModels[currentAgent.id] ? (
+                    <small className="served-by">Routed to {servedModels[currentAgent.id]}</small>
+                  ) : null}
                 </div>
                 {currentAgent.id === "architect" ? (
                   <button type="button" className="context-clear-button" onClick={clearArchitectContext}>
@@ -859,6 +925,116 @@ export default function HQPage() {
                 </button>
               </div>
             </article>
+          </section>
+        ) : null}
+
+        {view === "models" ? (
+          <section className="models-view">
+            <header className="hq-panel models-header">
+              <div>
+                <h2>AI model routing</h2>
+                <p>
+                  Every AI request goes through OpenRouter. Each task type is routed to the model with the best
+                  balance of graded quality, live OpenRouter pricing, and latency. A scheduled evaluator keeps
+                  testing new and stale models against synthetic cases and switches when a model clearly wins.
+                </p>
+                {!modelReportConfigured ? (
+                  <p className="models-warning">OPENROUTER_API_KEY is not configured in this environment.</p>
+                ) : null}
+                {lastEvaluation ? (
+                  <p className="models-note">
+                    Last manual run: {lastEvaluation.status.replace("_", " ")} · {lastEvaluation.evaluatedModelCount} models ·
+                    ${lastEvaluation.spentUsd.toFixed(4)} spent
+                    {lastEvaluation.selectionChanges.length > 0
+                      ? ` · switched ${lastEvaluation.selectionChanges.map((change) => change.taskKind).join(", ")}`
+                      : " · no routing changes"}
+                  </p>
+                ) : null}
+              </div>
+              <div className="models-actions">
+                <button type="button" onClick={() => void loadModelReport()} disabled={modelReportLoading}>
+                  {modelReportLoading ? "Loading…" : "Refresh"}
+                </button>
+                <button type="button" className="primary" onClick={() => void runEvaluationNow()} disabled={evaluationRunning}>
+                  {evaluationRunning ? "Evaluating…" : "Run evaluation now"}
+                </button>
+              </div>
+            </header>
+
+            {modelReport?.tasks.map((task) => (
+              <article key={task.taskKind} className="hq-panel model-task">
+                <div className="model-task-head">
+                  <div>
+                    <h3>{task.label}</h3>
+                    <p>{task.description}</p>
+                  </div>
+                  <div className="model-task-weights">
+                    <span className="pill">quality {Math.round(task.weights.quality * 100)}%</span>
+                    <span className="pill">cost {Math.round(task.weights.cost * 100)}%</span>
+                    <span className="pill">latency {Math.round(task.weights.latency * 100)}%</span>
+                  </div>
+                </div>
+                <div className="model-selection">
+                  <div>
+                    <small>Routed to</small>
+                    <strong>{task.selection.modelId}</strong>
+                    {task.selection.fallbackModelIds.length > 0 ? (
+                      <small>Fallbacks: {task.selection.fallbackModelIds.join(", ")}</small>
+                    ) : null}
+                  </div>
+                  <p>{task.selection.reason}</p>
+                  <div className="model-usage">
+                    <strong>{task.usage.requestCount}</strong>
+                    <small>requests · ${task.usage.costUsd.toFixed(2)} in {modelReport.windowDays}d</small>
+                  </div>
+                </div>
+                {task.leaderboard.length > 0 ? (
+                  <table className="model-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Model</th>
+                        <th scope="col">Quality</th>
+                        <th scope="col">Cost / eval</th>
+                        <th scope="col">Median latency</th>
+                        <th scope="col">Samples</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {task.leaderboard.map((row) => (
+                        <tr key={row.modelId} className={row.modelId === task.selection.modelId ? "is-selected" : ""}>
+                          <td>{row.modelId}</td>
+                          <td className={row.meanQuality < task.qualityFloor ? "below-floor" : ""}>
+                            {(row.meanQuality * 100).toFixed(0)}
+                          </td>
+                          <td>${row.meanCostUsd.toFixed(4)}</td>
+                          <td>{(row.medianLatencyMs / 1000).toFixed(1)}s</td>
+                          <td>{row.sampleCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="models-note">No evaluations yet for this task type.</p>
+                )}
+              </article>
+            ))}
+
+            {modelReport && modelReport.recentRuns.length > 0 ? (
+              <article className="hq-panel">
+                <h3>Recent evaluation runs</h3>
+                <ul className="env-list">
+                  {modelReport.recentRuns.map((run) => (
+                    <li key={run.runId}>
+                      <span>{new Date(run.startedAt).toLocaleString()}</span>
+                      <span className={`pill ${run.status === "failed" ? "risk" : run.status === "completed" ? "green" : "amber"}`}>
+                        {run.status.replace("_", " ")}
+                      </span>
+                      <span>{run.evaluatedModelCount} models · ${run.spentUsd.toFixed(4)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ) : null}
           </section>
         ) : null}
 
@@ -1210,6 +1386,30 @@ export default function HQPage() {
           .list-row,.risk-row{display:grid;grid-template-columns:1.8fr .8fr .8fr .7fr;gap:8px;align-items:center;border:1px solid rgba(148,163,184,.18);background:#0b0c11;border-radius:10px;padding:10px}
           .risk-row p{margin:4px 0 0;color:#8b92a0;font-size:12px}
           .risk-row button{border:0;background:#796cbf;color:#fff;border-radius:8px;padding:6px 8px;cursor:pointer;font-weight:800}
+          .served-by{display:block;margin-top:6px;color:#a5b4fc;font-size:12px;font-family:'JetBrains Mono',Menlo,monospace}
+          .models-view{display:flex;flex-direction:column;gap:16px;padding:0 22px 28px}
+          .models-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+          .models-header h2{font-size:24px;letter-spacing:-.03em}
+          .models-header p{margin:0;color:#aaa8be;max-width:880px;line-height:1.5}
+          .models-warning{margin-top:10px!important;color:#fcd34d!important}
+          .models-note{margin-top:10px!important;color:#8b92a0!important;font-size:13px}
+          .models-actions{display:flex;gap:8px;flex-shrink:0}
+          .models-actions button{border:1px solid rgba(148,163,184,.25);background:#151621;color:#dce3ee;border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:800}
+          .models-actions button.primary{border:0;background:#796cbf;color:#fff}
+          .models-actions button:disabled{opacity:.6;cursor:not-allowed}
+          .model-task-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+          .model-task-head p{margin:0;color:#8b92a0}
+          .model-task-weights{display:flex;gap:6px;flex-wrap:wrap}
+          .model-selection{display:grid;grid-template-columns:minmax(220px,1fr) 2fr auto;gap:16px;align-items:center;margin:14px 0;padding:12px;border:1px solid rgba(129,140,248,.3);border-radius:12px;background:#0b0c11}
+          .model-selection small{display:block;color:#7d8290;font-size:12px}
+          .model-selection strong{display:block;color:#c7d2fe;font-family:'JetBrains Mono',Menlo,monospace;font-size:14px;margin:2px 0}
+          .model-selection p{margin:0;color:#aab2c0;font-size:13px}
+          .model-usage{text-align:right}
+          .model-table{width:100%;border-collapse:collapse;font-size:13px}
+          .model-table th{text-align:left;color:#7d8290;font-weight:700;padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.18)}
+          .model-table td{padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.08);color:#dce3ee;font-family:'JetBrains Mono',Menlo,monospace}
+          .model-table tr.is-selected td{color:#a5b4fc;font-weight:800}
+          .model-table td.below-floor{color:#fca5a5}
           .release-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px}
           .release-list,.env-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
           .release-list li,.env-list li{display:flex;gap:8px;align-items:center;border:1px solid rgba(148,163,184,.18);background:#0b0c11;border-radius:10px;padding:8px}
@@ -1220,7 +1420,7 @@ export default function HQPage() {
           .pill.risk{border-color:#ef444455;background:#3a1010;color:#fecaca}
           .pill.council{border-color:#818cf855;background:#1f2148;color:#c7d2fe}
           @media (max-width: 1280px){.hq-lms-nav{gap:14px}.hq-lms-nav a{font-size:14px}.kanban-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.agent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-          @media (max-width: 1000px){.hq-appbar{height:auto}.hq-appbar-inner{padding:14px;flex-wrap:wrap}.hq-root{flex-direction:column}.hq-rail{width:auto;flex:unset}.hq-topbar{height:auto;padding:20px;align-items:stretch;flex-direction:column}.hq-review-runner{min-width:0;width:100%}.split-view{grid-template-columns:1fr}.hq-dashboard-grid,.release-grid{grid-template-columns:1fr;padding:0 14px 20px}.span-2{grid-column:auto}.task-add{min-width:0;width:100%}.task-header{flex-direction:column;align-items:stretch}}
+          @media (max-width: 1000px){.hq-appbar{height:auto}.hq-appbar-inner{padding:14px;flex-wrap:wrap}.hq-root{flex-direction:column}.hq-rail{width:auto;flex:unset}.hq-topbar{height:auto;padding:20px;align-items:stretch;flex-direction:column}.hq-review-runner{min-width:0;width:100%}.split-view{grid-template-columns:1fr}.hq-dashboard-grid,.release-grid{grid-template-columns:1fr;padding:0 14px 20px}.span-2{grid-column:auto}.models-header,.model-task-head{flex-direction:column}.model-selection{grid-template-columns:1fr}.model-usage{text-align:left}.model-table{display:block;overflow-x:auto}.task-add{min-width:0;width:100%}.task-header{flex-direction:column;align-items:stretch}}
           ${Object.values(AGENTS)
             .map(
               (agent) => `

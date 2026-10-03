@@ -3,6 +3,8 @@
 Date: 2026-09-13
 Status: proposed
 
+> Update 2026-10-03: ADR 0078 implements the shared OpenRouter gateway, metering, and continuous model evaluation (superseding this ADR's quarterly evaluation script). The student-data wording task types, anonymization pipeline, and `aiWordingAssistance` capability flag described here remain proposed and still require council sign-off.
+
 ---
 
 ## Context
