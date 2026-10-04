@@ -39,3 +39,7 @@ e2e/.auth/
 e2e/supabase-env/
 .e2e-runtime/
 .next-e2e/
+
+# Google Drive for desktop sync temp folders (this repo lives in a synced Drive folder)
+.tmp.driveupload/
+.tmp.drivedownload/
