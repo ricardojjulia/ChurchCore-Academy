@@ -27,7 +27,12 @@ Canonical local inventory: `.env.example`.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser/server | Yes | Publishable browser-safe key. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only | Yes for privileged server operations | Never expose to browser code. |
 | `DATABASE_URL` | Server/ops only | Yes | Direct Postgres connection for migrations, seeds, and server repositories. |
-| `ANTHROPIC_API_KEY` | Server only | Optional | HQ AI council only; do not expose in client payloads. |
+| `OPENROUTER_API_KEY` | Server only | Optional | The only LLM credential (ADR 0078). Without it, AI routes return 503 and the model-evaluation cron reports `disabled`. |
+| `OPENROUTER_APP_URL` | Server only | Optional | Site URL sent to OpenRouter for attribution. |
+| `AI_EVAL_GRADER_MODEL` | Server only | Optional | Grader model for continuous evaluation; default `anthropic/claude-sonnet-5.5`. Must exist in the OpenRouter catalog or runs fail (HTTP 500). |
+| `AI_EVAL_RUN_BUDGET_USD` | Server only | Optional | Spend cap per evaluation run; default `0.5` (cron runs every 6 hours). |
+| `AI_EVAL_MODELS_PER_TASK` | Server only | Optional | Models evaluated per task kind per run; default `2`. |
+| `AI_EVAL_PROVIDER_PREFIXES` | Server only | Optional | Comma-separated provider allow-list for evaluation candidates. |
 | `ACADEMY_LOCAL_BOOTSTRAP_ENABLED` | Server only | No in deployed environments | Must be `false` outside loopback local development. |
 | `DEMO_MODE_ENABLED` | Server only | Optional | Non-production demo feedback only. |
 | `NEXT_PUBLIC_DEMO_MODE_ENABLED` | Browser | Optional | Non-production demo feedback UI only. |

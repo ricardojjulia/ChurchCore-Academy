@@ -84,3 +84,4 @@ What other options were considered, and why were they rejected?
 - `docs/adr/0033-full-sis-competitive-mvp-release-program.md` governs the full SIS competitive MVP workflow program.
 - `docs/adr/0038-competitive-acceptance-and-deployment-readiness.md` governs the acceptance and deployment readiness program.
 - `docs/reviews/2026-06-21-council-review-9-release-closeout.md` records the ADR-0038 final split release decision.
+- `docs/adr/0078-openrouter-gateway-and-continuous-model-evaluation.md` makes OpenRouter, through `src/modules/ai-gateway/`, the only LLM path, with continuous model evaluation.
