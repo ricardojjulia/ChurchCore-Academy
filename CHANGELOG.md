@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- OpenRouter AI gateway with continuous model evaluation (ADR 0078, PR #218, Council Review 24).
+  - Every LLM call now goes through `src/modules/ai-gateway/`. Today that means only the internal HQ agent council, available to platform staff.
+  - Each request routes only to zero-retention, no-data-collection endpoints (`zdr: true`, `data_collection: "deny"`).
+  - A 6-hourly, budget-capped evaluator grades new and stale models blind against synthetic cases and routes each ask by quality, live price, and latency.
+  - Every call writes one idempotent usage record.
+  - Routing history is append-only, and evaluation runs are serialized by a lease.
+  - Platform staff see routing in the HQ "AI Models" view, and platform admins can trigger a run there.
+  - `ANTHROPIC_API_KEY` is retired in favor of `OPENROUTER_API_KEY`.
+  - No customer-facing or student-data AI surface is added.
 - 2026-10-02 code- and CI-backed MVP and competitive status refresh, reconciling the shipped P0/P1 slices, tracking faculty-load correctness follow-up in issue `#216`, and making pilot observation the next external evidence gate without authorizing deployment.
 - Faculty teaching-load intelligence with period-scoped sections, instructional credits and clock hours, enrolled-seat and capacity evidence, advising counts, and explainable administrative review flags.
 - Advisor caseload intelligence with assignment-scoped self-service, authorized oversight selection, and explainable program, GPA, risk, hold, signal, and advising-activity summaries.

@@ -36,6 +36,11 @@ Reports: `e2e/report/index.html`; failure traces: `test-results/`.
 Personas (one real login for every role, plus an admin in a second tenant for isolation
 checks) are defined in `e2e/personas.ts` and seeded by `scripts/e2e/seed.ts`.
 
+The app under test talks to a deterministic local OpenRouter stub (`scripts/e2e/openrouter-stub.ts`,
+started by `scripts/e2e/run.ts` and reached through `OPENROUTER_BASE_URL`). Journeys therefore drive the real
+AI gateway, including catalog load, grading, selection, persistence, and streaming, without a network
+call, an API key, or spend.
+
 ## Shipping a feature with its tests (required)
 
 Every PR that adds or changes a user-facing surface ships its test surface in the same PR:
