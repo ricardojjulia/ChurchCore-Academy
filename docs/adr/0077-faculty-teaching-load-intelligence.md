@@ -18,6 +18,7 @@ Academy will provide `/admin/faculty` as the faculty teaching-load intelligence 
 - Review flags identify incomplete or exceptional operational records. They are not faculty rankings, performance evaluations, employment recommendations, or autonomous reassignment decisions.
 - Section assignments and staff load-policy records remain the authoritative mutation paths. The workspace is read-only and links administrators to existing section management.
 - Existing ShepherdAI faculty-assignment alerts and workflow records remain visible to actors with ShepherdAI read access; the normalized load table supplements rather than replaces them.
+- Aggregate credits, clock hours, and capacity are nullable completeness claims. If any assigned section lacks a value, the aggregate remains unknown and the UI labels it incomplete rather than presenting a partial sum or denominator as complete.
 
 ## Consequences
 
@@ -29,5 +30,5 @@ Academy will provide `/admin/faculty` as the faculty teaching-load intelligence 
 ## Verification
 
 - Focused tests must prove period and tenant query binding, aggregation, zero-section visibility, empty context behavior, and unrelated-role denial.
-- E2E must prove an authorized academic administrator can load the production workspace and reach section assignment management.
+- E2E must create the academic year, period, program, student through admissions conversion, courses, sections, registration, advising assignment, and saved context through Academy APIs, then prove an authorized academic administrator sees both complete aggregates and incomplete-value labels and can reach section assignment management.
 - Navigation visibility and the surface manifest must match the route role boundary.

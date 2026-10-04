@@ -20,6 +20,10 @@ function number(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
 }
 
+function aggregate(value: number | null, label: string) {
+  return value == null ? `Incomplete ${label}` : `${number(value)} ${label}`;
+}
+
 export default async function FacultyPage() {
   const actor = await requireActor();
   requireActor(actor, FACULTY_LOAD_PAGE_ROLES);
@@ -79,8 +83,8 @@ export default async function FacultyPage() {
                 <TableRow key={faculty.personId}>
                   <TableCell><div className="font-medium">{faculty.facultyName}</div><div className="text-sm text-muted-foreground">{faculty.title} · {faculty.loadPolicy ? faculty.loadPolicy.replaceAll("_", " ") : "No load policy"}</div></TableCell>
                   <TableCell><div className="font-medium">{faculty.sectionCount}</div><div className="text-sm text-muted-foreground">{faculty.sections.length > 0 ? faculty.sections.map((section) => section.sectionCode).join(", ") : "None assigned"}</div></TableCell>
-                  <TableCell><div>{number(faculty.instructionalCredits)} credits</div><div className="text-sm text-muted-foreground">{number(faculty.instructionalClockHours)} clock hours</div></TableCell>
-                  <TableCell><div>{faculty.enrolledSeats}{faculty.capacity > 0 ? ` / ${faculty.capacity}` : ""} seats</div><div className="text-sm text-muted-foreground">{faculty.utilizationPercent == null ? "Capacity not configured" : `${faculty.utilizationPercent}% utilized`}</div></TableCell>
+                  <TableCell><div>{aggregate(faculty.instructionalCredits, "credits")}</div><div className="text-sm text-muted-foreground">{aggregate(faculty.instructionalClockHours, "clock hours")}</div></TableCell>
+                  <TableCell><div>{faculty.capacity == null ? `${faculty.enrolledSeats} seats enrolled` : `${faculty.enrolledSeats} / ${faculty.capacity} seats`}</div><div className="text-sm text-muted-foreground">{faculty.capacity == null ? "Capacity incomplete" : faculty.utilizationPercent == null ? "Utilization unavailable" : `${faculty.utilizationPercent}% utilized`}</div></TableCell>
                   <TableCell>{faculty.adviseeCount} advisee{faculty.adviseeCount === 1 ? "" : "s"}</TableCell>
                   <TableCell><div className="flex flex-wrap gap-1">{faculty.reviewFlags.length === 0 ? <Badge variant="secondary">No flags</Badge> : faculty.reviewFlags.map((flag) => <Badge key={flag} variant="outline">{flag}</Badge>)}</div></TableCell>
                 </TableRow>
