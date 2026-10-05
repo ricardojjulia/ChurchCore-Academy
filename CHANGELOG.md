@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Concealed and strengthened Academy Project HQ governance: both HQ routes now authorize platform staff on the server before rendering, unauthorized signed-in users receive a non-disclosing not-found response, ordinary navigation no longer advertises HQ, protected AI APIs retain independent authorization, and HQ table RLS now uses active persisted platform roles instead of legacy `admin`/`manager`/`teacher` JWT-role checks. The 13 HQ specialists are explicitly advisory, and Council requests now use Academy's six canonical lenses, evidence-aware readiness outcomes, and the existing factory, Testing Council, Documenter, owner-approval, and `pr-review` gates instead of synthetic votes or ratification claims.
 - OpenRouter AI gateway with continuous model evaluation (ADR 0078, PR #218, Council Review 24).
   - Every LLM call now goes through `src/modules/ai-gateway/`. Today that means only the internal HQ agent council, available to platform staff.
   - Each request routes only to zero-retention, no-data-collection endpoints (`zdr: true`, `data_collection: "deny"`).
