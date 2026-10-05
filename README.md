@@ -162,6 +162,7 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY`, provider tokens, payment secrets, LMS 
 | `npm run db:seed:local` | Seed local Academy data |
 | `npm run verify:migration-seed-rehearsal` | Verify migration tracking, deterministic seed counts, and runtime source boundary |
 | `npm run verify:role-walkthrough` | Generate authenticated role walkthrough evidence from the ADR-0038 role matrix |
+| `npm run verify:pilot-readiness` | Fail-closed connectivity check for the local/private Academy, Supabase Auth, and Postgres pilot topology |
 | `npm run verify:admissions-rls` | Verify admissions database isolation |
 | `npm run verify:enrollment-conversion-rls` | Verify enrollment-conversion isolation |
 | `npm run verify:llis-consent-rls` | Verify LLIS consent and evidence isolation |
@@ -220,6 +221,7 @@ docs/superpowers/        Approved design specs and implementation plans
 - [ShepherdAI Academy](docs/shepherd-ai-academy.md)
 - [Authentication and Tenant Runbook](docs/runbooks/academy-auth-and-tenant-access.md)
 - [Authenticated Role Walkthrough Evidence](docs/acceptance/authenticated-role-walkthrough-evidence.md)
+- [Uncoached Pilot Session Protocol](docs/acceptance/uncoached-pilot-session.md)
 - [Deployment Operations Runbook](docs/runbooks/deployment-operations.md)
 - [Observability Runbook](docs/runbooks/observability.md)
 - [Provider Activation Runbook](docs/runbooks/provider-activation.md)
