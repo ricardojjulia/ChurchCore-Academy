@@ -6,6 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AiModelReport } from "@/modules/ai-gateway/report";
 import type { AiEvaluationRunSummary } from "@/modules/ai-gateway/types";
+import {
+  HQ_COUNCIL_REVIEW_PROMPT,
+  HQ_GOVERNANCE_CONTEXT,
+} from "@/modules/hq/governance-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -73,41 +77,13 @@ interface AgentDef {
   persona: string;
 }
 
-const PROJECT_CONTEXT = `Project: ChurchCore Academy / Academy Project HQ
-Target Stack: Next.js App Router, TypeScript, Supabase, Postgres RLS, Storage, Realtime, Edge Functions, Vercel.
-Core Pattern: AI council + institutional memory + docs + tasks + ADRs + risk register + GitHub-ready governance.
-Security Standard: RLS is source of truth. Never trust client-side checks. Every user-visible data path must have policy tests.
-Product Goal: Fast, simple, ministry/academic-ready LMS with course creation, modules, assignments, gradebook, certificates, analytics, and AI tutor support.
-
-LLIS Council Mandate (ADR-2025-007):
-- Product naming must remain ChurchCore Academy.
-- Delivery must be phased: Phase 1 (event + consent + memory foundation), Phase 2 (internal intelligence scoring), Phase 3 (learner-facing mirror/credentials), Phase 4 (social/predictive expansion).
-- Consent is mandatory infrastructure: no AI memory, predictive modeling, or social intelligence writes without explicit active consent checks.
-- Negative predictive indicators are instructor-only; learner-facing outputs must be growth-oriented and non-alarmist.
-- AI-generated narratives are drafts only and must preserve human review checkpoints for interventions and sensitive outcomes.
-- Pastoral/ministry-sensitive learner data is high-sensitivity and must use least-privilege access with explicit auditing assumptions.
-- Event sourcing is authoritative for behavioral intelligence: append-only activity events, versioned snapshots, and auditable model-versioned computations.`;
-
-const CONSENSUS_PROMPT = `Run a council review for the proposed feature. Return:
-1. Executive summary
-2. Recommendation
-3. Architecture impact
-4. Data model impact
-5. Security/RLS risks
-6. QA acceptance criteria
-7. UX concerns
-8. Implementation phases
-9. Decision record draft
-
-Feature: `;
-
 const AGENTS: Record<string, AgentDef> = {
   architect: {
     id: "architect", name: "The Architect", emoji: "🏛️",
     role: "System Design & Architecture", layer: "Executive",
     color: "#818cf8", bg: "#1e1b4b",
     quick: ["Design the full system topology","Decide multi-tenancy model","Write an ADR for learning objects","Map all integration boundaries"],
-    persona: `You are The Architect, a senior technical architect designing a serverless, AI-native LMS on Vercel + Supabase. You think in systems, boundaries, trade-offs, failure modes, and long-term maintainability. Produce ADRs, topology diagrams, domain maps, and migration paths.`
+    persona: `You are The Architect, a senior technical architect advising ChurchCore Academy, the academic system of record. You think in systems, boundaries, trade-offs, failure modes, and long-term maintainability. Keep LMS runtime outside Academy and produce ADRs, topology diagrams, domain maps, and migration paths.`
   },
   product: {
     id: "product", name: "Product Manager", emoji: "🧭",
@@ -134,7 +110,7 @@ const AGENTS: Record<string, AgentDef> = {
     id: "security", name: "Security Officer", emoji: "🛡️",
     role: "RLS, Privacy & Threat Models", layer: "Assurance",
     color: "#fb7185", bg: "#4c0519",
-    quick: ["Threat model the LMS","Audit RLS policies","Design privacy controls","List OWASP risks"],
+    quick: ["Threat model Academy","Audit RLS policies","Design privacy controls","List OWASP risks"],
     persona: `You are the Security Officer. You threat-model everything: RLS, JWT, IDOR, uploads, storage policies, audit trails, secrets, RBAC, tenant isolation, FERPA/GDPR/COPPA-style privacy, and abuse cases.`
   },
   tester: {
@@ -190,8 +166,8 @@ const AGENTS: Record<string, AgentDef> = {
     id: "wildcard", name: "The Wildcard", emoji: "🃏",
     role: "Innovation & Provocation", layer: "Vision",
     color: "#d946ef", bg: "#4a044e",
-    quick: ["Pitch a never-seen feature","Make this viral","Gamify the LMS","Design future-state experience"],
-    persona: `You are The Wildcard. You reject conventional LMS thinking. Propose bold, weird, feasible ideas inspired by games, social platforms, creative tools, AI, and learning science.`
+    quick: ["Pitch a never-seen feature","Find a memorable adoption loop","Reimagine an SIS workflow","Design future-state experience"],
+    persona: `You are The Wildcard. You challenge conventional SIS thinking while respecting Academy's academic-system-of-record boundary. Propose bold, feasible ideas inspired by excellent operational tools, learning science, and responsible AI.`
   },
 };
 
@@ -505,7 +481,7 @@ export default function HQPage() {
       const reqBody = {
         agentId: agent.id,
         ...(mode ? { mode } : {}),
-        system: `${agent.persona}\n\n${PROJECT_CONTEXT}`,
+        system: `${agent.persona}\n\n${HQ_GOVERNANCE_CONTEXT}`,
         messages: next
           .filter((m) => m.content.trim().length > 0)
           .map((m) => ({ role: m.role, content: m.content })),
@@ -652,7 +628,7 @@ export default function HQPage() {
       return;
     }
 
-    const prompt = `${CONSENSUS_PROMPT}${feature}`;
+    const prompt = `${HQ_COUNCIL_REVIEW_PROMPT}${feature}`;
     setView("agents");
     setActiveAgent("product");
 
@@ -794,7 +770,7 @@ export default function HQPage() {
 
       <div className="hq-root">
         <aside className="hq-rail">
-          <div className="hq-brand">LMS.<span>HQ</span></div>
+          <div className="hq-brand">ACADEMY.<span>HQ</span></div>
           <nav className="hq-nav" aria-label="HQ navigation">
             {NAV.map((item) => (
               <button
@@ -818,7 +794,7 @@ export default function HQPage() {
         <header className="hq-topbar">
           <div>
             <h1>AI Project Headquarters</h1>
-            <p>ChurchCore LMS · agent council · governance memory · release discipline</p>
+            <p>ChurchCore Academy · advisory specialists · governed delivery · release discipline</p>
           </div>
           <div className="hq-review-runner">
             <input
@@ -838,9 +814,9 @@ export default function HQPage() {
           <section className="hq-dashboard-grid">
             <article className="hq-panel hero">
               <h2>From idea to governed implementation.</h2>
-              <p>AI-assisted operating system: agents, documentation, risk, decisions, tasks, releases, and implementation discipline in one place.</p>
+              <p>AI-assisted advisory workspace: specialist analysis, documentation, risk, decisions, tasks, and release evidence in one place. Owner approval and repository gates remain authoritative.</p>
               <div className="stats">
-                <div><strong>{Object.keys(AGENTS).length}</strong><span>Specialist Agents</span></div>
+                <div><strong>{Object.keys(AGENTS).length}</strong><span>Advisory Specialists</span></div>
                 <div><strong>{DOCS.length}</strong><span>Docs</span></div>
                 <div><strong>{sessions.length}</strong><span>Council Sessions</span></div>
                 <div><strong>{activeCount}</strong><span>Active Tasks</span></div>
@@ -850,16 +826,16 @@ export default function HQPage() {
             <article className="hq-panel">
               <h3>Operating Model</h3>
               <ol>
-                <li>Feature intake creates a council review.</li>
-                <li>Council review creates decisions and tasks.</li>
-                <li>Tasks map to agents and release gates.</li>
-                <li>Docs and ADRs become institutional memory.</li>
-                <li>Security and tests are required before release.</li>
+                <li>Feature intake requests an advisory Council review.</li>
+                <li>Six canonical lenses identify findings and required changes.</li>
+                <li>Recommendations never replace owner approval or verification.</li>
+                <li>Tasks map findings to the software factory and release gates.</li>
+                <li>Documenter and pr-review close the auditable delivery record.</li>
               </ol>
             </article>
 
             <article className="hq-panel span-2">
-              <h3>Agent Council</h3>
+              <h3>Advisory Specialist Workbench</h3>
               <div className="agent-grid">
                 {Object.values(AGENTS).map((agent) => (
                   <button

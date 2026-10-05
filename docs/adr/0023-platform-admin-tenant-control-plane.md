@@ -40,7 +40,7 @@ Platform admin capabilities such as tenant selection, tenant creation, and tenan
 
 Tenant creation in MVP must provision a workable institutional shell including institution profile, calendar shell, grading shell, department or subdivision shell, LMS defaults shell, starter staff scaffolding, and tenant-local institution administration.
 
-HQ remains a separate explicit workspace and is not the default post-login destination.
+HQ remains a separate, concealed platform-staff workspace. It is not the default post-login destination, is not linked from ordinary Academy navigation, and returns a non-disclosing not-found response to authenticated users without `platform_staff` or `platform_admin`. Concealment is not an authorization mechanism: the server route boundary, APIs, and RLS/data policies each continue to enforce access independently.
 
 ## Consequences
 

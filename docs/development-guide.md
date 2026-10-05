@@ -36,7 +36,7 @@ The latest MVP and competitive evaluation is `docs/reports/mvp-and-competitive-s
 - The approved repository-owned P0 and initial P1 slices have shipped.
 - Faculty-load incomplete-value accuracy and primary-path E2E coverage are implemented in the issue `#216` closeout and pending protected PR delivery.
 - After that delivery, the next evidence gate is an uncoached, authenticated pilot/design-partner session; deployment still requires explicit owner approval.
-- Platform infrastructure, not a backlog item: every LLM call (today, only the internal HQ agent council for platform staff) goes through the OpenRouter gateway in `src/modules/ai-gateway/`, which handles continuous model evaluation, metering, and zero-retention routing (ADR 0078, PR #218). No customer-facing or student-data AI surface exists. Any future one still requires ADR 0070's anonymization pipeline and separate Council approval.
+- Platform infrastructure, not a backlog item: every LLM call (today, only the concealed internal HQ advisory workbench for platform staff) goes through the OpenRouter gateway in `src/modules/ai-gateway/`, which handles continuous model evaluation, metering, and zero-retention routing (ADR 0078, PR #218). HQ specialists advise; they do not approve, ratify, or replace the canonical Council, Testing Council, owner decisions, verification, Documenter, or `pr-review` gates. No customer-facing or student-data AI surface exists. Any future one still requires ADR 0070's anonymization pipeline and separate Council approval.
 
 ## First Target Customer Profile
 

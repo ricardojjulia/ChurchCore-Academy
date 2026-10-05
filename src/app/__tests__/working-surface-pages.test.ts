@@ -65,3 +65,18 @@ test("platform control page enforces platform staff access before rendering", as
   assert.match(page, /redirect\("\/"\)/);
   assert.match(page, /TenantControlPanel/);
 });
+
+test("HQ is concealed from ordinary navigation and protected before rendering", async () => {
+  const wrapper = await source("src/components/academy/app-wrapper.tsx");
+  const layout = await source("src/app/internal/hq/layout.tsx");
+  const alias = await source("src/app/hq/page.tsx");
+
+  assert.doesNotMatch(wrapper, /href:\s*["']\/hq["']/);
+  assert.match(layout, /resolvePlatformRoles/);
+  assert.match(layout, /canAccessPlatformStaffWorkspace/);
+  assert.match(layout, /notFound\(\)/);
+  assert.match(alias, /resolvePlatformRoles/);
+  assert.match(alias, /canAccessPlatformStaffWorkspace/);
+  assert.match(alias, /notFound\(\)/);
+  assert.match(alias, /redirect\("\/internal\/hq"\)/);
+});

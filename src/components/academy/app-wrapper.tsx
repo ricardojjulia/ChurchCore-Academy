@@ -42,7 +42,7 @@ interface AppWrapperProps {
 export async function AppWrapper({
   children,
   navLinks = [
-    { label: "Dashboard", href: "/hq" },
+    { label: "Dashboard", href: "/" },
     { label: "Courses", href: "/courses" },
     { label: "Students", href: "/students" },
     { label: "Faculty", href: "/faculty" },

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { Pool } from "pg";
-import { storageStateFor } from "../helpers";
+import { createClient } from "@supabase/supabase-js";
+import { DEMO_PASSWORD, PERSONAS, storageStateFor } from "../helpers";
 
 // The AI gateway's evaluation loop end to end against a production build and the disposable
 // Postgres: a platform admin triggers a run, the real runner loads the catalog and grades
@@ -115,12 +116,21 @@ test("a held evaluation lease blocks a second run with a visible 409, and an exp
   }
 });
 
-test("a signed-in user without platform admin is never offered the evaluation run", async ({ browser }) => {
+test("a signed-in user without a platform role cannot discover or enter HQ", async ({ browser }) => {
   const context = await browser.newContext({ storageState: storageStateFor("registrar") });
   const page = await context.newPage();
-  await openModelsView(page);
 
-  await expect(page.getByRole("button", { name: "Run evaluation now" })).toHaveCount(0);
+  await page.goto("/admin", { waitUntil: "networkidle" });
+  await expect(page.locator('a[href="/hq"], a[href="/internal/hq"]')).toHaveCount(0);
+
+  const internalResponse = await page.goto("/internal/hq", { waitUntil: "networkidle" });
+  expect(internalResponse?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "AI Project Headquarters" })).toHaveCount(0);
+
+  const aliasResponse = await page.goto("/hq", { waitUntil: "networkidle" });
+  expect(aliasResponse?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "AI Project Headquarters" })).toHaveCount(0);
+
   const report = await page.request.get("/api/academy/platform/ai-models");
   expect(report.status()).toBe(403);
   const run = await page.request.post("/api/academy/platform/ai-models");
@@ -161,17 +171,45 @@ test("platform staff chat with an HQ agent through the gateway and see which mod
   }
 });
 
-test("a signed-in user without a platform role cannot reach the HQ agents", async ({ browser }) => {
+test("a signed-in user without a platform role cannot call the HQ agents directly", async ({ browser }) => {
   const context = await browser.newContext({ storageState: storageStateFor("registrar") });
   const page = await context.newPage();
-  await openHqView(page, "Agents");
-
-  await page.getByPlaceholder("Ask this agent…").fill("Summarize enrollment risks.");
-  const reply = page.waitForResponse(
-    (response) => response.url().endsWith("/api/ai") && response.request().method() === "POST",
-  );
-  await page.getByRole("button", { name: "Send" }).click();
-  expect((await reply).status()).toBe(403);
-  await expect(page.getByText(/Answered by/)).toHaveCount(0);
+  const reply = await page.request.post("/api/ai", {
+    data: {
+      agentId: "architect",
+      messages: [{ role: "user", content: "Summarize enrollment risks." }],
+    },
+  });
+  expect(reply.status()).toBe(403);
   await context.close();
+});
+
+test("HQ table RLS uses persisted platform roles instead of tenant staff roles", async () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) throw new Error("Supabase E2E environment is required.");
+
+  const platformClient = createClient(supabaseUrl, publishableKey, { auth: { persistSession: false } });
+  const ordinaryClient = createClient(supabaseUrl, publishableKey, { auth: { persistSession: false } });
+
+  const platformLogin = await platformClient.auth.signInWithPassword({
+    email: PERSONAS.institutionAdmin,
+    password: DEMO_PASSWORD,
+  });
+  expect(platformLogin.error).toBeNull();
+  const platformRead = await platformClient.from("hq_tasks").select("id");
+  expect(platformRead.error).toBeNull();
+  expect(platformRead.data?.length).toBeGreaterThan(0);
+
+  const ordinaryLogin = await ordinaryClient.auth.signInWithPassword({
+    email: PERSONAS.registrar,
+    password: DEMO_PASSWORD,
+  });
+  expect(ordinaryLogin.error).toBeNull();
+  const ordinaryRead = await ordinaryClient.from("hq_tasks").select("id");
+  expect(ordinaryRead.error).toBeNull();
+  expect(ordinaryRead.data).toEqual([]);
+
+  const deniedInsert = await ordinaryClient.from("hq_tasks").insert({ title: "Unauthorized HQ task" });
+  expect(deniedInsert.error?.code).toBe("42501");
 });
