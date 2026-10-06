@@ -64,8 +64,27 @@ This is the fourth time this bug class has shipped (PR #108, #120, #128), each t
 
 `academic_admin` was on the ministry formation viewer list, but the formation list and per-student record had no ADR-0045 scope for it, so both always rejected it. The owner decided on 2026-10-06 that academic admins get the registrar's records-office view: endorsed records across the tenant, no drafts, never pastoral notes. Recorded in ADR-0079 and shipped in the same PR.
 
+## Pilot data prepared (local only)
+
+After the reset, the missing records were created through the app's own APIs as seeded staff, not by direct inserts:
+
+- Program memberships for 6 students (Naomi, Daniel, Leah, Ezra, Lena, Marcus). Maya stays pending without a program.
+- One application created and submitted for Maya Bennett (Bachelor of Theology). The decisions queue shows 1 awaiting review.
+- The Algebra II section (MATH-201-A) opened through the section status action, and Lena enrolled in it. Her portal shows 1 course and 1 schedule item.
+
+This data is lost on the next reset.
+
+## Defects found while preparing data
+
+| Finding | Severity |
+| --- | --- |
+| The seeded draft application points to a legacy text program id (`prog-biblical-studies`), so submitting it fails with "Invalid identifier or value": the checklist snapshot expects a program UUID. Only legacy seed data has this shape. | S3 (seed data) |
+| Validation failures in section enrollment ("No active period registration found…", "Course section is scheduled.") return **500 Unexpected API error** instead of a 4xx with the message. Staff see a generic failure for a fixable condition. | S2 |
+| The student schedule shows "Aug 14, 8:00 PM" for a term starting Aug 15: a date-only value is read as UTC midnight and shown in local time, so it shifts a day back. | S2 |
+| After a `supabase db reset`, `npm run db:migrate:local` re-runs old migrations and fails, because its tracking table is emptied and its bootstrap only recognizes tables up to July 2026. Workaround: copy `supabase_migrations.schema_migrations` into `public.schema_migrations`. | env tooling |
+
 ## Before the participant session
 
-1. ~~Reset and reseed the local DB~~ (done 2026-10-06), then add programs, registrations, released schedule items, and one submitted application through the app.
-2. Re-run `npm run verify:pilot-readiness` and `npm run verify:role-walkthrough`.
+1. ~~Reset and reseed the local DB, then add programs, a registration, and one submitted application through the app~~ (done 2026-10-06).
+2. ~~Re-run `npm run verify:pilot-readiness`~~ (passes after reset). Re-run `npm run verify:role-walkthrough`.
 3. Confirm login from the participant's VM browser.
