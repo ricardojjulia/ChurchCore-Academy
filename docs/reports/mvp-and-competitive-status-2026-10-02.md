@@ -2,7 +2,7 @@
 
 Date: 2026-10-02
 Scope: `main` through PR `#206` (`a66a304`)
-Status: current code- and CI-backed evaluation
+Status: historical evaluation through PR `#206`; delivery status reconciled 2026-10-05
 
 ## Bottom Line
 
@@ -21,11 +21,10 @@ have shipped:
 - OneRoster deletion reconciliation is implemented with delivered-state
   provenance; external LMS validation remains an activation gate.
 
-One ungated correctness closeout is pending protected delivery: issue `#216`
-preserves unknown faculty-load aggregates and exercises the primary aggregate path
-in E2E. After that delivery, the next useful evidence is an uncoached, authenticated pilot or
-design-partner walkthrough. Deployment or hosted-resource creation still requires
-explicit owner approval.
+The faculty-load correctness closeout shipped through protected main in PR `#217`.
+The next useful evidence is an uncoached, authenticated pilot or design-partner
+walkthrough using `docs/acceptance/uncoached-pilot-session.md`. Deployment or
+hosted-resource creation still requires explicit owner approval.
 
 ## Evidence Since The 2026-09-25 Evaluation
 
@@ -57,7 +56,7 @@ combinations intentionally skipped by access expectations.
 | Public institution selection | Trusted published host/slug mapping; unknown routes fail closed |
 | Academy-to-LMS roster delivery | OneRoster CSV Binding 1.2.1 export, signed delivery, and deletion reconciliation implemented |
 | Live deployment | Not started; owner approval required |
-| Faculty-load closeout | Issue `#216` implemented; protected PR delivery pending before pilot observation |
+| Faculty-load closeout | Issue `#216` shipped in PR `#217`; ready for pilot observation |
 | Real-institution pilot evidence | Not yet recorded |
 
 ## Competitive Position
@@ -92,8 +91,7 @@ combinations intentionally skipped by access expectations.
 
 ## Recommended Next Move
 
-Deliver faculty-load correctness and primary-path E2E issue `#216`. Then run one
-uncoached, authenticated pilot/design-partner session against a
+Run one uncoached, authenticated pilot/design-partner session against a
 representative institution profile and record observed completion, confusion,
 dead ends, authorization failures, and requested capabilities. Turn only observed
 failures or adoption blockers into the next repository stories.
@@ -111,8 +109,8 @@ Title IV work should begin only when its existing customer/compliance gate is me
   observability evidence exists for Academy.
 - Institution-specific policy configuration may expose gaps not represented in
   the acceptance data.
-- The shipped faculty-load slice can present incomplete instructional or capacity
-  configuration as misleading partial numeric totals until issue `#216` reaches main.
+- Faculty-load unknown-value semantics are automated, but their clarity to a real
+  institutional operator remains unverified until the pilot session.
 - Competitive claims remain bounded to controlled-pilot and design-partner use.
 
 ## Method

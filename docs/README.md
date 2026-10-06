@@ -42,6 +42,7 @@ This directory contains the durable product, architecture, delivery, operations,
 - [Communications Operations](runbooks/communications-operations.md)
 - [LMS Execution Workers](runbooks/lms-execution-workers.md)
 - [Authenticated Role Walkthrough Evidence](acceptance/authenticated-role-walkthrough-evidence.md)
+- [Uncoached Pilot Session Protocol](acceptance/uncoached-pilot-session.md)
 - [Deployment Operations](runbooks/deployment-operations.md)
 - [Incident Response](runbooks/incident-response.md)
 - [Observability](runbooks/observability.md)

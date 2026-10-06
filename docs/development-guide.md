@@ -1,6 +1,6 @@
 # ChurchCore Academy Development Guide
 
-Date: 2026-10-02
+Date: 2026-10-05
 Status: Canonical
 
 This is the single operating guide for ChurchCore Academy development. It combines the product objective, MVP and competitive status, Council process, Testing Council, software factory, implementation backlog, verification gates, and release discipline into one source of truth.
@@ -34,8 +34,9 @@ The latest MVP and competitive evaluation is `docs/reports/mvp-and-competitive-s
 - Academy is not live.
 - No Vercel project or hosted Academy Supabase project should be created until deployment is approved.
 - The approved repository-owned P0 and initial P1 slices have shipped.
-- Faculty-load incomplete-value accuracy and primary-path E2E coverage are implemented in the issue `#216` closeout and pending protected PR delivery.
-- After that delivery, the next evidence gate is an uncoached, authenticated pilot/design-partner session; deployment still requires explicit owner approval.
+- Faculty-load incomplete-value accuracy and primary-path E2E coverage shipped through protected main in PR `#217`.
+- Concealed Project HQ authorization and governance hardening shipped in PR `#220`; it is internal platform infrastructure, not a pilot workflow.
+- The active evidence gate is now an uncoached, authenticated pilot/design-partner session using the local-session protocol in `docs/acceptance/uncoached-pilot-session.md`; deployment still requires explicit owner approval.
 - Platform infrastructure, not a backlog item: every LLM call (today, only the concealed internal HQ advisory workbench for platform staff) goes through the OpenRouter gateway in `src/modules/ai-gateway/`, which handles continuous model evaluation, metering, and zero-retention routing (ADR 0078, PR #218). HQ specialists advise; they do not approve, ratify, or replace the canonical Council, Testing Council, owner decisions, verification, Documenter, or `pr-review` gates. No customer-facing or student-data AI surface exists. Any future one still requires ADR 0070's anonymization pipeline and separate Council approval.
 
 ## First Target Customer Profile
@@ -86,7 +87,7 @@ Remaining: none. Trusted public institution resolution shipped in PR `#201`; liv
 7. Advising and faculty-load intelligence.
    - Advisor caseload intelligence is complete with assignment-scoped advisor access and authorized oversight.
    - Initial faculty-load intelligence shipped with period-scoped teaching, enrollment, capacity, advising, and explainable review evidence.
-   - Issue `#216` corrects incomplete credit/hour/capacity presentation and adds primary aggregate E2E proof; protected PR delivery remains before pilot observation.
+   - Issue `#216` closed through PR `#217`, correcting incomplete credit/hour/capacity presentation and adding primary aggregate E2E proof.
    - Expand either workflow only with pilot evidence; do not introduce autonomous academic or employment decisions.
    - Keep outputs explainable and human-reviewed.
 
@@ -100,9 +101,8 @@ Remaining: none. Trusted public institution resolution shipped in PR `#201`; liv
 
 ### Next Evidence Gate
 
-Deliver the faculty-load correctness and primary-path browser coverage issue `#216`
-closeout through protected main, then run an uncoached, authenticated
-pilot/design-partner session and turn only observed
+Run an uncoached, authenticated pilot/design-partner session using
+`docs/acceptance/uncoached-pilot-session.md` and turn only observed
 workflow failures or adoption blockers into new stories. If that session requires a
 hosted Academy environment, obtain explicit owner approval for the deployment
 runbook and resources before creating them.
