@@ -105,3 +105,13 @@ test("students and guardians keep their own portals, and no roles is not teachin
   assert.equal(portalHomeFor({ roles: ["guardian"] }), "/guardian");
   assert.equal(isTeachingOnly({ roles: [] }), false);
 });
+
+test("faculty keep a path to ministry formation from the faculty portal; teachers are not shown it", () => {
+  // Faculty land on /faculty now, so the portal links /admin/formation for roles the list serves.
+  assert.equal(canOpenAdminHref(["faculty"], "/admin/formation"), true);
+  assert.equal(canOpenAdminHref(["teacher"], "/admin/formation"), false);
+  const layout = readFileSync("src/app/faculty/layout.tsx", "utf8");
+  assert.match(layout, /showFormationLink=\{formationEnabled && canOpenAdminHref\(actor\.roles, "\/admin\/formation"\)\}/);
+  const shell = readFileSync("src/components/faculty-shell.tsx", "utf8");
+  assert.match(shell, /showFormationLink\s*\n?\s*\? \{ \.\.\.section, items: \[\.\.\.section\.items, \{ label: "Ministry Formation", href: "\/admin\/formation" \}\] \}/);
+});

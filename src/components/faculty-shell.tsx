@@ -71,11 +71,18 @@ function sectionForPath(pathname: string): string | null {
   return null;
 }
 
-const FacultyAdminLinkContext = createContext(true);
+interface FacultyPortalLinks {
+  /** False for teaching-only users, who have no admin pages to open. */
+  showAdminLink: boolean;
+  /** Ministry formation records live under /admin; teaching-only users reach them from here. */
+  showFormationLink: boolean;
+}
 
-/** Set by the faculty layout: false for teaching-only users, who can't open the admin area. */
-export function FacultyAdminLinkProvider({ showAdminLink, children }: { showAdminLink: boolean; children: React.ReactNode }) {
-  return <FacultyAdminLinkContext.Provider value={showAdminLink}>{children}</FacultyAdminLinkContext.Provider>;
+const FacultyPortalLinksContext = createContext<FacultyPortalLinks>({ showAdminLink: true, showFormationLink: false });
+
+/** Set by the faculty layout from the actor's roles and the institution's capabilities. */
+export function FacultyPortalLinksProvider({ children, ...links }: FacultyPortalLinks & { children: React.ReactNode }) {
+  return <FacultyPortalLinksContext.Provider value={links}>{children}</FacultyPortalLinksContext.Provider>;
 }
 
 export interface FacultyShellProps {
@@ -96,7 +103,12 @@ export function FacultyShell({
   userEmail,
 }: FacultyShellProps) {
   const pathname = usePathname();
-  const showAdminLink = useContext(FacultyAdminLinkContext);
+  const { showAdminLink, showFormationLink } = useContext(FacultyPortalLinksContext);
+  const navSections = FACULTY_NAV.map((section) =>
+    section.id === "teaching" && showFormationLink
+      ? { ...section, items: [...section.items, { label: "Ministry Formation", href: "/admin/formation" }] }
+      : section,
+  );
   const [expanded, setExpanded] = useState<string | null>(
     sectionForPath(pathname) ?? "today",
   );
@@ -119,7 +131,7 @@ export function FacultyShell({
         </Link>
 
         <nav className="admin-nav" aria-label="Faculty navigation">
-          {FACULTY_NAV.map((section) => {
+          {navSections.map((section) => {
             const { Icon } = section;
             const isExpanded = expanded === section.id;
             const isActive = sectionForPath(pathname) === section.id;
