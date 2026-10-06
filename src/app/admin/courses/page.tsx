@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
 import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
@@ -74,7 +75,7 @@ type RepoPool = { query(sql: string, params: unknown[]): Promise<{ rowCount: num
 
 export default async function CoursesPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+  requireActor(actor, adminPageRoles("/admin/courses"));
 
   const { catalog, people, selectedPeriodId } = await withAcademyDatabaseContext(actor, async (client) => {
     const db = asAcademyDatabase<Queryable>(client);

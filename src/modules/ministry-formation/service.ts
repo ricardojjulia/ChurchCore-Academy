@@ -63,14 +63,23 @@ const evaluationRecorderRoles = new Set<AcademyRole>([
 
 const endorserRoles = new Set<AcademyRole>(["institution_admin"]);
 
-const formationViewerRoles = new Set<AcademyRole>([
+export const FORMATION_VIEWER_ROLES: readonly AcademyRole[] = [
   "faculty",
   "advisor",
   "institution_admin",
   "registrar",
   "academic_admin",
   "ministry_formation_reviewer",
-]);
+];
+
+const formationViewerRoles = new Set<AcademyRole>(FORMATION_VIEWER_ROLES);
+
+// Roles listStudentsWithFormationSummary() has a scope rule for. academic_admin passes the viewer
+// check but has no ADR-0045 scope there, so the list rejects it; whether it should see formation
+// records is an open privacy decision, so it is left out rather than given a scope here.
+export const FORMATION_SUMMARY_LIST_ROLES: readonly AcademyRole[] = FORMATION_VIEWER_ROLES.filter(
+  (role) => role !== "academic_admin",
+);
 
 const advisorAssignerRoles = new Set<AcademyRole>([
   "institution_admin",

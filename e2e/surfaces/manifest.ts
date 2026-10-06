@@ -33,7 +33,8 @@ export const STUDENT_RECORDS: readonly PersonaKey[] = ["institutionAdmin", "inst
 
 export const PAGE_MANIFEST: PageEntry[] = [
   { path: "/", access: STAFF, redirectsTo: "/admin" },
-  { path: "/admin", access: STAFF },
+  // Teaching-only personas are sent on to their own portal (/faculty), their persona home.
+  { path: "/admin", access: STAFF.filter((key) => !FACULTY.includes(key)) },
   { path: "/admin/admissions", access: ["institutionAdmin", "institutionAdmin2", "registrar", "admissions", "dean", "otherTenantAdmin"] },
   { path: "/admin/admissions/decisions", access: ["institutionAdmin", "institutionAdmin2", "registrar", "admissions", "dean", "otherTenantAdmin"] },
   { path: "/admin/admissions/drip-sequences", access: ["institutionAdmin", "institutionAdmin2", "otherTenantAdmin"] },

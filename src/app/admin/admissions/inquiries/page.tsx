@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { CapabilityGhostPage } from "@/components/ui/CapabilityGhostPage";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
@@ -45,10 +46,7 @@ function formatDate(dateString: string): string {
 }
 
 // Exported for nav gating in admin-shell.tsx
-export const INQUIRY_PIPELINE_ROLES: AcademyRole[] = [
-  "institution_admin",
-  "admissions",
-];
+export const INQUIRY_PIPELINE_ROLES: AcademyRole[] = adminPageRoles("/admin/admissions/inquiries");
 
 export default async function InquiriesListPage({
   searchParams,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -71,6 +71,13 @@ function sectionForPath(pathname: string): string | null {
   return null;
 }
 
+const FacultyAdminLinkContext = createContext(true);
+
+/** Set by the faculty layout: false for teaching-only users, who can't open the admin area. */
+export function FacultyAdminLinkProvider({ showAdminLink, children }: { showAdminLink: boolean; children: React.ReactNode }) {
+  return <FacultyAdminLinkContext.Provider value={showAdminLink}>{children}</FacultyAdminLinkContext.Provider>;
+}
+
 export interface FacultyShellProps {
   title: string;
   subtitle?: string;
@@ -89,6 +96,7 @@ export function FacultyShell({
   userEmail,
 }: FacultyShellProps) {
   const pathname = usePathname();
+  const showAdminLink = useContext(FacultyAdminLinkContext);
   const [expanded, setExpanded] = useState<string | null>(
     sectionForPath(pathname) ?? "today",
   );
@@ -199,11 +207,13 @@ export function FacultyShell({
             <p className="admin-eyebrow">{eyebrow ?? "Faculty"}</p>
             <h1 className="admin-title">{title}</h1>
           </div>
-          <div className="admin-topbar-right">
-            <Link href="/admin" className="faculty-switch-link">
-              Admin Engine Room →
-            </Link>
-          </div>
+          {showAdminLink && (
+            <div className="admin-topbar-right">
+              <Link href="/admin" className="faculty-switch-link">
+                Admin Engine Room →
+              </Link>
+            </div>
+          )}
         </header>
 
         {subtitle && (

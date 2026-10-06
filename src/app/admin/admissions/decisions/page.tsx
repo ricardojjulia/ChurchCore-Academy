@@ -13,6 +13,7 @@ import {
   PostgresAdmissionsRepository,
 } from "@/modules/admissions/postgres-repository";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ function daysSince(iso?: string) {
 
 export default async function AdmissionsDecisionsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "admissions"]);
+  requireActor(actor, adminPageRoles("/admin/admissions/decisions"));
 
   const applications = await withAcademyDatabaseContext(actor, (client) =>
     new PostgresAdmissionsRepository(

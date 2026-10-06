@@ -28,6 +28,8 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCurrentUser } from "@/lib/auth";
 import { getInstitutionProfile } from "@/lib/institution";
 import { requireActor } from "@/lib/require-actor";
+import { canOpenAdminHref } from "@/lib/admin-route-access";
+import { isTeachingOnly } from "@/lib/portal-access";
 import { STAFF_ROLES } from "@/app/admin/layout";
 import { canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import {
@@ -37,8 +39,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function getQuickActionGroups(canReadShepherdAi: boolean, canReadFacultyLoad: boolean) {
-  return [
+function getQuickActionGroups(canReadShepherdAi: boolean, canOpen: (href: string) => boolean) {
+  const groups = [
     {
       label: "Student records",
       description: "Daily admissions, enrollment, and academic record work",
@@ -55,9 +57,7 @@ function getQuickActionGroups(canReadShepherdAi: boolean, canReadFacultyLoad: bo
       actions: [
         { label: "Course Catalog", detail: "Courses, sections, and scheduling", href: "/admin/courses", Icon: BookOpen },
         { label: "Gradebook", detail: "Grade progress and posting queue", href: "/admin/gradebook", Icon: School },
-        ...(canReadFacultyLoad
-          ? [{ label: "Faculty", detail: "Staffing, load, and section setup", href: "/admin/faculty", Icon: BookOpenCheck }]
-          : []),
+        { label: "Faculty", detail: "Staffing, load, and section setup", href: "/admin/faculty", Icon: BookOpenCheck },
       ],
     },
     {
@@ -70,10 +70,14 @@ function getQuickActionGroups(canReadShepherdAi: boolean, canReadFacultyLoad: bo
         { label: "Communications", detail: "Messages and institutional notices", href: "/admin/communications", Icon: MessageSquare },
         { label: "Billing", detail: "Student ledger and payment activity", href: "/admin/billing", Icon: CircleDollarSign },
         { label: "Financial Aid", detail: "Awards and disbursement review", href: "/admin/financial-aid", Icon: HandCoins },
-        { label: "Student Portal", detail: "Preview the student-facing experience", href: "/student", Icon: ArrowRight },
       ],
     },
   ];
+  // Hide cards whose destination rejects this actor's roles (same map the pages guard with),
+  // then drop groups left empty.
+  return groups
+    .map((group) => ({ ...group, actions: group.actions.filter((action) => canOpen(action.href)) }))
+    .filter((group) => group.actions.length > 0);
 }
 
 type CountQueryResult = {
@@ -95,10 +99,12 @@ export default async function AdminDashboard() {
   // passes the layout's baseline gate should be able to see it (narrower pages further
   // down the tree restrict specific sensitive data, e.g. billing, separately).
   requireActor(actor, STAFF_ROLES);
+  // Teaching-only users have nothing to open here; their dashboard is the faculty portal.
+  if (isTeachingOnly(actor)) redirect("/faculty");
   const user = await getCurrentUser();
   const institution = await getInstitutionProfile(actor.tenantId);
   const canReadShepherdAi = canAccessShepherdAi(actor, actor.tenantId, "read");
-  const canReadFacultyLoad = actor.roles.some((role) => ["institution_admin", "dean", "academic_admin"].includes(role));
+  const canOpen = (href: string) => canOpenAdminHref(actor.roles, href);
 
   async function signOutAction() {
     "use server";
@@ -144,7 +150,7 @@ export default async function AdminDashboard() {
     faculty: suggestions.filter((s) => s.workflowCode === "faculty_or_course_assignment_imbalance_review").length,
   };
 
-  const quickActionGroups = getQuickActionGroups(canReadShepherdAi, canReadFacultyLoad);
+  const quickActionGroups = getQuickActionGroups(canReadShepherdAi, canOpen);
 
   const rawName = user?.email?.split("@")[0] ?? "there";
   const firstName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
@@ -193,7 +199,7 @@ export default async function AdminDashboard() {
           value={studentsCount}
           icon={<UsersRound />}
           detail="View and manage all records"
-          href="/admin/students"
+          href={canOpen("/admin/students") ? "/admin/students" : undefined}
         />
       </section>
 

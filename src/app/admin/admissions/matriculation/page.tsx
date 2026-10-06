@@ -9,6 +9,7 @@ import {
   withAcademyDatabaseContext,
 } from "@/lib/academy-database-context";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { fetchStudentRecords } from "@/lib/academy-read-models";
 import {
   AdmissionsDatabase,
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdmissionsEnrollmentPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "admissions"]);
+  requireActor(actor, adminPageRoles("/admin/admissions/matriculation"));
 
   const { applications, students } = await withAcademyDatabaseContext(actor, async (client) => {
     const [apps, allStudents] = await Promise.all([
