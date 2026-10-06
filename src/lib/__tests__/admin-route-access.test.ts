@@ -41,9 +41,9 @@ test("canOpenAdminHref rejects roles the destination page would deny", () => {
   assert.equal(canOpenAdminHref([], "/admin/students"), false);
 });
 
-test("academic_admin is not shown the formation list, which has no scope rule for it", () => {
-  assert.equal(canOpenAdminHref(["academic_admin"], "/admin/formation"), false);
-  assert.equal(canOpenAdminHref(["ministry_formation_reviewer"], "/admin/formation"), true);
+test("academic_admin can open the formation list (ADR-0079 records-office view)", () => {
+  assert.equal(canOpenAdminHref(["academic_admin"], "/admin/formation"), true);
+  assert.equal(canOpenAdminHref(["finance"], "/admin/formation"), false);
 });
 
 test("canOpenAdminHref leaves hrefs outside the map to their own gate", () => {

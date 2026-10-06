@@ -1,5 +1,5 @@
 import type { AcademyRole } from "@/modules/academy-auth/policy";
-import { FORMATION_SUMMARY_LIST_ROLES } from "@/modules/ministry-formation/service";
+import { FORMATION_VIEWER_ROLES } from "@/modules/ministry-formation/service";
 
 // Single source of truth for the role allowlist of every role-gated /admin page that the admin
 // nav or the dashboard links to. Each page passes its entry to requireActor(), and the nav and
@@ -32,7 +32,7 @@ export const ADMIN_PAGE_ROLES = {
   "/admin/billing": ["institution_admin", "finance", "registrar"],
   "/admin/financial-aid": ["institution_admin", "finance", "registrar"],
   "/admin/reporting": ["institution_admin", "dean", "registrar", "academic_admin", "finance"],
-  "/admin/formation": FORMATION_SUMMARY_LIST_ROLES,
+  "/admin/formation": FORMATION_VIEWER_ROLES,
 } as const satisfies Record<string, readonly AcademyRole[]>;
 
 export type RoleGatedAdminHref = keyof typeof ADMIN_PAGE_ROLES;

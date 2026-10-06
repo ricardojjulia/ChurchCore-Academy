@@ -60,12 +60,12 @@ This is the fourth time this bug class has shipped (PR #108, #120, #128), each t
 - The dashboard's "Student Portal" card is removed. It redirected every staff role back to `/admin`.
 - `e2e/admin-nav-links.spec.ts` fails if any staff persona can see a link it can't open. Unit tests fail if a role-gated page stops using its map entry, or if a new nav/dashboard link isn't role-checked.
 
-## Open question for the owner
+## Owner decision: academic admins and formation records
 
-`academic_admin` is on the ministry formation viewer list, but `listStudentsWithFormationSummary` has no ADR-0045 scope for it, so the formation list always rejects it. The nav now hides the link for that role. Whether academic admins should see formation records is a privacy decision; it was not made here.
+`academic_admin` was on the ministry formation viewer list, but the formation list and per-student record had no ADR-0045 scope for it, so both always rejected it. The owner decided on 2026-10-06 that academic admins get the registrar's records-office view: endorsed records across the tenant, no drafts, never pastoral notes. Recorded in ADR-0079 and shipped in the same PR.
 
 ## Before the participant session
 
-1. Reset and reseed the local DB, with programs, registrations, released schedule items, and one submitted application.
+1. ~~Reset and reseed the local DB~~ (done 2026-10-06), then add programs, registrations, released schedule items, and one submitted application through the app.
 2. Re-run `npm run verify:pilot-readiness` and `npm run verify:role-walkthrough`.
 3. Confirm login from the participant's VM browser.
