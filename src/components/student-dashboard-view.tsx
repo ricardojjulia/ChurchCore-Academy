@@ -1,5 +1,6 @@
 import type React from "react";
 import Link from "next/link";
+import { formatScheduleStart } from "@/modules/student-pwa/schedule-format";
 import {
   ArrowRight,
   BookOpen,
@@ -67,7 +68,7 @@ export function StudentDashboardView({ model }: { model: StudentDashboardReadMod
                 <span className="student-pwa-next-item-icon"><CalendarDays /></span>
                 <span>
                   <strong>{nextScheduleItem.title}</strong>
-                  <small>{formatStudentDate(nextScheduleItem.startsAt)}{nextScheduleItem.location ? ` · ${nextScheduleItem.location}` : ""}</small>
+                  <small>{formatScheduleStart(nextScheduleItem.startsAt)}{nextScheduleItem.location ? ` · ${nextScheduleItem.location}` : ""}</small>
                 </span>
                 <ArrowRight />
               </Link>
@@ -109,7 +110,7 @@ export function StudentDashboardView({ model }: { model: StudentDashboardReadMod
                 <div className="student-pwa-record-row" key={item.id}>
                   <div>
                     <strong>{item.title}</strong>
-                    <span>{formatStudentDate(item.startsAt)}</span>
+                    <span>{formatScheduleStart(item.startsAt)}</span>
                   </div>
                   <small>{item.location ?? "Location pending"}</small>
                 </div>
@@ -241,12 +242,3 @@ function StudentEmptyState({
   );
 }
 
-function formatStudentDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/New_York",
-  }).format(new Date(value));
-}
