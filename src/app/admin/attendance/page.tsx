@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { fetchSectionList } from "@/lib/academy-read-models";
 
@@ -24,7 +25,7 @@ interface SectionAttendanceSummary {
 
 export default async function AdminAttendancePage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+  requireActor(actor, adminPageRoles("/admin/attendance"));
   const user = await getCurrentUser();
 
   async function signOutAction() {

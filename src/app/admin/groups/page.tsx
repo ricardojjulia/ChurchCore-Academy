@@ -1,6 +1,7 @@
 import { AdminShell } from "@/components/admin-shell";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import {
   PostgresStudentGroupRepository,
   type StudentGroupDatabase,
@@ -9,7 +10,7 @@ import { StudentGroupsClient } from "./StudentGroupsClient";
 
 export default async function StudentGroupsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+  requireActor(actor, adminPageRoles("/admin/groups"));
   const data = await withAcademyDatabaseContext(actor, async (client) => {
     const database = asAcademyDatabase<StudentGroupDatabase>(client);
     const repository = new PostgresStudentGroupRepository(database);

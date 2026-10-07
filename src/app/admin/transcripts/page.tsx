@@ -3,6 +3,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { TranscriptIssuanceForm } from "@/components/admin/transcript-issuance-form";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TranscriptsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+  requireActor(actor, adminPageRoles("/admin/transcripts"));
   const user = await getCurrentUser();
 
   async function signOutAction() {

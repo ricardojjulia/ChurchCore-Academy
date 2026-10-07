@@ -63,14 +63,16 @@ const evaluationRecorderRoles = new Set<AcademyRole>([
 
 const endorserRoles = new Set<AcademyRole>(["institution_admin"]);
 
-const formationViewerRoles = new Set<AcademyRole>([
+export const FORMATION_VIEWER_ROLES: readonly AcademyRole[] = [
   "faculty",
   "advisor",
   "institution_admin",
   "registrar",
   "academic_admin",
   "ministry_formation_reviewer",
-]);
+];
+
+const formationViewerRoles = new Set<AcademyRole>(FORMATION_VIEWER_ROLES);
 
 const advisorAssignerRoles = new Set<AcademyRole>([
   "institution_admin",
@@ -94,6 +96,12 @@ function requireText(value: string, field: string): string {
 // Helper: Check if actor has full reviewer access (institution_admin bypass or explicit reviewer role)
 function hasReviewerAccess(actor: AcademyActor): boolean {
   return actor.roles.includes("institution_admin") || actor.roles.includes("ministry_formation_reviewer");
+}
+
+// Records-office view (ADR-0045, extended to academic_admin by ADR-0079): endorsed records across
+// the tenant, no drafts. Full reviewer access is never narrowed by also holding one of these roles.
+function hasEndorsedOnlyAccess(actor: AcademyActor): boolean {
+  return (actor.roles.includes("registrar") || actor.roles.includes("academic_admin")) && !hasReviewerAccess(actor);
 }
 
 // Helper: Check if actor can see pastoral notes on a specific evaluation
@@ -696,7 +704,7 @@ export async function listStudentsWithFormationSummary(
   // - institution_admin or ministry_formation_reviewer: full tenant scope
   // - faculty: only students in their own sections (via academy_course_sections.instructor_person_id joined through academy_registrations)
   // - advisor: only students where they are the formation advisor (via ministry_formation_advisor_assignments.advisor_person_id)
-  // - registrar: endorsed-only records across full tenant
+  // - registrar and academic_admin (ADR-0079): endorsed-only records across full tenant
 
   const isReviewer = hasReviewerAccess(actor);
   const isFaculty = actor.roles.some(r => r === "faculty" || r === "teacher" || r === "professor");
@@ -707,7 +715,7 @@ export async function listStudentsWithFormationSummary(
   // an actor also happens to hold. Without the `!isReviewer` guard, any dual-role actor (the
   // demo institution_admin persona also holds registrar) would have every draft record they
   // just created silently hidden from them, making endorsement impossible.
-  const isRegistrar = actor.roles.includes("registrar") && !isReviewer;
+  const isEndorsedOnly = hasEndorsedOnlyAccess(actor);
 
   // Scoping is expressed as an EXISTS subquery, not a JOIN, so it can never multiply the
   // one-row-per-student result (a JOIN to a one-to-many table like section registrations
@@ -739,8 +747,8 @@ export async function listStudentsWithFormationSummary(
           and fa.advisor_person_id = $2
       )
     `;
-  } else if (isRegistrar) {
-    // Registrar scoping: endorsed-only records across full tenant
+  } else if (isEndorsedOnly) {
+    // Registrar / academic_admin scoping: endorsed-only records across full tenant
     scopeWhere = "p.tenant_id = $1";
   } else {
     // Fallback: no scope (should not happen if hasFormationViewerAccess passed)
@@ -770,19 +778,19 @@ export async function listStudentsWithFormationSummary(
      left join (
        select student_person_id, tenant_id, sum(hours) as total_hours
        from public.ministry_practicum_sessions
-       where true ${isRegistrar ? "and status = 'endorsed'" : ""}
+       where true ${isEndorsedOnly ? "and status = 'endorsed'" : ""}
        group by student_person_id, tenant_id
      ) prac on prac.student_person_id = p.id and prac.tenant_id = p.tenant_id
      left join (
        select student_person_id, tenant_id, count(*) as milestone_count
        from public.ministry_faith_milestones
-       where true ${isRegistrar ? "and status = 'endorsed'" : ""}
+       where true ${isEndorsedOnly ? "and status = 'endorsed'" : ""}
        group by student_person_id, tenant_id
      ) mile on mile.student_person_id = p.id and mile.tenant_id = p.tenant_id
      left join (
        select student_person_id, tenant_id, count(*) as evaluation_count
        from public.ministry_formation_evaluations
-       where true ${isRegistrar ? "and status = 'endorsed'" : ""}
+       where true ${isEndorsedOnly ? "and status = 'endorsed'" : ""}
        group by student_person_id, tenant_id
      ) evals on evals.student_person_id = p.id and evals.tenant_id = p.tenant_id
      left join (
@@ -906,9 +914,10 @@ export async function getStudentFormationRecord(
     const isReviewer = hasReviewerAccess(actor);
     const isFaculty = actor.roles.some(r => r === "faculty" || r === "teacher" || r === "professor");
     const isAdvisor = actor.roles.includes("advisor");
-    const isRegistrar = actor.roles.includes("registrar");
+    // Registrar and academic_admin (ADR-0079) get the tenant-wide records-office view.
+    const hasRecordsOfficeView = actor.roles.includes("registrar") || actor.roles.includes("academic_admin");
 
-    if (!isReviewer && !isRegistrar) {
+    if (!isReviewer && !hasRecordsOfficeView) {
       // Faculty or advisor must have explicit relationship to this student
       if (isFaculty) {
         // Faculty scoping: student must be in one of their sections
@@ -943,7 +952,7 @@ export async function getStudentFormationRecord(
         }
       } else {
         // Any other formation-viewer role without explicit scoping must be denied
-        // This prevents academic_admin (or any future role) from getting unscoped tenant-wide access
+        // This prevents any future viewer role from getting unscoped tenant-wide access by default
         throw new AcademyAuthorizationError(
           "Forbidden formation record access.",
         );
@@ -1075,7 +1084,7 @@ export async function getStudentFormationRecord(
   // Registrar sees only endorsed records (no drafts) — unless they also hold full reviewer
   // access (institution_admin or ministry_formation_reviewer), which must not be narrowed by
   // also holding the registrar role. See the matching guard in listStudentsWithFormationSummary.
-  const isRegistrar = actor.roles.includes("registrar") && !hasReviewerAccess(actor);
+  const isRegistrar = hasEndorsedOnlyAccess(actor);
 
   // If student, strip pastoralNotes and filter to endorsed-only records
   if (isStudent) {

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { fetchStudentRecords, fetchProgramList } from "@/lib/academy-read-models";
 
@@ -22,7 +23,7 @@ function statusVariant(status: string) {
 
 export default async function StudentsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  requireActor(actor, adminPageRoles("/admin/students"));
   const { students, programs } = await withAcademyDatabaseContext(actor, async (client) => {
     const [s, p] = await Promise.all([
       fetchStudentRecords(actor.tenantId, client),

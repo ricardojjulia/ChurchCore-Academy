@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { fetchSectionList, fetchStudentRecords } from "@/lib/academy-read-models";
+import { sectionsForActor } from "@/lib/faculty-section-scope";
 import { FacultyAttendanceForm } from "./faculty-attendance-form";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,8 @@ export default async function FacultyAttendancePage() {
       fetchStudentRecords(actor.tenantId, client),
     ]);
     return {
-      sections: allSections.map((s) => ({ id: s.id, code: s.code, title: s.title, rosterCount: s.rosterCount })),
+      // Only sections the attendance service will accept from this actor.
+      sections: sectionsForActor(allSections, actor).map((s) => ({ id: s.id, code: s.code, title: s.title, rosterCount: s.rosterCount })),
       students: allStudents
         .filter((s) => s.enrollmentStatus === "active" || s.enrollmentStatus === "admitted")
         .map((s) => ({ id: s.id, name: s.fullName })),

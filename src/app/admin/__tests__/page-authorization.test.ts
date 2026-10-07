@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import { ACADEMY_FORBIDDEN_DIGEST, AcademyAuthorizationError, isAuthorizationDenial } from "@/modules/academy-auth/errors";
+import { ADMIN_PAGE_ROLES, type RoleGatedAdminHref } from "@/lib/admin-route-access";
+import { portalHomeFor } from "@/lib/portal-access";
 
 // Regression coverage for the admin-page authorization fix (PR #106): every page under
 // src/app/admin/ previously called requireActor() with no role argument (authentication
@@ -77,16 +79,27 @@ const institutionConfigPages: string[] = [
 for (const { path, roles } of requireActorPages) {
   test(`${path} requires an authorized role before rendering`, async () => {
     const source = await readPage(path);
-    // The two-arg call takes either an inline array literal (requireActor(actor, [...])) or a
-    // named exported role-list const (requireActor(actor, SOME_ROLES)) — the latter pattern
-    // exists so other call sites (e.g. the sidebar nav) can import the same list instead of a
-    // hand-typed copy that can drift. Either form is real role enforcement; only the bare
-    // zero-arg requireActor() (authentication only, no role check) must fail this assertion.
+    // The two-arg call takes an inline array literal (requireActor(actor, [...])), a named
+    // exported role-list const (requireActor(actor, SOME_ROLES)), or the shared nav/page map
+    // (requireActor(actor, adminPageRoles("/admin/..."))) — the last two exist so the nav and
+    // dashboard use the same list instead of a hand-typed copy that can drift. All are real role
+    // enforcement; only the bare zero-arg requireActor() (authentication only) must fail.
     assert.match(
       source,
-      /requireActor\(actor, (\[|[A-Z][A-Z0-9_]*\))/,
-      `${path} no longer calls the two-arg requireActor(actor, [roles] | ROLES_CONST) form`,
+      /requireActor\(actor, (\[|[A-Z][A-Z0-9_]*\)|adminPageRoles\(")/,
+      `${path} no longer calls the two-arg requireActor(actor, [roles] | ROLES_CONST | adminPageRoles(href)) form`,
     );
+    // A page guarded through the shared map is checked against that map entry (the map is what
+    // the page enforces); a page with an inline list is checked against its own source.
+    const mapped = source.match(/adminPageRoles\("([^"]+)"\)/)?.[1] as RoleGatedAdminHref | undefined;
+    if (mapped) {
+      assert.deepEqual(
+        [...ADMIN_PAGE_ROLES[mapped]].sort(),
+        [...roles].sort(),
+        `${path} guards with adminPageRoles("${mapped}"), whose roles changed`,
+      );
+      return;
+    }
     for (const role of roles) {
       assert.match(
         source,
@@ -163,9 +176,12 @@ test("admin layout does not redirect a blocked actor back through \"/\" (which r
   assert.match(source, /redirectTargetFor\(actor\)/);
 });
 
-test("root page still unconditionally redirects to /admin (documents the loop risk any future admin-gate redirect must avoid)", async () => {
+test("root page redirects to the actor's portal home, never back to \"/\" (the loop any admin-gate redirect must avoid)", async () => {
   const source = await readPage("src/app/page.tsx");
-  assert.match(source, /redirect\(["']\/admin["']\)/);
+  assert.match(source, /redirect\(portalHomeFor\(actor\)\)/);
+  for (const roles of [["student"], ["guardian"], ["faculty"], ["applicant"], ["institution_admin"]] as const) {
+    assert.notEqual(portalHomeFor({ roles: [...roles] }), "/");
+  }
 });
 
 test("platform demo-feedback route stays outside the /admin layout gate", async () => {
