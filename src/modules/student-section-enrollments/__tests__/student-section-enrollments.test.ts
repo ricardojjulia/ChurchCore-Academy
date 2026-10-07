@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 import { PostgresStudentSectionEnrollmentRepository } from "../postgres-repository";
 import { StudentSectionEnrollmentService } from "../service";
 import type { StudentSectionEnrollment } from "../types";
@@ -134,6 +135,49 @@ test("repository creates missing period registration from active program members
   assert.ok(calls.some((call) => call.sql.includes("insert into academy_period_registrations")));
   assert.ok(calls.some((call) => call.sql.includes("insert into academy_course_section_registrations")));
   assert.ok(calls.some((call) => call.sql.includes("update academy_student_profiles")));
+});
+
+// Section state conflicts used to be plain Errors, which the API returned as a 500 "Unexpected
+// API error" (2026-10-06 pilot dry run). They are 409 conflicts with a message staff can act on.
+function repoWithSection(section: { status: string; capacity: number | null; current_enrollment: number }) {
+  return new PostgresStudentSectionEnrollmentRepository({
+    async query(sql) {
+      if (sql.includes("from academy_student_profiles")) {
+        return { rowCount: 1, rows: [{ id: "student-profile-1", person_id: "person-student-1" }] };
+      }
+      if (sql.includes("from academy_program_enrollments")) {
+        return { rowCount: 1, rows: [{ id: "program-enrollment-1", student_person_id: "person-student-1" }] };
+      }
+      if (sql.includes("from academy_course_sections") && sql.includes("for update")) {
+        return { rowCount: 1, rows: [{ id: "section-1", academic_period_id: "period-1", ...section }] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+  });
+}
+
+test("repository rejects a section that is not open as a conflict", async () => {
+  const repo = repoWithSection({ status: "scheduled", capacity: 20, current_enrollment: 0 });
+  await assert.rejects(
+    repo.assignSection("tenant-1", { studentProfileId: "student-profile-1", courseSectionId: "section-1" }),
+    (error: unknown) => {
+      assert.ok(error instanceof AcademyConflictError);
+      assert.match(error.message, /Course section is scheduled; only open or in-progress sections accept enrollment/);
+      return true;
+    },
+  );
+});
+
+test("repository rejects a full section as a conflict", async () => {
+  const repo = repoWithSection({ status: "open", capacity: 2, current_enrollment: 2 });
+  await assert.rejects(
+    repo.assignSection("tenant-1", { studentProfileId: "student-profile-1", courseSectionId: "section-1" }),
+    (error: unknown) => {
+      assert.ok(error instanceof AcademyConflictError);
+      assert.match(error.message, /capacity is full/);
+      return true;
+    },
+  );
 });
 
 test("repository returns existing active registration idempotently", async () => {

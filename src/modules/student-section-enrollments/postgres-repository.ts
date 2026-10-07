@@ -1,4 +1,5 @@
 import { getDatabasePool } from "@/lib/database";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 import type {
   AvailableStudentSection,
   AssignStudentSectionInput,
@@ -153,7 +154,7 @@ export class PostgresStudentSectionEnrollmentRepository implements StudentSectio
 
     const sectionStatus = String(sectionRow.status);
     if (sectionStatus !== "open" && sectionStatus !== "in_progress") {
-      throw new Error(`Course section is ${sectionStatus}.`);
+      throw new AcademyConflictError(`Course section is ${sectionStatus}; only open or in-progress sections accept enrollment.`);
     }
 
     const existing = await this.database.query(
@@ -171,7 +172,7 @@ export class PostgresStudentSectionEnrollmentRepository implements StudentSectio
     if (existing.rows[0]) return mapEnrollment(existing.rows[0]);
 
     if (sectionRow.capacity != null && Number(sectionRow.current_enrollment ?? 0) >= Number(sectionRow.capacity)) {
-      throw new Error("Course section capacity is full.");
+      throw new AcademyConflictError("Course section capacity is full.");
     }
 
     const periodRegistration = await this.database.query(

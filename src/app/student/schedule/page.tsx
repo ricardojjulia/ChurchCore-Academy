@@ -1,6 +1,7 @@
 import { CalendarDays, ShieldCheck } from "lucide-react";
 import { StudentPwaShell } from "@/components/student-pwa-shell";
 import { loadStudentPwaPageModel } from "@/modules/student-pwa/server-read-model";
+import { formatScheduleStart } from "@/modules/student-pwa/schedule-format";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function StudentSchedulePage() {
               </span>
               <div>
                 <strong>{item.title}</strong>
-                <span>{formatScheduleDate(item.startsAt)}</span>
+                <span>{formatScheduleStart(item.startsAt)}</span>
               </div>
               <small>{item.location ?? "Location pending"}</small>
             </article>
@@ -40,12 +41,3 @@ export default async function StudentSchedulePage() {
   );
 }
 
-function formatScheduleDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/New_York",
-  }).format(new Date(value));
-}
