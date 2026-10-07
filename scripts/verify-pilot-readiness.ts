@@ -1,6 +1,9 @@
+import { readdir } from "node:fs/promises";
 import { Pool } from "pg";
 import {
   assessPilotEndpoint,
+  describePendingMigrations,
+  findPendingMigrations,
   sanitizedEndpoint,
 } from "@/modules/acceptance/pilot-readiness";
 
@@ -26,7 +29,7 @@ async function main() {
     console.log(`[pilot readiness] ${endpoint.label}: ${sanitizedEndpoint(endpoint)} (${endpoint.classification})`);
   }
   console.log(`[pilot readiness] Supabase Auth: reachable`);
-  console.log(`[pilot readiness] Postgres: reachable`);
+  console.log(`[pilot readiness] Postgres: reachable, all migrations applied`);
   console.log(`[pilot readiness] Academy login: ${skipApp ? "skipped" : "reachable"}`);
   console.log(`[pilot readiness] PASS — local/private topology only; no credentials printed`);
 }
@@ -42,9 +45,33 @@ async function verifyDatabase(connectionString: string) {
   const pool = new Pool({ connectionString, connectionTimeoutMillis: timeoutMs, max: 1 });
   try {
     await pool.query("select 1 as ready");
+    const pending = findPendingMigrations(await readdir("supabase/migrations"), await appliedMigrationNames(pool));
+    if (pending.length > 0) throw new Error(describePendingMigrations(pending));
   } finally {
     await pool.end();
   }
+}
+
+// Names from both trackers: db:migrate:local records file names; the Supabase CLI records
+// version + name. Either tracker may be missing on a given database.
+async function appliedMigrationNames(pool: Pool): Promise<string[]> {
+  const names: string[] = [];
+  const tables = await pool.query<{ repo: boolean; cli: boolean }>(
+    `select to_regclass('public.schema_migrations') is not null as repo,
+            to_regclass('supabase_migrations.schema_migrations') is not null as cli`,
+  );
+  const { repo, cli } = tables.rows[0] ?? { repo: false, cli: false };
+  if (repo) {
+    const rows = await pool.query<{ name: string }>("select name from public.schema_migrations");
+    names.push(...rows.rows.map((row) => row.name));
+  }
+  if (cli) {
+    const rows = await pool.query<{ file: string }>(
+      "select version || '_' || name || '.sql' as file from supabase_migrations.schema_migrations where name is not null",
+    );
+    names.push(...rows.rows.map((row) => row.file));
+  }
+  return names;
 }
 
 async function verifyAcademy(baseUrl: string) {
