@@ -28,11 +28,18 @@ export interface PilotSectionEnrollment {
   courseSectionId: string;
 }
 
+export interface PilotInstructorAssignment {
+  instructorPersonId: string;
+  courseSectionId: string;
+}
+
 export interface PilotSeedPlan {
   tenantId: string;
   memberships: PilotMembership[];
   application: PilotApplication;
-  enrollment: PilotSectionEnrollment;
+  /** Given before enrollments, so faculty tasks 8-10 have a section with a roster. */
+  instructorAssignments: PilotInstructorAssignment[];
+  enrollments: PilotSectionEnrollment[];
 }
 
 const BACHELOR_OF_THEOLOGY = "BTH";
@@ -56,11 +63,17 @@ export const PILOT_SEED_PLAN: PilotSeedPlan = {
     programCode: BACHELOR_OF_THEOLOGY,
     idempotencyKey: "pilot-prep-create-maya-bth",
   },
-  enrollment: {
-    studentProfileId: "student-profile-lena",
-    courseId: "demo-multi-course-algebra",
-    courseSectionId: "demo-multi-section-algebra",
-  },
+  // The faculty pilot login (Felix Faculty) teaches nothing in the base seed; CAP-490 has no
+  // instructor. The teacher login (Sophia Marsh) already teaches Algebra II.
+  instructorAssignments: [
+    { instructorPersonId: "person-acceptance-faculty", courseSectionId: "sec-cap490" },
+  ],
+  enrollments: [
+    // Task 11: the student login's schedule and courses.
+    { studentProfileId: "student-profile-lena", courseId: "demo-multi-course-algebra", courseSectionId: "demo-multi-section-algebra" },
+    // Tasks 8-10: a student on the faculty login's roster.
+    { studentProfileId: "student-profile-naomi", courseId: "course-cap490", courseSectionId: "sec-cap490" },
+  ],
 };
 
 /** The operations the runner needs; the script wires them to the real module services. */
@@ -71,6 +84,7 @@ export interface PilotSeedSteps {
   /** Creates (idempotently) and submits the application; returns its id. */
   ensureSubmittedApplication(application: PilotApplication, programId: string): Promise<string>;
   sectionStatus(courseSectionId: string): Promise<string | null>;
+  assignInstructor(assignment: PilotInstructorAssignment): Promise<void>;
   openSection(courseId: string, courseSectionId: string): Promise<void>;
   enroll(enrollment: PilotSectionEnrollment): Promise<void>;
 }
@@ -78,8 +92,9 @@ export interface PilotSeedSteps {
 export interface PilotSeedSummary {
   memberships: number;
   applicationId: string;
-  sectionOpened: boolean;
-  enrolledStudentProfileId: string;
+  instructorAssignments: number;
+  sectionsOpened: string[];
+  enrolledStudentProfileIds: string[];
 }
 
 export async function runPilotSeed(steps: PilotSeedSteps, plan: PilotSeedPlan = PILOT_SEED_PLAN): Promise<PilotSeedSummary> {
@@ -95,21 +110,38 @@ export async function runPilotSeed(steps: PilotSeedSteps, plan: PilotSeedPlan = 
   }
   const applicationId = await steps.ensureSubmittedApplication(plan.application, programIds.get(plan.application.programCode)!);
 
-  const status = await steps.sectionStatus(plan.enrollment.courseSectionId);
-  if (status === null) {
-    throw new Error(`Section ${plan.enrollment.courseSectionId} was not found. Run npm run db:seed:local first.`);
+  // Check every section exists before changing any of them.
+  const sectionIds = [...new Set([
+    ...plan.instructorAssignments.map((a) => a.courseSectionId),
+    ...plan.enrollments.map((e) => e.courseSectionId),
+  ])];
+  const statuses = new Map<string, string>();
+  for (const sectionId of sectionIds) {
+    const status = await steps.sectionStatus(sectionId);
+    if (status === null) throw new Error(`Section ${sectionId} was not found. Run npm run db:seed:local first.`);
+    statuses.set(sectionId, status);
   }
-  const sectionOpened = status !== "open" && status !== "in_progress";
-  if (sectionOpened) {
-    await steps.openSection(plan.enrollment.courseId, plan.enrollment.courseSectionId);
+
+  for (const assignment of plan.instructorAssignments) {
+    await steps.assignInstructor(assignment);
   }
-  await steps.enroll(plan.enrollment);
+
+  const sectionsOpened: string[] = [];
+  for (const enrollment of plan.enrollments) {
+    const status = statuses.get(enrollment.courseSectionId);
+    if (status !== "open" && status !== "in_progress" && !sectionsOpened.includes(enrollment.courseSectionId)) {
+      await steps.openSection(enrollment.courseId, enrollment.courseSectionId);
+      sectionsOpened.push(enrollment.courseSectionId);
+    }
+    await steps.enroll(enrollment);
+  }
 
   return {
     memberships: plan.memberships.length,
     applicationId,
-    sectionOpened,
-    enrolledStudentProfileId: plan.enrollment.studentProfileId,
+    instructorAssignments: plan.instructorAssignments.length,
+    sectionsOpened,
+    enrolledStudentProfileIds: plan.enrollments.map((e) => e.studentProfileId),
   };
 }
 

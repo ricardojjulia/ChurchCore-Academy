@@ -8,6 +8,7 @@ import { assertCapability } from "@/modules/academy-auth/policy";
 import { assertLocalSeedTarget, runPilotSeed } from "@/modules/acceptance/pilot-seed";
 import { normalizeCreateAdmissionApplicationInput } from "@/modules/admissions/validation";
 import { AcademyCourseCatalogRepository, type CourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
+import { assignInstructor } from "@/modules/course-catalog/mutations";
 import { CourseCatalogService } from "@/modules/course-catalog/service";
 import {
   PostgresStudentProgramMembershipRepository,
@@ -95,6 +96,11 @@ async function main() {
         return result.rows[0]?.status ?? null;
       }),
 
+    assignInstructor: (assignment) =>
+      withAcademyDatabaseContext(actor, async (client) => {
+        await assignInstructor(actor, assignment.courseSectionId, assignment.instructorPersonId, asAcademyDatabase<Queryable>(client));
+      }),
+
     openSection: (_courseId, courseSectionId) =>
       withAcademyDatabaseContext(actor, async (client) => {
         const service = new CourseCatalogService(
@@ -117,7 +123,9 @@ async function main() {
 
   console.log(
     `Pilot data ready: ${summary.memberships} program memberships, application ${summary.applicationId} submitted, ` +
-      `section ${summary.sectionOpened ? "opened" : "already open"}, ${summary.enrolledStudentProfileId} enrolled.`,
+      `${summary.instructorAssignments} instructor assignment(s), ` +
+      `sections opened: ${summary.sectionsOpened.length ? summary.sectionsOpened.join(", ") : "none needed"}, ` +
+      `enrolled: ${summary.enrolledStudentProfileIds.join(", ")}.`,
   );
 }
 

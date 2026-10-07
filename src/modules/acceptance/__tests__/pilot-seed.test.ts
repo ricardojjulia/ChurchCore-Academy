@@ -24,6 +24,9 @@ function fakeSteps(sectionStatus: string | null, knownPrograms = ["BTH", "AA-ML"
       calls.push(`status:${courseSectionId}`);
       return sectionStatus;
     },
+    async assignInstructor(assignment) {
+      calls.push(`instructor:${assignment.instructorPersonId}:${assignment.courseSectionId}`);
+    },
     async openSection(_courseId, courseSectionId) {
       calls.push(`open:${courseSectionId}`);
     },
@@ -34,13 +37,16 @@ function fakeSteps(sectionStatus: string | null, knownPrograms = ["BTH", "AA-ML"
   return { steps, calls };
 }
 
-test("pilot seed creates memberships, the application, opens the section, then enrolls", async () => {
+test("pilot seed creates memberships, the application, assigns faculty, opens sections, then enrolls", async () => {
   const { steps, calls } = fakeSteps("scheduled");
   const summary = await runPilotSeed(steps);
 
   assert.equal(summary.memberships, PILOT_SEED_PLAN.memberships.length);
   assert.equal(summary.applicationId, "application-1");
-  assert.equal(summary.sectionOpened, true);
+  assert.deepEqual(summary.sectionsOpened, ["demo-multi-section-algebra", "sec-cap490"]);
+  assert.deepEqual(summary.enrolledStudentProfileIds, ["student-profile-lena", "student-profile-naomi"]);
+  assert.ok(calls.indexOf("instructor:person-acceptance-faculty:sec-cap490") < calls.indexOf("enroll:student-profile-naomi"),
+    "the faculty login teaches the section before its student is enrolled");
   assert.ok(calls.indexOf("open:demo-multi-section-algebra") < calls.indexOf("enroll:student-profile-lena"),
     "the section must be open before enrollment");
   assert.ok(calls.indexOf("membership:student-profile-lena:id-DEMO-K12-UPP") < calls.indexOf("enroll:student-profile-lena"),
@@ -50,7 +56,7 @@ test("pilot seed creates memberships, the application, opens the section, then e
 test("pilot seed re-run leaves an already-open section alone", async () => {
   const { steps, calls } = fakeSteps("open");
   const summary = await runPilotSeed(steps);
-  assert.equal(summary.sectionOpened, false);
+  assert.deepEqual(summary.sectionsOpened, []);
   assert.ok(!calls.some((call) => call.startsWith("open:")));
   assert.ok(calls.includes("enroll:student-profile-lena"));
 });
@@ -71,7 +77,8 @@ test("pilot seed writes nothing when a program is missing", async () => {
 test("pilot seed stops with a fix when the base seed has not run", async () => {
   const { steps, calls } = fakeSteps(null);
   await assert.rejects(runPilotSeed(steps), /Run npm run db:seed:local first/);
-  assert.ok(!calls.some((call) => call.startsWith("enroll:")));
+  assert.ok(!calls.some((call) => call.startsWith("enroll:") || call.startsWith("instructor:") || call.startsWith("open:")),
+    "no section is changed when any section is missing");
 });
 
 test("pilot seed only targets a local or private-network database", () => {
@@ -86,5 +93,15 @@ test("pilot seed plan stays inside the demo tenant and gives every enrolled stud
   for (const membership of PILOT_SEED_PLAN.memberships) {
     assert.doesNotMatch(membership.programCode, /^[0-9a-f-]{36}$/, "use program codes, not database-specific ids");
   }
-  assert.ok(withPrograms.has(PILOT_SEED_PLAN.enrollment.studentProfileId));
+  for (const enrollment of PILOT_SEED_PLAN.enrollments) {
+    assert.ok(withPrograms.has(enrollment.studentProfileId), enrollment.studentProfileId);
+  }
+});
+
+test("pilot seed gives the faculty pilot login a section with a student on its roster", () => {
+  const taught = PILOT_SEED_PLAN.instructorAssignments
+    .filter((assignment) => assignment.instructorPersonId === "person-acceptance-faculty")
+    .map((assignment) => assignment.courseSectionId);
+  assert.ok(taught.length > 0);
+  assert.ok(PILOT_SEED_PLAN.enrollments.some((enrollment) => taught.includes(enrollment.courseSectionId)));
 });
