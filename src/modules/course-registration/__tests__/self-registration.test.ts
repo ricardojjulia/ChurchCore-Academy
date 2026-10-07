@@ -5,6 +5,7 @@ import {
   dropStudentFromSection,
 } from "@/modules/course-registration/self-registration";
 import type { AcademyActor } from "@/modules/academy-auth/policy";
+import { AcademyConflictError } from "@/modules/academy-auth/errors";
 
 interface QueryResult {
   rowCount: number | null;
@@ -321,6 +322,10 @@ class MockDatabase {
     this.enrollmentWindows = [];
   }
 
+  clearPeriodRegistrations() {
+    this.periodRegistrations = [];
+  }
+
   getAuditEvents() {
     return this.auditEvents;
   }
@@ -429,6 +434,34 @@ describe("registerStudentForSection", () => {
         );
       },
       { message: /at capacity/ },
+    );
+  });
+
+  it("rejects a student not enrolled in the period as a conflict, with a message staff can act on", async () => {
+    // Previously a plain Error, which the API layer returned as a 500 "Unexpected API error"
+    // (found in the 2026-10-06 pilot dry run).
+    const actor: AcademyActor = {
+      userId: "student-123",
+      tenantId: "tenant-a",
+      roles: ["student"],
+    };
+    const db = new MockDatabase();
+    db.clearPeriodRegistrations();
+
+    await assert.rejects(
+      async () => {
+        await registerStudentForSection(
+          actor,
+          { sectionId: "section-123", studentPersonId: "student-123" },
+          db,
+        );
+      },
+      (error: unknown) => {
+        assert.ok(error instanceof AcademyConflictError);
+        assert.match(error.message, /not enrolled in this academic period/);
+        assert.doesNotMatch(error.message, /student-123/, "the message must not echo internal person ids");
+        return true;
+      },
     );
   });
 
