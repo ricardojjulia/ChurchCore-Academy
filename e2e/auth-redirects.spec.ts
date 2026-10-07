@@ -33,7 +33,7 @@ test("guardian cannot reach /admin — redirected to their own portal, no loop",
 
 // This is the specific regression: every one of these roles was excluded from the admin
 // dashboard's own role list, so login threw an uncaught error on the very first page.
-for (const persona of ["teacher", "faculty", "advisor", "academicAdmin", "registrar", "finance", "admissions", "institutionAdmin", "formationReviewer"] as const) {
+for (const persona of ["advisor", "academicAdmin", "registrar", "finance", "admissions", "institutionAdmin", "formationReviewer"] as const) {
   test(`${persona} login lands on a working /admin dashboard, not an error page`, async ({ page }) => {
     await loginAs(page, PERSONAS[persona]);
     await expect(page).toHaveURL(/\/admin(\/|$)/);
@@ -41,5 +41,18 @@ for (const persona of ["teacher", "faculty", "advisor", "academicAdmin", "regist
     await expect(page.getByText("You don't have access to this page")).not.toBeVisible();
     // The dashboard renders real content, not a blank error boundary.
     await expect(page.locator("body")).toContainText(/dashboard|academic/i);
+  });
+}
+
+// Teaching-only roles work in the faculty portal: the admin dashboard had nothing they could
+// open (the 2026-10-06 pilot dry run found 18 access-denied links out of 20 for faculty).
+for (const persona of ["teacher", "faculty"] as const) {
+  test(`${persona} login lands on the faculty portal, and /admin sends them back there`, async ({ page }) => {
+    await loginAs(page, PERSONAS[persona]);
+    await expect(page).toHaveURL(/\/faculty(\/|$)/);
+    await expect(page.getByText("Unable to load this page")).not.toBeVisible();
+    await expect(page.locator('a[href="/admin"]')).toHaveCount(0);
+    await page.goto("/admin");
+    await expect(page).toHaveURL(/\/faculty(\/|$)/);
   });
 }

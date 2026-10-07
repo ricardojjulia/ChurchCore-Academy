@@ -186,6 +186,7 @@ function AdminShellInner({
     canReadLmsProviderReadiness,
     canReadAdvising,
     canReadFacultyLoad,
+    hiddenHrefs,
   } = useAdminCapabilities();
 
   const [expanded, setExpanded] = useState<AdminSection | null>(
@@ -204,6 +205,10 @@ function AdminShellInner({
   const visibleNavSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => {
+      // Role-gated pages: hidden when the destination's own allowlist excludes this actor.
+      if (hiddenHrefs.includes(item.href)) {
+        return false;
+      }
       // Filter out capability-gated nav items when their capability is disabled
       if (item.href === "/admin/formation" && !ministryFormationEnabled) {
         return false;

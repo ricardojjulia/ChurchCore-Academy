@@ -6,6 +6,7 @@ import { CardContent } from "@/components/ui/card";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +74,7 @@ function asDate(value: string | Date) {
 
 export default async function AdminFinancialAidPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "finance", "registrar"]);
+  requireActor(actor, adminPageRoles("/admin/financial-aid"));
   const user = await getCurrentUser();
 
   async function signOutAction() {

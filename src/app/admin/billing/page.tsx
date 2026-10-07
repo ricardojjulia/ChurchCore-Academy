@@ -6,6 +6,7 @@ import { CardContent } from "@/components/ui/card";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
 
@@ -46,7 +47,7 @@ function asDate(value: string | Date) {
 
 export default async function AdminBillingPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "finance", "registrar"]);
+  requireActor(actor, adminPageRoles("/admin/billing"));
   const user = await getCurrentUser();
 
   async function signOutAction() {

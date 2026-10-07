@@ -78,7 +78,7 @@ export function FacultyAttendanceForm({
   if (sections.length === 0) {
     return (
       <div className="admin-panel">
-        <p className="admin-signal-empty">No sections found for this tenant.</p>
+        <p className="admin-signal-empty">No sections are assigned to you for attendance.</p>
       </div>
     );
   }

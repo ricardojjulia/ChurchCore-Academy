@@ -8,6 +8,7 @@ import { AdminCapabilityProvider } from "@/components/admin-capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import { canAccessInstitutionConfig, canAccessShepherdAi } from "@/modules/academy-auth/policy";
 import { canAccessLmsProviderReadiness } from "@/modules/lms-contract/provider-readiness";
+import { canOpenAdminHref, hiddenAdminHrefsFor } from "@/lib/admin-route-access";
 import type { AcademyRole } from "@/modules/academy-auth/policy";
 import { DENOMINATION_ROSTER_ROLES } from "@/app/admin/denomination/page";
 import { ALUMNI_ROSTER_ROLES } from "@/app/admin/alumni/page";
@@ -98,6 +99,7 @@ interface AdminCapabilityData {
   canReadLmsProviderReadiness: boolean;
   canReadAdvising: boolean;
   canReadFacultyLoad: boolean;
+  hiddenHrefs: string[];
 }
 
 async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
@@ -137,8 +139,10 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
   // on PR #120; same bug class as canReadShepherdAi/canManageDripSequences above.
   const canReadInstitutionConfig = canAccessInstitutionConfig(actor, actor.tenantId, "read");
   const canReadLmsProviderReadiness = canAccessLmsProviderReadiness(actor, actor.tenantId, "read");
-  const canReadAdvising = hasRole(["institution_admin", "dean", "academic_admin", "registrar", "advisor"]);
-  const canReadFacultyLoad = hasRole(["institution_admin", "dean", "academic_admin"]);
+  const canReadAdvising = canOpenAdminHref(actor.roles, "/admin/advising");
+  const canReadFacultyLoad = canOpenAdminHref(actor.roles, "/admin/faculty");
+  // Every other role-gated nav/dashboard link, from the same map the pages guard with.
+  const hiddenHrefs = hiddenAdminHrefsFor(actor.roles);
 
   try {
     return await withAcademyDatabaseContext(actor, async (client) => {
@@ -154,6 +158,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
         canReadLmsProviderReadiness,
         canReadAdvising,
         canReadFacultyLoad,
+        hiddenHrefs,
       };
     });
   } catch {
@@ -168,6 +173,7 @@ async function getCapabilityData(actor: Actor): Promise<AdminCapabilityData> {
       canReadLmsProviderReadiness,
       canReadAdvising,
       canReadFacultyLoad,
+      hiddenHrefs,
     };
   }
 }
@@ -204,6 +210,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         canReadLmsProviderReadiness={capabilityData.canReadLmsProviderReadiness}
         canReadAdvising={capabilityData.canReadAdvising}
         canReadFacultyLoad={capabilityData.canReadFacultyLoad}
+        hiddenHrefs={capabilityData.hiddenHrefs}
       >
         {children}
       </AdminCapabilityProvider>
