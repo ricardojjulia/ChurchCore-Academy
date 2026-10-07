@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeactivateStaffButton } from "@/components/deactivate-staff-button";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { withAcademyDatabaseContext } from "@/lib/academy-database-context";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ interface StaffRow {
 
 export default async function StaffDirectoryPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions"]);
+  requireActor(actor, adminPageRoles("/admin/staff"));
 
   const staff = await withAcademyDatabaseContext(actor, async (client) => {
     const result = await client.query(

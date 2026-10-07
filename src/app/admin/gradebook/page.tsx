@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { withAcademyDatabaseContext, type AcademyQueryClient, asAcademyDatabase } from "@/lib/academy-database-context";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { fetchSectionList } from "@/lib/academy-read-models";
 import { postGradeAction } from "@/lib/actions/gradebook/postGradeAction";
 import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
@@ -97,7 +98,7 @@ async function loadPostingQueue(
 
 export default async function AdminGradebookPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+  requireActor(actor, adminPageRoles("/admin/gradebook"));
 
   async function postGradeFormAction(formData: FormData) {
     "use server";

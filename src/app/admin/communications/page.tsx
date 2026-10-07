@@ -6,6 +6,7 @@ import { CardContent } from "@/components/ui/card";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CommunicationsDatabase,
@@ -29,7 +30,7 @@ function statusLabel(value: string) {
 
 export default async function AdminCommunicationsPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin", "admissions", "finance"]);
+  requireActor(actor, adminPageRoles("/admin/communications"));
   const user = await getCurrentUser();
 
   async function signOutAction() {

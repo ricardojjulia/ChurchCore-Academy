@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -71,6 +71,20 @@ function sectionForPath(pathname: string): string | null {
   return null;
 }
 
+interface FacultyPortalLinks {
+  /** False for teaching-only users, who have no admin pages to open. */
+  showAdminLink: boolean;
+  /** Ministry formation records live under /admin; teaching-only users reach them from here. */
+  showFormationLink: boolean;
+}
+
+const FacultyPortalLinksContext = createContext<FacultyPortalLinks>({ showAdminLink: true, showFormationLink: false });
+
+/** Set by the faculty layout from the actor's roles and the institution's capabilities. */
+export function FacultyPortalLinksProvider({ children, ...links }: FacultyPortalLinks & { children: React.ReactNode }) {
+  return <FacultyPortalLinksContext.Provider value={links}>{children}</FacultyPortalLinksContext.Provider>;
+}
+
 export interface FacultyShellProps {
   title: string;
   subtitle?: string;
@@ -89,6 +103,12 @@ export function FacultyShell({
   userEmail,
 }: FacultyShellProps) {
   const pathname = usePathname();
+  const { showAdminLink, showFormationLink } = useContext(FacultyPortalLinksContext);
+  const navSections = FACULTY_NAV.map((section) =>
+    section.id === "teaching" && showFormationLink
+      ? { ...section, items: [...section.items, { label: "Ministry Formation", href: "/admin/formation" }] }
+      : section,
+  );
   const [expanded, setExpanded] = useState<string | null>(
     sectionForPath(pathname) ?? "today",
   );
@@ -111,7 +131,7 @@ export function FacultyShell({
         </Link>
 
         <nav className="admin-nav" aria-label="Faculty navigation">
-          {FACULTY_NAV.map((section) => {
+          {navSections.map((section) => {
             const { Icon } = section;
             const isExpanded = expanded === section.id;
             const isActive = sectionForPath(pathname) === section.id;
@@ -199,11 +219,13 @@ export function FacultyShell({
             <p className="admin-eyebrow">{eyebrow ?? "Faculty"}</p>
             <h1 className="admin-title">{title}</h1>
           </div>
-          <div className="admin-topbar-right">
-            <Link href="/admin" className="faculty-switch-link">
-              Admin Engine Room →
-            </Link>
-          </div>
+          {showAdminLink && (
+            <div className="admin-topbar-right">
+              <Link href="/admin" className="faculty-switch-link">
+                Admin Engine Room →
+              </Link>
+            </div>
+          )}
         </header>
 
         {subtitle && (

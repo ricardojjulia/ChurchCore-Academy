@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { fetchAdvisingWorkspace } from "@/modules/people/advising";
 import {
   PostgresStudentProgramProgressRepository,
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdvisingPage({ searchParams }: { searchParams: Promise<{ advisorId?: string }> }) {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "academic_admin", "registrar", "advisor"]);
+  requireActor(actor, adminPageRoles("/admin/advising"));
   const { advisorId } = await searchParams;
   const workspace = await withAcademyDatabaseContext(actor, (client) =>
     fetchAdvisingWorkspace(actor, advisorId, {
