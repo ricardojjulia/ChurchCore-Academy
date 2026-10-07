@@ -227,8 +227,8 @@ export async function registerStudentForSection(
     );
 
     if (!studentData.rowCount || studentData.rowCount === 0) {
-      throw new Error(
-        `No active period registration found for student ${input.studentPersonId} in this academic period.`,
+      throw new AcademyConflictError(
+        "Student is not enrolled in this academic period. Enroll the student in the period before registering for a section.",
       );
     }
 
