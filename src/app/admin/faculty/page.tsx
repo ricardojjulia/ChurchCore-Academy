@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { canAccessShepherdAi, type AcademyRole } from "@/modules/academy-auth/policy";
 import { InMemoryAcademicWorkflowRepository } from "@/modules/academic-workflows/repository";
 import { resolveAcademicContext } from "@/modules/academic-calendar/user-context-repository";
@@ -14,7 +15,7 @@ import { fetchFacultyLoadWorkspace, type FacultyLoadDatabase } from "@/modules/p
 import { ShepherdAiPostgresRepository, type ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 
 export const dynamic = "force-dynamic";
-export const FACULTY_LOAD_PAGE_ROLES: AcademyRole[] = ["institution_admin", "dean", "academic_admin"];
+export const FACULTY_LOAD_PAGE_ROLES: AcademyRole[] = adminPageRoles("/admin/faculty");
 
 function number(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);

@@ -23,10 +23,11 @@ test("admin programs index renders protected records instead of redirecting", as
   assert.match(page, /\/admin\/programs\/\$\{program\.id\}/);
 });
 
-test("legacy root page redirects to admin portal", async () => {
+test("root page redirects each signed-in user to their own portal", async () => {
   const page = await source("src/app/page.tsx");
 
-  assert.match(page, /redirect\("\/admin"\)/);
+  assert.match(page, /await requireActor\(\)/);
+  assert.match(page, /redirect\(portalHomeFor\(actor\)\)/);
 });
 
 test("admin dashboard exposes navigation to all working MVP surfaces", async () => {

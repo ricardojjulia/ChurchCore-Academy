@@ -78,6 +78,8 @@ export interface CourseSection {
   programId: string;
   academicPeriodId?: string;
   instructorFacultyId?: string;
+  /** Assistant instructors' person ids; they may record attendance for the section too. */
+  assistantInstructorIds?: string[];
   rosterCount: number;
   rosterCapacity: number;
   setupAlerts: string[];

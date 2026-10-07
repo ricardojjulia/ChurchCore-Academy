@@ -13,6 +13,8 @@ interface AdminCapabilityContextValue {
   canReadLmsProviderReadiness: boolean;
   canReadAdvising: boolean;
   canReadFacultyLoad: boolean;
+  /** Role-gated hrefs this actor's roles can't open (src/lib/admin-route-access.ts). */
+  hiddenHrefs: readonly string[];
 }
 
 // Default matters: AdminShell is also used by pages outside src/app/admin/* (e.g.
@@ -32,6 +34,7 @@ const defaultAdminCapabilities: AdminCapabilityContextValue = {
   canReadLmsProviderReadiness: false,
   canReadAdvising: false,
   canReadFacultyLoad: false,
+  hiddenHrefs: [],
 };
 
 const AdminCapabilityContext = createContext<AdminCapabilityContextValue>(defaultAdminCapabilities);
@@ -48,6 +51,7 @@ export function AdminCapabilityProvider({
   canReadLmsProviderReadiness,
   canReadAdvising,
   canReadFacultyLoad,
+  hiddenHrefs,
 }: {
   children: React.ReactNode;
   ministryFormationEnabled: boolean;
@@ -60,6 +64,7 @@ export function AdminCapabilityProvider({
   canReadLmsProviderReadiness: boolean;
   canReadAdvising: boolean;
   canReadFacultyLoad: boolean;
+  hiddenHrefs: readonly string[];
 }) {
   return (
     <AdminCapabilityContext.Provider
@@ -74,6 +79,7 @@ export function AdminCapabilityProvider({
         canReadLmsProviderReadiness,
         canReadAdvising,
         canReadFacultyLoad,
+        hiddenHrefs,
       }}
     >
       {children}

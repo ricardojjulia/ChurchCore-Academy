@@ -5,6 +5,7 @@ import {
   getStudentFormationRecord,
   recordFormationEvaluation,
   logPracticumSession,
+  endorseRecord,
 } from "@/modules/ministry-formation/service";
 import { createMockDb } from "./service.test-helpers";
 
@@ -139,22 +140,90 @@ test("institution_admin+registrar dual role: draft practicum sessions remain vis
   );
 });
 
-test("academic_admin-only rejection: academic_admin without reviewer role cannot access formation records", async () => {
-  const academicAdminActor: AcademyActor = {
-    userId: "academic-admin-1",
-    tenantId: "tenant-a",
-    roles: ["academic_admin"],
-  };
+// ADR-0079 (owner decision 2026-10-06): academic_admin gets the registrar's records-office view —
+// endorsed records across the tenant, no drafts, never pastoral notes without reviewer access.
+const academicAdminActor: AcademyActor = {
+  userId: "academic-admin-1",
+  tenantId: "tenant-a",
+  roles: ["academic_admin"],
+};
+const institutionAdminActor: AcademyActor = {
+  userId: "admin-1",
+  tenantId: "tenant-a",
+  roles: ["institution_admin"],
+};
 
+test("academic_admin sees endorsed formation records but not drafts", async () => {
   const db = createMockDb();
+  const endorsed = await logPracticumSession(
+    institutionAdminActor,
+    { studentPersonId: "student-1", hours: 6, siteName: "Endorsed Site", supervisorName: "Supervisor A", sessionDate: "2026-02-01" },
+    db,
+  );
+  await endorseRecord(institutionAdminActor, { recordType: "practicum", recordId: endorsed.id }, db);
+  await logPracticumSession(
+    institutionAdminActor,
+    { studentPersonId: "student-1", hours: 3, siteName: "Draft Site", supervisorName: "Supervisor B", sessionDate: "2026-02-02" },
+    db,
+  );
 
-  // academic_admin alone (without reviewer role) should be rejected
+  const record = await getStudentFormationRecord(academicAdminActor, "student-1", db);
+  assert.ok(record, "Record should exist");
+  const recordJson = JSON.stringify(record);
+  assert.match(recordJson, /Endorsed Site/);
+  assert.doesNotMatch(recordJson, /Draft Site/, "academic_admin must not see draft records");
+});
+
+test("academic_admin never sees pastoral notes without reviewer access", async () => {
+  const db = createMockDb();
+  const evaluation = await recordFormationEvaluation(
+    institutionAdminActor,
+    {
+      studentPersonId: "student-1",
+      rubricLabel: "Formation Progress",
+      scores: { ministry: 4 },
+      evaluationDate: "2026-06-20",
+      pastoralNotes: "CONFIDENTIAL pastoral observation.",
+    },
+    db,
+  );
+  await endorseRecord(institutionAdminActor, { recordType: "evaluation", recordId: evaluation.id }, db);
+
+  const record = await getStudentFormationRecord(academicAdminActor, "student-1", db);
+  assert.ok(record, "Record should exist");
+  const recordJson = JSON.stringify(record);
+  assert.match(recordJson, /Formation Progress/, "the endorsed evaluation itself is visible");
+  assert.doesNotMatch(recordJson, /pastoralNotes/);
+  assert.doesNotMatch(recordJson, /CONFIDENTIAL/);
+});
+
+test("academic_admin view is tenant-wide, not limited to sections or advisees", async () => {
+  const db = createMockDb();
+  // student-2 is outside every faculty section and advisor assignment in the mock.
+  const record = await getStudentFormationRecord(academicAdminActor, "student-2", db);
+  assert.ok(record, "academic_admin can open any student's formation record in their tenant");
+});
+
+test("academic_admin cross-tenant rejection", async () => {
+  const db = createMockDb();
   await assert.rejects(
     async () => {
-      await getStudentFormationRecord(academicAdminActor, "student-1", db);
+      await getStudentFormationRecord(academicAdminActor, "tenant-b-student", db);
     },
-    { message: /Forbidden formation record access/i },
+    { message: /Student not found/i },
   );
+});
+
+test("academic_admin who also holds the reviewer role keeps full reviewer visibility", async () => {
+  const db = createMockDb();
+  await logPracticumSession(
+    institutionAdminActor,
+    { studentPersonId: "student-1", hours: 2, siteName: "Reviewer Draft Site", supervisorName: "Supervisor C", sessionDate: "2026-02-03" },
+    db,
+  );
+  const reviewer: AcademyActor = { ...academicAdminActor, roles: ["academic_admin", "ministry_formation_reviewer"] };
+  const record = await getStudentFormationRecord(reviewer, "student-1", db);
+  assert.match(JSON.stringify(record), /Reviewer Draft Site/, "reviewer access is not narrowed to endorsed-only");
 });
 
 test("evaluator-without-reviewer sees own pastoral notes", async () => {

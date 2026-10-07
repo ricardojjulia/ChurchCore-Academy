@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { asAcademyDatabase, withAcademyDatabaseContext } from "@/lib/academy-database-context";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   PostgresReportRepository,
@@ -27,10 +28,6 @@ function displayValue(value: ReportRowValue) {
   return String(value);
 }
 
-function reportingRoles() {
-  return ["institution_admin", "dean", "registrar", "academic_admin", "finance"] as const;
-}
-
 function selectedColumnLabels(reportId: ReportId, selectedColumns: string[]) {
   const definition = reportDefinitions.find((item) => item.id === reportId);
   const labels = new Map((definition?.columns ?? []).map((column) => [column.key, column.label]));
@@ -43,7 +40,7 @@ function customReportExportHref(id: string) {
 
 export default async function ReportingPage() {
   const actor = await requireActor();
-  requireActor(actor, [...reportingRoles()]);
+  requireActor(actor, adminPageRoles("/admin/reporting"));
   const user = await getCurrentUser();
 
   async function signOutAction() {
@@ -56,7 +53,7 @@ export default async function ReportingPage() {
   async function createCustomReportAction(formData: FormData) {
     "use server";
     const actionActor = await requireActor();
-    requireActor(actionActor, [...reportingRoles()]);
+    requireActor(actionActor, adminPageRoles("/admin/reporting"));
 
     const baseReportId = String(formData.get("baseReportId") ?? "") as ReportId;
     const selectedColumns = formData.getAll("selectedColumns")

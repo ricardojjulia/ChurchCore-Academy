@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/require-actor";
+import { adminPageRoles } from "@/lib/admin-route-access";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { fetchSectionRegistrationReview } from "@/lib/academy-read-models";
 import { AcademyCourseCatalogRepository } from "@/modules/course-catalog/postgres-repository";
@@ -44,7 +45,7 @@ function periodLabel(periods: { id: string; name: string; academicYearName: stri
 
 export default async function SectionsRosterPage() {
   const actor = await requireActor();
-  requireActor(actor, ["institution_admin", "dean", "registrar", "academic_admin"]);
+  requireActor(actor, adminPageRoles("/admin/sections"));
 
   const {
     sections,
