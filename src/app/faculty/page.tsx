@@ -5,6 +5,8 @@ import { FacultyShell } from "@/components/faculty-shell";
 import { requireActor } from "@/lib/require-actor";
 import { withAcademyDatabaseContext, asAcademyDatabase } from "@/lib/academy-database-context";
 import { fetchSectionList, fetchFacultyList } from "@/lib/academy-read-models";
+import { sectionsForActor } from "@/lib/faculty-section-scope";
+import { hasAttendanceAdminAccess } from "@/modules/attendance/service";
 import { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { ShepherdAiDatabase } from "@/modules/shepherd-ai/postgres-repository";
 import Link from "next/link";
@@ -47,7 +49,7 @@ export default async function FacultyPortal() {
       ]);
       return { sections: allSections, faculty: allFaculty, suggestions: allSuggestions };
     });
-    sections = data.sections;
+    sections = sectionsForActor(data.sections, actor);
     faculty = data.faculty;
     facultySignals = data.suggestions.filter(
       (s) => s.workflowCode === "faculty_or_course_assignment_imbalance_review",
@@ -113,7 +115,9 @@ export default async function FacultyPortal() {
             <Link href="/faculty/sections">View all →</Link>
           </div>
           {sections.length === 0 ? (
-            <p className="admin-signal-empty">No sections found for this tenant.</p>
+            <p className="admin-signal-empty">
+              {hasAttendanceAdminAccess(actor) ? "No sections found for this tenant." : "No sections are assigned to you this term."}
+            </p>
           ) : (
             <div className="faculty-section-list">
               {sections.slice(0, 6).map((s) => (

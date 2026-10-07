@@ -39,7 +39,8 @@ function hasAttendanceWriteAccess(actor: AcademyActor) {
   return actor.roles.some((role) => attendanceWriteRoles.has(role));
 }
 
-function hasAttendanceAdminAccess(actor: AcademyActor) {
+/** Oversight roles that may record attendance for any section; everyone else only their own. */
+export function hasAttendanceAdminAccess(actor: AcademyActor) {
   return actor.roles.some((role) => attendanceAdminRoles.has(role));
 }
 
