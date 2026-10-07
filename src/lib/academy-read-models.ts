@@ -103,7 +103,7 @@ export async function fetchProgramList(tenantId: string, client: AcademyQueryCli
 export async function fetchSectionList(tenantId: string, client: AcademyQueryClient): Promise<CourseSection[]> {
   const result = await client.query(
     `select
-       cs.id, cs.tenant_id, cs.section_code, cs.primary_instructor_id,
+       cs.id, cs.tenant_id, cs.section_code, cs.primary_instructor_id, cs.assistant_instructor_ids,
        cs.capacity, cs.academic_period_id,
        coalesce(cs.title_override, c.title) as title,
        coalesce(
@@ -128,6 +128,7 @@ export async function fetchSectionList(tenantId: string, client: AcademyQueryCli
     programId: "",
     academicPeriodId: row.academic_period_id != null ? String(row.academic_period_id) : undefined,
     instructorFacultyId: row.primary_instructor_id != null ? String(row.primary_instructor_id) : undefined,
+    assistantInstructorIds: Array.isArray(row.assistant_instructor_ids) ? row.assistant_instructor_ids.map(String) : [],
     rosterCount: Number(row.roster_count),
     rosterCapacity: Number(row.capacity ?? 0),
     setupAlerts: [],
