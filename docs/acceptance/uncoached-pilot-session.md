@@ -23,7 +23,7 @@ Before inviting the participant:
 - [ ] Node and Supabase CLI versions satisfy the repository requirements.
 - [ ] Local Supabase is running and `.env.local` points only to the intended local instance.
 - [ ] `npm run verify:pilot-readiness` passes while the Academy server is running.
-- [ ] Migrations and the local seed complete without errors.
+- [ ] Migrations and the local seed complete without errors, then `npm run db:seed:pilot` adds the pilot task data (students with programs, an application awaiting a decision, a student with a registered course).
 - [ ] `npm run verify:role-walkthrough` regenerates the role-matrix evidence for the session base URL.
 - [ ] The Academy production build starts locally and the login page loads from the participant's browser or VM.
 - [ ] Representative admin, registrar, faculty, student, guardian, finance, and admissions accounts can authenticate.
