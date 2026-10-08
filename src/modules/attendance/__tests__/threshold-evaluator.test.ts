@@ -294,7 +294,7 @@ test("section with 1 total meeting: signal fires with 'Low meeting count' note",
   assert.equal(result.warningFired, true);
   assert.equal(suggestions.length, 1);
   assert.ok(suggestions[0].explanation.limitations.some((l) => l.includes("Low meeting count")));
-  assert.equal(suggestions[0].confidenceScore, 0.6); // Lower confidence for low meeting count
+  assert.equal(suggestions[0].confidenceScore, 60); // Lower confidence for low meeting count
 });
 
 test("cross-tenant rejection: threshold check for tenant A cannot write suggestions to tenant B", async () => {
@@ -607,5 +607,21 @@ test("computeAttendanceRateSignal: section with 1 meeting - signal fires with lo
   assert.equal(suggestions.length, 1);
   assert.equal(suggestions[0].urgency, "high");
   assert.ok(suggestions[0].explanation.limitations.some((l) => l.includes("Low meeting count")));
-  assert.equal(suggestions[0].confidenceScore, 0.6);
+  assert.equal(suggestions[0].confidenceScore, 60);
+});
+
+test("section info reads columns that exist on sections and courses", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync("src/modules/attendance/threshold-evaluator.ts", "utf8");
+  // section.section_name and course.course_name do not exist; the query failed on every call.
+  assert.doesNotMatch(source, /section\.section_name\b/);
+  assert.doesNotMatch(source, /course\.course_name\b/);
+  assert.match(source, /section\.section_code as section_name/);
+  assert.match(source, /course\.title as course_name/);
+});
+
+test("attendance signals use the 0-100 integer confidence scale ai_suggestions stores", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync("src/modules/attendance/threshold-evaluator.ts", "utf8");
+  assert.match(source, /confidenceScore: lowMeetingCount \? 60 : 85/);
 });

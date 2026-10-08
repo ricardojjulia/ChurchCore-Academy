@@ -158,3 +158,77 @@ test("legacy constructor signature still supported for backwards compatibility",
   assert.equal(result.sessionType, "lab");
   assert.equal(upserts.length, 1);
 });
+
+// Side effects (threshold signal, guardian notification) used to run unawaited on the request's
+// transaction. When one failed, Postgres aborted the transaction and the request's COMMIT silently
+// rolled back the attendance record itself (2026-10-08). They now run awaited, each in a savepoint.
+function sideEffectDependencies(options: { failQueries: boolean }) {
+  const queries: string[] = [];
+  const thresholdDatabase = {
+    async query(sql: string) {
+      const statement = sql.trim().replace(/\s+/g, " ");
+      queries.push(statement);
+      if (/^(savepoint|release savepoint|rollback to savepoint)/.test(statement)) return { rows: [] };
+      if (options.failQueries) throw new Error('invalid input syntax for type uuid: "section-1"');
+      return { rows: [] };
+    },
+  };
+  return {
+    queries,
+    dependencies: {
+      thresholdDatabase,
+      thresholdConfig: { warningPct: 15, alertPct: 25, excusedCounts: false },
+      shepherdRepo: { async saveSuggestions() {}, async updateSuggestionStatus() {} } as never,
+      communicationsService: { async createCommunication() { return {}; } } as never,
+    },
+  };
+}
+
+test("a failing side effect is rolled back to its savepoint and the attendance record is kept", async () => {
+  const { repo, upserts } = repository();
+  const { queries, dependencies } = sideEffectDependencies({ failQueries: true });
+  const service = new AttendanceService({ repository: repo, ...dependencies });
+
+  const result = await service.recordAttendance(facultyActor, {
+    courseSectionId: "section-1",
+    studentPersonId: "student-1",
+    sessionDate: "2026-09-01",
+    status: "absent",
+    sessionType: "class",
+  });
+
+  assert.equal(result.status, "absent");
+  assert.equal(upserts.length, 1);
+  for (const savepoint of ["attendance_threshold_check", "attendance_guardian_check"]) {
+    assert.ok(queries.includes(`savepoint ${savepoint}`), `opens ${savepoint}`);
+    assert.ok(queries.includes(`rollback to savepoint ${savepoint}`), `rolls back only ${savepoint}`);
+    assert.ok(queries.includes(`release savepoint ${savepoint}`), `releases ${savepoint}`);
+  }
+  assert.equal(queries.at(-1), "release savepoint attendance_guardian_check",
+    "every side-effect query finishes before recordAttendance returns");
+});
+
+test("successful side effects release their savepoints without rolling back", async () => {
+  const { repo } = repository();
+  const { queries, dependencies } = sideEffectDependencies({ failQueries: false });
+  const service = new AttendanceService({ repository: repo, ...dependencies });
+
+  await service.recordAttendance(facultyActor, {
+    courseSectionId: "section-1",
+    studentPersonId: "student-1",
+    sessionDate: "2026-09-01",
+    status: "present",
+    sessionType: "class",
+  });
+
+  assert.ok(queries.includes("release savepoint attendance_threshold_check"));
+  assert.ok(!queries.some((query) => query.startsWith("rollback to savepoint")));
+});
+
+test("the service no longer fires side effects without awaiting them", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync("src/modules/attendance/service.ts", "utf8");
+  assert.doesNotMatch(source, /\)\.catch\(\(\) => \{/, "no fire-and-forget .catch on side effects");
+  assert.match(source, /await runIsolatedSideEffect\(database, "attendance_threshold_check"/);
+  assert.match(source, /await runIsolatedSideEffect\(database, "attendance_guardian_check"/);
+});
