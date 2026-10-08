@@ -17,6 +17,43 @@ import { checkAttendanceThreshold } from "@/modules/attendance/threshold-evaluat
 import { checkGuardianNotification } from "@/modules/attendance/guardian-notifier";
 import type { ShepherdAiPostgresRepository } from "@/modules/shepherd-ai/postgres-repository";
 import type { CommunicationsService } from "@/modules/communications/service";
+import { emitOperationalEvent } from "@/modules/observability/operational-events";
+
+/**
+ * Runs a side effect inside its own savepoint on the request's transaction, awaited.
+ *
+ * These checks used to be fired without `await` and their errors swallowed. A failing query
+ * still aborted the shared transaction, so the request's COMMIT silently rolled back the
+ * attendance record itself while the API returned 200 (found 2026-10-08: every faculty attendance
+ * save was lost). Unawaited queries could also run after the connection went back to the pool.
+ * A savepoint confines a failure to the side effect; the attendance record always commits.
+ */
+async function runIsolatedSideEffect(
+  database: AttendanceThresholdDatabase,
+  savepoint: "attendance_threshold_check" | "attendance_guardian_check",
+  actor: AcademyActor,
+  effect: () => Promise<unknown>,
+) {
+  await database.query(`savepoint ${savepoint}`);
+  try {
+    await effect();
+    await database.query(`release savepoint ${savepoint}`);
+  } catch (error) {
+    await database.query(`rollback to savepoint ${savepoint}`);
+    await database.query(`release savepoint ${savepoint}`);
+    emitOperationalEvent({
+      category: "workflow_exception",
+      severity: "warn",
+      operation: `attendance.${savepoint}`,
+      tenantId: actor.tenantId,
+      message: "Attendance side effect failed; the attendance record was still saved.",
+      metadata: {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+}
 
 const attendanceWriteRoles = new Set<AcademyRole>([
   "institution_admin",
@@ -118,43 +155,45 @@ export class AttendanceService {
       }),
     );
 
-    // Non-blocking threshold check and guardian notification (fire and forget)
+    // Threshold signal and guardian notification: awaited, each isolated in a savepoint so a
+    // failure can never roll back the attendance record (see runIsolatedSideEffect).
     if (
       this.thresholdDatabase &&
       this.thresholdConfig &&
       this.shepherdRepo &&
       this.communicationsService
     ) {
-      // Check attendance threshold for ShepherdAI signal
-      checkAttendanceThreshold(
-        actor.tenantId,
-        input.studentPersonId,
-        input.courseSectionId,
-        this.thresholdConfig,
-        this.thresholdDatabase,
-        this.shepherdRepo,
-        this.communicationsService,
-        actor,
-      ).catch(() => {
-        // Threshold check failure should not fail the attendance record
-        // Errors are swallowed to keep the operation non-blocking
-      });
+      const database = this.thresholdDatabase;
+      const config = this.thresholdConfig;
+      const shepherdRepo = this.shepherdRepo;
+      const communicationsService = this.communicationsService;
 
-      // Check guardian notification for consecutive absences / spiritual formation
-      checkGuardianNotification(
-        actor.tenantId,
-        input.studentPersonId,
-        input.courseSectionId,
-        input.sessionDate,
-        input.status,
-        input.sessionType ?? "class",
-        this.thresholdDatabase,
-        this.communicationsService,
-        actor,
-      ).catch(() => {
-        // Guardian notification failure should not fail the attendance record
-        // Errors are swallowed to keep the operation non-blocking
-      });
+      await runIsolatedSideEffect(database, "attendance_threshold_check", actor, () =>
+        checkAttendanceThreshold(
+          actor.tenantId,
+          input.studentPersonId,
+          input.courseSectionId,
+          config,
+          database,
+          shepherdRepo,
+          communicationsService,
+          actor,
+        ),
+      );
+
+      await runIsolatedSideEffect(database, "attendance_guardian_check", actor, () =>
+        checkGuardianNotification(
+          actor.tenantId,
+          input.studentPersonId,
+          input.courseSectionId,
+          input.sessionDate,
+          input.status,
+          input.sessionType ?? "class",
+          database,
+          communicationsService,
+          actor,
+        ),
+      );
     }
 
     return record;

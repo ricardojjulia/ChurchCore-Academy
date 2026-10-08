@@ -123,6 +123,28 @@ test("8. enroll the student in the section", async () => {
   expect(section?.enrolledCount ?? 1).toBeGreaterThanOrEqual(1);
 });
 
+test("8b. the instructor records attendance, and it is still there when read back", async ({ baseURL }) => {
+  // Attendance used to return 200 while its side effects aborted the transaction, so the record
+  // was silently rolled back (2026-10-08). Reading it back is what catches that. "absent" runs the
+  // threshold and guardian side effects too.
+  const teacher = await as(baseURL, "teacher");
+  const saved = await ok(await teacher.post("/api/academy/attendance", {
+    data: { courseSectionId: created.sectionId, studentPersonId: STUDENT_PERSON, sessionDate: "2027-09-01", status: "absent" },
+  }), "record attendance");
+  expect(saved.sessionDate).toBe("2027-09-01");
+
+  const records = await ok(await teacher.get(`/api/academy/attendance?sectionId=${created.sectionId}&sessionDate=2027-09-01`), "read attendance");
+  const record = (records as { studentPersonId: string; status: string; sessionDate: string }[])
+    .find((item) => item.studentPersonId === STUDENT_PERSON);
+  expect(record, "the attendance record must survive the request's commit").toMatchObject({ status: "absent", sessionDate: "2027-09-01" });
+
+  const other = await as(baseURL, "otherTenantAdmin");
+  const leaked = await other.get(`/api/academy/attendance?sectionId=${created.sectionId}&sessionDate=2027-09-01`);
+  expect(JSON.stringify(await leaked.json().catch(() => [])), "another institution must not see it").not.toContain(STUDENT_PERSON);
+  await other.dispose();
+  await teacher.dispose();
+});
+
 test("9. staff can track in-progress curriculum progress, without leaking it cross-tenant", async ({ baseURL }) => {
   const progress = await ok(await registrar.get(`/api/academy/students/${STUDENT_PROFILE}/program-progress`), "read program progress");
   expect(progress.progress?.academicProgramId).toBe(created.programId);

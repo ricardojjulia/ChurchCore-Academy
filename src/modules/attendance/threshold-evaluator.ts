@@ -73,8 +73,8 @@ async function fetchSectionInfo(
   const result = await database.query(
     `select
        section.id as section_id,
-       section.section_name,
-       course.course_name,
+       section.section_code as section_name,
+       course.title as course_name,
        instructor.display_name as instructor_name
      from academy_course_sections section
      join academy_courses course
@@ -174,7 +174,9 @@ function buildShepherdAiSuggestion(
     entityId: studentInfo.studentPersonId,
     title: `Attendance concern: ${studentInfo.studentName}`,
     summary: `Student ${studentInfo.studentName} has missed ${absenceCount} of ${totalMeetings} meetings (${roundedRate}%) in ${sectionInfo.sectionName}. Attendance is above the ${urgency === "high" ? "alert" : "warning"} threshold.`,
-    confidenceScore: lowMeetingCount ? 0.6 : 0.85,
+    // 0-100 integer scale like every other ShepherdAI signal; ai_suggestions.confidence_score is an
+    // integer column, so the old 0.6/0.85 values failed to insert and the signal was never saved.
+    confidenceScore: lowMeetingCount ? 60 : 85,
     urgency,
     suggestedActions: [
       {
