@@ -1,4 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { classifyPostgresErrors, postgresErrorMessages } from "../../src/modules/acceptance/postgres-error-guard";
 import { existsSync, openSync, readFileSync } from "node:fs";
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -166,6 +167,7 @@ async function main() {
   let exitCode = 1;
   try {
     await waitForServer(server!);
+    const testsStartedAt = new Date().toISOString();
     exitCode = await new Promise<number>((resolve) => {
       const tests = spawn("npx", ["playwright", "test", ...playwrightArgs], { stdio: "inherit", env });
       tests.on("exit", (code) => resolve(code ?? 1));
@@ -174,6 +176,7 @@ async function main() {
       console.error(`[test:full] FAILED: the app server died ${restarts} time(s) during the run — see ${path.relative(root, serverLog)}`);
       exitCode = exitCode || 1;
     }
+    if (!checkPostgresErrors(testsStartedAt)) exitCode = exitCode || 1;
   } finally {
     stopping = true;
     server!.kill("SIGTERM");
@@ -182,6 +185,27 @@ async function main() {
     if (flag("--stop")) spawnSync("supabase", ["stop", "--workdir", workdir], { stdio: "inherit" });
   }
   process.exitCode = exitCode;
+}
+
+// A journey can pass while Postgres logged an error that the app swallowed (or that silently rolled
+// a transaction back): faculty attendance was lost that way. Fail on any error that is not
+// explicitly expected (src/modules/acceptance/postgres-error-guard.ts).
+function checkPostgresErrors(since: string): boolean {
+  const container = "supabase_db_ChurchCore_Academy_e2e";
+  const logs = spawnSync("docker", ["logs", "--since", since, container], { encoding: "utf8" });
+  if (logs.status !== 0) {
+    console.error(`[test:full] FAILED: could not read the Postgres log from ${container}: ${logs.stderr.trim()}`);
+    return false;
+  }
+  const { expected, unexpected } = classifyPostgresErrors(postgresErrorMessages(`${logs.stdout}\n${logs.stderr}`));
+  console.log(`[test:full] Postgres errors during the run: ${expected.length} expected, ${unexpected.length} unexpected.`);
+  if (unexpected.length === 0) return true;
+  const counts = new Map<string, number>();
+  for (const message of unexpected) counts.set(message, (counts.get(message) ?? 0) + 1);
+  console.error("[test:full] FAILED: Postgres logged errors that no test expects. A passing journey may be hiding a swallowed failure:");
+  for (const [message, count] of counts) console.error(`  ${count}x ${message}`);
+  console.error("  Fix the cause, or (only if the error is deliberately provoked) add it with a reason to EXPECTED_POSTGRES_ERRORS.");
+  return false;
 }
 
 main().catch((error) => {
