@@ -35,7 +35,9 @@ test("the applicant can check status with their token", async ({ page }) => {
   await page.goto("/apply/status", { waitUntil: "networkidle" });
   await page.getByPlaceholder("Enter your status token").fill(statusToken);
   await page.getByRole("button", { name: /check/i }).click();
-  await expect(page.getByRole("heading", { name: "Application status" })).toBeVisible();
+  // exact: the page's H1 "Check application status" also matches a substring search, and the
+  // strict-mode violation made this test fail whenever the result card rendered first.
+  await expect(page.getByRole("heading", { name: "Application status", exact: true })).toBeVisible();
 });
 
 test("an unknown token is rejected without leaking anything", async ({ page }) => {
