@@ -93,3 +93,23 @@ test("cross-tenant rejection: validateAttendanceInput does not accept empty tena
     /tenantId is required/,
   );
 });
+
+test("attendance records return the session date as YYYY-MM-DD", async () => {
+  const { PostgresAttendanceRepository } = await import("@/modules/attendance/postgres-repository");
+  const repository = new PostgresAttendanceRepository({
+    async query() {
+      return {
+        rowCount: 1,
+        rows: [{
+          id: "attendance-1", tenant_id: "tenant-1", course_section_id: "section-1",
+          student_person_id: "person-1", session_date: new Date(2026, 8, 2), status: "present",
+          session_type: "class", recorded_at: new Date("2026-09-02T14:00:00Z"),
+          recorded_by_person_id: "faculty-1", note: null,
+        }],
+      };
+    },
+  });
+  const [record] = await repository.listBySection("tenant-1", "section-1");
+  // pg returns a date column as a Date; String(date).slice(0, 10) used to give "Wed Sep 02".
+  assert.equal(record.sessionDate, "2026-09-02");
+});

@@ -14,13 +14,24 @@ export interface AttendanceDatabase {
   query(sql: string, values?: unknown[]): Promise<QueryResult>;
 }
 
+// pg returns a `date` column as a JS Date at local midnight; String(date).slice(0, 10) produced
+// "Wed Sep 02" instead of "2026-09-02".
+function toIsoDate(value: unknown): string {
+  if (value instanceof Date) {
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${value.getFullYear()}-${month}-${day}`;
+  }
+  return String(value).slice(0, 10);
+}
+
 function mapRow(row: Record<string, unknown>): AttendanceRecord {
   return {
     id: String(row.id),
     tenantId: String(row.tenant_id),
     courseSectionId: String(row.course_section_id),
     studentPersonId: String(row.student_person_id),
-    sessionDate: String(row.session_date).slice(0, 10),
+    sessionDate: toIsoDate(row.session_date),
     status: String(row.status) as AttendanceRecord["status"],
     sessionType: (String(row.session_type || "class")) as AttendanceRecord["sessionType"],
     recordedAt: row.recorded_at instanceof Date

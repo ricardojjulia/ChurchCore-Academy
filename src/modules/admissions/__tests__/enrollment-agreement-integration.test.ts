@@ -631,3 +631,38 @@ test("Enrollment agreement - no PII in test output", async () => {
   assert.doesNotMatch(eventStr, /192\.168\.1\.0/, "Redacted IP must not appear in audit event");
   assert.doesNotMatch(eventStr, /hash/i, "Hash must not appear in audit event");
 });
+
+test("Enrollment agreement - a real creation failure fails the decision instead of being swallowed", async () => {
+  // A swallowed database error inside the decision's transaction aborts it, so the acceptance would
+  // be silently rolled back while the API reported success (write-path integrity audit, 2026-10-08).
+  const db = createMockDatabase();
+  db.applications.set("app-4", {
+    id: "app-4",
+    tenantId: "tenant-a",
+    applicantPersonId: "person-4",
+    programId: "prog-1",
+    applicationTermId: "term-1",
+    legalName: "Ana Diaz",
+    email: "ana@example.com",
+    status: "submitted",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  });
+  const failingAgreements = {
+    ...createMockEnrollmentAgreementRepository(db),
+    async create(): Promise<EnrollmentAgreementSignature> {
+      throw new Error("permission denied for table academy_enrollment_agreement_signatures");
+    },
+  };
+  const admissionsService = new AdmissionsService(
+    createMockAdmissionsRepository(db),
+    createMockAuditRepository(db),
+    () => new Date().toISOString(),
+    failingAgreements,
+  );
+
+  await assert.rejects(
+    admissionsService.decide(staffActor, "app-4", "accepted", "Accepted", "correlation-4", "idempotency-4"),
+    /permission denied/,
+  );
+});

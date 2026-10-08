@@ -1206,6 +1206,15 @@
   color: var(--status-success);
 }
 
+.attendance-error-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--status-danger);
+}
+
 .attendance-submit-btn {
   padding: 0.55rem 1.25rem;
   background: var(--brand-primary);
