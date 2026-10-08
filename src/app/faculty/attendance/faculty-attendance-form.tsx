@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState } from "react";
-import { CheckCircle2, Circle, Clock, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Circle, CircleAlert, Clock, ShieldCheck } from "lucide-react";
 
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
@@ -13,8 +13,8 @@ interface SectionSummary {
   rosterCount: number;
 }
 
-interface StudentSummary {
-  id: string;
+interface RosterStudent {
+  personId: string;
   name: string;
 }
 
@@ -29,45 +29,63 @@ const TODAY = new Date().toISOString().slice(0, 10);
 
 export function FacultyAttendanceForm({
   sections,
-  students,
+  rosters,
 }: {
   sections: SectionSummary[];
-  students: StudentSummary[];
+  /** Each section's own roster, keyed by section id; only these students can be recorded. */
+  rosters: Record<string, RosterStudent[]>;
 }) {
   const [selectedSectionId, setSelectedSectionId] = useState(sections[0]?.id ?? "");
   const [sessionDate, setSessionDate] = useState(TODAY);
   const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
+  const students = rosters[selectedSectionId] ?? [];
 
   function setStatus(studentId: string, status: AttendanceStatus) {
     setRecords((prev) => ({ ...prev, [studentId]: status }));
     setSaved(false);
+    setSaveError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedSectionId) return;
     setSaving(true);
+    setSaveError(null);
     try {
-      await Promise.all(
+      // Report every rejected record instead of claiming success: the old form ignored responses.
+      const results = await Promise.all(
         students.map(async (student) => {
-          const status = records[student.id] ?? "present";
-          await fetch("/api/academy/attendance", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              courseSectionId: selectedSectionId,
-              studentPersonId: student.id,
-              sessionDate,
-              status,
-            }),
-          });
+          const status = records[student.personId] ?? "present";
+          try {
+            const response = await fetch("/api/academy/attendance", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                courseSectionId: selectedSectionId,
+                studentPersonId: student.personId,
+                sessionDate,
+                status,
+              }),
+            });
+            if (response.ok) return null;
+            const data = (await response.json().catch(() => ({}))) as { error?: string };
+            return data.error ?? `HTTP ${response.status}`;
+          } catch {
+            return "Network error";
+          }
         }),
       );
-      setSaved(true);
+      const failures = results.filter((result): result is string => result !== null);
+      if (failures.length === 0) {
+        setSaved(true);
+      } else {
+        setSaveError(`${failures.length} of ${students.length} records were not saved: ${failures[0]}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -95,6 +113,7 @@ export function FacultyAttendanceForm({
             setSelectedSectionId(e.target.value);
             setRecords({});
             setSaved(false);
+            setSaveError(null);
           }}
           className="attendance-date-input"
           aria-label="Select section"
@@ -114,7 +133,7 @@ export function FacultyAttendanceForm({
         <input
           type="date"
           value={sessionDate}
-          onChange={(e) => { setSessionDate(e.target.value); setSaved(false); }}
+          onChange={(e) => { setSessionDate(e.target.value); setSaved(false); setSaveError(null); }}
           className="attendance-date-input"
           aria-label="Session date"
         />
@@ -128,13 +147,13 @@ export function FacultyAttendanceForm({
           <span className="sections-roster-count">{enteredCount}/{students.length} entered</span>
         </div>
         {students.length === 0 ? (
-          <p className="admin-signal-empty">No enrolled students found for this tenant.</p>
+          <p className="admin-signal-empty">No students are registered in this section.</p>
         ) : (
           <div className="attendance-roster">
             {students.map((student) => {
-              const current = records[student.id] ?? null;
+              const current = records[student.personId] ?? null;
               return (
-                <div key={student.id} className="attendance-row">
+                <div key={student.personId} className="attendance-row">
                   <span className="attendance-student-name">{student.name}</span>
                   <div className="attendance-status-group" role="group" aria-label={`Attendance for ${student.name}`}>
                     {STATUS_OPTIONS.map((opt) => (
@@ -142,7 +161,7 @@ export function FacultyAttendanceForm({
                         key={opt.value}
                         type="button"
                         className={`attendance-status-btn ${current === opt.value ? `is-selected is-${opt.value}` : ""}`}
-                        onClick={() => setStatus(student.id, opt.value)}
+                        onClick={() => setStatus(student.personId, opt.value)}
                         aria-pressed={current === opt.value ? "true" : "false"}
                         title={opt.label}
                       >
@@ -163,7 +182,13 @@ export function FacultyAttendanceForm({
               Saved
             </span>
           )}
-          <button type="submit" className="attendance-submit-btn" disabled={saving || !selectedSectionId}>
+          {saveError && (
+            <span className="attendance-error-badge" role="alert">
+              <CircleAlert size={14} strokeWidth={2} />
+              {saveError}
+            </span>
+          )}
+          <button type="submit" className="attendance-submit-btn" disabled={saving || !selectedSectionId || students.length === 0}>
             {saving ? "Saving…" : "Save attendance"}
           </button>
         </div>
