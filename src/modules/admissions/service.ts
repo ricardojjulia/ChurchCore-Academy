@@ -195,18 +195,16 @@ export class AdmissionsService {
       },
     );
 
-    // Auto-create enrollment agreement signature record when application is accepted
+    // Auto-create enrollment agreement signature record when application is accepted.
+    // Re-accepting after a withdrawal is safe: the insert is `on conflict (application_id) do
+    // nothing`, so an existing agreement is kept without an error. Any other failure must surface:
+    // this runs in the decision's transaction, and a swallowed database error there aborts it, so
+    // the acceptance itself would be silently rolled back while the API reported success.
     if (decision === "accepted" && this.enrollmentAgreementRepository) {
-      try {
-        await this.enrollmentAgreementRepository.create({
-          tenantId: application.tenantId,
-          applicationId: application.id,
-        });
-      } catch {
-        // Non-fatal — agreement creation is idempotent via unique constraint;
-        // if this fails (e.g., on a withdraw→re-accept cycle where the record
-        // already exists), the existing record persists as-is.
-      }
+      await this.enrollmentAgreementRepository.create({
+        tenantId: application.tenantId,
+        applicationId: application.id,
+      });
     }
 
     return updated;

@@ -270,3 +270,20 @@ test("a program with no fee configured returns undefined, not a coerced zero", a
 
   assert.equal(program?.applicationFeeCents, undefined);
 });
+
+test("findById treats a legacy non-uuid program id as not found without querying", async () => {
+  // Legacy academy_programs ids reach this through old /programs/[id] links; sending them to the
+  // uuid column raised "invalid input syntax for type uuid" on every call.
+  const { db, calls } = createRecordingDb();
+  const repo = new PostgresAcademicProgramRepository(db);
+  assert.equal(await repo.findById("tenant-1", "prog-biblical-studies"), undefined);
+  assert.equal(calls.length, 0);
+});
+
+test("findById still looks up a uuid program id", async () => {
+  const { db, calls } = createRecordingDb();
+  const repo = new PostgresAcademicProgramRepository(db);
+  await repo.findById("tenant-1", "11111111-1111-4111-8111-111111111111");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].values, ["tenant-1", "11111111-1111-4111-8111-111111111111"]);
+});

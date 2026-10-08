@@ -576,3 +576,37 @@ test("a legacy program with no linked academic program submits without a checkli
   assert.ok(result.statusToken);
   assert.equal(db.calls.some((call) => /from academy_program_document_requirements/i.test(call.sql)), false);
 });
+
+// The confirmation email insert named two columns academy_communication_messages doesn't have
+// (recipient_display_name, recipient_email). It failed on every submission and an empty catch hid
+// it, so no applicant was ever emailed (found by the e2e Postgres error guard, 2026-10-08).
+test("confirmation email is queued with columns the messages table actually has", async () => {
+  const db = makeMockDb({ appInsertRow: { id: "app-1", status_token: "tok-1" } });
+  await new PublicApplicationService(db).submitPublicApplication(validInput(), TENANT_ID, CLIENT_IP);
+
+  const insert = db.calls.find((call) => /insert into academy_communication_messages/i.test(call.sql));
+  assert.ok(insert, "the confirmation email must be queued");
+  assert.doesNotMatch(insert.sql, /recipient_display_name|recipient_email/);
+  const columns = insert.sql.match(/\(([^)]*)\)\s*values/i)?.[1].split(",").map((column) => column.trim()) ?? [];
+  // Columns of academy_communication_messages (supabase/migrations).
+  const tableColumns = new Set([
+    "id", "tenant_id", "recipient_person_id", "related_student_person_id", "channel", "template_key",
+    "subject", "body", "status", "source_type", "source_id", "idempotency_key", "retry_count",
+    "provider_reference", "failure_reason", "created_at", "sent_at", "read_at", "send_at",
+  ]);
+  for (const column of columns) assert.ok(tableColumns.has(column), `unknown column ${column}`);
+  assert.equal(insert.values?.[2] !== undefined, true, "addressed to the applicant's person record");
+});
+
+test("a failed confirmation email does not fail the submission", async () => {
+  const db = makeMockDb({ appInsertRow: { id: "app-1", status_token: "tok-1" } });
+  const failing = {
+    ...db,
+    query: async (sql: string, values?: unknown[]) => {
+      if (/insert into academy_communication_messages/i.test(sql)) throw new Error("queue unavailable");
+      return db.query(sql, values);
+    },
+  };
+  const result = await new PublicApplicationService(failing).submitPublicApplication(validInput(), TENANT_ID, CLIENT_IP);
+  assert.equal(result.applicationId, "app-1");
+});
