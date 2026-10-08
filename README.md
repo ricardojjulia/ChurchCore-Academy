@@ -160,6 +160,7 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY`, provider tokens, payment secrets, LMS 
 | `npm test` | Run the complete automated test suite |
 | `npm run db:migrate:local` | Apply ordered SQL migrations to local Postgres |
 | `npm run db:seed:local` | Seed local Academy data |
+| `npm run db:seed:pilot` | Add the records the uncoached pilot tasks need (local/private databases only; safe to re-run) |
 | `npm run verify:migration-seed-rehearsal` | Verify migration tracking, deterministic seed counts, and runtime source boundary |
 | `npm run verify:role-walkthrough` | Generate authenticated role walkthrough evidence from the ADR-0038 role matrix |
 | `npm run verify:pilot-readiness` | Fail-closed connectivity check for the local/private Academy, Supabase Auth, and Postgres pilot topology |

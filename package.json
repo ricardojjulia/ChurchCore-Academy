@@ -35,7 +35,8 @@
     "verify:role-walkthrough": "node --env-file=.env.local --import tsx scripts/generate-authenticated-role-walkthrough.ts",
     "verify:pilot-readiness": "node --env-file=.env.local --import tsx scripts/verify-pilot-readiness.ts",
     "db:migrate:local": "node --env-file=.env.local --import tsx scripts/db-migrate-local.ts",
-    "db:seed:local": "node --env-file=.env.local --import tsx scripts/db-seed-local.ts"
+    "db:seed:local": "node --env-file=.env.local --import tsx scripts/db-seed-local.ts",
+    "db:seed:pilot": "node --env-file=.env.local --import tsx scripts/db-seed-pilot-local.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
