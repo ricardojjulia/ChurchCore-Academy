@@ -36,7 +36,8 @@ The latest MVP and competitive evaluation is `docs/reports/mvp-and-competitive-s
 - The approved repository-owned P0 and initial P1 slices have shipped.
 - Faculty-load incomplete-value accuracy and primary-path E2E coverage shipped through protected main in PR `#217`.
 - Concealed Project HQ authorization and governance hardening shipped in PR `#220`; it is internal platform infrastructure, not a pilot workflow.
-- The active evidence gate is now an uncoached, authenticated pilot/design-partner session using the local-session protocol in `docs/acceptance/uncoached-pilot-session.md`; deployment still requires explicit owner approval.
+- The uncoached pilot/design-partner session (`docs/acceptance/uncoached-pilot-session.md`) is **deferred to a future task** by owner decision on 2026-10-07. Its local environment is ready (`npm run verify:pilot-readiness`, `npm run db:seed:pilot`). Deployment still requires explicit owner approval.
+- The 2026-10-06 operator dry run (`docs/reports/pilot-dry-run-2026-10-06.md`) found that "MVP functionally built" overstated reliability: faculty attendance returned success while every save was silently rolled back (PR `#232`). The active MVP gate is now the write-path integrity audit below.
 - Platform infrastructure, not a backlog item: every LLM call (today, only the concealed internal HQ advisory workbench for platform staff) goes through the OpenRouter gateway in `src/modules/ai-gateway/`, which handles continuous model evaluation, metering, and zero-retention routing (ADR 0078, PR #218). HQ specialists advise; they do not approve, ratify, or replace the canonical Council, Testing Council, owner decisions, verification, Documenter, or `pr-review` gates. No customer-facing or student-data AI surface exists. Any future one still requires ADR 0070's anonymization pipeline and separate Council approval.
 
 ## First Target Customer Profile
@@ -99,13 +100,30 @@ Remaining: none. Trusted public institution resolution shipped in PR `#201`; liv
    - Repository implementation is complete in PR `#202`; issue `#164` is closed.
    - External LMS validation remains a provider-activation gate, not an open implementation story.
 
-### Next Evidence Gate
+### Active MVP Gate: Write-Path Integrity Audit
+
+The Definition of Done requires that data is saved and errors are shown, not swallowed. The
+2026-10-06 dry run found a core workflow (faculty attendance) that returned success while its
+transaction was silently rolled back by a swallowed side-effect failure. Before more feature
+work, prove no other write path does the same:
+
+1. Run the full E2E suite and collect every Postgres `ERROR` logged while journeys pass. Each
+   one is either an expected rejection or a silent failure; classify all of them.
+2. Fix every silent failure through the software factory, with a read-back assertion in a journey.
+3. Add a permanent CI guard so a passing journey that logs an unexpected Postgres error fails the
+   E2E check.
+4. Cover the operational write paths the journeys don't exercise yet (attendance was one).
+
+### Future Task: Uncoached Pilot Session (deferred 2026-10-07)
 
 Run an uncoached, authenticated pilot/design-partner session using
 `docs/acceptance/uncoached-pilot-session.md` and turn only observed
-workflow failures or adoption blockers into new stories. If that session requires a
-hosted Academy environment, obtain explicit owner approval for the deployment
-runbook and resources before creating them.
+workflow failures or adoption blockers into new stories. The local environment is prepared
+(`npm run verify:pilot-readiness`, `npm run db:seed:pilot`); confirm login from the
+participant's browser or VM first. If the session requires a hosted Academy environment,
+obtain explicit owner approval for the deployment runbook and resources before creating them.
+Add the viability questions to the debrief: current SIS spend, willingness to pay for Academy
+without the LMS, and estimated data-migration hours.
 
 ### P2: Title IV And Mature-Market Parity
 
