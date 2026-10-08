@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { emitOperationalEvent } from "@/modules/observability/operational-events";
 import { DocumentChecklistService } from "@/modules/admissions/document-checklist";
 import { PostgresDocumentChecklistRepository } from "@/modules/admissions/document-checklist-repository";
 
@@ -345,29 +346,42 @@ export class PublicApplicationService {
       ).snapshotChecklistForApplication(tenantId, applicationId, academicProgramId);
     }
 
-    // Step 6: Queue confirmation email (best-effort — do not fail submission on error)
+    // Step 6: Queue confirmation email (best-effort — do not fail submission on error).
+    // The recipient's name and address come from academy_people (personId) when the worker sends;
+    // academy_communication_messages has no recipient name/email columns. Inserting them failed on
+    // every submission and the empty catch hid it, so no applicant was ever sent this email
+    // (found by the e2e Postgres error guard, 2026-10-08).
     try {
       await this.db.query(
         `insert into academy_communication_messages (
-           id, tenant_id, recipient_person_id, recipient_display_name, recipient_email,
+           id, tenant_id, recipient_person_id,
            channel, template_key, subject, body, status,
            source_type, source_id, idempotency_key, retry_count, created_at
-         ) values ($1, $2, $3, $4, $5, 'email', 'application_received',
-           $6, $7, 'queued', 'admissions', $8, $9, 0, now())`,
+         ) values ($1, $2, $3, 'email', 'application_received',
+           $4, $5, 'queued', 'admissions', $6, $7, 0, now())`,
         [
           randomUUID(),
           tenantId,
           personId,
-          displayName,
-          normalizedEmail,
           `Application received for your program`,
           `${displayName}, your application has been received. You can track your status using your status token.`,
           applicationId,
           `email-${idempotencyKey}`,
         ],
       );
-    } catch {
-      // Non-fatal — submission is complete regardless
+    } catch (error) {
+      // Non-fatal — submission is complete regardless — but never silent.
+      emitOperationalEvent({
+        category: "workflow_exception",
+        severity: "warn",
+        operation: "admissions.public_application.confirmation_email",
+        tenantId,
+        message: "Application submitted, but its confirmation email could not be queued.",
+        metadata: {
+          errorName: error instanceof Error ? error.name : "UnknownError",
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      });
     }
   }
 

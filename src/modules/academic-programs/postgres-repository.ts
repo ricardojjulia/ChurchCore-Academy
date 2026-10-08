@@ -106,6 +106,8 @@ async function syncLegacyProgram(
   );
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class PostgresAcademicProgramRepository implements AcademicProgramRepository {
   constructor(
     private readonly database: AcademicProgramDatabase = getDatabasePool() as AcademicProgramDatabase,
@@ -139,6 +141,10 @@ export class PostgresAcademicProgramRepository implements AcademicProgramReposit
   }
 
   async findById(tenantId: string, id: string): Promise<AcademicProgram | undefined> {
+    // Academic program ids are uuids. Legacy academy_programs ids (e.g. "prog-biblical-studies")
+    // still reach this through old /programs/[id] links; treat them as not found instead of
+    // sending them to Postgres, which raised "invalid input syntax for type uuid" on every call.
+    if (!UUID_PATTERN.test(id)) return undefined;
     const result = await this.database.query(
       `select ${SELECT_COLS}
          from academy_academic_programs
