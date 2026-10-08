@@ -135,6 +135,41 @@ export async function fetchSectionList(tenantId: string, client: AcademyQueryCli
   }));
 }
 
+export interface SectionRosterEntry {
+  courseSectionId: string;
+  studentPersonId: string;
+  fullName: string;
+}
+
+/**
+ * Students on each section's roster, with the same statuses the attendance service accepts, so
+ * attendance entry lists only students the server will record attendance for.
+ */
+export async function fetchSectionRosters(
+  tenantId: string,
+  sectionIds: readonly string[],
+  client: AcademyQueryClient,
+): Promise<SectionRosterEntry[]> {
+  if (sectionIds.length === 0) return [];
+  const result = await client.query(
+    `select registration.course_section_id, registration.student_person_id, person.display_name as full_name
+       from academy_course_section_registrations registration
+       join academy_people person
+         on person.tenant_id = registration.tenant_id
+        and person.id = registration.student_person_id
+      where registration.tenant_id = $1
+        and registration.course_section_id = any($2::text[])
+        and registration.status in ('pending_confirmation', 'registered')
+      order by person.display_name asc`,
+    [tenantId, [...sectionIds]],
+  );
+  return rows<Record<string, unknown>>(result).map((row) => ({
+    courseSectionId: String(row.course_section_id),
+    studentPersonId: String(row.student_person_id),
+    fullName: String(row.full_name),
+  }));
+}
+
 export async function fetchSectionRegistrationReview(
   tenantId: string,
   client: AcademyQueryClient,
