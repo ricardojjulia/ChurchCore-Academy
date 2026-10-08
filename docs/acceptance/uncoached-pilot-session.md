@@ -33,7 +33,7 @@ Before inviting the participant:
 
 If the application runs on one machine and the participant uses a VM, do not use `localhost` in the VM unless Academy and Supabase also run inside that VM. Use an explicitly approved private host address and ensure Supabase's public URL and auth redirect configuration are reachable from the VM. Do not expose the local stack to the public internet for this session.
 
-The readiness command rejects public hosts, classifies each accepted endpoint as loopback or private-network, checks Supabase Auth, opens a real Postgres connection, and verifies the Academy login page. It prints endpoint origins only, never credentials. During early setup, `npm run verify:pilot-readiness -- --skip-app` may be used before the Academy server is started; the final pre-session run must not skip the app check. Because browser reachability depends on where the browser runs, the operator must still confirm the login and auth flow from inside the participant VM.
+The readiness command rejects public hosts, classifies each accepted endpoint as loopback or private-network, checks Supabase Auth, opens a real Postgres connection, fails if any file in `supabase/migrations/` is not applied to that database, and verifies the Academy login page. It prints endpoint origins only, never credentials. During early setup, `npm run verify:pilot-readiness -- --skip-app` may be used before the Academy server is started; the final pre-session run must not skip the app check. Because browser reachability depends on where the browser runs, the operator must still confirm the login and auth flow from inside the participant VM.
 
 ## Session Opening
 

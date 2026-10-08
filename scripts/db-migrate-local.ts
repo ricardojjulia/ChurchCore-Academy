@@ -24,6 +24,34 @@ async function recordMigration(pool: ReturnType<typeof getDatabasePool>, name: s
   );
 }
 
+// `supabase db reset` applies every migration through the Supabase CLI, which records them in
+// supabase_migrations.schema_migrations and leaves public.schema_migrations empty. Without this
+// step the marker-table bootstrap below (which stops at July 2026) re-ran every later migration
+// and failed on the first non-idempotent one (found 2026-10-06).
+async function importSupabaseCliTracking(
+  pool: ReturnType<typeof getDatabasePool>,
+  migrations: { name: string }[],
+  applied: Set<string>,
+) {
+  const exists = await pool.query<{ found: boolean }>(
+    "select to_regclass('supabase_migrations.schema_migrations') is not null as found",
+  );
+  if (!exists.rows[0]?.found) return;
+
+  const result = await pool.query<{ file: string }>(
+    "select version || '_' || name || '.sql' as file from supabase_migrations.schema_migrations where name is not null",
+  );
+  const known = new Set(migrations.map((migration) => migration.name));
+  const imported = result.rows.map((row) => row.file).filter((file) => known.has(file) && !applied.has(file));
+  if (imported.length === 0) return;
+
+  console.log(`Recording ${imported.length} migration(s) already applied by the Supabase CLI.`);
+  for (const name of imported) {
+    await recordMigration(pool, name);
+    applied.add(name);
+  }
+}
+
 async function detectLastAppliedMigration(
   pool: ReturnType<typeof getDatabasePool>,
 ): Promise<string | null> {
@@ -114,6 +142,7 @@ async function main() {
 
   await ensureMigrationsTable(pool);
   const applied = await getAppliedMigrations(pool);
+  await importSupabaseCliTracking(pool, migrations, applied);
   await bootstrapMigrationTracking(pool, migrations, applied);
 
   for (const migration of migrations) {
