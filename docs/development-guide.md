@@ -281,6 +281,7 @@ Known stale item corrected by this consolidation:
 - Update docs in the same PR when product direction, architecture, operations, or governance changes.
 - PR descriptions must include summary, boundaries, Council/Factory status, tests, and residual risks.
 - Critical or Important review findings block merge until resolved, explained as false positives, or explicitly deferred with owner and issue.
+- Repository-owned `pr-review` is the mandatory review gate. Automatically requested GitHub Copilot review is supplemental: triage every finding it posts, but do not block a merge solely because the external reviewer does not submit a review. Record that absence in the delivery evidence after required checks and thread inspection are complete.
 
 ## Authoritative References
 

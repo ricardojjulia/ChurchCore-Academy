@@ -44,6 +44,10 @@ Working vertical slice — code-complete and test-verified through Council Revie
 - Marked the old Graduation Clearance Workflow implementation plan completed/superseded so it no longer appears as active work after PR #155.
 - **Security:** every page under `/admin/*` (41 pages) previously called `requireActor()` with no role argument — authentication only, no authorization — meaning any logged-in user, including a `student`, `guardian`, or `applicant`, could load any admin page and read institution configuration, student/staff/guardian records, billing, financial aid, gradebook, and attendance data. Mutations were already correctly protected at the API layer; this was a read-side information-disclosure gap across the entire admin section. Added a baseline staff-only gate in `src/app/admin/layout.tsx` plus per-page role refinement reusing existing `requireActor(actor, roles)` / `assertInstitutionConfigAccess` conventions. Working vertical slice — build/test/lint verified, not yet browser click-tested with a real unauthorized account.
 
+### Changed
+
+- Clarified PR governance so repository-owned `pr-review`, required checks, signatures, Council when applicable, and resolved review threads remain mandatory, while an unavailable GitHub Copilot review is recorded rather than becoming a single-vendor merge blocker.
+
 ## [0.10.0] - 2026-09-12
 
 ### Added
