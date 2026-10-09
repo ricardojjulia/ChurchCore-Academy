@@ -27,6 +27,7 @@ interface MockDatabaseOptions {
 
 function mockDatabase(options: MockDatabaseOptions = {}) {
   const updates: Array<{ table: string; values: unknown[] }> = [];
+  const queries: string[] = [];
   const {
     studentAge = 16,
     hasGuardian = true,
@@ -42,6 +43,7 @@ function mockDatabase(options: MockDatabaseOptions = {}) {
 
   const db: AttendanceThresholdDatabase = {
     async query(sql: string, values?: unknown[]) {
+      queries.push(sql);
       // Capture updates
       if (sql.includes("insert into academy_attendance_consecutive_tracking") ||
           sql.includes("update academy_attendance_consecutive_tracking")) {
@@ -121,7 +123,7 @@ function mockDatabase(options: MockDatabaseOptions = {}) {
     },
   };
 
-  return { db, updates };
+  return { db, updates, queries };
 }
 
 function mockCommunicationsService() {
@@ -181,7 +183,7 @@ test("no guardians on file: no notification sent", async () => {
 });
 
 test("guardian opted out: no notification sent", async () => {
-  const { db } = mockDatabase({ studentAge: 16, hasGuardian: true, guardianOptedOut: true });
+  const { db, queries } = mockDatabase({ studentAge: 16, hasGuardian: true, guardianOptedOut: true });
   const { service, communications } = mockCommunicationsService();
 
   const result = await checkGuardianNotification(
@@ -199,6 +201,10 @@ test("guardian opted out: no notification sent", async () => {
   assert.equal(result.notificationSent, false);
   assert.equal(result.reason, "All guardians opted out");
   assert.equal(communications.length, 0);
+  assert.ok(
+    queries.some((sql) => sql.includes("not rel.absence_alerts_enabled as has_opted_out")),
+    "guardian notification must read the relationship-scoped persisted preference",
+  );
 });
 
 test("spiritual_formation session: notify on first miss regardless of age or consecutive count", async () => {

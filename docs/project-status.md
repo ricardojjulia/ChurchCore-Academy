@@ -2,13 +2,13 @@
 
 - Version: `0.10.0`
 - Stage: controlled-pilot candidate
-- Updated: 2026-10-02
+- Updated: 2026-10-08
 
 ## Current Assessment
 
-**The canonical current development guide is [`docs/development-guide.md`](development-guide.md).** The latest code-verified MVP and competitive evaluation is [`docs/reports/mvp-and-competitive-status-2026-10-02.md`](reports/mvp-and-competitive-status-2026-10-02.md). Older status docs remain useful history, but code and current CI evidence are the tiebreaker when documents drift.
+**The canonical current development guide is [`docs/development-guide.md`](development-guide.md).** The latest code-verified MVP and competitive evaluation is [`docs/reports/mvp-and-competitive-status-2026-10-08.md`](reports/mvp-and-competitive-status-2026-10-08.md). Older status docs remain useful history, but code and current CI evidence are the tiebreaker when documents drift.
 
-The 2026-10-02 evaluation confirms the Core Academic Loop is automated end to end and the approved repository-owned P0/P1 slices have shipped, including trusted public institution resolution, OneRoster deletion reconciliation, custom reports, bulk email, donor campaigns, advisor caseload, and faculty teaching-load intelligence. The issue `#216` faculty-load accuracy and primary-path E2E closeout is implemented and pending protected PR delivery; after that delivery, the next evidence gate is an uncoached pilot/design-partner session. Vercel and hosted Supabase deployment remain deferred until owner approval.
+The Core Academic Loop and approved repository-owned P0/P1 slices have shipped, including faculty-load correctness and primary-path E2E coverage in PR `#217`. The 2026-10-06 operator dry run then exposed a silent attendance rollback, corrected in PR `#232`, and the permanent unexpected-Postgres-error guard shipped in PR `#235`. The owner deferred the uncoached participant pilot on 2026-10-07 and selected write-path integrity as the next MVP gate; that gate and its coverage matrix are now complete in [`docs/reports/write-path-integrity-audit-2026-10-08.md`](reports/write-path-integrity-audit-2026-10-08.md). Vercel and hosted Supabase deployment remain deferred until owner approval.
 
 ChurchCore Academy has completed the major pre-production SIS workflow slices, the ADR-0038 acceptance/deployment readiness package, the ADR-0059 full Moodle/Canvas LMS implementation closeout, and the ADR-0061 institution capability enforcement closeout.
 
@@ -67,6 +67,8 @@ Current posture:
 - Trusted public institution routing that fails closed to published host/slug mappings.
 - Initial P1 custom reports, manual bulk email, donor campaigns, advisor caseload intelligence, and faculty teaching-load intelligence.
 - OneRoster delivered-state deletion reconciliation for classes, users, roles, and enrollments.
+- Persisted faculty attendance with browser read-back, a permanent unexpected-Postgres-error E2E guard, and static review of swallowed database errors.
+- Relationship-scoped guardian absence-alert preferences with validated persistence and database read-back coverage.
 
 ## External Release Gates
 
@@ -101,7 +103,8 @@ These are not open implementation tasks in the repository. They are live-environ
 - [Versioning](../VERSIONING.md)
 - [Factory Roadmap](product/factory-roadmap.md)
 - [2026-09-12 Feature Inventory Audit and MVP Evaluation](reviews/2026-09-12-feature-inventory-audit-and-mvp-evaluation.md) — current authoritative feature-completeness reference
-- [2026-10-02 MVP and Competitive Status](reports/mvp-and-competitive-status-2026-10-02.md) — current planning and competitive evaluation
+- [2026-10-08 MVP and Competitive Status](reports/mvp-and-competitive-status-2026-10-08.md) — current planning and competitive evaluation
+- [2026-10-08 Write-Path Integrity Audit](reports/write-path-integrity-audit-2026-10-08.md) — current mutation reliability and coverage evidence
 - [ADR-0060 Concrete Institution Modes And Mode Packs](adr/0060-concrete-institution-modes-and-mode-packs.md)
 - [ADR-0061 Institution Capability Enforcement](adr/0061-institution-capability-enforcement.md)
 - [Council Review XV Institution Mode Pack Closeout](reviews/2026-07-21-council-review-15-institution-mode-pack-closeout.md)

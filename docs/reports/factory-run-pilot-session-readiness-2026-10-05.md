@@ -2,7 +2,7 @@
 
 Date: 2026-10-05
 Branch: `feature/pilot-session-readiness`
-Commit: pending
+Commit: `2df6138980dac77847d0ab040590deb6bd788f30`
 Operator: Codex with owner approval
 
 ## Intent
@@ -59,9 +59,9 @@ Data boundary: local seeded or deliberately disposable records only; no real stu
 
 ## Delivery
 
-PR: pending creation.
+PR: `#221`, merged 2026-10-06.
 
-Merge status: pending.
+Merge status: protected-main delivery complete.
 
 Deployment: not requested or authorized.
 
@@ -73,4 +73,4 @@ Testing Council: full browser E2E not required because no application page, rout
 
 `pr-review`: 0 Critical, 0 Important, 0 Minor findings after correcting an initially over-strict mixed VM/host topology rule.
 
-Residual risk: command success proves reachability from the machine where it runs, not from the participant browser. The operator must complete the VM browser login/auth check before the session. A real uncoached participant session remains unverified and is the next evidence gate.
+Residual risk: command success proves reachability from the machine where it runs, not from the participant browser. The operator must complete the VM browser login/auth check before the session. A real uncoached participant session remains unverified and was deferred to a future task by owner decision on 2026-10-07; write-path integrity is the active MVP gate.

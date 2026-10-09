@@ -1,4 +1,4 @@
-import { handleApi } from "@/app/api/academy/api-utils";
+import { handleApi, requireBooleanField } from "@/app/api/academy/api-utils";
 import { withCapabilityContext } from "@/lib/capability-context";
 import { AcademyAuthorizationError } from "@/modules/academy-auth/errors";
 import { assertCapability } from "@/modules/academy-auth/policy";
@@ -13,26 +13,32 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw new AcademyAuthorizationError("Guardian role required.");
     }
     const { studentId } = await context.params;
-    const body = await request.json().catch(() => ({})) as { absenceAlertsEnabled?: boolean };
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const absenceAlertsEnabled = requireBooleanField(
+      body.absenceAlertsEnabled,
+      "absenceAlertsEnabled",
+    );
 
     return withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "guardianPortal");
       const relationship = await client.query(
-        `select id
-           from academy_student_relationships
+        `update academy_student_relationships
+            set absence_alerts_enabled = $4,
+                updated_at = now()
           where tenant_id = $1
             and related_person_id = $2
             and student_person_id = $3
+            and relationship_type in ('parent', 'guardian')
             and status = 'active'
-          limit 1`,
-        [actor.tenantId, actor.userId, studentId],
-      ) as { rows: { id: string }[] };
+          returning id, absence_alerts_enabled`,
+        [actor.tenantId, actor.userId, studentId, absenceAlertsEnabled],
+      ) as { rows: { id: string; absence_alerts_enabled: boolean }[] };
       if (!relationship.rows[0]) {
         throw new AcademyAuthorizationError("Guardian is not linked to this student.");
       }
       return {
         studentPersonId: studentId,
-        absenceAlertsEnabled: body.absenceAlertsEnabled !== false,
+        absenceAlertsEnabled: relationship.rows[0].absence_alerts_enabled,
       };
     });
   });
