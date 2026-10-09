@@ -19,12 +19,6 @@ export const EXPECTED_POSTGRES_ERRORS: readonly ExpectedPostgresError[] = [
     pattern: /new row violates row-level security policy for table "hq_tasks"/,
     reason: "ai-model-routing journey asserts a user without a platform role cannot write HQ tasks.",
   },
-  {
-    pattern: /column p\.notification_preferences does not exist/,
-    reason:
-      "TEMPORARY: guardian absence notifications read an opt-out column that does not exist. The failure is " +
-      "isolated in a savepoint (PR #232) and waits on the owner's guardian-consent design decision.",
-  },
 ];
 
 export interface ClassifiedPostgresErrors {

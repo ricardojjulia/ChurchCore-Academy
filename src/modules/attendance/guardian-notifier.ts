@@ -78,16 +78,15 @@ async function fetchGuardians(
     `select
        rel.related_person_id as guardian_person_id,
        p.display_name as guardian_name,
-       coalesce(p.notification_preferences->>'absence_alerts_opt_out', 'false')::boolean as has_opted_out
+       not rel.absence_alerts_enabled as has_opted_out
      from academy_student_relationships rel
      join academy_people p
        on p.tenant_id = rel.tenant_id
       and p.id = rel.related_person_id
      where rel.tenant_id = $1
        and rel.student_person_id = $2
-       and rel.relationship_type in ('parent', 'guardian', 'emergency_contact')
-       and rel.status = 'active'
-       and rel.visibility in ('full', 'academic')`,
+       and rel.relationship_type in ('parent', 'guardian')
+       and rel.status = 'active'`,
     [tenantId, studentPersonId],
   );
 

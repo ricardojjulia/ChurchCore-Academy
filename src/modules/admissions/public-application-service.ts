@@ -300,7 +300,6 @@ export class PublicApplicationService {
     const personId = String(appRow.rows[0].applicant_person_id);
     const programId = String(appRow.rows[0].program_id);
     const displayName = String(appRow.rows[0].legal_name);
-    const normalizedEmail = String(appRow.rows[0].email);
     const idempotencyKey = String(appRow.rows[0].idempotency_key);
 
     // Step 4: Transition draft → submitted (compare-and-set — no-op if not currently draft,

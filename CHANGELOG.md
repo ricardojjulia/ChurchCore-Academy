@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Write-path integrity audit and permanent coverage matrix, including guardian absence-alert preference persistence with browser/API database read-back and an updated current MVP/competitive evaluation.
+
 - Local uncoached pilot-session protocol and fail-closed readiness command with neutral participant tasks, observer and operator boundaries, privacy-safe evidence capture, VM-to-host networking guidance, local/private endpoint enforcement, connectivity checks, severity and stop criteria, and evidence-backed conversion of observed blockers into software-factory stories.
 - Concealed and strengthened Academy Project HQ governance: both HQ routes now authorize platform staff on the server before rendering, unauthorized signed-in users receive a non-disclosing not-found response, ordinary navigation no longer advertises HQ, protected AI APIs retain independent authorization, and HQ table RLS now uses active persisted platform roles instead of legacy `admin`/`manager`/`teacher` JWT-role checks. The 13 HQ specialists are explicitly advisory, and Council requests now use Academy's six canonical lenses, evidence-aware readiness outcomes, and the existing factory, Testing Council, Documenter, owner-approval, and `pr-review` gates instead of synthetic votes or ratification claims.
 - OpenRouter AI gateway with continuous model evaluation (ADR 0078, PR #218, Council Review 24).
@@ -34,6 +36,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 Working vertical slice — code-complete and test-verified through Council Review 16 and Council Review 17 (`docs/reviews/2026-09-14-council-review-16-ministry-formation-admin-ui.md`, `docs/reviews/2026-09-14-council-review-17-adr-0045-compliance-follow-up.md`), including verification of the access-scoping and migration fixes against a real local database, not yet browser click-tested or pilot-observed.
 
 ### Fixed
+
+- Guardian absence notifications now read a real, relationship-scoped preference; the guardian preference endpoint persists and validates that value instead of echoing success, and the obsolete temporary Postgres-error allowance is removed.
 
 - Faculty teaching-load aggregates now preserve incomplete credits, clock hours, and capacity as unknown instead of displaying partial numeric totals as complete; the browser journey now creates and verifies a real section, enrollment, and advising load through Academy APIs.
 - **Security:** public application routes now resolve tenant context only from published host or slug mappings in `academy_public_institution_routes`; caller-controlled `?tenant=` values and default-tenant fallbacks are ignored, and unknown or unpublished routes fail closed with 404. Public applicant pages preserve only trusted `institution`/`school` route keys through apply, status, fee, agreement, document upload, and Stripe return flows.
