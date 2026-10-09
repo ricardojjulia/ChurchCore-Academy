@@ -43,6 +43,12 @@ test("student detail page does not keep unused relationship row type aliases", a
   assert.doesNotMatch(page, /interface RelationshipRow/);
 });
 
+test("admin topbar bottom-aligns the title and controls", async () => {
+  const styles = await source("src/styles/admin.css");
+  assert.match(styles, /\.admin-topbar \{[\s\S]*?align-items: flex-end;/);
+  assert.match(styles, /\.admin-topbar-right \{[\s\S]*?align-items: flex-end;/);
+});
+
 test("sections route exposes create and edit section workflows", async () => {
   const page = await source("src/app/admin/sections/page.tsx");
   assert.match(page, /SectionFormDialog/);
