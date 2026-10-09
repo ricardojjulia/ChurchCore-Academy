@@ -1,7 +1,7 @@
 # Write-Path Integrity Audit
 
-Date: 2026-10-08  
-Scope: Academy operational writes on `main` through PR `#238`, plus the guardian preference closeout on this branch  
+Date: 2026-10-08
+Scope: Academy operational writes on `main` through PR `#238`, plus the guardian preference closeout on this branch
 Status: implementation and reset-backed verification complete; protected PR delivery pending
 
 ## Audit Outcome

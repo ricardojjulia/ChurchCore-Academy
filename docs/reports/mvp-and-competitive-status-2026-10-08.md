@@ -1,7 +1,7 @@
 # ChurchCore Academy - MVP and Competitive Status
 
-Date: 2026-10-08  
-Scope: protected `main` through PR `#238`, plus the write-path integrity closeout awaiting delivery  
+Date: 2026-10-08
+Scope: protected `main` through PR `#238`, plus the write-path integrity closeout awaiting delivery
 Status: current repository evaluation
 
 ## Bottom Line
@@ -76,4 +76,3 @@ stories.
   Postgres error must fail the E2E run.
 - Any future customer-facing or student-data AI surface still requires the separate privacy,
   anonymization, Council, and owner gates already recorded in the canonical guide.
-

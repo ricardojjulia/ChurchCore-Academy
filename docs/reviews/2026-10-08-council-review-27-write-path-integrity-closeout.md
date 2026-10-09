@@ -1,7 +1,7 @@
 # Council Review 27: Write-Path Integrity Closeout
 
-Date: 2026-10-08  
-Branch: `fix/write-path-integrity-closeout`  
+Date: 2026-10-08
+Branch: `fix/write-path-integrity-closeout`
 Decision: **approve for protected PR delivery**
 
 ## Scope Reviewed

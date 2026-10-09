@@ -1,7 +1,7 @@
 # Factory Run: Write-Path Integrity Closeout
 
-Date: 2026-10-08  
-Branch: `fix/write-path-integrity-closeout`  
+Date: 2026-10-08
+Branch: `fix/write-path-integrity-closeout`
 Product area: acceptance integrity, attendance guardian notifications, governance
 
 ## Intent And Boundaries
