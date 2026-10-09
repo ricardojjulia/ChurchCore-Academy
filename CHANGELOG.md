@@ -37,6 +37,7 @@ Working vertical slice — code-complete and test-verified through Council Revie
 
 ### Fixed
 
+- Admin topbar title, academic year, period, and search controls now share a consistent bottom edge instead of vertically centering mismatched label and input heights.
 - Guardian absence notifications now read a real, relationship-scoped preference; the guardian preference endpoint persists and validates that value instead of echoing success, and the obsolete temporary Postgres-error allowance is removed.
 
 - Faculty teaching-load aggregates now preserve incomplete credits, clock hours, and capacity as unknown instead of displaying partial numeric totals as complete; the browser journey now creates and verifies a real section, enrollment, and advising load through Academy APIs.
