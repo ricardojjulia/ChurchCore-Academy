@@ -37,6 +37,7 @@ Working vertical slice — code-complete and test-verified through Council Revie
 
 ### Fixed
 
+- Student, staff, denomination, alumni, formation, and faculty dashboard reads now serialize queries on request-scoped PostgreSQL clients, eliminating deprecated overlapping `client.query()` behavior ahead of pg 9.
 - Guardian absence notifications now read a real, relationship-scoped preference; the guardian preference endpoint persists and validates that value instead of echoing success, and the obsolete temporary Postgres-error allowance is removed.
 
 - Faculty teaching-load aggregates now preserve incomplete credits, clock hours, and capacity as unknown instead of displaying partial numeric totals as complete; the browser journey now creates and verifies a real section, enrollment, and advising load through Academy APIs.

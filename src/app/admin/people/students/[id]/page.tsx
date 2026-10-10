@@ -185,20 +185,18 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
       denominationTrackingEnabled = caps.denominationTracking === true && canReadDenominationData;
       if (denominationTrackingEnabled) {
-        const [membershipResult, ordinationResult, denomNamesResult] = await Promise.all([
-          client.query(
-            `SELECT COUNT(*) as count FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2`,
-            [actor.tenantId, id]
-          ) as Promise<{ rows: Array<{ count: string }> }>,
-          client.query(
-            `SELECT COUNT(*) as count FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2`,
-            [actor.tenantId, id]
-          ) as Promise<{ rows: Array<{ count: string }> }>,
-          client.query(
-            `SELECT DISTINCT denomination_name FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2 ORDER BY denomination_name`,
-            [actor.tenantId, id]
-          ) as Promise<{ rows: Array<{ denomination_name: string }> }>,
-        ]);
+        const membershipResult = await client.query(
+          `SELECT COUNT(*) as count FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2`,
+          [actor.tenantId, id]
+        ) as { rows: Array<{ count: string }> };
+        const ordinationResult = await client.query(
+          `SELECT COUNT(*) as count FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2`,
+          [actor.tenantId, id]
+        ) as { rows: Array<{ count: string }> };
+        const denomNamesResult = await client.query(
+          `SELECT DISTINCT denomination_name FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2 ORDER BY denomination_name`,
+          [actor.tenantId, id]
+        ) as { rows: Array<{ denomination_name: string }> };
         denominationMembershipCount = parseInt(membershipResult.rows[0]?.count || "0", 10);
         denominationOrdinationCount = parseInt(ordinationResult.rows[0]?.count || "0", 10);
         denominationNames = denomNamesResult.rows.map(r => r.denomination_name);
@@ -236,17 +234,15 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
       alumniGivingEnabled = caps.alumniGiving === true && canReadAlumniData && isGraduated === true;
       if (alumniGivingEnabled) {
-        const [alumniRecordResult, giftAggResult] = await Promise.all([
-          client.query(
-            `SELECT 1 FROM academy_alumni_records WHERE tenant_id = $1 AND person_id = $2 LIMIT 1`,
-            [actor.tenantId, id]
-          ) as Promise<{ rows: Array<Record<string, unknown>> }>,
-          client.query(
-            `SELECT COUNT(*) as count, COALESCE(SUM(gift_amount_cents), 0) as total, MAX(gift_date) as last_gift
-             FROM academy_giving_records WHERE tenant_id = $1 AND alumni_person_id = $2`,
-            [actor.tenantId, id]
-          ) as Promise<{ rows: Array<{ count: string; total: string; last_gift: unknown }> }>,
-        ]);
+        const alumniRecordResult = await client.query(
+          `SELECT 1 FROM academy_alumni_records WHERE tenant_id = $1 AND person_id = $2 LIMIT 1`,
+          [actor.tenantId, id]
+        ) as { rows: Array<Record<string, unknown>> };
+        const giftAggResult = await client.query(
+          `SELECT COUNT(*) as count, COALESCE(SUM(gift_amount_cents), 0) as total, MAX(gift_date) as last_gift
+           FROM academy_giving_records WHERE tenant_id = $1 AND alumni_person_id = $2`,
+          [actor.tenantId, id]
+        ) as { rows: Array<{ count: string; total: string; last_gift: unknown }> };
         alumniHasRecord = alumniRecordResult.rows.length > 0;
         if (giftAggResult.rows[0]) {
           alumniGiftCount = parseInt(giftAggResult.rows[0].count || "0", 10);

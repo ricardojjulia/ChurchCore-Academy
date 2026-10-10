@@ -35,12 +35,12 @@ export default async function FacultyPage() {
     const shepherdRepository = canReadFacultySignals
       ? new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client))
       : null;
-    const [allSuggestions, allWorkflows] = shepherdRepository
-      ? await Promise.all([
-        shepherdRepository.fetchSuggestions(actor.tenantId),
-        shepherdRepository.fetchWorkflows(actor.tenantId),
-      ])
-      : [[], []];
+    const allSuggestions = shepherdRepository
+      ? await shepherdRepository.fetchSuggestions(actor.tenantId)
+      : [];
+    const allWorkflows = shepherdRepository
+      ? await shepherdRepository.fetchWorkflows(actor.tenantId)
+      : [];
     return {
       workspace: await fetchFacultyLoadWorkspace(actor, context.context.periodId, database),
       periodName: context.context.periodName,
