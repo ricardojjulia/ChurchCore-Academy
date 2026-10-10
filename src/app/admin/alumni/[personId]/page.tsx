@@ -142,13 +142,11 @@ export default async function AlumniDetailPage({
         fetchedProgramName = programResult.rows[0]?.program_name ?? null;
       }
 
-      const [history, profileResult] = await Promise.all([
-        getAlumniGivingHistory(actor, personId, client),
-        client.query(
-          "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
-          [actor.tenantId]
-        ) as Promise<{ rows: Array<{ institution_name?: string }> }>,
-      ]);
+      const history = await getAlumniGivingHistory(actor, personId, client);
+      const profileResult = (await client.query(
+        "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+        [actor.tenantId]
+      )) as { rows: Array<{ institution_name?: string }> };
 
       return {
         needsCreation: false as const,

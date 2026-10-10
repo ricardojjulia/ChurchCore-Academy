@@ -33,13 +33,11 @@ export default async function StudentFormationPage() {
     const result = await withCapabilityContext(actor, async (client, capabilities) => {
       assertCapability(capabilities, "ministryFormation");
 
-      const [formationRecord, profileResult] = await Promise.all([
-        getStudentFormationRecord(actor, actor.userId, client),
-        client.query(
-          "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
-          [actor.tenantId]
-        ) as Promise<{ rows: Array<{ institution_name?: string }> }>,
-      ]);
+      const formationRecord = await getStudentFormationRecord(actor, actor.userId, client);
+      const profileResult = (await client.query(
+        "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+        [actor.tenantId]
+      )) as { rows: Array<{ institution_name?: string }> };
 
       return {
         record: formationRecord as StudentFormationRecord | null,

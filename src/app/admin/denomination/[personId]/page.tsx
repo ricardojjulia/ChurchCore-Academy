@@ -107,14 +107,12 @@ export default async function DenominationDetailPage({
         return null;
       }
 
-      const [membershipRecords, ordinationRecords, profileResult] = await Promise.all([
-        getDenominationMemberships(actor, personId, client),
-        getOrdinationRecords(actor, personId, client),
-        client.query(
-          "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
-          [actor.tenantId]
-        ) as Promise<{ rows: Array<{ institution_name?: string }> }>,
-      ]);
+      const membershipRecords = await getDenominationMemberships(actor, personId, client);
+      const ordinationRecords = await getOrdinationRecords(actor, personId, client);
+      const profileResult = (await client.query(
+        "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+        [actor.tenantId]
+      )) as { rows: Array<{ institution_name?: string }> };
 
       return {
         personName: personResult.rows[0].display_name,

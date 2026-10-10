@@ -44,14 +44,12 @@ export default async function FormationDetailPage({
       assertCapability(capabilities, "ministryFormation");
 
       try {
-        const [formationRecord, pageMetadata, profileResult] = await Promise.all([
-          getStudentFormationRecord(actor, studentId, client),
-          getFormationPageMetadata(actor, studentId, client),
-          client.query(
-            "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
-            [actor.tenantId]
-          ) as Promise<{ rows: Array<{ institution_name?: string }> }>,
-        ]);
+        const formationRecord = await getStudentFormationRecord(actor, studentId, client);
+        const pageMetadata = await getFormationPageMetadata(actor, studentId, client);
+        const profileResult = (await client.query(
+          "SELECT institution_name FROM academy_institution_profiles WHERE tenant_id = $1",
+          [actor.tenantId]
+        )) as { rows: Array<{ institution_name?: string }> };
 
         if (!formationRecord) {
           notFound();

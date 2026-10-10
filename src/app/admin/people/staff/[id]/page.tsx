@@ -182,20 +182,18 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
       const caps = await fetchCapabilitySet(client as Parameters<typeof fetchCapabilitySet>[0], actor.tenantId);
       denominationTrackingEnabled = caps.denominationTracking === true && canReadDenominationData;
       if (denominationTrackingEnabled) {
-        const [membershipResult, ordinationResult, denomNamesResult] = await Promise.all([
-          client.query(
-            `SELECT COUNT(*) as count FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2`,
-            [actor.tenantId, personId]
-          ) as Promise<{ rows: Array<{ count: string }> }>,
-          client.query(
-            `SELECT COUNT(*) as count FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2`,
-            [actor.tenantId, personId]
-          ) as Promise<{ rows: Array<{ count: string }> }>,
-          client.query(
-            `SELECT DISTINCT denomination_name FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2 ORDER BY denomination_name`,
-            [actor.tenantId, personId]
-          ) as Promise<{ rows: Array<{ denomination_name: string }> }>,
-        ]);
+        const membershipResult = (await client.query(
+          `SELECT COUNT(*) as count FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2`,
+          [actor.tenantId, personId]
+        )) as { rows: Array<{ count: string }> };
+        const ordinationResult = (await client.query(
+          `SELECT COUNT(*) as count FROM academy_ordination_records WHERE tenant_id = $1 AND person_id = $2`,
+          [actor.tenantId, personId]
+        )) as { rows: Array<{ count: string }> };
+        const denomNamesResult = (await client.query(
+          `SELECT DISTINCT denomination_name FROM academy_denomination_memberships WHERE tenant_id = $1 AND person_id = $2 ORDER BY denomination_name`,
+          [actor.tenantId, personId]
+        )) as { rows: Array<{ denomination_name: string }> };
         denominationMembershipCount = parseInt(membershipResult.rows[0]?.count || "0", 10);
         denominationOrdinationCount = parseInt(ordinationResult.rows[0]?.count || "0", 10);
         denominationNames = denomNamesResult.rows.map(r => r.denomination_name);

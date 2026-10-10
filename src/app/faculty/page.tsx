@@ -42,11 +42,9 @@ export default async function FacultyPortal() {
   try {
     const data = await withAcademyDatabaseContext(actor, async (client) => {
       const repo = new ShepherdAiPostgresRepository(asAcademyDatabase<ShepherdAiDatabase>(client));
-      const [allSections, allFaculty, allSuggestions] = await Promise.all([
-        fetchSectionList(actor.tenantId, client),
-        fetchFacultyList(actor.tenantId, client),
-        repo.fetchSuggestions(actor.tenantId),
-      ]);
+      const allSections = await fetchSectionList(actor.tenantId, client);
+      const allFaculty = await fetchFacultyList(actor.tenantId, client);
+      const allSuggestions = await repo.fetchSuggestions(actor.tenantId);
       return { sections: allSections, faculty: allFaculty, suggestions: allSuggestions };
     });
     sections = sectionsForActor(data.sections, actor);
